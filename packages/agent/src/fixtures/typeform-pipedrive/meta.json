@@ -1,0 +1,95 @@
+{
+  "prompt": "When someone submits our Typeform contact form, create the lead in Pipedrive as organization, person and deal.",
+  "plan": {
+    "summary": "On every Typeform form_response webhook, create a Pipedrive organization (if a company was given), a person linked to it, and a deal for that person.",
+    "source": {
+      "app": "Typeform",
+      "trigger": "form_response webhook",
+      "docsQuery": "Typeform webhooks form_response payload answers field ref"
+    },
+    "target": {
+      "app": "Pipedrive",
+      "action": "create organization, person and deal",
+      "docsQuery": "Pipedrive API v1 add person add deal add organization request body api token"
+    },
+    "fieldMapping": [
+      { "from": "answer with field ref lead_name (text)", "to": "person.name" },
+      { "from": "answer with field ref lead_email (email)", "to": "person.email[0].value" },
+      { "from": "answer with field ref lead_phone (phone_number)", "to": "person.phone[0].value" },
+      { "from": "answer with field ref lead_company (text)", "to": "organization.name, deal title" }
+    ],
+    "assumptions": [
+      "Field refs are configurable because every Typeform form uses different refs.",
+      "Webhook signature verification happens before the connector is called.",
+      "Every submission is a new lead; no deduplication against existing persons."
+    ]
+  },
+  "sources": [
+    { "title": "Webhooks payload | Typeform Developer Platform", "url": "https://www.typeform.com/developers/webhooks/example-payload/" },
+    { "title": "Webhooks | Typeform Developer Platform", "url": "https://www.typeform.com/developers/webhooks/" },
+    { "title": "Persons - Pipedrive API Reference", "url": "https://developers.pipedrive.com/docs/api/v1/Persons" },
+    { "title": "Deals - Pipedrive API Reference", "url": "https://developers.pipedrive.com/docs/api/v1/Deals" }
+  ],
+  "spec": {
+    "source": {
+      "app": "Typeform",
+      "role": "source",
+      "method": "POST",
+      "url": "(your webhook endpoint)",
+      "auth": { "type": "none", "envVar": "TYPEFORM_WEBHOOK_SECRET" },
+      "example": {
+        "event_id": "01H...",
+        "event_type": "form_response",
+        "form_response": {
+          "form_id": "lT4Z3j",
+          "token": "a3a12ec67a1365927098a606107fac15",
+          "submitted_at": "2026-10-01T09:00:00Z",
+          "answers": [
+            { "type": "text", "field": { "id": "f1", "ref": "lead_name", "type": "short_text" }, "text": "Ada Lovelace" },
+            { "type": "email", "field": { "id": "f2", "ref": "lead_email", "type": "email" }, "email": "ada@example.com" }
+          ]
+        }
+      },
+      "docsUrl": "https://www.typeform.com/developers/webhooks/example-payload/",
+      "notes": [
+        "Each answer carries its value under a key named after its type (text, email, phone_number, ...).",
+        "Answers are matched by field.ref, which the form owner can set; field ids are generated."
+      ]
+    },
+    "target": [
+      {
+        "app": "Pipedrive",
+        "role": "target",
+        "method": "POST",
+        "url": "https://api.pipedrive.com/v1/organizations",
+        "auth": { "type": "header", "name": "x-api-token", "envVar": "PIPEDRIVE_API_TOKEN" },
+        "example": { "name": "Analytical Engines Ltd" },
+        "responseExample": { "success": true, "data": { "id": 11 } },
+        "docsUrl": "https://developers.pipedrive.com/docs/api/v1/Organizations",
+        "notes": ["Only call when a company was answered."]
+      },
+      {
+        "app": "Pipedrive",
+        "role": "target",
+        "method": "POST",
+        "url": "https://api.pipedrive.com/v1/persons",
+        "auth": { "type": "header", "name": "x-api-token", "envVar": "PIPEDRIVE_API_TOKEN" },
+        "example": { "name": "Ada Lovelace", "email": [{ "value": "ada@example.com", "primary": true, "label": "work" }], "org_id": 11 },
+        "responseExample": { "success": true, "data": { "id": 22 } },
+        "docsUrl": "https://developers.pipedrive.com/docs/api/v1/Persons",
+        "notes": ["email and phone are arrays of { value, primary, label }.", "The API token can be sent as the x-api-token header instead of the api_token query parameter."]
+      },
+      {
+        "app": "Pipedrive",
+        "role": "target",
+        "method": "POST",
+        "url": "https://api.pipedrive.com/v1/deals",
+        "auth": { "type": "header", "name": "x-api-token", "envVar": "PIPEDRIVE_API_TOKEN" },
+        "example": { "title": "Website lead: Analytical Engines Ltd", "person_id": 22, "org_id": 11 },
+        "responseExample": { "success": true, "data": { "id": 33 } },
+        "docsUrl": "https://developers.pipedrive.com/docs/api/v1/Deals",
+        "notes": ["title is required. Link both person_id and org_id so the deal shows up on the organization."]
+      }
+    ]
+  }
+}
