@@ -9,7 +9,7 @@ const spec: ApiSpec = {
   ],
 }
 
-const report = (over: Partial<TestReport> = {}): TestReport => ({ typecheckOk: true, typecheckOutput: '', passed: 3, failed: 0, total: 3, failures: [], durationMs: 1, ranOn: 'x', ...over })
+const report = (over: Partial<TestReport> = {}): TestReport => ({ typecheckOk: true, typecheckOutput: '', passed: 3, failed: 0, total: 3, failures: [], durationMs: 1, ranOn: 'x', passedNames: ['contract handles the example'], ...over })
 const tests = (content: string) => [{ path: 'src/connector.test.ts', content }]
 
 describe('renderFixtures', () => {
@@ -43,6 +43,12 @@ describe('contract status', () => {
   it('adds a failing check when the contract block is missing and blocks green', () => {
     const r = withContract(report(), tests("describe('x', () => {})"))
     expect(r).toMatchObject({ contract: 'missing', failed: 1, total: 4 })
+  })
+
+  it('fails the contract when the contract test never passed, e.g. a crashed test file', () => {
+    const r = withContract(report({ passed: 0, total: 1, failed: 1, passedNames: [], failures: [{ name: 'test file', message: 'SyntaxError' }] }), tests(good))
+    expect(r.contract).toBe('failed')
+    expect(r.failures.at(-1)?.name).toBe('contract (did not run)')
   })
 
   it('marks failed contract tests', () => {

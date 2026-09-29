@@ -70,7 +70,9 @@ Hard rules:
     })
   Configure the connector in that test so the documented example is valid input. If the example lacks a field the
   connector needs, make the connector handle that case (skip, fallback or clear error) rather than editing the example.
-- Every other fake fetch in the tests returns real Response objects: new Response(JSON.stringify(body), { status }).
+- For every other test use fakeFetch and jsonResponse from './fixtures' instead of writing your own fetch mock:
+    const { fetch, calls } = fakeFetch((url, init) => url.endsWith('/deals') ? jsonResponse({ id: 2 }, 201) : jsonResponse({ error: 'x' }, 500))
+  calls[i] has { method, url, body (parsed JSON), headers (Headers) }. Never declare a fetch type yourself.
 - TypeScript strict mode must pass. Import from './connector' and './fixtures' without an extension.
 - README.md: what it does, config/env vars, a usage example, and the assumptions from the plan.`
 

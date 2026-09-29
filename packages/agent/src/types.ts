@@ -64,6 +64,8 @@ export interface TestReport {
   ranOn: string
   /** Did the suite run the connector against the documented example payload, and did that pass? */
   contract?: 'passed' | 'failed' | 'missing'
+  /** Full names of the tests that passed. */
+  passedNames?: string[]
 }
 
 export interface Usage {

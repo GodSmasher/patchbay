@@ -62,6 +62,7 @@ export function parseTestOutput(stdout: string, ranOn: string): TestReport {
   }
 
   const failures: TestFailure[] = []
+  const passedNames: string[] = []
   let endTime = json.startTime ?? 0
   for (const file of json.testResults ?? []) {
     endTime = Math.max(endTime, file.endTime ?? 0)
@@ -69,6 +70,7 @@ export function parseTestOutput(stdout: string, ranOn: string): TestReport {
       failures.push({ name: 'test file', message: truncate(stripAnsi(file.message), 2000) })
     }
     for (const assertion of file.assertionResults ?? []) {
+      if (assertion.status === 'passed') passedNames.push(assertion.fullName || assertion.title || '')
       if (assertion.status === 'failed') {
         failures.push({
           name: assertion.fullName || assertion.title || 'unnamed test',
@@ -89,6 +91,7 @@ export function parseTestOutput(stdout: string, ranOn: string): TestReport {
     failures,
     durationMs: json.startTime && endTime ? Math.max(0, endTime - json.startTime) : 0,
     ranOn,
+    passedNames,
   }
 }
 

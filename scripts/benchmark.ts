@@ -1,6 +1,6 @@
 /**
  * npm run bench              runs every prompt below live and writes bench/results.json + bench/RESULTS.md
- * npm run bench -- 3         only the first three
+ * npm run bench -- 2 4 10    only these prompts (1-based); full event logs go to bench/runs/
  *
  * Needs live keys in .env.local. Uses PATCHBAY_RUNNER from the environment (local or nebius).
  */
@@ -40,10 +40,13 @@ async function main() {
   const config = loadConfig({ ...process.env, PATCHBAY_MOCK: 'false' })
   const missing = missingLiveKeys(config)
   if (missing.length) throw new Error(`Missing ${missing.join(', ')} in .env.local`)
-  const limit = Number(process.argv[2]) || PROMPTS.length
+  const only = process.argv.slice(2).map(Number).filter((n) => n > 0)
+  const selected = only.length ? only.map((n) => PROMPTS[n - 1]!).filter(Boolean) : PROMPTS
   const rows: Row[] = []
+  const runsDir = join(process.cwd(), 'bench', 'runs')
+  mkdirSync(runsDir, { recursive: true })
 
-  for (const prompt of PROMPTS.slice(0, limit)) {
+  for (const prompt of selected) {
     const started = Date.now()
     const events: RunEvent[] = []
     process.stdout.write(`\n▶ ${prompt}\n`)
@@ -51,6 +54,8 @@ async function main() {
       events.push(event)
       if (event.type === 'tests') process.stdout.write(`   attempt ${event.attempt}: ${event.report.passed}/${event.report.total}, typecheck ${event.report.typecheckOk ? 'ok' : 'failed'}, contract ${event.report.contract}\n`)
     }
+    writeFileSync(join(runsDir, `${PROMPTS.indexOf(prompt) + 1}.json`), `${JSON.stringify({ prompt, events }, null, 2)}
+`)
     const reports = events.flatMap((e) => (e.type === 'tests' ? [e.report] : []))
     const result = events.find((e) => e.type === 'result')
     const error = events.find((e) => e.type === 'error')

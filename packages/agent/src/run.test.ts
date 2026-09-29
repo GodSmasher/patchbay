@@ -19,6 +19,7 @@ const files = (tag: string): GeneratedFile[] => [
 const report = (failed: number): TestReport => ({
   typecheckOk: true, typecheckOutput: '', passed: 6 - failed, failed, total: 6,
   failures: failed ? [{ name: 'auth header', message: 'expected x-api-token' }] : [], durationMs: 10, ranOn: 'fake',
+  passedNames: ['contract handles the documented example payload'],
 })
 
 function fakes(testResults: number[]) {

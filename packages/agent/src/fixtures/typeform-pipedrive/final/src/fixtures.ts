@@ -97,25 +97,45 @@ export function findEndpoint(method: string, url: string): DocumentedEndpoint | 
  *   expect(calls.length).toBeGreaterThan(0)
  */
 export function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {
-  const calls: RecordedCall[] = []
-  const fake = async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
-    const url = input instanceof Request ? input.url : String(input)
-    const method = (init?.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()
+  return fakeFetch((url, init) => {
+    const method = (init.method ?? 'GET').toUpperCase()
     const endpoint = findEndpoint(method, url)
     if (!endpoint) throw new Error(`contract: ${method} ${url} is not a documented endpoint`)
-    const raw = init?.body
-    let body: unknown = raw
-    if (typeof raw === 'string') {
-      try {
-        body = JSON.parse(raw)
-      } catch {
-        body = raw
-      }
-    }
-    calls.push({ method, url, body, headers: new Headers(init?.headers) })
-    return new Response(JSON.stringify(endpoint.response), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    return jsonResponse(endpoint.response)
+  })
+}
+
+/**
+ * A correctly typed fake fetch for every other test. The handler gets the URL as a string
+ * and the RequestInit; calls are recorded with the parsed JSON body.
+ *
+ *   const { fetch, calls } = fakeFetch(() => jsonResponse({ id: 1 }, 201))
+ */
+export function fakeFetch(
+  handler: (url: string, init: RequestInit) => Response | Promise<Response>,
+): { fetch: typeof fetch; calls: RecordedCall[] } {
+  const calls: RecordedCall[] = []
+  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {
+    const url = input instanceof Request ? input.url : String(input)
+    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()
+    calls.push({ method, url, body: parseBody(init.body), headers: new Headers(init.headers) })
+    return handler(url, { ...init, method })
   }
   return { fetch: fake as typeof fetch, calls }
+}
+
+/** A JSON Response, e.g. jsonResponse({ ok: true }) or jsonResponse({ error: 'nope' }, 400). */
+export function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
+}
+
+function parseBody(raw: unknown): unknown {
+  if (typeof raw !== 'string') return raw
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return raw
+  }
 }
 
 function urlMatches(template: string, actual: string): boolean {
