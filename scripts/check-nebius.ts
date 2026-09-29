@@ -14,6 +14,7 @@ async function check(name: string, fn: () => Promise<string>) {
   }
 }
 
+async function main() {
 await check('Nebius inference', async () => {
   if (!config.nebiusApiKey) throw new Error('NEBIUS_API_KEY is empty')
   const res = await fetch(`${config.nebiusBaseUrl}/models`, { headers: { Authorization: `Bearer ${config.nebiusApiKey}` } })
@@ -47,3 +48,6 @@ await check('Tavily', async () => {
   const data = (await res.json()) as { results?: { url: string }[] }
   return `search ok (${data.results?.[0]?.url ?? 'no result'})`
 })
+}
+
+void main()
