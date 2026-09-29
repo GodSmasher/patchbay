@@ -38,7 +38,10 @@ export const TARGET_ENDPOINTS: DocumentedEndpoint[] = ${JSON.stringify(endpoints
 export interface RecordedCall {
   method: string
   url: string
-  body: unknown
+  /** The request body exactly as sent (usually a JSON string). */
+  body: string | undefined
+  /** The body parsed as JSON, or undefined when it is not JSON. */
+  json: unknown
   headers: Headers
 }
 
@@ -56,44 +59,53 @@ export function findEndpoint(method: string, url: string): DocumentedEndpoint | 
  *   expect(calls.length).toBeGreaterThan(0)
  */
 export function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {
-  return fakeFetch((url, init) => {
-    const method = (init.method ?? 'GET').toUpperCase()
-    const endpoint = findEndpoint(method, url)
-    if (!endpoint) throw new Error(\`contract: \${method} \${url} is not a documented endpoint\`)
+  return fakeFetch((request) => {
+    const endpoint = findEndpoint(request.method, request.url)
+    if (!endpoint) throw new Error(\`contract: \${request.method} \${request.url} is not a documented endpoint\`)
     return jsonResponse(endpoint.response)
   })
 }
 
 /**
- * A correctly typed fake fetch for every other test. The handler gets the URL as a string
- * and the RequestInit; calls are recorded with the parsed JSON body.
+ * A correctly typed fake fetch for every other test. The handler receives the recorded
+ * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.
  *
- *   const { fetch, calls } = fakeFetch(() => jsonResponse({ id: 1 }, 201))
+ *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))
  */
 export function fakeFetch(
-  handler: (url: string, init: RequestInit) => Response | Promise<Response>,
+  handler: (request: RecordedCall) => Response | Promise<Response>,
 ): { fetch: typeof fetch; calls: RecordedCall[] } {
   const calls: RecordedCall[] = []
   const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {
     const url = input instanceof Request ? input.url : String(input)
     const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()
-    calls.push({ method, url, body: parseBody(init.body), headers: new Headers(init.headers) })
-    return handler(url, { ...init, method })
+    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)
+    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }
+    calls.push(call)
+    return handler(call)
   }
   return { fetch: fake as typeof fetch, calls }
 }
 
-/** A JSON Response, e.g. jsonResponse({ ok: true }) or jsonResponse({ error: 'nope' }, 400). */
-export function jsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
+const STATUS_TEXT: Record<number, string> = {
+  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',
+  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',
+  422: 'Unprocessable Entity', 429: 'Too Many Requests',
+  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',
 }
 
-function parseBody(raw: unknown): unknown {
-  if (typeof raw !== 'string') return raw
+/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> "401 Unauthorized". */
+export function jsonResponse(body: unknown, status = 200): Response {
+  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }
+  return new Response(status === 204 ? null : JSON.stringify(body), init)
+}
+
+function parseJson(raw: string | undefined): unknown {
+  if (raw === undefined) return undefined
   try {
     return JSON.parse(raw)
   } catch {
-    return raw
+    return undefined
   }
 }
 

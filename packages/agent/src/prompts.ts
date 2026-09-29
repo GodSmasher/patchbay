@@ -64,15 +64,17 @@ Hard rules:
     describe('contract', () => {
       it('handles the documented example payload', async () => {
         const { fetch, calls } = contractFetch()
-        const result = await handle(SOURCE_EXAMPLE as unknown as YourInput, { ...validConfig, fetch })
+        const result = await handle(SOURCE_EXAMPLE as unknown as <your input type>, { <a valid config object>, fetch })
         expect(calls.length).toBeGreaterThan(0)
       })
     })
   Configure the connector in that test so the documented example is valid input. If the example lacks a field the
   connector needs, make the connector handle that case (skip, fallback or clear error) rather than editing the example.
 - For every other test use fakeFetch and jsonResponse from './fixtures' instead of writing your own fetch mock:
-    const { fetch, calls } = fakeFetch((url, init) => url.endsWith('/deals') ? jsonResponse({ id: 2 }, 201) : jsonResponse({ error: 'x' }, 500))
-  calls[i] has { method, url, body (parsed JSON), headers (Headers) }. Never declare a fetch type yourself.
+    const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 2 }, 201) : jsonResponse({ error: 'x' }, 500))
+  Each recorded call is { method, url, body (the string as sent), json (the parsed body), headers (a Headers object,
+  use headers.get('authorization')) }. Assert on calls[i].json, do not JSON.parse it again. jsonResponse(body, status)
+  sets the standard status text (401 -> 'Unauthorized'). Never declare a fetch type yourself.
 - TypeScript strict mode must pass. Import from './connector' and './fixtures' without an extension.
 - README.md: what it does, config/env vars, a usage example, and the assumptions from the plan.`
 

@@ -86,8 +86,15 @@ describe('rendered fixtures module', () => {
       method: 'POST', headers: { Authorization: 'Bearer k' }, body: JSON.stringify({ tags: [{ name: 'pro', status: 'active' }] }),
     })
     expect(await res.json()).toEqual({ ok: 1 })
-    expect(calls[0]).toMatchObject({ method: 'POST', body: { tags: [{ name: 'pro', status: 'active' }] } })
+    expect(calls[0]).toMatchObject({ method: 'POST', json: { tags: [{ name: 'pro', status: 'active' }] } })
+    expect(typeof calls[0]?.body).toBe('string')
     expect(calls[0]?.headers.get('authorization')).toBe('Bearer k')
     await expect(fetch('https://api.example.com/v1/other', { method: 'GET' })).rejects.toThrow(/not a documented endpoint/)
+
+    const denied = mod.jsonResponse({ error: 'no' }, 401)
+    expect([denied.status, denied.statusText]).toEqual([401, 'Unauthorized'])
+    const fake = mod.fakeFetch((req) => mod.jsonResponse({ echo: req.json, auth: req.headers.get('x-api-token') }, 201))
+    const echoed = await fake.fetch('https://x.test/a', { method: 'POST', headers: { 'x-api-token': 't' }, body: '{"a":1}' })
+    expect(await echoed.json()).toEqual({ echo: { a: 1 }, auth: 't' })
   })
 })

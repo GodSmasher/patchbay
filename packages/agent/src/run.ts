@@ -101,7 +101,7 @@ async function makePlan(prompt: string, llm: LlmClient, config: AgentConfig): Pr
     { role: 'system', content: PLAN_SYSTEM },
     { role: 'user', content: planUser(prompt) },
   ], { thinking: false, maxTokens: 2000 })
-  const plan = extractJson<Plan>(answer)
+  const plan = await parseJsonOrAsk<Plan>(answer, llm, config.models.fast, PLAN_SYSTEM)
   if (!plan.source?.app || !plan.target?.app) throw new Error('Could not identify a source and a target app in the request')
   plan.fieldMapping ??= []
   plan.assumptions ??= []
@@ -141,7 +141,7 @@ async function research(
     { role: 'system', content: SPEC_SYSTEM },
     { role: 'user', content: specUser(plan, docs) },
   ], { thinking: false, maxTokens: 6000 })
-  const spec = extractJson<ApiSpec>(answer)
+  const spec = await parseJsonOrAsk<ApiSpec>(answer, llm, config.models.mid, SPEC_SYSTEM)
   if (!spec.source || !Array.isArray(spec.target) || spec.target.length === 0) {
     throw new Error('Research did not produce a usable API spec')
   }
@@ -171,6 +171,19 @@ function requireFiles(files: GeneratedFile[]): GeneratedFile[] {
   const missing = REQUIRED_FILES.filter((path) => !files.some((f) => f.path === path))
   if (missing.length) throw new Error(`Model output is missing ${missing.join(', ')}`)
   return REQUIRED_FILES.map((path) => files.find((f) => f.path === path) as GeneratedFile)
+}
+
+/** One retry for structured steps: invalid JSON goes back to the same model once to be fixed. */
+async function parseJsonOrAsk<T>(answer: string, llm: LlmClient, model: AgentConfig['models']['fast'], system: string): Promise<T> {
+  try {
+    return extractJson<T>(answer)
+  } catch (error) {
+    const fixed = await llm.chat(model, [
+      { role: 'system', content: system },
+      { role: 'user', content: `This answer is not valid JSON (${messageOf(error)}). Return the same content as strict JSON: double quotes, no comments, no trailing commas.\n\n${answer.slice(0, 12_000)}` },
+    ], { thinking: false, maxTokens: 6000 })
+    return extractJson<T>(fixed)
+  }
 }
 
 function guessDomain(app: string): string {
