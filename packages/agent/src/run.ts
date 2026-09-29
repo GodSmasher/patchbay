@@ -116,13 +116,21 @@ async function research(
   log: (m: string) => void,
 ): Promise<{ spec: ApiSpec; sources: Source[] }> {
   const sides = [plan.source, plan.target]
-  const hits = (await Promise.all(sides.map((side) => search.search(side.docsQuery, { maxResults: 8 })))).map((list, i) => {
-    const side = sides[i]!
-    const ranked = rankOfficial(list, side.app).slice(0, 2)
-    const official = ranked.filter((h) => isOfficial(h.url, side.app)).length
-    log(`Searched "${side.docsQuery}": ${list.length} results, ${official} of 2 picked from ${side.app}'s own docs`)
-    return ranked.map((h) => ({ ...h, app: side.app }))
-  })
+  const hits = await Promise.all(
+    sides.map(async (side) => {
+      let list = await search.search(side.docsQuery, { maxResults: 8 })
+      if (!list.some((h) => isOfficial(h.url, side.app))) {
+        const domain = guessDomain(side.app)
+        const focused = await search.search(side.docsQuery, { maxResults: 5, includeDomains: [domain] })
+        log(`No ${side.app} page in the results, searched ${domain} directly: ${focused.length} results`)
+        list = [...focused, ...list]
+      }
+      const ranked = rankOfficial(list, side.app).slice(0, 2)
+      const official = ranked.filter((h) => isOfficial(h.url, side.app)).length
+      log(`Searched "${side.docsQuery}": ${official} of 2 picked from ${side.app}'s own docs`)
+      return ranked.map((h) => ({ ...h, app: side.app }))
+    }),
+  )
   const picked = hits.flat()
   const urls = [...new Set(picked.map((h) => h.url))]
   const pages = await search.extract(urls)
@@ -163,6 +171,10 @@ function requireFiles(files: GeneratedFile[]): GeneratedFile[] {
   const missing = REQUIRED_FILES.filter((path) => !files.some((f) => f.path === path))
   if (missing.length) throw new Error(`Model output is missing ${missing.join(', ')}`)
   return REQUIRED_FILES.map((path) => files.find((f) => f.path === path) as GeneratedFile)
+}
+
+function guessDomain(app: string): string {
+  return `${app.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`
 }
 
 const messageOf = (error: unknown) => (error instanceof Error ? error.message : String(error))

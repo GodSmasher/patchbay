@@ -11,7 +11,7 @@ export interface ExtractedPage {
 }
 
 export interface SearchClient {
-  search(query: string, options?: { maxResults?: number }): Promise<SearchHit[]>
+  search(query: string, options?: { maxResults?: number; includeDomains?: string[] }): Promise<SearchHit[]>
   extract(urls: string[]): Promise<ExtractedPage[]>
 }
 
@@ -36,6 +36,7 @@ export function createTavilyClient(opts: { apiKey: string; fetch?: typeof fetch 
         search_depth: 'advanced',
         max_results: options.maxResults ?? 5,
         include_answer: false,
+        ...(options.includeDomains?.length ? { include_domains: options.includeDomains } : {}),
       })
       return (data.results ?? []).map((r) => ({ title: r.title, url: r.url, content: r.content, score: r.score }))
     },

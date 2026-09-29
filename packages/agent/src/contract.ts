@@ -7,30 +7,98 @@ export const FIXTURES_PATH = 'src/fixtures.ts'
  * assumptions. The contract fixtures break that loop: patchbay writes them from the
  * documentation the research step extracted, overwrites them on every attempt, and the
  * test suite must run the connector against them unchanged.
+ *
+ * Documented URLs are often templates (`https://usX.api.mailchimp.com/3.0/lists/{list_id}`),
+ * so the file ships its own matcher and a ready-made fake fetch instead of asking the model
+ * to compare URLs.
  */
 export function renderFixtures(spec: ApiSpec): GeneratedFile {
-  const responses: Record<string, unknown> = {}
-  const endpoints: { method: string; url: string }[] = []
-  for (const target of spec.target) {
-    const method = target.method.toUpperCase()
-    responses[`${method} ${target.url}`] = target.responseExample ?? {}
-    endpoints.push({ method, url: target.url })
-  }
+  const endpoints = spec.target.map((target) => ({
+    method: target.method.toUpperCase(),
+    url: target.url,
+    response: target.responseExample ?? {},
+  }))
   const docs = [spec.source.docsUrl, ...spec.target.map((t) => t.docsUrl)].filter(Boolean)
-  const content = [
-    '// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.',
-    ...[...new Set(docs)].map((url) => `// Source: ${url}`),
-    '',
-    '/** Example payload of the source event, as documented. */',
-    `export const SOURCE_EXAMPLE = ${JSON.stringify(spec.source.example ?? {}, null, 2)}`,
-    '',
-    '/** Target endpoints the connector may call, in the documented order. */',
-    `export const TARGET_ENDPOINTS: { method: string; url: string }[] = ${JSON.stringify(endpoints, null, 2)}`,
-    '',
-    '/** Documented response bodies, keyed by "METHOD url". */',
-    `export const TARGET_RESPONSES: Record<string, unknown> = ${JSON.stringify(responses, null, 2)}`,
-    '',
-  ].join('\n')
+  const content = `// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.
+${[...new Set(docs)].map((url) => `// Source: ${url}`).join('\n')}
+
+/** Example payload of the source event, as documented. */
+export const SOURCE_EXAMPLE = ${JSON.stringify(spec.source.example ?? {}, null, 2)}
+
+export interface DocumentedEndpoint {
+  method: string
+  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */
+  url: string
+  response: unknown
+}
+
+/** Target endpoints the connector may call, in the documented order, with their documented responses. */
+export const TARGET_ENDPOINTS: DocumentedEndpoint[] = ${JSON.stringify(endpoints, null, 2)}
+
+export interface RecordedCall {
+  method: string
+  url: string
+  body: unknown
+  headers: Headers
+}
+
+/** The documented endpoint a request matches, placeholders and region subdomains included. */
+export function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {
+  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))
+}
+
+/**
+ * A fake fetch that answers every documented endpoint with its documented response and
+ * rejects anything else. Use it in the contract test:
+ *
+ *   const { fetch, calls } = contractFetch()
+ *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })
+ *   expect(calls.length).toBeGreaterThan(0)
+ */
+export function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {
+  const calls: RecordedCall[] = []
+  const fake = async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+    const url = input instanceof Request ? input.url : String(input)
+    const method = (init?.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()
+    const endpoint = findEndpoint(method, url)
+    if (!endpoint) throw new Error(\`contract: \${method} \${url} is not a documented endpoint\`)
+    const raw = init?.body
+    let body: unknown = raw
+    if (typeof raw === 'string') {
+      try {
+        body = JSON.parse(raw)
+      } catch {
+        body = raw
+      }
+    }
+    calls.push({ method, url, body, headers: new Headers(init?.headers) })
+    return new Response(JSON.stringify(endpoint.response), { status: 200, headers: { 'Content-Type': 'application/json' } })
+  }
+  return { fetch: fake as typeof fetch, calls }
+}
+
+function urlMatches(template: string, actual: string): boolean {
+  const t = splitUrl(template)
+  const a = splitUrl(actual)
+  if (!t || !a) return false
+  const tHost = t.host.split('.')
+  const aHost = a.host.split('.')
+  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false
+  const tPath = t.path.replace(/\\/+$/, '').split('/')
+  const aPath = a.path.replace(/\\/+$/, '').split('/')
+  if (tPath.length !== aPath.length) return false
+  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])
+}
+
+function splitUrl(url: string): { host: string; path: string } | null {
+  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)
+  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null
+}
+
+function isPlaceholder(segment: string): boolean {
+  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)
+}
+`
   return { path: FIXTURES_PATH, content }
 }
 
@@ -40,7 +108,7 @@ export type ContractStatus = NonNullable<TestReport['contract']>
 export function contractMissing(files: GeneratedFile[]): string | null {
   const tests = files.find((f) => f.path === 'src/connector.test.ts')?.content ?? ''
   if (!/from\s+['"]\.\/fixtures['"]/.test(tests)) {
-    return 'src/connector.test.ts does not import SOURCE_EXAMPLE / TARGET_RESPONSES from ./fixtures'
+    return 'src/connector.test.ts does not import SOURCE_EXAMPLE and contractFetch from ./fixtures'
   }
   if (!/describe\(\s*['"`]contract/.test(tests)) {
     return 'src/connector.test.ts has no describe("contract", ...) block running handle on SOURCE_EXAMPLE'

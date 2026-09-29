@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { handle, type ConnectorConfig, type TypeformWebhook } from './connector'
-import { SOURCE_EXAMPLE, TARGET_ENDPOINTS, TARGET_RESPONSES } from './fixtures'
+import { SOURCE_EXAMPLE, contractFetch } from './fixtures'
 
 function fakeFetch(responses: Record<string, { status?: number; body: unknown }>) {
   return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -98,19 +98,14 @@ describe('handle', () => {
 
 describe('contract', () => {
   it('handles the documented Typeform payload against the documented Pipedrive responses', async () => {
-    const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      const body = TARGET_RESPONSES[`${init?.method} ${String(input)}`] ?? {}
-      return new Response(JSON.stringify(body), { status: 201 })
-    })
-    const result = await handle(SOURCE_EXAMPLE as TypeformWebhook, {
+    const { fetch, calls } = contractFetch()
+    const result = await handle(SOURCE_EXAMPLE as unknown as TypeformWebhook, {
       pipedriveApiToken: 'contract-token',
       fieldRefs: { name: 'lead_name', email: 'lead_email' },
       fetch,
     })
     expect(result.personId).toBeGreaterThan(0)
     expect(result.dealId).toBeGreaterThan(0)
-    for (const [url, init] of fetch.mock.calls) {
-      expect(TARGET_ENDPOINTS).toContainEqual({ method: init?.method, url: String(url) })
-    }
+    expect(calls.map((c) => c.url)).toEqual(['https://api.pipedrive.com/v1/persons', 'https://api.pipedrive.com/v1/deals'])
   })
 })

@@ -19,7 +19,8 @@ describe('renderFixtures', () => {
     expect(file.content).toContain('// Source: https://developer.calendly.com/webhooks')
     expect(file.content).toContain('"event": "invitee.created"')
     expect(file.content).toContain('"method": "POST"')
-    expect(file.content).toContain('"POST https://slack.com/api/chat.postMessage": {')
+    expect(file.content).toContain('"url": "https://slack.com/api/chat.postMessage"')
+    expect(file.content).toContain('export function contractFetch()')
   })
 
   it('replaces a fixtures file the model tried to write', () => {
@@ -48,5 +49,39 @@ describe('contract status', () => {
     const r = withContract(report({ failed: 1, failures: [{ name: 'contract handles the documented payload', message: 'boom' }] }), tests(good))
     expect(r.contract).toBe('failed')
     expect(withContract(report(), tests(good)).contract).toBe('passed')
+  })
+})
+
+describe('rendered fixtures module', () => {
+  it('compiles, matches templated URLs and answers with documented responses', async () => {
+    const { mkdirSync, writeFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const { pathToFileURL } = await import('node:url')
+    const templated: ApiSpec = {
+      ...spec,
+      target: [
+        { ...spec.target[0]!, method: 'post', url: 'https://usX.api.mailchimp.com/3.0/lists/{list_id}/members/{subscriber_hash}/tags', responseExample: { ok: 1 } },
+        { ...spec.target[0]!, method: 'get', url: 'https://api.example.com/v1/users/:id', responseExample: { id: 7 } },
+      ],
+    }
+    const dir = join(process.cwd(), '.fixture-tmp', `fixtures-${Date.now()}`)
+    mkdirSync(dir, { recursive: true })
+    const file = join(dir, 'fixtures.ts')
+    writeFileSync(file, renderFixtures(templated).content)
+    const mod = (await import(pathToFileURL(file).href)) as typeof import('./fixtures-shape')
+
+    expect(mod.findEndpoint('POST', 'https://us21.api.mailchimp.com/3.0/lists/abc123/members/9f86d08/tags')).toBeTruthy()
+    expect(mod.findEndpoint('POST', 'https://us21.api.mailchimp.com/3.0/lists/abc123/members')).toBeUndefined()
+    expect(mod.findEndpoint('GET', 'https://evil.com/v1/users/1')).toBeUndefined()
+    expect(mod.findEndpoint('get', 'https://api.example.com/v1/users/42')).toBeTruthy()
+
+    const { fetch, calls } = mod.contractFetch()
+    const res = await fetch('https://us21.api.mailchimp.com/3.0/lists/L1/members/h1/tags', {
+      method: 'POST', headers: { Authorization: 'Bearer k' }, body: JSON.stringify({ tags: [{ name: 'pro', status: 'active' }] }),
+    })
+    expect(await res.json()).toEqual({ ok: 1 })
+    expect(calls[0]).toMatchObject({ method: 'POST', body: { tags: [{ name: 'pro', status: 'active' }] } })
+    expect(calls[0]?.headers.get('authorization')).toBe('Bearer k')
+    await expect(fetch('https://api.example.com/v1/other', { method: 'GET' })).rejects.toThrow(/not a documented endpoint/)
   })
 })
