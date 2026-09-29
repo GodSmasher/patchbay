@@ -1,4 +1,5 @@
 import type { AgentConfig } from './config'
+import { renderFixtures, withContract, withFixtures } from './contract'
 import type { LlmClient } from './llm'
 import { extractJson, parseFileBlocks, renderFileBlocks } from './parse'
 import {
@@ -12,6 +13,7 @@ import {
 } from './prompts'
 import { isGreen } from './report'
 import type { SandboxRunner } from './sandbox'
+import { isOfficial, rankOfficial } from './sources'
 import type { SearchClient } from './tavily'
 import type { ApiSpec, GeneratedFile, Plan, RunEvent, Source, StepId, TestReport } from './types'
 
@@ -55,7 +57,8 @@ export async function* runAgent(prompt: string, deps: AgentDeps): AsyncGenerator
 
     current = 'generate'
     yield { type: 'step', step: 'generate', status: 'start' }
-    let files = await generate(plan, spec, llm, config)
+    const fixtures = renderFixtures(spec)
+    let files = withFixtures(await generate(plan, spec, fixtures.content, llm, config), fixtures)
     yield { type: 'files', attempt: 1, files }
     yield { type: 'step', step: 'generate', status: 'done', detail: files.map((f) => f.path).join(', ') }
 
@@ -68,13 +71,13 @@ export async function* runAgent(prompt: string, deps: AgentDeps): AsyncGenerator
     let report: TestReport | null = null
     let attempt = 1
     for (;;) {
-      report = await sandbox.runTests(baseImage, files, log('verify'))
+      report = withContract(await sandbox.runTests(baseImage, files, log('verify')), files)
       yield* drain()
       yield { type: 'tests', attempt, report }
       if (isGreen(report) || attempt >= config.maxAttempts) break
       attempt++
       yield { type: 'log', step: 'verify', message: `Attempt ${attempt - 1} failed (${report.failed} tests, typecheck ${report.typecheckOk ? 'ok' : 'failed'}), repairing` }
-      files = await repair(files, report, llm, config)
+      files = withFixtures(await repair(files, report, llm, config), fixtures)
       yield { type: 'files', attempt, files }
     }
     const ok = report !== null && isGreen(report)
@@ -112,10 +115,13 @@ async function research(
   config: AgentConfig,
   log: (m: string) => void,
 ): Promise<{ spec: ApiSpec; sources: Source[] }> {
-  const queries = [plan.source.docsQuery, plan.target.docsQuery]
-  const hits = (await Promise.all(queries.map((q) => search.search(q, { maxResults: 5 })))).map((list, i) => {
-    log(`Searched "${queries[i]}": ${list.length} results`)
-    return list.sort((a, b) => b.score - a.score).slice(0, 2)
+  const sides = [plan.source, plan.target]
+  const hits = (await Promise.all(sides.map((side) => search.search(side.docsQuery, { maxResults: 8 })))).map((list, i) => {
+    const side = sides[i]!
+    const ranked = rankOfficial(list, side.app).slice(0, 2)
+    const official = ranked.filter((h) => isOfficial(h.url, side.app)).length
+    log(`Searched "${side.docsQuery}": ${list.length} results, ${official} of 2 picked from ${side.app}'s own docs`)
+    return ranked.map((h) => ({ ...h, app: side.app }))
   })
   const picked = hits.flat()
   const urls = [...new Set(picked.map((h) => h.url))]
@@ -131,13 +137,13 @@ async function research(
   if (!spec.source || !Array.isArray(spec.target) || spec.target.length === 0) {
     throw new Error('Research did not produce a usable API spec')
   }
-  return { spec, sources: picked.map((h) => ({ title: h.title, url: h.url })) }
+  return { spec, sources: picked.map((h) => ({ title: h.title, url: h.url, official: isOfficial(h.url, h.app) })) }
 }
 
-async function generate(plan: Plan, spec: ApiSpec, llm: LlmClient, config: AgentConfig): Promise<GeneratedFile[]> {
+async function generate(plan: Plan, spec: ApiSpec, fixtures: string, llm: LlmClient, config: AgentConfig): Promise<GeneratedFile[]> {
   const answer = await llm.chat(config.models.strong, [
     { role: 'system', content: GENERATE_SYSTEM },
-    { role: 'user', content: generateUser(plan, spec) },
+    { role: 'user', content: generateUser(plan, spec, fixtures) },
   ], { maxTokens: 32_000, temperature: 0.1 })
   return requireFiles(parseFileBlocks(answer))
 }

@@ -85,6 +85,7 @@ export function CodePanel({ drafts, finalOk }: { drafts: Draft[]; finalOk: boole
             className={`-mb-px rounded-t-md border px-2.5 py-1.5 text-xs ${f.path === file?.path ? 'border-paper-line border-b-paper-card bg-paper-card text-ink' : 'border-transparent text-ink-mute hover:text-ink'}`}
           >
             {f.path.replace('src/', '')}
+            {f.path === 'src/fixtures.ts' && <span className="ml-1 text-ink-mute">(from docs)</span>}
             {changed.has(f.path) && <span className="ml-1 text-signal">●</span>}
           </button>
         ))}
@@ -106,8 +107,18 @@ function Report({ report }: { report: TestReport }) {
           {green ? 'All tests pass' : `${report.failed} of ${report.total} tests fail`}
         </span>
         <span className="text-ink-soft">typecheck {report.typecheckOk ? 'clean' : 'failed'}</span>
+        {report.contract && (
+          <span
+            title="The suite ran the connector against the example payload and responses from the official docs (src/fixtures.ts), which patchbay writes and the model cannot change."
+            className={report.contract === 'passed' ? 'text-signal' : 'text-warn'}
+          >
+            docs contract {report.contract === 'passed' ? 'passed' : report.contract === 'missing' ? 'missing' : 'failed'}
+          </span>
+        )}
         <span className="text-ink-soft">{report.passed}/{report.total} passed</span>
-        <span className="code text-ink-mute">{report.ranOn === 'replay' ? 'recorded run' : report.ranOn.replace('nebius-sandbox:', 'sandbox op ')}</span>
+        <span className="code text-ink-mute">
+          {report.ranOn === 'replay' ? 'recorded run' : report.ranOn === 'local' ? 'local runner' : report.ranOn.replace('nebius-sandbox:', 'sandbox op ')}
+        </span>
       </div>
       {report.failures.length > 0 && (
         <ul className="mt-2 space-y-2">

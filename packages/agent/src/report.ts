@@ -93,7 +93,8 @@ export function parseTestOutput(stdout: string, ranOn: string): TestReport {
 }
 
 export function isGreen(report: TestReport): boolean {
-  return report.typecheckOk && report.failed === 0 && report.total > 0
+  const contractOk = report.contract === undefined || report.contract === 'passed'
+  return report.typecheckOk && report.failed === 0 && report.total > 0 && contractOk
 }
 
 const stripAnsi = (s: string) => s.replace(/\u001b\[[0-9;]*m/g, '')

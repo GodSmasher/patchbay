@@ -54,6 +54,7 @@ export function PlanCard({ plan, spec, sources }: { plan: Plan; spec: ApiSpec | 
                 <a href={s.url} target="_blank" rel="noreferrer" className="text-signal underline-offset-2 hover:underline">
                   {s.title || s.url}
                 </a>
+                {s.official === false && <span className="ml-1.5 text-ink-mute">third-party</span>}
               </li>
             ))}
           </ul>

@@ -12,7 +12,7 @@ const meta = await import('./fixtures/typeform-pipedrive/meta.json')
 
 const files = (tag: string): GeneratedFile[] => [
   { path: 'src/connector.ts', content: `// ${tag}\n` },
-  { path: 'src/connector.test.ts', content: '// tests\n' },
+  { path: 'src/connector.test.ts', content: "import { SOURCE_EXAMPLE } from './fixtures'\ndescribe('contract', () => { it('runs', () => handle(SOURCE_EXAMPLE)) })\n" },
   { path: 'README.md', content: '# readme\n' },
 ]
 
@@ -63,6 +63,12 @@ describe('runAgent', () => {
     expect(tests.map((e) => e.type === 'tests' && e.report.failed)).toEqual([2, 0])
     const result = events.find((e) => e.type === 'result')
     expect(result).toMatchObject({ type: 'result', ok: true, attempts: 2 })
+    const lastFiles = events.filter((e) => e.type === 'files').at(-1)
+    expect(lastFiles?.type === 'files' && lastFiles.files.map((f) => f.path)).toEqual([
+      'src/connector.ts', 'src/connector.test.ts', 'README.md', 'src/fixtures.ts',
+    ])
+    expect(tests.every((e) => e.type === 'tests' && e.report.contract === 'passed')).toBe(true)
+    expect(f.prompts[2]).toContain('SOURCE_EXAMPLE')
     expect(f.prompts[3]).toContain('expected x-api-token')
     expect(f.models).toEqual([config.models.fast.id, config.models.mid.id, config.models.strong.id, config.models.strong.id])
     expect(events.filter((e) => e.type === 'step' && e.status === 'done').map((e) => e.type === 'step' && e.step))
@@ -82,6 +88,25 @@ describe('runAgent', () => {
     const events = await collect(runAgent('x', { config: loadConfig({}), ...f }))
     expect(events.at(-1)).toEqual({ type: 'error', message: 'sandbox quota exceeded' })
     expect(events).toContainEqual({ type: 'step', step: 'verify', status: 'error', detail: 'sandbox quota exceeded' })
+  })
+})
+
+describe('contract enforcement', () => {
+  it('sends a draft without contract tests back for repair', async () => {
+    const f = fakes([0, 0])
+    let codegenCalls = 0
+    const chat = f.llm.chat
+    f.llm.chat = async (model, messages, options) => {
+      const answer = await chat(model, messages, options)
+      if (!messages[0]?.content.includes('code-generation step')) return answer
+      codegenCalls++
+      return codegenCalls === 1 ? answer.replace("describe('contract'", "describe('happy path'") : answer
+    }
+    const events = await collect(runAgent('x', { config: { ...loadConfig({}), maxAttempts: 3 }, ...f }))
+    const reports = events.flatMap((e) => (e.type === 'tests' ? [e.report] : []))
+    expect(reports[0]).toMatchObject({ contract: 'missing' })
+    expect(reports[0]?.failures.at(-1)?.name).toBe('contract (static check)')
+    expect(reports.at(-1)).toMatchObject({ contract: 'passed', failed: 0 })
   })
 })
 

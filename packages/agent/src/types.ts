@@ -38,6 +38,8 @@ export interface ApiSpec {
 export interface Source {
   title: string
   url: string
+  /** The page is on the vendor's own domain. */
+  official?: boolean
 }
 
 export interface GeneratedFile {
@@ -58,8 +60,10 @@ export interface TestReport {
   total: number
   failures: TestFailure[]
   durationMs: number
-  /** Where the tests ran: a Nebius sandbox operation id, or `replay`. */
+  /** Where the tests ran: a Nebius sandbox operation id, `local`, or `replay`. */
   ranOn: string
+  /** Did the suite run the connector against the documented example payload, and did that pass? */
+  contract?: 'passed' | 'failed' | 'missing'
 }
 
 export interface Usage {

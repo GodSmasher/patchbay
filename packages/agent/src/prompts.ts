@@ -57,7 +57,13 @@ Hard rules:
 - src/connector.test.ts uses vitest (\`import { describe, it, expect, vi } from 'vitest'\`) and a fake fetch that records calls.
   Cover at least: happy path with the exact request bodies, the auth mechanism, the field mapping, a missing required field,
   and a non-2xx target response. Tests must be hermetic: no network, no timers, no real env vars.
-- TypeScript strict mode must pass. Import from './connector' without an extension.
+- src/fixtures.ts is provided by patchbay and holds the documented example data: SOURCE_EXAMPLE (the source payload),
+  TARGET_ENDPOINTS and TARGET_RESPONSES. Do not output or modify it. src/connector.test.ts MUST contain a
+  \`describe('contract', ...)\` block that imports them from './fixtures', calls \`handle\` with SOURCE_EXAMPLE
+  (cast to your input type) and a fake fetch that answers from TARGET_RESPONSES, and asserts that every request
+  goes to one of TARGET_ENDPOINTS with the documented method. Configure the connector in that test so the example
+  payload is valid input (for example field refs that exist in SOURCE_EXAMPLE).
+- TypeScript strict mode must pass. Import from './connector' and './fixtures' without an extension.
 - README.md: what it does, config/env vars, a usage example, and the assumptions from the plan.`
 
 export function planUser(prompt: string): string {
@@ -71,8 +77,8 @@ export function specUser(plan: Plan, docs: { url: string; content: string }[]): 
   return `Plan:\n${JSON.stringify(plan, null, 2)}\n\nDocumentation pages:\n${pages}`
 }
 
-export function generateUser(plan: Plan, spec: ApiSpec): string {
-  return `Plan:\n${JSON.stringify(plan, null, 2)}\n\nAPI spec:\n${JSON.stringify(spec, null, 2)}\n\nWrite the three files now.`
+export function generateUser(plan: Plan, spec: ApiSpec, fixtures: string): string {
+  return `Plan:\n${JSON.stringify(plan, null, 2)}\n\nAPI spec:\n${JSON.stringify(spec, null, 2)}\n\nsrc/fixtures.ts (provided by patchbay, read-only):\n${fixtures}\n\nWrite the three files now.`
 }
 
 export function repairUser(filesBlock: string, report: TestReport): string {
