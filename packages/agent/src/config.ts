@@ -7,6 +7,8 @@ export interface ModelTier {
 
 export interface AgentConfig {
   mock: boolean
+  /** `nebius` (isolated sandbox, default) or `local` (dev fallback, not isolated). */
+  runner: 'nebius' | 'local'
   nebiusApiKey: string
   nebiusProject: string
   nebiusBaseUrl: string
@@ -22,6 +24,7 @@ type Env = Record<string, string | undefined>
 export function loadConfig(env: Env = process.env): AgentConfig {
   return {
     mock: env.PATCHBAY_MOCK !== 'false',
+    runner: env.PATCHBAY_RUNNER === 'local' ? 'local' : 'nebius',
     nebiusApiKey: env.NEBIUS_API_KEY ?? '',
     nebiusProject: env.NEBIUS_AI_PROJECT ?? '',
     nebiusBaseUrl: env.NEBIUS_BASE_URL || 'https://api.tokenfactory.nebius.com/v1',
@@ -40,7 +43,7 @@ export function loadConfig(env: Env = process.env): AgentConfig {
 export function missingLiveKeys(config: AgentConfig): string[] {
   const missing: string[] = []
   if (!config.nebiusApiKey) missing.push('NEBIUS_API_KEY')
-  if (!config.nebiusProject) missing.push('NEBIUS_AI_PROJECT')
+  if (config.runner === 'nebius' && !config.nebiusProject) missing.push('NEBIUS_AI_PROJECT')
   if (!config.tavilyApiKey) missing.push('TAVILY_API_KEY')
   return missing
 }

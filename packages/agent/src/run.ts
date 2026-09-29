@@ -97,7 +97,7 @@ async function makePlan(prompt: string, llm: LlmClient, config: AgentConfig): Pr
   const answer = await llm.chat(config.models.fast, [
     { role: 'system', content: PLAN_SYSTEM },
     { role: 'user', content: planUser(prompt) },
-  ], { json: true, maxTokens: 1500 })
+  ], { thinking: false, maxTokens: 2000 })
   const plan = extractJson<Plan>(answer)
   if (!plan.source?.app || !plan.target?.app) throw new Error('Could not identify a source and a target app in the request')
   plan.fieldMapping ??= []
@@ -126,7 +126,7 @@ async function research(
   const answer = await llm.chat(config.models.mid, [
     { role: 'system', content: SPEC_SYSTEM },
     { role: 'user', content: specUser(plan, docs) },
-  ], { json: true, maxTokens: 4000 })
+  ], { thinking: false, maxTokens: 6000 })
   const spec = extractJson<ApiSpec>(answer)
   if (!spec.source || !Array.isArray(spec.target) || spec.target.length === 0) {
     throw new Error('Research did not produce a usable API spec')
@@ -138,7 +138,7 @@ async function generate(plan: Plan, spec: ApiSpec, llm: LlmClient, config: Agent
   const answer = await llm.chat(config.models.strong, [
     { role: 'system', content: GENERATE_SYSTEM },
     { role: 'user', content: generateUser(plan, spec) },
-  ], { maxTokens: 12_000, temperature: 0.1 })
+  ], { maxTokens: 32_000, temperature: 0.1 })
   return requireFiles(parseFileBlocks(answer))
 }
 
@@ -146,7 +146,7 @@ async function repair(files: GeneratedFile[], report: TestReport, llm: LlmClient
   const answer = await llm.chat(config.models.strong, [
     { role: 'system', content: GENERATE_SYSTEM },
     { role: 'user', content: repairUser(renderFileBlocks(files), report) },
-  ], { maxTokens: 12_000, temperature: 0.1 })
+  ], { maxTokens: 32_000, temperature: 0.1 })
   const repaired = parseFileBlocks(answer)
   const merged = new Map(files.map((f) => [f.path, f]))
   for (const file of repaired) merged.set(file.path, file)

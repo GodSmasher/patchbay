@@ -1,5 +1,6 @@
 import { loadConfig, missingLiveKeys, type AgentConfig } from './config'
 import { createNebiusClient } from './llm'
+import { createLocalRunner } from './local-runner'
 import { replayRun } from './replay'
 import { runAgent } from './run'
 import { createNebiusSandbox } from './sandbox'
@@ -19,11 +20,14 @@ export function startRun(prompt: string, config: AgentConfig = loadConfig()): As
     config,
     llm: createNebiusClient({ apiKey: config.nebiusApiKey, baseUrl: config.nebiusBaseUrl }),
     search: createTavilyClient({ apiKey: config.tavilyApiKey }),
-    sandbox: createNebiusSandbox({
-      apiKey: config.nebiusApiKey,
-      project: config.nebiusProject,
-      baseUrl: config.sandboxUrl,
-      preparedImage: config.baseImage,
-    }),
+    sandbox:
+      config.runner === 'local'
+        ? createLocalRunner()
+        : createNebiusSandbox({
+            apiKey: config.nebiusApiKey,
+            project: config.nebiusProject,
+            baseUrl: config.sandboxUrl,
+            preparedImage: config.baseImage,
+          }),
   })
 }

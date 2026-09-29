@@ -9,8 +9,13 @@ export interface ChatMessage {
 
 export interface ChatOptions {
   temperature?: number
+  /** Includes reasoning tokens when thinking is on, so leave generous headroom. */
   maxTokens?: number
-  json?: boolean
+  /**
+   * Nemotron reasons before answering by default. Structured steps (plan, spec) turn it off:
+   * the answer is immediate and the token budget goes to the JSON, not to deliberation.
+   */
+  thinking?: boolean
 }
 
 export interface LlmClient {
@@ -41,7 +46,7 @@ export function createNebiusClient(opts: {
       messages,
       temperature: options.temperature ?? 0.2,
       max_tokens: options.maxTokens ?? 4096,
-      ...(options.json ? { response_format: { type: 'json_object' } } : {}),
+      ...(options.thinking === false ? { chat_template_kwargs: { enable_thinking: false } } : {}),
     }
 
     let lastError: unknown
