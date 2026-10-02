@@ -163,9 +163,13 @@ export function withContract(report: TestReport, files: GeneratedFile[]): TestRe
       failures: [...report.failures, { name: 'contract (static check)', message: missing }],
     }
   }
-  const failed = report.failures.some((f) => /^contract\b/i.test(f.name))
+  // Vitest's fullName joins every surrounding describe title with a space, so a nested
+  // describe('contract', ...) inside describe('connector', ...) shows up as
+  // "connector contract handles the documented example payload". A word-boundary match
+  // catches that as well as top-level contract blocks.
+  const failed = report.failures.some((f) => /\bcontract\b/i.test(f.name))
   if (failed) return { ...report, contract: 'failed' }
-  const ran = (report.passedNames ?? []).some((name) => /^contract\b/i.test(name))
+  const ran = (report.passedNames ?? []).some((name) => /\bcontract\b/i.test(name))
   if (!ran) {
     return {
       ...report,

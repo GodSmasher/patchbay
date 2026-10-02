@@ -56,6 +56,23 @@ describe('contract status', () => {
     expect(r.contract).toBe('failed')
     expect(withContract(report(), tests(good)).contract).toBe('passed')
   })
+
+  // Regression: the strong model sometimes nests describe('contract', ...) inside an outer
+  // describe('connector', ...), so vitest reports the fullName as "connector contract …".
+  // Both the pass- and the fail-side of the check must still recognise it as the contract test.
+  it('accepts contract tests nested in an outer describe', () => {
+    const nestedPass = withContract(
+      report({ passedNames: ['connector contract handles the documented example payload'] }),
+      tests(good),
+    )
+    expect(nestedPass.contract).toBe('passed')
+
+    const nestedFail = withContract(
+      report({ failed: 1, failures: [{ name: 'connector contract handles the documented example payload', message: 'boom' }] }),
+      tests(good),
+    )
+    expect(nestedFail.contract).toBe('failed')
+  })
 })
 
 describe('rendered fixtures module', () => {

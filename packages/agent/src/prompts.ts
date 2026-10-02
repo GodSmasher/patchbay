@@ -60,7 +60,9 @@ Hard rules:
 - src/fixtures.ts is provided by patchbay, read-only, do not output it. It exports SOURCE_EXAMPLE (the documented
   source payload), TARGET_ENDPOINTS and contractFetch(), a fake fetch that answers documented endpoints (URL
   placeholders like {id} or region hosts are handled) and throws on anything else.
-  src/connector.test.ts MUST contain this block, adapted to your types and config:
+  src/connector.test.ts MUST contain this block, adapted to your types and config. Put it at
+  the TOP LEVEL of the test file — not nested inside another describe — and keep the title
+  exactly 'contract' so patchbay can detect it:
     describe('contract', () => {
       it('handles the documented example payload', async () => {
         const { fetch, calls } = contractFetch()
