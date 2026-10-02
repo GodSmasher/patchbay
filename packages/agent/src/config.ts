@@ -33,8 +33,8 @@ export function loadConfig(env: Env = process.env): AgentConfig {
     sandboxUrl: env.NEBIUS_SANDBOX_URL || 'https://api.tokenfactory.nebius.com/sandboxes/v1',
     tavilyApiKey: env.TAVILY_API_KEY ?? '',
     baseImage: env.PATCHBAY_BASE_IMAGE || undefined,
-    maxAttempts: Number(env.PATCHBAY_MAX_ATTEMPTS || 3),
-    parallelRepairs: clamp(Number(env.PATCHBAY_PARALLEL_REPAIRS || 1), 1, 4),
+    maxAttempts: Number(env.PATCHBAY_MAX_ATTEMPTS || 4),
+    parallelRepairs: clamp(Number(env.PATCHBAY_PARALLEL_REPAIRS || 2), 1, 4),
     models: {
       fast: { id: env.PATCHBAY_MODEL_FAST || 'nvidia/Nemotron-3_5-Lightning', inputPrice: 0.06, outputPrice: 0.24 },
       mid: { id: env.PATCHBAY_MODEL_MID || 'nvidia/nemotron-3-super-120b-a12b', inputPrice: 0.3, outputPrice: 0.9 },

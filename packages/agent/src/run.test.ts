@@ -57,7 +57,7 @@ async function collect(gen: AsyncGenerator<RunEvent>) {
 describe('runAgent', () => {
   it('repairs until the sandbox tests pass and uses one model per tier', async () => {
     const f = fakes([2, 0])
-    const config = { ...loadConfig({}), maxAttempts: 3 }
+    const config = { ...loadConfig({}), maxAttempts: 3, parallelRepairs: 1 }
     const events = await collect(runAgent('Typeform to Pipedrive', { config, ...f }))
 
     const tests = events.filter((e) => e.type === 'tests')
@@ -78,7 +78,7 @@ describe('runAgent', () => {
 
   it('stops after maxAttempts and reports the run as failed', async () => {
     const f = fakes([1, 1, 1, 1])
-    const events = await collect(runAgent('x', { config: { ...loadConfig({}), maxAttempts: 2 }, ...f }))
+    const events = await collect(runAgent('x', { config: { ...loadConfig({}), maxAttempts: 2, parallelRepairs: 1 }, ...f }))
     expect(events.filter((e) => e.type === 'tests')).toHaveLength(2)
     expect(events.find((e) => e.type === 'result')).toMatchObject({ ok: false, attempts: 2 })
   })
@@ -103,7 +103,7 @@ describe('contract enforcement', () => {
       codegenCalls++
       return codegenCalls === 1 ? answer.replace("describe('contract'", "describe('happy path'") : answer
     }
-    const events = await collect(runAgent('x', { config: { ...loadConfig({}), maxAttempts: 3 }, ...f }))
+    const events = await collect(runAgent('x', { config: { ...loadConfig({}), maxAttempts: 3, parallelRepairs: 1 }, ...f }))
     const reports = events.flatMap((e) => (e.type === 'tests' ? [e.report] : []))
     expect(reports[0]).toMatchObject({ contract: 'missing' })
     expect(reports[0]?.failures.at(-1)?.name).toBe('contract (static check)')
@@ -126,7 +126,7 @@ describe('monotonic repair', () => {
     let i = 0
     f.sandbox.runTests = async () => reports[i++]!
 
-    const config = { ...loadConfig({}), maxAttempts: 3 }
+    const config = { ...loadConfig({}), maxAttempts: 3, parallelRepairs: 1 }
     const events = await collect(runAgent('x', { config, ...f }))
 
     const result = events.find((e) => e.type === 'result')

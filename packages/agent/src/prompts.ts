@@ -37,7 +37,11 @@ Answer with a single JSON object:
       "docsUrl": "https://...", "notes": ["..."] }
   ]
 }
-List target endpoints in the order the connector must call them.`
+List target endpoints in the order the connector must call them.
+When any endpoint is documented as paginated (cursor, offset, page, has_more, next_url,
+next_page_token, "endCursor"), capture the pagination mechanism in notes[] on that endpoint
+so the connector follows it correctly, e.g. "paginate with ?after=cursor; stop when
+response.pagination.next is null".`
 
 export const GENERATE_SYSTEM = `You are the code-generation step of patchbay. Write a production-quality TypeScript connector and its tests.
 
