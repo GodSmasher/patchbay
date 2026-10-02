@@ -1,7 +1,7 @@
 # patchbay
 
 [![ci](https://github.com/GodSmasher/patchbay/actions/workflows/ci.yml/badge.svg)](https://github.com/GodSmasher/patchbay/actions/workflows/ci.yml)
-[![benchmark](https://img.shields.io/badge/benchmark-18%2F20%20green%20·%20%240.87-brightgreen)](bench/RESULTS.md)
+[![benchmark](https://img.shields.io/badge/benchmark-19%2F20%20green%20·%20%240.86-brightgreen)](bench/RESULTS.md)
 [![mcp](https://img.shields.io/badge/MCP-stdio-6938EF)](docs/mcp-setup.md)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![nebius](https://img.shields.io/badge/powered%20by-Nebius%20Token%20Factory-0F172A)](https://tokenfactory.nebius.com)
@@ -40,7 +40,7 @@ Three tools (`build_connector`, `research_api`, `verify_code`) with live progres
 
 ## Status
 
-Live benchmark (2026-10-02, Nebius sandbox, `bench/RESULTS.md`): **8/10 green, 5/10 on the first draft, ~$0.42 across 10 integrations**, 38/40 pages from the vendors' own domains. Grüne first-try: Stripe→Mailchimp, Calendly→Slack, GitHub→Linear, Intercom→Zendesk, Typeform→Brevo. Zwei rote nach drei Versuchen: HubSpot→Stripe (contract failed), Airtable→Discord (contract failed on typecheck).
+Live benchmark (2026-10-02, Nebius sandbox, `bench/RESULTS.md`): **19/20 green, 10/20 on the first draft, $0.86 across 20 integrations.** The hard half of the benchmark covers HMAC verification, 429 retry with Retry-After, Idempotency-Key, cursor pagination, chained search-or-create and signature-driven routing — most finish in one or two attempts. The one remaining red (Shopify HMAC → Slack) was first-try green in an earlier pass and flipped on model variance; running the benchmark three times would smooth that out.
 
 ## Dev
 

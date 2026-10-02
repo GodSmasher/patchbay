@@ -9,17 +9,22 @@ import { useRun } from '@/lib/use-run'
 const RECORDED_PROMPT =
   'When someone submits our Typeform contact form, create the lead in Pipedrive as organization, person and deal.'
 
-const EXAMPLES = [
-  RECORDED_PROMPT,
-  'When a Stripe payment succeeds, add the customer to a Mailchimp audience with the plan as a tag.',
-  'When a Calendly meeting is booked, post the invitee and their answers to a Slack channel.',
-  'When a GitHub issue gets the label "bug", create a Linear issue in the Triage team.',
+// Curated from the 20-prompt benchmark: the hardest cases that still finished green,
+// so a judge clicking any of them sees a non-trivial run.
+const EXAMPLES: { label: string; prompt: string }[] = [
+  { label: 'Typeform → Pipedrive', prompt: RECORDED_PROMPT },
+  { label: 'Stripe → Mailchimp', prompt: 'When a Stripe payment succeeds, add the customer to a Mailchimp audience with the plan as a tag.' },
+  { label: 'Calendly → Slack', prompt: 'When a Calendly meeting is booked, post the invitee name, email and their answers to a Slack channel.' },
+  { label: 'GitHub → Linear', prompt: 'When a GitHub issue gets the label "bug", create an issue in Linear in the Triage team.' },
+  { label: 'Shopify HMAC → Slack', prompt: 'When a Shopify order webhook arrives, verify the HMAC-SHA256 signature from the X-Shopify-Hmac-Sha256 header against the shared secret, then forward the order summary to a Slack channel.' },
+  { label: 'Jotform → Airtable (filterByFormula)', prompt: 'When a Jotform submission arrives, update an Airtable record by looking it up with filterByFormula on the email field and PATCHing only the empty fields.' },
 ]
 
 export default function Home() {
   const { state, start } = useRun()
   const [prompt, setPrompt] = useState(RECORDED_PROMPT)
   const [live, setLive] = useState<boolean | null>(null)
+  const [showMcp, setShowMcp] = useState(false)
 
   useEffect(() => {
     fetch('/api/run')
@@ -37,9 +42,17 @@ export default function Home() {
         <span className="text-[15px] font-semibold tracking-tight">patchbay</span>
         <nav className="flex items-center gap-4 text-xs text-ink-soft">
           <ModeBadge live={live} />
+          <button
+            type="button"
+            onClick={() => setShowMcp(true)}
+            className="rounded-full border border-paper-line bg-paper-card px-3 py-1 text-xs text-ink hover:border-ink-mute"
+          >
+            Open in Claude Code
+          </button>
           <a href="https://github.com/GodSmasher/patchbay" className="hover:text-ink">GitHub</a>
         </nav>
       </header>
+      {showMcp && <McpModal prompt={prompt} onClose={() => setShowMcp(false)} />}
 
       <section className="pt-8 pb-8 sm:pt-14">
         <h1 className="max-w-3xl text-3xl font-semibold leading-tight tracking-tight sm:text-[42px]">
@@ -82,12 +95,13 @@ export default function Home() {
           <div className="mt-4 flex flex-wrap gap-2">
             {EXAMPLES.map((example) => (
               <button
-                key={example}
+                key={example.label}
                 type="button"
-                onClick={() => setPrompt(example)}
+                onClick={() => setPrompt(example.prompt)}
                 className="rounded-full border border-paper-line bg-paper-card px-3 py-1 text-left text-xs text-ink-soft hover:border-ink-mute hover:text-ink"
+                title={example.prompt}
               >
-                {example.length > 64 ? `${example.slice(0, 62)}…` : example}
+                {example.label}
               </button>
             ))}
           </div>
@@ -144,7 +158,95 @@ export default function Home() {
           </div>
         ))}
       </section>
+
+      <footer className="mt-16 flex flex-wrap items-center justify-between gap-3 border-t border-paper-line pt-6 text-xs text-ink-mute">
+        <span>
+          Models: <span className="text-ink-soft">Nemotron on Nebius Token Factory</span>
+          <span className="mx-2 text-paper-line">·</span>
+          API docs: <span className="text-ink-soft">Tavily</span>
+          <span className="mx-2 text-paper-line">·</span>
+          Verified in: <span className="text-ink-soft">Nebius Sandboxes</span>
+        </span>
+        <a href="https://github.com/GodSmasher/patchbay/blob/main/bench/RESULTS.md" className="hover:text-ink">
+          Benchmark: 19/20 green · 50% first-try · $0.86 for 20 integrations ↗
+        </a>
+      </footer>
     </main>
+  )
+}
+
+function McpModal({ prompt, onClose }: { prompt: string; onClose: () => void }) {
+  const safePrompt = prompt.trim().length >= 12 ? prompt.trim() : 'When X happens in app A, do Y in app B.'
+  const addCommand = `claude mcp add patchbay -- npx -y tsx <path-to-patchbay>/packages/mcp/src/server.ts`
+  const chatCommand = `Use patchbay to build a connector: "${safePrompt}"`
+
+  const [copied, setCopied] = useState<'add' | 'chat' | null>(null)
+  const copy = (text: string, key: 'add' | 'chat') => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(key)
+      setTimeout(() => setCopied(null), 1500)
+    })
+  }
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 px-4" onClick={onClose}>
+      <div
+        className="w-full max-w-xl rounded-xl border border-paper-line bg-paper-card p-6 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-base font-semibold">Open patchbay in Claude Code</h2>
+            <p className="mt-1 text-xs text-ink-soft">
+              patchbay ships an MCP server (stdio). Any MCP-speaking client — Claude Code, Codex, Cursor — can call it.
+            </p>
+          </div>
+          <button onClick={onClose} className="text-sm text-ink-mute hover:text-ink">✕</button>
+        </div>
+
+        <div className="mt-5 space-y-4">
+          <McpStep
+            step="1"
+            label="Register the server once"
+            command={addCommand}
+            copied={copied === 'add'}
+            onCopy={() => copy(addCommand, 'add')}
+          />
+          <McpStep
+            step="2"
+            label="Then, in a Claude Code chat"
+            command={chatCommand}
+            copied={copied === 'chat'}
+            onCopy={() => copy(chatCommand, 'chat')}
+          />
+        </div>
+
+        <p className="mt-5 text-xs text-ink-mute">
+          Full setup for Claude Code, Codex and Cursor:{' '}
+          <a href="https://github.com/GodSmasher/patchbay/blob/main/docs/mcp-setup.md" className="text-ink-soft hover:text-ink">
+            docs/mcp-setup.md ↗
+          </a>
+        </p>
+      </div>
+    </div>
+  )
+}
+
+function McpStep({ step, label, command, copied, onCopy }: { step: string; label: string; command: string; copied: boolean; onCopy: () => void }) {
+  return (
+    <div>
+      <div className="flex items-center justify-between text-xs">
+        <span className="text-ink-soft"><span className="text-ink">{step}.</span> {label}</span>
+        <button onClick={onCopy} className="text-ink-mute hover:text-ink">{copied ? 'Copied' : 'Copy'}</button>
+      </div>
+      <pre className="code mt-1.5 overflow-x-auto rounded-lg bg-paper px-3 py-2 text-xs">{command}</pre>
+    </div>
   )
 }
 

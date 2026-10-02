@@ -13,7 +13,7 @@
     {
       "type": "plan",
       "plan": {
-        "summary": "When a new contact is submitted via Typeform, create an organization, a person, and a deal in Pipedrive linked to that person.",
+        "summary": "When a Typeform contact form is submitted, create an organization, a person, and a deal in Pipedrive linked to that person.",
         "source": {
           "app": "Typeform",
           "trigger": "form response submitted",
@@ -21,51 +21,41 @@
         },
         "target": {
           "app": "Pipedrive",
-          "action": "create person and organization and create deal",
-          "docsQuery": "Pipedrive API create person create organization create deal endpoints"
+          "action": "create organization, person and deal",
+          "docsQuery": "Pipedrive API create organization create person create deal endpoints"
         },
         "fieldMapping": [
           {
-            "from": "email",
-            "to": "email",
-            "note": "Typeform email field to Pipedrive person email"
+            "from": "name",
+            "to": "organization_name",
+            "note": "Typeform name field maps to Pipedrive organization name"
           },
           {
-            "from": "name",
-            "to": "name",
-            "note": "Typeform full name to Pipedrive person name"
+            "from": "email",
+            "to": "person_email",
+            "note": "Typeform email field maps to Pipedrive person email"
+          },
+          {
+            "from": "phone",
+            "to": "person_phone",
+            "note": "Typeform phone field maps to Pipedrive person phone number"
           },
           {
             "from": "company",
-            "to": "organization/name",
-            "note": "Typeform company name to Pipedrive organization name"
+            "to": "organization_name",
+            "note": "Typeform company field maps to Pipedrive organization name (if different from name)"
           },
           {
-            "from": "email",
-            "to": "person_id",
-            "note": "Use Typeform email to identify or create the person in Pipedrive"
-          },
-          {
-            "from": "company",
-            "to": "organization_id",
-            "note": "Link the created organization to the person"
-          },
-          {
-            "from": "name",
-            "to": "deal/title",
-            "note": "Typeform name or a formatted string becomes the deal title"
-          },
-          {
-            "from": "email",
-            "to": "deal/contact_id",
-            "note": "Link the deal to the person via contact ID"
+            "from": "text_answers",
+            "to": "deal_title",
+            "note": "Map specific text answers (e.g. 'What is your project?') to the deal title"
           }
         ],
         "assumptions": [
-          "The Typeform includes fields for full name, email, and company.",
-          "Pipedrive API allows creating a person, then an organization, then a deal in sequence within one workflow.",
-          "The created organization can be linked to the person using the person ID returned from the create-person call.",
-          "The deal will be associated with the person using the person/contact ID from the Pipedrive create-person response."
+          "The Typeform includes fields for full name, email, phone, and company.",
+          "Pipedrive API requires creating the organization first, then the person linked to that organization, then the deal linked to the person.",
+          "The user will provide specific text answer IDs from Typeform to map to the deal title.",
+          "All required Pipedrive API tokens and custom field IDs are configured in the patchbay environment."
         ]
       }
     },
@@ -73,7 +63,7 @@
       "type": "step",
       "step": "plan",
       "status": "done",
-      "detail": "When a new contact is submitted via Typeform, create an organization, a person, and a deal in Pipedrive linked to that person."
+      "detail": "When a Typeform contact form is submitted, create an organization, a person, and a deal in Pipedrive linked to that person."
     },
     {
       "type": "step",
@@ -88,12 +78,12 @@
     {
       "type": "log",
       "step": "research",
-      "message": "Searched \"Pipedrive API create person create organization create deal endpoints\": 2 of 2 picked from Pipedrive's own docs"
+      "message": "Searched \"Typeform API webhook form response submitted fields\": 2 of 2 picked from Typeform's own docs"
     },
     {
       "type": "log",
       "step": "research",
-      "message": "Searched \"Typeform API webhook form response submitted fields\": 2 of 2 picked from Typeform's own docs"
+      "message": "Searched \"Pipedrive API create organization create person create deal endpoints\": 2 of 2 picked from Pipedrive's own docs"
     },
     {
       "type": "log",
@@ -103,7 +93,7 @@
     {
       "type": "log",
       "step": "verify",
-      "message": "Checkpoint ready: 24241ac6"
+      "message": "Checkpoint ready: e009badc"
     },
     {
       "type": "sources",
@@ -119,13 +109,13 @@
           "official": true
         },
         {
-          "title": "About the Pipedrive API",
-          "url": "https://pipedrive.readme.io/docs/core-api-concepts-about-pipedrive-api",
+          "title": "Pipedrive API v1–v2 Dev References (Organizations) - Learn - Test - Try Now",
+          "url": "https://developers.pipedrive.com/docs/api/v1/Organizations",
           "official": true
         },
         {
-          "title": "Pipedrive API v1 Dev References (Leads) - View Lead API Get, Post & More - Learn - Test - Try Now",
-          "url": "https://developers.pipedrive.com/docs/api/v1/Leads",
+          "title": "Pipedrive API v1–v2 Dev References (Deals) - View id Deals Query Params",
+          "url": "https://developers.pipedrive.com/docs/api/v1/Deals",
           "official": true
         }
       ]
@@ -137,9 +127,11 @@
           "app": "Typeform",
           "role": "source",
           "method": "POST",
-          "url": "",
+          "url": "(webhook destination URL configured in Typeform)",
           "auth": {
-            "type": "none"
+            "type": "none",
+            "name": null,
+            "envVar": null
           },
           "example": {
             "event_id": "LtWXD3crgy",
@@ -151,25 +143,41 @@
               "answers": [
                 {
                   "type": "text",
-                  "text": "Laura",
+                  "text": "Acme Corp",
                   "field": {
-                    "id": "JwWggjAKtOkA",
+                    "id": "company_field_id",
+                    "type": "short_text"
+                  }
+                },
+                {
+                  "type": "text",
+                  "text": "John Doe",
+                  "field": {
+                    "id": "name_field_id",
                     "type": "short_text"
                   }
                 },
                 {
                   "type": "email",
-                  "email": "laura@example.com",
+                  "email": "john.doe@acme.com",
                   "field": {
-                    "id": "SMEUb7VJz92Q",
+                    "id": "email_field_id",
                     "type": "email"
                   }
                 },
                 {
                   "type": "text",
-                  "text": "Acme Corp",
+                  "text": "+1-555-123-4567",
                   "field": {
-                    "id": "some_company_field_id",
+                    "id": "phone_field_id",
+                    "type": "short_text"
+                  }
+                },
+                {
+                  "type": "text",
+                  "text": "Build a new website",
+                  "field": {
+                    "id": "project_answer_field_id",
                     "type": "short_text"
                   }
                 }
@@ -178,11 +186,11 @@
           },
           "docsUrl": "https://www.typeform.com/developers/webhooks/example-payload",
           "notes": [
-            "Webhook payload includes event_id, event_type, and form_response object.",
-            "Answers array contains objects with type and answer value (text, email, etc.) and field metadata.",
-            "To extract name, email, and company, map field IDs to known question IDs from the form definition.",
-            "Webhook is delivered via POST to the configured HTTPS endpoint.",
-            "No authentication is applied by Typeform; securing the endpoint is the receiver's responsibility."
+            "Webhook delivers JSON payload via POST to HTTPS endpoint.",
+            "Answers array contains objects with 'type' and answer value (e.g., 'text', 'email').",
+            "Each answer includes a 'field' object with 'id' to map to question.",
+            "Text answers for deal title must be identified by field ID from Typeform definition.",
+            "No authentication on webhook; security relies on HTTPS and optional secret (not in docs)."
           ]
         },
         "target": [
@@ -190,123 +198,140 @@
             "app": "Pipedrive",
             "role": "target",
             "method": "POST",
-            "url": "https://api.pipedrive.com/v1/persons",
+            "url": "https://api.pipedrive.com/v2/organizations",
             "auth": {
-              "type": "query",
-              "name": "api_token",
-              "envVar": "PIPEDRIVE_API_TOKEN"
-            },
-            "example": {
-              "name": "Laura",
-              "email": "laura@example.com"
-            },
-            "responseExample": {
-              "success": true,
-              "data": {
-                "id": 123456,
-                "name": "Laura",
-                "email": [
-                  {
-                    "value": "laura@example.com",
-                    "primary": true,
-                    "label": "Work"
-                  }
-                ]
-              }
-            },
-            "docsUrl": "https://developers.pipedrive.com/docs/api/v1/#/Persons/get_persons",
-            "notes": [
-              "Requires api_token as query parameter.",
-              "Creates a new person; returns person ID needed for linking.",
-              "If email already exists, Pipedrive may return existing person; connector should handle deduplication per plan assumptions.",
-              "Person can be linked to one organization via organization_id in subsequent call."
-            ]
-          },
-          {
-            "app": "Pipedrive",
-            "role": "target",
-            "method": "POST",
-            "url": "https://api.pipedrive.com/v1/organizations",
-            "auth": {
-              "type": "query",
-              "name": "api_token",
+              "type": "bearer",
+              "name": "Authorization",
               "envVar": "PIPEDRIVE_API_TOKEN"
             },
             "example": {
               "name": "Acme Corp"
             },
             "responseExample": {
-              "success": true,
               "data": {
-                "id": 789012,
-                "name": "Acme Corp"
+                "id": 123,
+                "name": "Acme Corp",
+                "owner_id": {
+                  "id": 1,
+                  "name": "John Smith"
+                },
+                "add_time": "2025-04-05T12:34:56Z",
+                "update_time": "2025-04-05T12:34:56Z"
               }
             },
-            "docsUrl": "https://developers.pipedrive.com/docs/api/v1/#/Organizations/get_organizations",
+            "docsUrl": "https://developers.pipedrive.com/docs/api/v1/Organizations",
             "notes": [
-              "Requires api_token as query parameter.",
-              "Creates a new organization; returns organization ID needed for linking to person.",
-              "Organization name is required; other fields optional.",
-              "After creation, organization ID must be used to update the person's organization_id."
-            ]
-          },
-          {
-            "app": "Pipedrive",
-            "role": "target",
-            "method": "PUT",
-            "url": "https://api.pipedrive.com/v1/persons/{id}",
-            "auth": {
-              "type": "query",
-              "name": "api_token",
-              "envVar": "PIPEDRIVE_API_TOKEN"
-            },
-            "example": {
-              "organization_id": 789012
-            },
-            "responseExample": {
-              "success": true,
-              "data": {
-                "id": 123456,
-                "organization_id": 789012,
-                "name": "Laura"
-              }
-            },
-            "docsUrl": "https://developers.pipedrive.com/docs/api/v1/#/Persons/update_person",
-            "notes": [
-              "Requires api_token as query parameter.",
-              "Updates an existing person; used to link the created organization via organization_id.",
-              "Person ID comes from the create-person response.",
-              "Only organization_id is needed in this step per the plan."
+              "Requires Bearer token in Authorization header.",
+              "Creates organization; returns organization ID needed for person linking.",
+              "Only 'name' is required; other fields optional.",
+              "Response includes 'id' for use in subsequent calls."
             ]
           },
           {
             "app": "Pipedrive",
             "role": "target",
             "method": "POST",
-            "url": "https://api.pipedrive.com/v1/deals",
+            "url": "https://api.pipedrive.com/v2/persons",
             "auth": {
-              "type": "query",
-              "name": "api_token",
+              "type": "bearer",
+              "name": "Authorization",
               "envVar": "PIPEDRIVE_API_TOKEN"
             },
             "example": {
-              "title": "Deal for Laura",
-              "person_id": 123456
+              "name": "John Doe",
+              "email": [
+                {
+                  "value": "john.doe@acme.com",
+                  "primary": true
+                }
+              ],
+              "phone": [
+                {
+                  "value": "+1-555-123-4567",
+                  "primary": true
+                }
+              ],
+              "organization_id": 123
             },
             "responseExample": {
-              "success": true,
               "data": {
-                "id": 345678,
-                "title": "Deal for Laura",
-                "person_id": 123456
+                "id": 456,
+                "name": "John Doe",
+                "email": [
+                  {
+                    "value": "john.doe@acme.com",
+                    "primary": true
+                  }
+                ],
+                "phone": [
+                  {
+                    "value": "+1-555-123-4567",
+                    "primary": true
+                  }
+                ],
+                "organization_id": {
+                  "id": 123,
+                  "name": "Acme Corp"
+                },
+                "owner_id": {
+                  "id": 1,
+                  "name": "John Smith"
+                },
+                "add_time": "2025-04-05T12:35:00Z",
+                "update_time": "2025-04-05T12:35:00Z"
               }
             },
-            "docsUrl": "https://developers.pipedrive.com/docs/api/v1/#/Deals/create_deal",
+            "docsUrl": "https://developers.pipedrive.com/docs/api/v1/Persons",
             "notes": [
-              "Requires api_token as query parameter.",
-              "Creates a new deal linked to a person via person_id.",
-              "Title is required; person_id links the deal to the contact.",
-              "Deal will be associated with the person as specified in the plan."
+              "Requires Bearer token in Authorization header.",
+              "Person must be linked to organization via 'organization_id'.",
+              "Email and phone are arrays of objects with 'value' and 'primary' flags.",
+              "At least one email or phone required; name is required.",
+              "Response includes 'id' for deal linking."
+            ]
+          },
+          {
+            "app": "Pipedrive",
+            "role": "target",
+            "method": "POST",
+            "url": "https://api.pipedrive.com/v2/deals",
+            "auth": {
+              "type": "bearer",
+              "name": "Authorization",
+              "envVar": "PIPEDRIVE_API_TOKEN"
+            },
+            "example": {
+              "title": "Build a new website",
+              "person_id": 456,
+              "org_id": 123
+            },
+            "responseExample": {
+              "data": {
+                "id": 789,
+                "title": "Build a new website",
+                "person_id": {
+                  "id": 456,
+                  "name": "John Doe"
+                },
+                "org_id": {
+                  "id": 123,
+                  "name": "Acme Corp"
+                },
+                "value": 0,
+                "currency": "USD",
+                "stage_id": 1,
+                "status": "open",
+                "add_time": "2025-04-05T12:35:10Z",
+                "update_time": "2025-04-05T12:35:10Z"
+              }
+            },
+            "docsUrl": "https://developers.pipedrive.com/docs/api/v1/Deals",
+            "notes": [
+              "Requires Bearer token in Authorization header.",
+              "Deal must be linked to person via 'person_id' and optionally organization via 'org_id'.",
+              "'title' is required; other fields like value, currency, stage_id have defaults.",
+              "Response includes deal ID and linked person/org details.",
+              "Assumes default pipeline and stage; user may need to specify via pipeline_id/stage_id if non-default."
             ]
           }
         ]
@@ -316,7 +341,7 @@
       "type": "step",
       "step": "research",
       "status": "done",
-      "detail": "5 endpoints from 4 pages"
+      "detail": "4 endpoints from 4 pages"
     },
     {
       "type": "step",
@@ -329,19 +354,19 @@
       "files": [
         {
           "path": "src/connector.ts",
-          "content": "export interface ConnectorConfig {\n  /** Pipedrive API token, typically from env var PIPEDRIVE_API_TOKEN */\n  pipedriveApiToken: string;\n  /** Mapping of Typeform field IDs to the expected data points */\n  typeformFieldIds: {\n    /** Field ID for the respondent's full name */\n    name: string;\n    /** Field ID for the respondent's email */\n    email: string;\n    /** Field ID for the company name */\n    company: string;\n  };\n  /** Injected fetch implementation (for testing) */\n  fetch?: typeof fetch;\n}\n\n/** Typeform webhook payload structure */\nexport interface TypeformPayload {\n  event_id: string;\n  event_type: string;\n  form_response: {\n    form_id: string;\n    token: string;\n    submitted_at: string;\n    answers: Array<{\n      type: string;\n      text?: string;\n      email?: string;\n      field: {\n        id: string;\n        type: string;\n      };\n    }>;\n  };\n}\n\n/** Result of the handle function */\nexport interface HandleResult {\n  personId: number;\n  organizationId: number;\n  dealId: number;\n}\n\n/**\n * Processes a Typeform form response and creates a person, organization, and deal in Pipedrive.\n * @param payload The Typeform webhook payload\n * @param config Connector configuration including API token and field ID mapping\n * @returns IDs of the created person, organization, and deal\n */\nexport async function handle(payload: TypeformPayload, config: ConnectorConfig): Promise<HandleResult> {\n  // Validate config\n  if (!config.pipedriveApiToken) {\n    throw new Error('Missing Pipedrive API token (pipedriveApiToken)');\n  }\n  if (!config.typeformFieldIds) {\n    throw new Error('Missing Typeform field IDs configuration (typeformFieldIds)');\n  }\n  const { name: nameFieldId, email: emailFieldId, company: companyFieldId } = config.typeformFieldIds;\n\n  // Extract answers from payload\n  const answers = payload.form_response.answers;\n  const nameAnswer = answers.find((a) => a.field.id === nameFieldId);\n  const emailAnswer = answers.find((a) => a.field.id === emailFieldId);\n  const companyAnswer = answers.find((a) => a.field.id === companyFieldId);\n\n  if (!nameAnswer || !nameAnswer.text) {\n    throw new Error('Missing name in Typeform response');\n  }\n  if (!emailAnswer || !emailAnswer.email) {\n    throw new Error('Missing email in Typeform response');\n  }\n  if (!companyAnswer || !companyAnswer.text) {\n    throw new Error('Missing company in Typeform response');\n  }\n\n  const name = nameAnswer.text;\n  const email = emailAnswer.email;\n  const company = companyAnswer.text;\n\n  const fetchImpl = config.fetch ?? globalThis.fetch;\n  const apiToken = config.pipedriveApiToken;\n\n  // Helper to make authenticated requests to Pipedrive\n  async function pipedriveRequest(url: string, method: string, body: unknown): Promise<{ data: Record<string, unknown> }> {\n    const fullUrl = `${url}?api_token=${encodeURIComponent(apiToken)}`;\n    const response = await fetchImpl(fullUrl, {\n      method,\n      headers: { 'Content-Type': 'application/json' },\n      body: JSON.stringify(body),\n    });\n    if (!response.ok) {\n      throw new Error(`Pipedrive API error: ${response.status} ${response.statusText} for ${method} ${url}`);\n    }\n    return response.json();\n  }\n\n  // 1. Create person\n  const personResponse = await pipedriveRequest(\n    'https://api.pipedrive.com/v1/persons',\n    'POST',\n    { name, email }\n  );\n  const personId = personResponse.data.id as number;\n\n  // 2. Create organization\n  const orgResponse = await pipedriveRequest(\n    'https://api.pipedrive.com/v1/organizations',\n    'POST',\n    { name: company }\n  );\n  const organizationId = orgResponse.data.id as number;\n\n  // 3. Update person with organization_id\n  await pipedriveRequest(\n    `https://api.pipedrive.com/v1/persons/${personId}`,\n    'PUT',\n    { organization_id: organizationId }\n  );\n\n  // 4. Create deal\n  const dealTitle = `Deal for ${name}`;\n  const dealResponse = await pipedriveRequest(\n    'https://api.pipedrive.com/v1/deals',\n    'POST',\n    { title: dealTitle, person_id: personId }\n  );\n  const dealId = dealResponse.data.id as number;\n\n  return { personId, organizationId, dealId };\n}\n"
+          "content": "export interface TypeformAnswer {\n  type: string;\n  text?: string;\n  email?: string;\n  field: {\n    id: string;\n    type: string;\n  };\n}\n\nexport interface TypeformFormResponse {\n  form_id: string;\n  token: string;\n  submitted_at: string;\n  answers: TypeformAnswer[];\n}\n\nexport interface TypeformPayload {\n  event_id: string;\n  event_type: string;\n  form_response: TypeformFormResponse;\n}\n\nexport interface ConnectorConfig {\n  pipedriveApiToken: string;\n  typeformFieldIds: {\n    nameFieldId: string;\n    emailFieldId: string;\n    phoneFieldId: string;\n    companyFieldId: string;\n    projectAnswerFieldId: string;\n  };\n  fetch?: typeof fetch;\n}\n\nexport interface HandleResult {\n  organizationId: number;\n  personId: number;\n  dealId: number;\n}\n\nasync function handle(payload: TypeformPayload, config: ConnectorConfig): Promise<HandleResult> {\n  if (!payload || payload.event_type !== 'form_response' || !payload.form_response?.answers) {\n    throw new Error('Invalid Typeform payload: missing form_response or answers');\n  }\n\n  const answers = payload.form_response.answers;\n  const fieldIds = config.typeformFieldIds;\n\n  const findAnswer = (fieldId: string) => answers.find((a) => a.field.id === fieldId);\n  const getText = (fieldId: string) => {\n    const ans = findAnswer(fieldId);\n    if (!ans) throw new Error(`Missing required field: ${fieldId}`);\n    if (ans.type === 'text') return ans.text;\n    if (ans.type === 'email') return ans.email;\n    throw new Error(`Field ${fieldId} has unexpected type ${ans.type}`);\n  };\n\n  const organizationName = getText(fieldIds.companyFieldId);\n  const personName = getText(fieldIds.nameFieldId);\n  const email = getText(fieldIds.emailFieldId);\n  const phone = getText(fieldIds.phoneFieldId);\n  const dealTitle = getText(fieldIds.projectAnswerFieldId);\n\n  const fetchFn = config.fetch ?? fetch;\n  const authHeader = `Bearer ${config.pipedriveApiToken}`;\n\n  // 1. Create organization\n  const orgResponse = await fetchFn('https://api.pipedrive.com/v2/organizations', {\n    method: 'POST',\n    headers: {\n      Authorization: authHeader,\n      'Content-Type': 'application/json',\n    },\n    body: JSON.stringify({ name: organizationName }),\n  });\n  if (!orgResponse.ok) {\n    throw new Error(`Failed to create organization: ${orgResponse.status} ${orgResponse.statusText} at ${orgResponse.url}`);\n  }\n  const orgData = await orgResponse.json();\n  const organizationId = orgData.data.id;\n\n  // 2. Create person\n  const personResponse = await fetchFn('https://api.pipedrive.com/v2/persons', {\n    method: 'POST',\n    headers: {\n      Authorization: authHeader,\n      'Content-Type': 'application/json',\n    },\n    body: JSON.stringify({\n      name: personName,\n      email: [{ value: email, primary: true }],\n      phone: [{ value: phone, primary: true }],\n      organization_id: organizationId,\n    }),\n  });\n  if (!personResponse.ok) {\n    throw new Error(`Failed to create person: ${personResponse.status} ${personResponse.statusText} at ${personResponse.url}`);\n  }\n  const personData = await personResponse.json();\n  const personId = personData.data.id;\n\n  // 3. Create deal\n  const dealResponse = await fetchFn('https://api.pipedrive.com/v2/deals', {\n    method: 'POST',\n    headers: {\n      Authorization: authHeader,\n      'Content-Type': 'application/json',\n    },\n    body: JSON.stringify({\n      title: dealTitle,\n      person_id: personId,\n      org_id: organizationId,\n    }),\n  });\n  if (!dealResponse.ok) {\n    throw new Error(`Failed to create deal: ${dealResponse.status} ${dealResponse.statusText} at ${dealResponse.url}`);\n  }\n  const dealData = await dealResponse.json();\n  const dealId = dealData.data.id;\n\n  return { organizationId, personId, dealId };\n}\n\nexport { handle };\n"
         },
         {
           "path": "src/connector.test.ts",
-          "content": "import { describe, it, expect, vi } from 'vitest';\nimport { handle, ConnectorConfig, TypeformPayload, HandleResult } from './connector';\nimport { SOURCE_EXAMPLE, contractFetch, fakeFetch, jsonResponse } from './fixtures';\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch();\n    const config: ConnectorConfig = {\n      pipedriveApiToken: 'test-token',\n      typeformFieldIds: {\n        name: 'JwWggjAKtOkA',\n        email: 'SMEUb7VJz92Q',\n        company: 'some_company_field_id',\n      },\n      fetch,\n    };\n    const result = await handle(SOURCE_EXAMPLE as unknown as TypeformPayload, config);\n    expect(calls.length).toBeGreaterThan(0);\n    expect(result).toEqual({ personId: 123456, organizationId: 789012, dealId: 345678 });\n  });\n});\n\ndescribe('handle', () => {\n  it('creates person, organization, and deal on happy path', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.url.includes('/persons') && req.method === 'POST') {\n        return jsonResponse(\n          { success: true, data: { id: 111, name: 'Test', email: [{ value: 'test@example.com', primary: true }] } },\n          201\n        );\n      }\n      if (req.url.includes('/organizations') && req.method === 'POST') {\n        return jsonResponse({ success: true, data: { id: 222, name: 'Test Corp' } }, 201);\n      }\n      if (req.url.includes('/persons/111') && req.method === 'PUT') {\n        return jsonResponse({ success: true, data: { id: 111, organization_id: 222 } }, 200);\n      }\n      if (req.url.includes('/deals') && req.method === 'POST') {\n        return jsonResponse({ success: true, data: { id: 333, title: 'Deal for Test', person_id: 111 } }, 201);\n      }\n      return jsonResponse({ error: 'not found' }, 404);\n    });\n\n    const config: ConnectorConfig = {\n      pipedriveApiToken: 'test-token',\n      typeformFieldIds: {\n        name: 'name-field',\n        email: 'email-field',\n        company: 'company-field',\n      },\n      fetch,\n    };\n\n    const payload: TypeformPayload = {\n      event_id: 'evt1',\n      event_type: 'form_response',\n      form_response: {\n        form_id: 'form1',\n        token: 'token1',\n        submitted_at: '2024-01-01T00:00:00Z',\n        answers: [\n          { type: 'text', text: 'Test', field: { id: 'name-field', type: 'short_text' } },\n          { type: 'email', email: 'test@example.com', field: { id: 'email-field', type: 'email' } },\n          { type: 'text', text: 'Test Corp', field: { id: 'company-field', type: 'short_text' } },\n        ],\n      },\n    };\n\n    const result = await handle(payload, config);\n    expect(result).toEqual({ personId: 111, organizationId: 222, dealId: 333 });\n    expect(calls.length).toBe(4);\n    expect(calls[0].json).toEqual({ name: 'Test', email: 'test@example.com' });\n    expect(calls[1].json).toEqual({ name: 'Test Corp' });\n    expect(calls[2].json).toEqual({ organization_id: 222 });\n    expect(calls[3].json).toEqual({ title: 'Deal for Test', person_id: 111 });\n    expect(calls[0].url).toContain('api_token=test-token');\n  });\n\n  it('throws on missing required field (name)', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200));\n    const config: ConnectorConfig = {\n      pipedriveApiToken: 'test-token',\n      typeformFieldIds: { name: 'name-field', email: 'email-field', company: 'company-field' },\n      fetch,\n    };\n    const payload: TypeformPayload = {\n      event_id: 'evt1',\n      event_type: 'form_response',\n      form_response: {\n        form_id: 'form1',\n        token: 'token1',\n        submitted_at: '2024-01-01T00:00:00Z',\n        answers: [\n          { type: 'email', email: 'test@example.com', field: { id: 'email-field', type: 'email' } },\n          { type: 'text', text: 'Test Corp', field: { id: 'company-field', type: 'short_text' } },\n        ],\n      },\n    };\n    await expect(handle(payload, config)).rejects.toThrow('Missing name in Typeform response');\n  });\n\n  it('throws on non-2xx response from Pipedrive', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.url.includes('/persons') && req.method === 'POST') {\n        return jsonResponse({ error: 'Unauthorized' }, 401);\n      }\n      return jsonResponse({}, 200);\n    });\n    const config: ConnectorConfig = {\n      pipedriveApiToken: 'bad-token',\n      typeformFieldIds: { name: 'name-field', email: 'email-field', company: 'company-field' },\n      fetch,\n    };\n    const payload: TypeformPayload = {\n      event_id: 'evt1',\n      event_type: 'form_response',\n      form_response: {\n        form_id: 'form1',\n        token: 'token1',\n        submitted_at: '2024-01-01T00:00:00Z',\n        answers: [\n          { type: 'text', text: 'Test', field: { id: 'name-field', type: 'short_text' } },\n          { type: 'email', email: 'test@example.com', field: { id: 'email-field', type: 'email' } },\n          { type: 'text', text: 'Test Corp', field: { id: 'company-field', type: 'short_text' } },\n        ],\n      },\n    };\n    await expect(handle(payload, config)).rejects.toThrow(\n      'Pipedrive API error: 401 Unauthorized for POST https://api.pipedrive.com/v1/persons'\n    );\n    expect(calls.length).toBe(1);\n  });\n});\n"
+          "content": "import { describe, it, expect, vi } from 'vitest';\nimport { handle, ConnectorConfig, TypeformPayload } from './connector';\nimport { SOURCE_EXAMPLE, contractFetch, fakeFetch, jsonResponse, TARGET_ENDPOINTS } from './fixtures';\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch();\n    const config: ConnectorConfig = {\n      pipedriveApiToken: 'test-token',\n      typeformFieldIds: {\n        nameFieldId: 'name_field_id',\n        emailFieldId: 'email_field_id',\n        phoneFieldId: 'phone_field_id',\n        companyFieldId: 'company_field_id',\n        projectAnswerFieldId: 'project_answer_field_id',\n      },\n      fetch,\n    };\n    const result = await handle(SOURCE_EXAMPLE as unknown as TypeformPayload, config);\n    expect(calls.length).toBeGreaterThan(0);\n    expect(result.organizationId).toBe(123);\n    expect(result.personId).toBe(456);\n    expect(result.dealId).toBe(789);\n  });\n});\n\ndescribe('handle', () => {\n  it('sends correct request bodies', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.url.endsWith('/organizations')) {\n        return jsonResponse(TARGET_ENDPOINTS[0].response, 201);\n      }\n      if (req.url.endsWith('/persons')) {\n        return jsonResponse(TARGET_ENDPOINTS[1].response, 201);\n      }\n      if (req.url.endsWith('/deals')) {\n        return jsonResponse(TARGET_ENDPOINTS[2].response, 201);\n      }\n      return jsonResponse({}, 404);\n    });\n    const config: ConnectorConfig = {\n      pipedriveApiToken: 'test-token',\n      typeformFieldIds: {\n        nameFieldId: 'name_field_id',\n        emailFieldId: 'email_field_id',\n        phoneFieldId: 'phone_field_id',\n        companyFieldId: 'company_field_id',\n        projectAnswerFieldId: 'project_answer_field_id',\n      },\n      fetch,\n    };\n    await handle(SOURCE_EXAMPLE as unknown as TypeformPayload, config);\n    expect(calls.length).toBe(3);\n    // Organization creation\n    expect(calls[0].method).toBe('POST');\n    expect(calls[0].url).toBe('https://api.pipedrive.com/v2/organizations');\n    expect(calls[0].json).toEqual({ name: 'Acme Corp' });\n    expect(calls[0].headers.get('authorization')).toBe('Bearer test-token');\n    // Person creation\n    expect(calls[1].method).toBe('POST');\n    expect(calls[1].url).toBe('https://api.pipedrive.com/v2/persons');\n    expect(calls[1].json).toEqual({\n      name: 'John Doe',\n      email: [{ value: 'john.doe@acme.com', primary: true }],\n      phone: [{ value: '+1-555-123-4567', primary: true }],\n      organization_id: 123,\n    });\n    expect(calls[1].headers.get('authorization')).toBe('Bearer test-token');\n    // Deal creation\n    expect(calls[2].method).toBe('POST');\n    expect(calls[2].url).toBe('https://api.pipedrive.com/v2/deals');\n    expect(calls[2].json).toEqual({\n      title: 'Build a new website',\n      person_id: 456,\n      org_id: 123,\n    });\n    expect(calls[2].headers.get('authorization')).toBe('Bearer test-token');\n  });\n\n  it('throws when a required field is missing', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200));\n    const config: ConnectorConfig = {\n      pipedriveApiToken: 'test-token',\n      typeformFieldIds: {\n        nameFieldId: 'name_field_id',\n        emailFieldId: 'email_field_id',\n        phoneFieldId: 'phone_field_id',\n        companyFieldId: 'company_field_id',\n        projectAnswerFieldId: 'project_answer_field_id',\n      },\n      fetch,\n    };\n    const payload = {\n      ...SOURCE_EXAMPLE,\n      form_response: {\n        ...SOURCE_EXAMPLE.form_response,\n        answers: SOURCE_EXAMPLE.form_response.answers.filter((a) => a.field.id !== 'company_field_id'),\n      },\n    };\n    await expect(handle(payload as unknown as TypeformPayload, config)).rejects.toThrow('Missing required field: company_field_id');\n  });\n\n  it('throws on non-2xx response from Pipedrive', async () => {\n    const { fetch } = fakeFetch((req) => {\n      if (req.url.endsWith('/organizations')) {\n        return jsonResponse({ error: 'Unauthorized' }, 401);\n      }\n      return jsonResponse({}, 200);\n    });\n    const config: ConnectorConfig = {\n      pipedriveApiToken: 'test-token',\n      typeformFieldIds: {\n        nameFieldId: 'name_field_id',\n        emailFieldId: 'email_field_id',\n        phoneFieldId: 'phone_field_id',\n        companyFieldId: 'company_field_id',\n        projectAnswerFieldId: 'project_answer_field_id',\n      },\n      fetch,\n    };\n    await expect(handle(SOURCE_EXAMPLE as unknown as TypeformPayload, config)).rejects.toThrow('Failed to create organization: 401 Unauthorized');\n  });\n});\n"
         },
         {
           "path": "README.md",
-          "content": "# Typeform to Pipedrive Connector\n\nThis connector processes a Typeform form response webhook and creates a person, an organization, and a deal in Pipedrive.\n\n## Configuration\n\nThe connector requires the following configuration:\n\n- `pipedriveApiToken` (string): The Pipedrive API token. Typically sourced from the `PIPEDRIVE_API_TOKEN` environment variable.\n- `typeformFieldIds` (object): Maps the Typeform field IDs to the expected data:\n  - `name`: Field ID for the respondent's full name.\n  - `email`: Field ID for the respondent's email.\n  - `company`: Field ID for the company name.\n\n## Environment Variables\n\n- `PIPEDRIVE_API_TOKEN`: The API token for Pipedrive authentication.\n\n## Usage Example\n\n```typescript\nimport { handle } from './connector';\n\nconst payload = { ... }; // Typeform webhook payload\nconst config = {\n  pipedriveApiToken: process.env.PIPEDRIVE_API_TOKEN,\n  typeformFieldIds: {\n    name: 'JwWggjAKtOkA',\n    email: 'SMEUb7VJz92Q',\n    company: 'some_company_field_id',\n  },\n};\n\nconst result = await handle(payload, config);\nconsole.log(result); // { personId: 123, organizationId: 456, dealId: 789 }\n```\n\n## Assumptions\n\n- The Typeform form includes fields for full name, email, and company, and their field IDs are known and provided in the configuration.\n- The Pipedrive API allows creating a person, then an organization, then updating the person with the organization ID, and finally creating a deal linked to the person.\n- If a person with the given email already exists in Pipedrive, the create person endpoint returns the existing person (deduplication is handled by Pipedrive).\n- The deal title is generated as \"Deal for {name}\".\n- All API calls use the `api_token` query parameter for authentication.\n"
+          "content": "# Typeform to Pipedrive Connector\n\nThis connector receives a Typeform webhook payload when a contact form is submitted and creates an organization, a person, and a deal in Pipedrive, linking them together.\n\n## What it does\n\n1. **Extracts fields** from the Typeform response using configured field IDs:\n   - Company name → Pipedrive organization name\n   - Full name → Pipedrive person name\n   - Email → Pipedrive person email (primary)\n   - Phone → Pipedrive person phone (primary)\n   - Project answer (specific text field) → Pipedrive deal title\n2. **Creates an organization** in Pipedrive via `POST /v2/organizations`.\n3. **Creates a person** linked to that organization via `POST /v2/persons`.\n4. **Creates a deal** linked to the person and organization via `POST /v2/deals`.\n\n## Configuration\n\nThe connector requires the following configuration (provided via environment variables or directly in the config object):\n\n| Config property | Environment variable | Description |\n|-----------------|----------------------|-------------|\n| `pipedriveApiToken` | `PIPEDRIVE_API_TOKEN` | Bearer token for Pipedrive API authentication. |\n| `typeformFieldIds.nameFieldId` | `TYPEFORM_NAME_FIELD_ID` | Typeform field ID for the respondent's full name. |\n| `typeformFieldIds.emailFieldId` | `TYPEFORM_EMAIL_FIELD_ID` | Typeform field ID for the email address. |\n| `typeformFieldIds.phoneFieldId` | `TYPEFORM_PHONE_FIELD_ID` | Typeform field ID for the phone number. |\n| `typeformFieldIds.companyFieldId` | `TYPEFORM_COMPANY_FIELD_ID` | Typeform field ID for the company/organization name. |\n| `typeformFieldIds.projectAnswerFieldId` | `TYPEFORM_PROJECT_ANSWER_FIELD_ID` | Typeform field ID for the text answer that becomes the deal title (e.g., \"What is your project?\"). |\n\nAll field IDs must match the `field.id` values in the Typeform webhook payload's `answers` array.\n\n## Usage example\n\n```typescript\nimport { handle, ConnectorConfig } from './connector';\n\nconst config: ConnectorConfig = {\n  pipedriveApiToken: process.env.PIPEDRIVE_API_TOKEN!,\n  typeformFieldIds: {\n    nameFieldId: process.env.TYPEFORM_NAME_FIELD_ID!,\n    emailFieldId: process.env.TYPEFORM_EMAIL_FIELD_ID!,\n    phoneFieldId: process.env.TYPEFORM_PHONE_FIELD_ID!,\n    companyFieldId: process.env.TYPEFORM_COMPANY_FIELD_ID!,\n    projectAnswerFieldId: process.env.TYPEFORM_PROJECT_ANSWER_FIELD_ID!,\n  },\n};\n\n// In your webhook handler (e.g., Express, Fastify, etc.):\napp.post('/typeform-webhook', async (req, res) => {\n  try {\n    const result = await handle(req.body, config);\n    res.json({ success: true, ...result });\n  } catch (err) {\n    console.error(err);\n    res.status(500).json({ success: false, error: err.message });\n  }\n});\n```\n\n## Assumptions\n\n- The Typeform webhook delivers a JSON payload via POST to an HTTPS endpoint. The payload structure matches the documented example (event_type `form_response` with an `answers` array).\n- Each answer includes a `field.id` that can be mapped to the configured field IDs.\n- The Pipedrive API token has permission to create organizations, persons, and deals.\n- The Pipedrive account uses the default pipeline and stage for new deals (no `pipeline_id` or `stage_id` specified).\n- The organization is created first, then the person linked to it, then the deal linked to both.\n- The company field is used for the organization name; the name field is used for the person's name.\n- Email and phone are stored as primary contact items in Pipedrive.\n- No authentication is performed on the incoming Typeform webhook (security relies on HTTPS and optionally a shared secret not covered here).\n"
         },
         {
           "path": "src/fixtures.ts",
-          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://www.typeform.com/developers/webhooks/example-payload\n// Source: https://developers.pipedrive.com/docs/api/v1/#/Persons/get_persons\n// Source: https://developers.pipedrive.com/docs/api/v1/#/Organizations/get_organizations\n// Source: https://developers.pipedrive.com/docs/api/v1/#/Persons/update_person\n// Source: https://developers.pipedrive.com/docs/api/v1/#/Deals/create_deal\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"event_id\": \"LtWXD3crgy\",\n  \"event_type\": \"form_response\",\n  \"form_response\": {\n    \"form_id\": \"lT4Z3j\",\n    \"token\": \"a3a12ec67a1365927098a606107fac15\",\n    \"submitted_at\": \"2018-01-18T18:17:02Z\",\n    \"answers\": [\n      {\n        \"type\": \"text\",\n        \"text\": \"Laura\",\n        \"field\": {\n          \"id\": \"JwWggjAKtOkA\",\n          \"type\": \"short_text\"\n        }\n      },\n      {\n        \"type\": \"email\",\n        \"email\": \"laura@example.com\",\n        \"field\": {\n          \"id\": \"SMEUb7VJz92Q\",\n          \"type\": \"email\"\n        }\n      },\n      {\n        \"type\": \"text\",\n        \"text\": \"Acme Corp\",\n        \"field\": {\n          \"id\": \"some_company_field_id\",\n          \"type\": \"short_text\"\n        }\n      }\n    ]\n  }\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://api.pipedrive.com/v1/persons\",\n    \"response\": {\n      \"success\": true,\n      \"data\": {\n        \"id\": 123456,\n        \"name\": \"Laura\",\n        \"email\": [\n          {\n            \"value\": \"laura@example.com\",\n            \"primary\": true,\n            \"label\": \"Work\"\n          }\n        ]\n      }\n    }\n  },\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://api.pipedrive.com/v1/organizations\",\n    \"response\": {\n      \"success\": true,\n      \"data\": {\n        \"id\": 789012,\n        \"name\": \"Acme Corp\"\n      }\n    }\n  },\n  {\n    \"method\": \"PUT\",\n    \"url\": \"https://api.pipedrive.com/v1/persons/{id}\",\n    \"response\": {\n      \"success\": true,\n      \"data\": {\n        \"id\": 123456,\n        \"organization_id\": 789012,\n        \"name\": \"Laura\"\n      }\n    }\n  },\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://api.pipedrive.com/v1/deals\",\n    \"response\": {\n      \"success\": true,\n      \"data\": {\n        \"id\": 345678,\n        \"title\": \"Deal for Laura\",\n        \"person_id\": 123456\n      }\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://www.typeform.com/developers/webhooks/example-payload\n// Source: https://developers.pipedrive.com/docs/api/v1/Organizations\n// Source: https://developers.pipedrive.com/docs/api/v1/Persons\n// Source: https://developers.pipedrive.com/docs/api/v1/Deals\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"event_id\": \"LtWXD3crgy\",\n  \"event_type\": \"form_response\",\n  \"form_response\": {\n    \"form_id\": \"lT4Z3j\",\n    \"token\": \"a3a12ec67a1365927098a606107fac15\",\n    \"submitted_at\": \"2018-01-18T18:17:02Z\",\n    \"answers\": [\n      {\n        \"type\": \"text\",\n        \"text\": \"Acme Corp\",\n        \"field\": {\n          \"id\": \"company_field_id\",\n          \"type\": \"short_text\"\n        }\n      },\n      {\n        \"type\": \"text\",\n        \"text\": \"John Doe\",\n        \"field\": {\n          \"id\": \"name_field_id\",\n          \"type\": \"short_text\"\n        }\n      },\n      {\n        \"type\": \"email\",\n        \"email\": \"john.doe@acme.com\",\n        \"field\": {\n          \"id\": \"email_field_id\",\n          \"type\": \"email\"\n        }\n      },\n      {\n        \"type\": \"text\",\n        \"text\": \"+1-555-123-4567\",\n        \"field\": {\n          \"id\": \"phone_field_id\",\n          \"type\": \"short_text\"\n        }\n      },\n      {\n        \"type\": \"text\",\n        \"text\": \"Build a new website\",\n        \"field\": {\n          \"id\": \"project_answer_field_id\",\n          \"type\": \"short_text\"\n        }\n      }\n    ]\n  }\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://api.pipedrive.com/v2/organizations\",\n    \"response\": {\n      \"data\": {\n        \"id\": 123,\n        \"name\": \"Acme Corp\",\n        \"owner_id\": {\n          \"id\": 1,\n          \"name\": \"John Smith\"\n        },\n        \"add_time\": \"2025-04-05T12:34:56Z\",\n        \"update_time\": \"2025-04-05T12:34:56Z\"\n      }\n    }\n  },\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://api.pipedrive.com/v2/persons\",\n    \"response\": {\n      \"data\": {\n        \"id\": 456,\n        \"name\": \"John Doe\",\n        \"email\": [\n          {\n            \"value\": \"john.doe@acme.com\",\n            \"primary\": true\n          }\n        ],\n        \"phone\": [\n          {\n            \"value\": \"+1-555-123-4567\",\n            \"primary\": true\n          }\n        ],\n        \"organization_id\": {\n          \"id\": 123,\n          \"name\": \"Acme Corp\"\n        },\n        \"owner_id\": {\n          \"id\": 1,\n          \"name\": \"John Smith\"\n        },\n        \"add_time\": \"2025-04-05T12:35:00Z\",\n        \"update_time\": \"2025-04-05T12:35:00Z\"\n      }\n    }\n  },\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://api.pipedrive.com/v2/deals\",\n    \"response\": {\n      \"data\": {\n        \"id\": 789,\n        \"title\": \"Build a new website\",\n        \"person_id\": {\n          \"id\": 456,\n          \"name\": \"John Doe\"\n        },\n        \"org_id\": {\n          \"id\": 123,\n          \"name\": \"Acme Corp\"\n        },\n        \"value\": 0,\n        \"currency\": \"USD\",\n        \"stage_id\": 1,\n        \"status\": \"open\",\n        \"add_time\": \"2025-04-05T12:35:10Z\",\n        \"update_time\": \"2025-04-05T12:35:10Z\"\n      }\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
         }
       ]
     },
@@ -359,7 +384,7 @@
     {
       "type": "log",
       "step": "verify",
-      "message": "Forking checkpoint 24241ac6 with 4 files, network off"
+      "message": "Forking checkpoint e009badc with 4 files, network off"
     },
     {
       "type": "tests",
@@ -371,12 +396,12 @@
         "failed": 0,
         "total": 4,
         "failures": [],
-        "durationMs": 295.5966796875,
-        "ranOn": "nebius-sandbox:01a0fbc1-d069-71da-8120-4a67cfc60379",
+        "durationMs": 278.353515625,
+        "ranOn": "nebius-sandbox:01a0fc25-527b-77d8-8f9b-c4a89fad4ab4",
         "passedNames": [
           "contract handles the documented example payload",
-          "handle creates person, organization, and deal on happy path",
-          "handle throws on missing required field (name)",
+          "handle sends correct request bodies",
+          "handle throws when a required field is missing",
           "handle throws on non-2xx response from Pipedrive"
         ],
         "contract": "passed"
@@ -399,20 +424,20 @@
         {
           "model": "nvidia/Nemotron-3_5-Lightning",
           "promptTokens": 422,
-          "completionTokens": 446,
-          "costUsd": 0.00013235999999999999
+          "completionTokens": 402,
+          "costUsd": 0.00012179999999999999
         },
         {
           "model": "nvidia/nemotron-3-super-120b-a12b",
-          "promptTokens": 17644,
-          "completionTokens": 1444,
-          "costUsd": 0.006592799999999999
+          "promptTokens": 21516,
+          "completionTokens": 1722,
+          "costUsd": 0.0080046
         },
         {
           "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
-          "promptTokens": 4709,
-          "completionTokens": 7343,
-          "costUsd": 0.026737999999999998
+          "promptTokens": 5319,
+          "completionTokens": 6394,
+          "costUsd": 0.024501000000000002
         }
       ]
     },
@@ -423,19 +448,19 @@
       "files": [
         {
           "path": "src/connector.ts",
-          "content": "export interface ConnectorConfig {\n  /** Pipedrive API token, typically from env var PIPEDRIVE_API_TOKEN */\n  pipedriveApiToken: string;\n  /** Mapping of Typeform field IDs to the expected data points */\n  typeformFieldIds: {\n    /** Field ID for the respondent's full name */\n    name: string;\n    /** Field ID for the respondent's email */\n    email: string;\n    /** Field ID for the company name */\n    company: string;\n  };\n  /** Injected fetch implementation (for testing) */\n  fetch?: typeof fetch;\n}\n\n/** Typeform webhook payload structure */\nexport interface TypeformPayload {\n  event_id: string;\n  event_type: string;\n  form_response: {\n    form_id: string;\n    token: string;\n    submitted_at: string;\n    answers: Array<{\n      type: string;\n      text?: string;\n      email?: string;\n      field: {\n        id: string;\n        type: string;\n      };\n    }>;\n  };\n}\n\n/** Result of the handle function */\nexport interface HandleResult {\n  personId: number;\n  organizationId: number;\n  dealId: number;\n}\n\n/**\n * Processes a Typeform form response and creates a person, organization, and deal in Pipedrive.\n * @param payload The Typeform webhook payload\n * @param config Connector configuration including API token and field ID mapping\n * @returns IDs of the created person, organization, and deal\n */\nexport async function handle(payload: TypeformPayload, config: ConnectorConfig): Promise<HandleResult> {\n  // Validate config\n  if (!config.pipedriveApiToken) {\n    throw new Error('Missing Pipedrive API token (pipedriveApiToken)');\n  }\n  if (!config.typeformFieldIds) {\n    throw new Error('Missing Typeform field IDs configuration (typeformFieldIds)');\n  }\n  const { name: nameFieldId, email: emailFieldId, company: companyFieldId } = config.typeformFieldIds;\n\n  // Extract answers from payload\n  const answers = payload.form_response.answers;\n  const nameAnswer = answers.find((a) => a.field.id === nameFieldId);\n  const emailAnswer = answers.find((a) => a.field.id === emailFieldId);\n  const companyAnswer = answers.find((a) => a.field.id === companyFieldId);\n\n  if (!nameAnswer || !nameAnswer.text) {\n    throw new Error('Missing name in Typeform response');\n  }\n  if (!emailAnswer || !emailAnswer.email) {\n    throw new Error('Missing email in Typeform response');\n  }\n  if (!companyAnswer || !companyAnswer.text) {\n    throw new Error('Missing company in Typeform response');\n  }\n\n  const name = nameAnswer.text;\n  const email = emailAnswer.email;\n  const company = companyAnswer.text;\n\n  const fetchImpl = config.fetch ?? globalThis.fetch;\n  const apiToken = config.pipedriveApiToken;\n\n  // Helper to make authenticated requests to Pipedrive\n  async function pipedriveRequest(url: string, method: string, body: unknown): Promise<{ data: Record<string, unknown> }> {\n    const fullUrl = `${url}?api_token=${encodeURIComponent(apiToken)}`;\n    const response = await fetchImpl(fullUrl, {\n      method,\n      headers: { 'Content-Type': 'application/json' },\n      body: JSON.stringify(body),\n    });\n    if (!response.ok) {\n      throw new Error(`Pipedrive API error: ${response.status} ${response.statusText} for ${method} ${url}`);\n    }\n    return response.json();\n  }\n\n  // 1. Create person\n  const personResponse = await pipedriveRequest(\n    'https://api.pipedrive.com/v1/persons',\n    'POST',\n    { name, email }\n  );\n  const personId = personResponse.data.id as number;\n\n  // 2. Create organization\n  const orgResponse = await pipedriveRequest(\n    'https://api.pipedrive.com/v1/organizations',\n    'POST',\n    { name: company }\n  );\n  const organizationId = orgResponse.data.id as number;\n\n  // 3. Update person with organization_id\n  await pipedriveRequest(\n    `https://api.pipedrive.com/v1/persons/${personId}`,\n    'PUT',\n    { organization_id: organizationId }\n  );\n\n  // 4. Create deal\n  const dealTitle = `Deal for ${name}`;\n  const dealResponse = await pipedriveRequest(\n    'https://api.pipedrive.com/v1/deals',\n    'POST',\n    { title: dealTitle, person_id: personId }\n  );\n  const dealId = dealResponse.data.id as number;\n\n  return { personId, organizationId, dealId };\n}\n"
+          "content": "export interface TypeformAnswer {\n  type: string;\n  text?: string;\n  email?: string;\n  field: {\n    id: string;\n    type: string;\n  };\n}\n\nexport interface TypeformFormResponse {\n  form_id: string;\n  token: string;\n  submitted_at: string;\n  answers: TypeformAnswer[];\n}\n\nexport interface TypeformPayload {\n  event_id: string;\n  event_type: string;\n  form_response: TypeformFormResponse;\n}\n\nexport interface ConnectorConfig {\n  pipedriveApiToken: string;\n  typeformFieldIds: {\n    nameFieldId: string;\n    emailFieldId: string;\n    phoneFieldId: string;\n    companyFieldId: string;\n    projectAnswerFieldId: string;\n  };\n  fetch?: typeof fetch;\n}\n\nexport interface HandleResult {\n  organizationId: number;\n  personId: number;\n  dealId: number;\n}\n\nasync function handle(payload: TypeformPayload, config: ConnectorConfig): Promise<HandleResult> {\n  if (!payload || payload.event_type !== 'form_response' || !payload.form_response?.answers) {\n    throw new Error('Invalid Typeform payload: missing form_response or answers');\n  }\n\n  const answers = payload.form_response.answers;\n  const fieldIds = config.typeformFieldIds;\n\n  const findAnswer = (fieldId: string) => answers.find((a) => a.field.id === fieldId);\n  const getText = (fieldId: string) => {\n    const ans = findAnswer(fieldId);\n    if (!ans) throw new Error(`Missing required field: ${fieldId}`);\n    if (ans.type === 'text') return ans.text;\n    if (ans.type === 'email') return ans.email;\n    throw new Error(`Field ${fieldId} has unexpected type ${ans.type}`);\n  };\n\n  const organizationName = getText(fieldIds.companyFieldId);\n  const personName = getText(fieldIds.nameFieldId);\n  const email = getText(fieldIds.emailFieldId);\n  const phone = getText(fieldIds.phoneFieldId);\n  const dealTitle = getText(fieldIds.projectAnswerFieldId);\n\n  const fetchFn = config.fetch ?? fetch;\n  const authHeader = `Bearer ${config.pipedriveApiToken}`;\n\n  // 1. Create organization\n  const orgResponse = await fetchFn('https://api.pipedrive.com/v2/organizations', {\n    method: 'POST',\n    headers: {\n      Authorization: authHeader,\n      'Content-Type': 'application/json',\n    },\n    body: JSON.stringify({ name: organizationName }),\n  });\n  if (!orgResponse.ok) {\n    throw new Error(`Failed to create organization: ${orgResponse.status} ${orgResponse.statusText} at ${orgResponse.url}`);\n  }\n  const orgData = await orgResponse.json();\n  const organizationId = orgData.data.id;\n\n  // 2. Create person\n  const personResponse = await fetchFn('https://api.pipedrive.com/v2/persons', {\n    method: 'POST',\n    headers: {\n      Authorization: authHeader,\n      'Content-Type': 'application/json',\n    },\n    body: JSON.stringify({\n      name: personName,\n      email: [{ value: email, primary: true }],\n      phone: [{ value: phone, primary: true }],\n      organization_id: organizationId,\n    }),\n  });\n  if (!personResponse.ok) {\n    throw new Error(`Failed to create person: ${personResponse.status} ${personResponse.statusText} at ${personResponse.url}`);\n  }\n  const personData = await personResponse.json();\n  const personId = personData.data.id;\n\n  // 3. Create deal\n  const dealResponse = await fetchFn('https://api.pipedrive.com/v2/deals', {\n    method: 'POST',\n    headers: {\n      Authorization: authHeader,\n      'Content-Type': 'application/json',\n    },\n    body: JSON.stringify({\n      title: dealTitle,\n      person_id: personId,\n      org_id: organizationId,\n    }),\n  });\n  if (!dealResponse.ok) {\n    throw new Error(`Failed to create deal: ${dealResponse.status} ${dealResponse.statusText} at ${dealResponse.url}`);\n  }\n  const dealData = await dealResponse.json();\n  const dealId = dealData.data.id;\n\n  return { organizationId, personId, dealId };\n}\n\nexport { handle };\n"
         },
         {
           "path": "src/connector.test.ts",
-          "content": "import { describe, it, expect, vi } from 'vitest';\nimport { handle, ConnectorConfig, TypeformPayload, HandleResult } from './connector';\nimport { SOURCE_EXAMPLE, contractFetch, fakeFetch, jsonResponse } from './fixtures';\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch();\n    const config: ConnectorConfig = {\n      pipedriveApiToken: 'test-token',\n      typeformFieldIds: {\n        name: 'JwWggjAKtOkA',\n        email: 'SMEUb7VJz92Q',\n        company: 'some_company_field_id',\n      },\n      fetch,\n    };\n    const result = await handle(SOURCE_EXAMPLE as unknown as TypeformPayload, config);\n    expect(calls.length).toBeGreaterThan(0);\n    expect(result).toEqual({ personId: 123456, organizationId: 789012, dealId: 345678 });\n  });\n});\n\ndescribe('handle', () => {\n  it('creates person, organization, and deal on happy path', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.url.includes('/persons') && req.method === 'POST') {\n        return jsonResponse(\n          { success: true, data: { id: 111, name: 'Test', email: [{ value: 'test@example.com', primary: true }] } },\n          201\n        );\n      }\n      if (req.url.includes('/organizations') && req.method === 'POST') {\n        return jsonResponse({ success: true, data: { id: 222, name: 'Test Corp' } }, 201);\n      }\n      if (req.url.includes('/persons/111') && req.method === 'PUT') {\n        return jsonResponse({ success: true, data: { id: 111, organization_id: 222 } }, 200);\n      }\n      if (req.url.includes('/deals') && req.method === 'POST') {\n        return jsonResponse({ success: true, data: { id: 333, title: 'Deal for Test', person_id: 111 } }, 201);\n      }\n      return jsonResponse({ error: 'not found' }, 404);\n    });\n\n    const config: ConnectorConfig = {\n      pipedriveApiToken: 'test-token',\n      typeformFieldIds: {\n        name: 'name-field',\n        email: 'email-field',\n        company: 'company-field',\n      },\n      fetch,\n    };\n\n    const payload: TypeformPayload = {\n      event_id: 'evt1',\n      event_type: 'form_response',\n      form_response: {\n        form_id: 'form1',\n        token: 'token1',\n        submitted_at: '2024-01-01T00:00:00Z',\n        answers: [\n          { type: 'text', text: 'Test', field: { id: 'name-field', type: 'short_text' } },\n          { type: 'email', email: 'test@example.com', field: { id: 'email-field', type: 'email' } },\n          { type: 'text', text: 'Test Corp', field: { id: 'company-field', type: 'short_text' } },\n        ],\n      },\n    };\n\n    const result = await handle(payload, config);\n    expect(result).toEqual({ personId: 111, organizationId: 222, dealId: 333 });\n    expect(calls.length).toBe(4);\n    expect(calls[0].json).toEqual({ name: 'Test', email: 'test@example.com' });\n    expect(calls[1].json).toEqual({ name: 'Test Corp' });\n    expect(calls[2].json).toEqual({ organization_id: 222 });\n    expect(calls[3].json).toEqual({ title: 'Deal for Test', person_id: 111 });\n    expect(calls[0].url).toContain('api_token=test-token');\n  });\n\n  it('throws on missing required field (name)', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200));\n    const config: ConnectorConfig = {\n      pipedriveApiToken: 'test-token',\n      typeformFieldIds: { name: 'name-field', email: 'email-field', company: 'company-field' },\n      fetch,\n    };\n    const payload: TypeformPayload = {\n      event_id: 'evt1',\n      event_type: 'form_response',\n      form_response: {\n        form_id: 'form1',\n        token: 'token1',\n        submitted_at: '2024-01-01T00:00:00Z',\n        answers: [\n          { type: 'email', email: 'test@example.com', field: { id: 'email-field', type: 'email' } },\n          { type: 'text', text: 'Test Corp', field: { id: 'company-field', type: 'short_text' } },\n        ],\n      },\n    };\n    await expect(handle(payload, config)).rejects.toThrow('Missing name in Typeform response');\n  });\n\n  it('throws on non-2xx response from Pipedrive', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.url.includes('/persons') && req.method === 'POST') {\n        return jsonResponse({ error: 'Unauthorized' }, 401);\n      }\n      return jsonResponse({}, 200);\n    });\n    const config: ConnectorConfig = {\n      pipedriveApiToken: 'bad-token',\n      typeformFieldIds: { name: 'name-field', email: 'email-field', company: 'company-field' },\n      fetch,\n    };\n    const payload: TypeformPayload = {\n      event_id: 'evt1',\n      event_type: 'form_response',\n      form_response: {\n        form_id: 'form1',\n        token: 'token1',\n        submitted_at: '2024-01-01T00:00:00Z',\n        answers: [\n          { type: 'text', text: 'Test', field: { id: 'name-field', type: 'short_text' } },\n          { type: 'email', email: 'test@example.com', field: { id: 'email-field', type: 'email' } },\n          { type: 'text', text: 'Test Corp', field: { id: 'company-field', type: 'short_text' } },\n        ],\n      },\n    };\n    await expect(handle(payload, config)).rejects.toThrow(\n      'Pipedrive API error: 401 Unauthorized for POST https://api.pipedrive.com/v1/persons'\n    );\n    expect(calls.length).toBe(1);\n  });\n});\n"
+          "content": "import { describe, it, expect, vi } from 'vitest';\nimport { handle, ConnectorConfig, TypeformPayload } from './connector';\nimport { SOURCE_EXAMPLE, contractFetch, fakeFetch, jsonResponse, TARGET_ENDPOINTS } from './fixtures';\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch();\n    const config: ConnectorConfig = {\n      pipedriveApiToken: 'test-token',\n      typeformFieldIds: {\n        nameFieldId: 'name_field_id',\n        emailFieldId: 'email_field_id',\n        phoneFieldId: 'phone_field_id',\n        companyFieldId: 'company_field_id',\n        projectAnswerFieldId: 'project_answer_field_id',\n      },\n      fetch,\n    };\n    const result = await handle(SOURCE_EXAMPLE as unknown as TypeformPayload, config);\n    expect(calls.length).toBeGreaterThan(0);\n    expect(result.organizationId).toBe(123);\n    expect(result.personId).toBe(456);\n    expect(result.dealId).toBe(789);\n  });\n});\n\ndescribe('handle', () => {\n  it('sends correct request bodies', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.url.endsWith('/organizations')) {\n        return jsonResponse(TARGET_ENDPOINTS[0].response, 201);\n      }\n      if (req.url.endsWith('/persons')) {\n        return jsonResponse(TARGET_ENDPOINTS[1].response, 201);\n      }\n      if (req.url.endsWith('/deals')) {\n        return jsonResponse(TARGET_ENDPOINTS[2].response, 201);\n      }\n      return jsonResponse({}, 404);\n    });\n    const config: ConnectorConfig = {\n      pipedriveApiToken: 'test-token',\n      typeformFieldIds: {\n        nameFieldId: 'name_field_id',\n        emailFieldId: 'email_field_id',\n        phoneFieldId: 'phone_field_id',\n        companyFieldId: 'company_field_id',\n        projectAnswerFieldId: 'project_answer_field_id',\n      },\n      fetch,\n    };\n    await handle(SOURCE_EXAMPLE as unknown as TypeformPayload, config);\n    expect(calls.length).toBe(3);\n    // Organization creation\n    expect(calls[0].method).toBe('POST');\n    expect(calls[0].url).toBe('https://api.pipedrive.com/v2/organizations');\n    expect(calls[0].json).toEqual({ name: 'Acme Corp' });\n    expect(calls[0].headers.get('authorization')).toBe('Bearer test-token');\n    // Person creation\n    expect(calls[1].method).toBe('POST');\n    expect(calls[1].url).toBe('https://api.pipedrive.com/v2/persons');\n    expect(calls[1].json).toEqual({\n      name: 'John Doe',\n      email: [{ value: 'john.doe@acme.com', primary: true }],\n      phone: [{ value: '+1-555-123-4567', primary: true }],\n      organization_id: 123,\n    });\n    expect(calls[1].headers.get('authorization')).toBe('Bearer test-token');\n    // Deal creation\n    expect(calls[2].method).toBe('POST');\n    expect(calls[2].url).toBe('https://api.pipedrive.com/v2/deals');\n    expect(calls[2].json).toEqual({\n      title: 'Build a new website',\n      person_id: 456,\n      org_id: 123,\n    });\n    expect(calls[2].headers.get('authorization')).toBe('Bearer test-token');\n  });\n\n  it('throws when a required field is missing', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200));\n    const config: ConnectorConfig = {\n      pipedriveApiToken: 'test-token',\n      typeformFieldIds: {\n        nameFieldId: 'name_field_id',\n        emailFieldId: 'email_field_id',\n        phoneFieldId: 'phone_field_id',\n        companyFieldId: 'company_field_id',\n        projectAnswerFieldId: 'project_answer_field_id',\n      },\n      fetch,\n    };\n    const payload = {\n      ...SOURCE_EXAMPLE,\n      form_response: {\n        ...SOURCE_EXAMPLE.form_response,\n        answers: SOURCE_EXAMPLE.form_response.answers.filter((a) => a.field.id !== 'company_field_id'),\n      },\n    };\n    await expect(handle(payload as unknown as TypeformPayload, config)).rejects.toThrow('Missing required field: company_field_id');\n  });\n\n  it('throws on non-2xx response from Pipedrive', async () => {\n    const { fetch } = fakeFetch((req) => {\n      if (req.url.endsWith('/organizations')) {\n        return jsonResponse({ error: 'Unauthorized' }, 401);\n      }\n      return jsonResponse({}, 200);\n    });\n    const config: ConnectorConfig = {\n      pipedriveApiToken: 'test-token',\n      typeformFieldIds: {\n        nameFieldId: 'name_field_id',\n        emailFieldId: 'email_field_id',\n        phoneFieldId: 'phone_field_id',\n        companyFieldId: 'company_field_id',\n        projectAnswerFieldId: 'project_answer_field_id',\n      },\n      fetch,\n    };\n    await expect(handle(SOURCE_EXAMPLE as unknown as TypeformPayload, config)).rejects.toThrow('Failed to create organization: 401 Unauthorized');\n  });\n});\n"
         },
         {
           "path": "README.md",
-          "content": "# Typeform to Pipedrive Connector\n\nThis connector processes a Typeform form response webhook and creates a person, an organization, and a deal in Pipedrive.\n\n## Configuration\n\nThe connector requires the following configuration:\n\n- `pipedriveApiToken` (string): The Pipedrive API token. Typically sourced from the `PIPEDRIVE_API_TOKEN` environment variable.\n- `typeformFieldIds` (object): Maps the Typeform field IDs to the expected data:\n  - `name`: Field ID for the respondent's full name.\n  - `email`: Field ID for the respondent's email.\n  - `company`: Field ID for the company name.\n\n## Environment Variables\n\n- `PIPEDRIVE_API_TOKEN`: The API token for Pipedrive authentication.\n\n## Usage Example\n\n```typescript\nimport { handle } from './connector';\n\nconst payload = { ... }; // Typeform webhook payload\nconst config = {\n  pipedriveApiToken: process.env.PIPEDRIVE_API_TOKEN,\n  typeformFieldIds: {\n    name: 'JwWggjAKtOkA',\n    email: 'SMEUb7VJz92Q',\n    company: 'some_company_field_id',\n  },\n};\n\nconst result = await handle(payload, config);\nconsole.log(result); // { personId: 123, organizationId: 456, dealId: 789 }\n```\n\n## Assumptions\n\n- The Typeform form includes fields for full name, email, and company, and their field IDs are known and provided in the configuration.\n- The Pipedrive API allows creating a person, then an organization, then updating the person with the organization ID, and finally creating a deal linked to the person.\n- If a person with the given email already exists in Pipedrive, the create person endpoint returns the existing person (deduplication is handled by Pipedrive).\n- The deal title is generated as \"Deal for {name}\".\n- All API calls use the `api_token` query parameter for authentication.\n"
+          "content": "# Typeform to Pipedrive Connector\n\nThis connector receives a Typeform webhook payload when a contact form is submitted and creates an organization, a person, and a deal in Pipedrive, linking them together.\n\n## What it does\n\n1. **Extracts fields** from the Typeform response using configured field IDs:\n   - Company name → Pipedrive organization name\n   - Full name → Pipedrive person name\n   - Email → Pipedrive person email (primary)\n   - Phone → Pipedrive person phone (primary)\n   - Project answer (specific text field) → Pipedrive deal title\n2. **Creates an organization** in Pipedrive via `POST /v2/organizations`.\n3. **Creates a person** linked to that organization via `POST /v2/persons`.\n4. **Creates a deal** linked to the person and organization via `POST /v2/deals`.\n\n## Configuration\n\nThe connector requires the following configuration (provided via environment variables or directly in the config object):\n\n| Config property | Environment variable | Description |\n|-----------------|----------------------|-------------|\n| `pipedriveApiToken` | `PIPEDRIVE_API_TOKEN` | Bearer token for Pipedrive API authentication. |\n| `typeformFieldIds.nameFieldId` | `TYPEFORM_NAME_FIELD_ID` | Typeform field ID for the respondent's full name. |\n| `typeformFieldIds.emailFieldId` | `TYPEFORM_EMAIL_FIELD_ID` | Typeform field ID for the email address. |\n| `typeformFieldIds.phoneFieldId` | `TYPEFORM_PHONE_FIELD_ID` | Typeform field ID for the phone number. |\n| `typeformFieldIds.companyFieldId` | `TYPEFORM_COMPANY_FIELD_ID` | Typeform field ID for the company/organization name. |\n| `typeformFieldIds.projectAnswerFieldId` | `TYPEFORM_PROJECT_ANSWER_FIELD_ID` | Typeform field ID for the text answer that becomes the deal title (e.g., \"What is your project?\"). |\n\nAll field IDs must match the `field.id` values in the Typeform webhook payload's `answers` array.\n\n## Usage example\n\n```typescript\nimport { handle, ConnectorConfig } from './connector';\n\nconst config: ConnectorConfig = {\n  pipedriveApiToken: process.env.PIPEDRIVE_API_TOKEN!,\n  typeformFieldIds: {\n    nameFieldId: process.env.TYPEFORM_NAME_FIELD_ID!,\n    emailFieldId: process.env.TYPEFORM_EMAIL_FIELD_ID!,\n    phoneFieldId: process.env.TYPEFORM_PHONE_FIELD_ID!,\n    companyFieldId: process.env.TYPEFORM_COMPANY_FIELD_ID!,\n    projectAnswerFieldId: process.env.TYPEFORM_PROJECT_ANSWER_FIELD_ID!,\n  },\n};\n\n// In your webhook handler (e.g., Express, Fastify, etc.):\napp.post('/typeform-webhook', async (req, res) => {\n  try {\n    const result = await handle(req.body, config);\n    res.json({ success: true, ...result });\n  } catch (err) {\n    console.error(err);\n    res.status(500).json({ success: false, error: err.message });\n  }\n});\n```\n\n## Assumptions\n\n- The Typeform webhook delivers a JSON payload via POST to an HTTPS endpoint. The payload structure matches the documented example (event_type `form_response` with an `answers` array).\n- Each answer includes a `field.id` that can be mapped to the configured field IDs.\n- The Pipedrive API token has permission to create organizations, persons, and deals.\n- The Pipedrive account uses the default pipeline and stage for new deals (no `pipeline_id` or `stage_id` specified).\n- The organization is created first, then the person linked to it, then the deal linked to both.\n- The company field is used for the organization name; the name field is used for the person's name.\n- Email and phone are stored as primary contact items in Pipedrive.\n- No authentication is performed on the incoming Typeform webhook (security relies on HTTPS and optionally a shared secret not covered here).\n"
         },
         {
           "path": "src/fixtures.ts",
-          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://www.typeform.com/developers/webhooks/example-payload\n// Source: https://developers.pipedrive.com/docs/api/v1/#/Persons/get_persons\n// Source: https://developers.pipedrive.com/docs/api/v1/#/Organizations/get_organizations\n// Source: https://developers.pipedrive.com/docs/api/v1/#/Persons/update_person\n// Source: https://developers.pipedrive.com/docs/api/v1/#/Deals/create_deal\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"event_id\": \"LtWXD3crgy\",\n  \"event_type\": \"form_response\",\n  \"form_response\": {\n    \"form_id\": \"lT4Z3j\",\n    \"token\": \"a3a12ec67a1365927098a606107fac15\",\n    \"submitted_at\": \"2018-01-18T18:17:02Z\",\n    \"answers\": [\n      {\n        \"type\": \"text\",\n        \"text\": \"Laura\",\n        \"field\": {\n          \"id\": \"JwWggjAKtOkA\",\n          \"type\": \"short_text\"\n        }\n      },\n      {\n        \"type\": \"email\",\n        \"email\": \"laura@example.com\",\n        \"field\": {\n          \"id\": \"SMEUb7VJz92Q\",\n          \"type\": \"email\"\n        }\n      },\n      {\n        \"type\": \"text\",\n        \"text\": \"Acme Corp\",\n        \"field\": {\n          \"id\": \"some_company_field_id\",\n          \"type\": \"short_text\"\n        }\n      }\n    ]\n  }\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://api.pipedrive.com/v1/persons\",\n    \"response\": {\n      \"success\": true,\n      \"data\": {\n        \"id\": 123456,\n        \"name\": \"Laura\",\n        \"email\": [\n          {\n            \"value\": \"laura@example.com\",\n            \"primary\": true,\n            \"label\": \"Work\"\n          }\n        ]\n      }\n    }\n  },\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://api.pipedrive.com/v1/organizations\",\n    \"response\": {\n      \"success\": true,\n      \"data\": {\n        \"id\": 789012,\n        \"name\": \"Acme Corp\"\n      }\n    }\n  },\n  {\n    \"method\": \"PUT\",\n    \"url\": \"https://api.pipedrive.com/v1/persons/{id}\",\n    \"response\": {\n      \"success\": true,\n      \"data\": {\n        \"id\": 123456,\n        \"organization_id\": 789012,\n        \"name\": \"Laura\"\n      }\n    }\n  },\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://api.pipedrive.com/v1/deals\",\n    \"response\": {\n      \"success\": true,\n      \"data\": {\n        \"id\": 345678,\n        \"title\": \"Deal for Laura\",\n        \"person_id\": 123456\n      }\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://www.typeform.com/developers/webhooks/example-payload\n// Source: https://developers.pipedrive.com/docs/api/v1/Organizations\n// Source: https://developers.pipedrive.com/docs/api/v1/Persons\n// Source: https://developers.pipedrive.com/docs/api/v1/Deals\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"event_id\": \"LtWXD3crgy\",\n  \"event_type\": \"form_response\",\n  \"form_response\": {\n    \"form_id\": \"lT4Z3j\",\n    \"token\": \"a3a12ec67a1365927098a606107fac15\",\n    \"submitted_at\": \"2018-01-18T18:17:02Z\",\n    \"answers\": [\n      {\n        \"type\": \"text\",\n        \"text\": \"Acme Corp\",\n        \"field\": {\n          \"id\": \"company_field_id\",\n          \"type\": \"short_text\"\n        }\n      },\n      {\n        \"type\": \"text\",\n        \"text\": \"John Doe\",\n        \"field\": {\n          \"id\": \"name_field_id\",\n          \"type\": \"short_text\"\n        }\n      },\n      {\n        \"type\": \"email\",\n        \"email\": \"john.doe@acme.com\",\n        \"field\": {\n          \"id\": \"email_field_id\",\n          \"type\": \"email\"\n        }\n      },\n      {\n        \"type\": \"text\",\n        \"text\": \"+1-555-123-4567\",\n        \"field\": {\n          \"id\": \"phone_field_id\",\n          \"type\": \"short_text\"\n        }\n      },\n      {\n        \"type\": \"text\",\n        \"text\": \"Build a new website\",\n        \"field\": {\n          \"id\": \"project_answer_field_id\",\n          \"type\": \"short_text\"\n        }\n      }\n    ]\n  }\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://api.pipedrive.com/v2/organizations\",\n    \"response\": {\n      \"data\": {\n        \"id\": 123,\n        \"name\": \"Acme Corp\",\n        \"owner_id\": {\n          \"id\": 1,\n          \"name\": \"John Smith\"\n        },\n        \"add_time\": \"2025-04-05T12:34:56Z\",\n        \"update_time\": \"2025-04-05T12:34:56Z\"\n      }\n    }\n  },\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://api.pipedrive.com/v2/persons\",\n    \"response\": {\n      \"data\": {\n        \"id\": 456,\n        \"name\": \"John Doe\",\n        \"email\": [\n          {\n            \"value\": \"john.doe@acme.com\",\n            \"primary\": true\n          }\n        ],\n        \"phone\": [\n          {\n            \"value\": \"+1-555-123-4567\",\n            \"primary\": true\n          }\n        ],\n        \"organization_id\": {\n          \"id\": 123,\n          \"name\": \"Acme Corp\"\n        },\n        \"owner_id\": {\n          \"id\": 1,\n          \"name\": \"John Smith\"\n        },\n        \"add_time\": \"2025-04-05T12:35:00Z\",\n        \"update_time\": \"2025-04-05T12:35:00Z\"\n      }\n    }\n  },\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://api.pipedrive.com/v2/deals\",\n    \"response\": {\n      \"data\": {\n        \"id\": 789,\n        \"title\": \"Build a new website\",\n        \"person_id\": {\n          \"id\": 456,\n          \"name\": \"John Doe\"\n        },\n        \"org_id\": {\n          \"id\": 123,\n          \"name\": \"Acme Corp\"\n        },\n        \"value\": 0,\n        \"currency\": \"USD\",\n        \"stage_id\": 1,\n        \"status\": \"open\",\n        \"add_time\": \"2025-04-05T12:35:10Z\",\n        \"update_time\": \"2025-04-05T12:35:10Z\"\n      }\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
         }
       ],
       "report": {
@@ -445,12 +470,12 @@
         "failed": 0,
         "total": 4,
         "failures": [],
-        "durationMs": 295.5966796875,
-        "ranOn": "nebius-sandbox:01a0fbc1-d069-71da-8120-4a67cfc60379",
+        "durationMs": 278.353515625,
+        "ranOn": "nebius-sandbox:01a0fc25-527b-77d8-8f9b-c4a89fad4ab4",
         "passedNames": [
           "contract handles the documented example payload",
-          "handle creates person, organization, and deal on happy path",
-          "handle throws on missing required field (name)",
+          "handle sends correct request bodies",
+          "handle throws when a required field is missing",
           "handle throws on non-2xx response from Pipedrive"
         ],
         "contract": "passed"
