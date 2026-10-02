@@ -1,0 +1,343 @@
+{
+  "prompt": "When a HubSpot deal is updated, search Salesforce for an Account by website domain; update it when a match is found, otherwise create a new Account.",
+  "events": [
+    {
+      "type": "mode",
+      "mode": "live"
+    },
+    {
+      "type": "step",
+      "step": "plan",
+      "status": "start"
+    },
+    {
+      "type": "plan",
+      "plan": {
+        "summary": "When a HubSpot deal is updated, search Salesforce for an Account by website domain and update it if found, otherwise create a new Account.",
+        "source": {
+          "app": "HubSpot",
+          "trigger": "deal updated webhook",
+          "docsQuery": "HubSpot deal updated webhook payload deal properties domain"
+        },
+        "target": {
+          "app": "Salesforce",
+          "action": "upsert Account",
+          "docsQuery": "Salesforce REST API upsert Account external id domain"
+        },
+        "fieldMapping": [
+          {
+            "from": "domain",
+            "to": "Website",
+            "note": "Extract domain from HubSpot company domain property"
+          },
+          {
+            "from": "dealname",
+            "to": "Deal Name",
+            "note": "Map HubSpot deal name to Salesforce Account name"
+          },
+          {
+            "from": "amount",
+            "to": "Annual Revenue",
+            "note": "Map deal amount to Salesforce Annual Revenue field"
+          }
+        ],
+        "assumptions": [
+          "HubSpot deal has a associated company with a domain property",
+          "Salesforce Account has an External Id field named 'Domain' for upsert matching",
+          "If no matching Account exists, a new Account will be created with the mapped fields"
+        ]
+      }
+    },
+    {
+      "type": "step",
+      "step": "plan",
+      "status": "done",
+      "detail": "When a HubSpot deal is updated, search Salesforce for an Account by website domain and update it if found, otherwise create a new Account."
+    },
+    {
+      "type": "step",
+      "step": "research",
+      "status": "start"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Installing typescript + vitest in a sandbox checkpoint"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Searched \"HubSpot deal updated webhook payload deal properties domain\": 2 of 2 picked from HubSpot's own docs"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Searched \"Salesforce REST API upsert Account external id domain\": 2 of 2 picked from Salesforce's own docs"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Extracted 4 documentation pages"
+    },
+    {
+      "type": "sources",
+      "sources": [
+        {
+          "title": "Webhooks v3 API guide - HubSpot docs",
+          "url": "https://developers.hubspot.com/docs/api-reference/legacy/webhooks/guide",
+          "official": true
+        },
+        {
+          "title": "HubSpot webhooks are fundamentally broken - APIs & Integrations - HubSpot Community",
+          "url": "https://community.hubspot.com/t/hubspot-webhooks-are-fundamentally-broken/144323",
+          "official": true
+        },
+        {
+          "title": "Insert or Update (Upsert) a Record Using an External ID | Examples | REST API Developer Guide | Salesforce Developers",
+          "url": "https://developer.salesforce.com/docs/platform/api-rest/guide/dome-upsert.html",
+          "official": true
+        },
+        {
+          "title": "Upsert Records Using sObject Collections | Reference | REST API Developer Guide | Salesforce Developers",
+          "url": "https://developer.salesforce.com/docs/platform/api-rest/guide/resources-composite-sobjects-collections-upsert.html",
+          "official": true
+        }
+      ]
+    },
+    {
+      "type": "spec",
+      "spec": {
+        "source": {
+          "app": "HubSpot",
+          "role": "source",
+          "method": "POST",
+          "url": "",
+          "auth": {
+            "type": "none",
+            "name": null,
+            "envVar": null
+          },
+          "example": {
+            "dealId": 12345,
+            "properties": {
+              "dealname": "Acme Corp Deal",
+              "amount": 50000,
+              "associatedcompanyid": 67890
+            },
+            "objectId": 12345,
+            "subscriptionId": "deal_updated_subscription",
+            "propertyName": "dealname",
+            "propertyValue": "Acme Corp Deal",
+            "changeSource": "USER_INTERFACE"
+          },
+          "docsUrl": "https://developers.hubspot.com/docs/api-reference/legacy/webhooks/guide",
+          "notes": [
+            "HubSpot sends webhook payloads via POST to a configured target URL; the URL must be provided by the connector user during setup.",
+            "The webhook payload includes deal properties under the 'properties' object; associated company data is not included directly and requires a separate API call to fetch company details (including domain).",
+            "To get the company domain, the connector must make a follow-up GET request to HubSpot's CRM API (e.g., /crm/v3/objects/companies/{companyId}) using a private app access token.",
+            "The 'changeSource' field can be used to filter for manual updates, but filtering must be done by the connector as HubSpot does not support source-based filtering at subscription level.",
+            "Property change events fire on both creation and update; the connector must handle deduplication if needed."
+          ]
+        },
+        "target": [
+          {
+            "app": "Salesforce",
+            "role": "target",
+            "method": "PATCH",
+            "url": "https://{instance}.salesforce.com/services/data/v68.0/sobjects/Account/Domain/{external_domain_value}",
+            "auth": {
+              "type": "bearer",
+              "name": "Authorization",
+              "envVar": "SALESFORCE_ACCESS_TOKEN"
+            },
+            "example": {
+              "attributes": {
+                "type": "Account"
+              },
+              "Name": "Acme Corp Deal",
+              "Website": "acme.com",
+              "AnnualRevenue": 50000
+            },
+            "responseExample": {
+              "id": "001xx000003DGhpAAG",
+              "success": true,
+              "errors": [],
+              "created": false
+            },
+            "docsUrl": "https://developer.salesforce.com/docs/platform/api-rest/guide/dome-upsert.html",
+            "notes": [
+              "The upsert endpoint uses the format: /services/data/vXX.X/sobjects/Account/Domain/{external_id_value}, where 'Domain' is the External Id field on Account.",
+              "If the external ID (domain) is not found, a new Account is created; if found once, it is updated; if multiple matches, a 300 error is returned.",
+              "The request body must include an 'attributes.type' field set to 'Account'.",
+              "In API version 46.0+, a successful upsert returns HTTP 200 with a JSON body containing 'id', 'success', 'errors', and 'created' (true if created, false if updated).",
+              "In API version 45.0-, a successful upsert returns HTTP 204 with no response body.",
+              "The connector must handle the 300 response (duplicate external IDs) appropriately per plan assumptions."
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "step",
+      "step": "research",
+      "status": "done",
+      "detail": "2 endpoints from 4 pages"
+    },
+    {
+      "type": "step",
+      "step": "generate",
+      "status": "start"
+    },
+    {
+      "type": "files",
+      "attempt": 1,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "export interface HubSpotDealWebhookPayload {\n  dealId: number;\n  properties: {\n    dealname: string;\n    amount: number;\n    associatedcompanyid: number;\n    domain?: string;\n  };\n  objectId: number;\n  subscriptionId: string;\n  propertyName: string;\n  propertyValue: string;\n  changeSource: string;\n}\n\nexport interface ConnectorConfig {\n  fetch: typeof fetch;\n  salesforceInstanceUrl: string;\n  salesforceAccessToken: string;\n  hubspotAccessToken: string;\n  hubspotBaseUrl?: string;\n  resolveCompanyDomain?: (companyId: number) => Promise<string>;\n}\n\nexport interface UpsertResult {\n  id: string;\n  success: boolean;\n  errors: string[];\n  created: boolean;\n}\n\nexport async function handle(\n  payload: HubSpotDealWebhookPayload,\n  config: ConnectorConfig\n): Promise<UpsertResult> {\n  if (!payload.properties?.dealname) {\n    throw new Error('Missing required field: properties.dealname');\n  }\n  if (payload.properties.amount === undefined || payload.properties.amount === null) {\n    throw new Error('Missing required field: properties.amount');\n  }\n  if (!payload.properties.associatedcompanyid) {\n    throw new Error('Missing required field: properties.associatedcompanyid');\n  }\n\n  const { dealname, amount, associatedcompanyid } = payload.properties;\n\n  let domain: string;\n  if (payload.properties.domain) {\n    domain = payload.properties.domain;\n  } else if (config.resolveCompanyDomain) {\n    domain = await config.resolveCompanyDomain(associatedcompanyid);\n  } else {\n    const hubspotBaseUrl = config.hubspotBaseUrl || 'https://api.hubapi.com';\n    const companyUrl = `${hubspotBaseUrl}/crm/v3/objects/companies/${associatedcompanyid}`;\n    const response = await config.fetch(companyUrl, {\n      method: 'GET',\n      headers: {\n        'Authorization': `Bearer ${config.hubspotAccessToken}`,\n        'Content-Type': 'application/json',\n      },\n    });\n    if (!response.ok) {\n      throw new Error(`Failed to fetch company from HubSpot: ${response.status} ${response.statusText} at ${companyUrl}`);\n    }\n    const companyData = await response.json() as { domain?: string };\n    if (!companyData.domain) {\n      throw new Error(`Company ${associatedcompanyid} does not have a domain property`);\n    }\n    domain = companyData.domain;\n  }\n\n  const salesforceUrl = `${config.salesforceInstanceUrl}/services/data/v68.0/sobjects/Account/Domain/${encodeURIComponent(domain)}`;\n  const body = {\n    attributes: { type: 'Account' },\n    Name: dealname,\n    Website: domain,\n    AnnualRevenue: amount,\n  };\n\n  const response = await config.fetch(salesforceUrl, {\n    method: 'PATCH',\n    headers: {\n      'Authorization': `Bearer ${config.salesforceAccessToken}`,\n      'Content-Type': 'application/json',\n    },\n    body: JSON.stringify(body),\n  });\n\n  if (response.status === 300) {\n    throw new Error(`Multiple Accounts found for domain ${domain} (300 Multiple Choices)`);\n  }\n  if (!response.ok && response.status !== 204) {\n    throw new Error(`Salesforce upsert failed: ${response.status} ${response.statusText} at ${salesforceUrl}`);\n  }\n\n  if (response.status === 204) {\n    return {\n      id: '',\n      success: true,\n      errors: [],\n      created: false,\n    };\n  }\n\n  const result = await response.json() as UpsertResult;\n  return result;\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi } from 'vitest';\nimport { handle, HubSpotDealWebhookPayload, ConnectorConfig } from './connector';\nimport { SOURCE_EXAMPLE, contractFetch, fakeFetch, jsonResponse } from './fixtures';\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch();\n    const config: ConnectorConfig = {\n      fetch,\n      salesforceInstanceUrl: 'https://test.salesforce.com',\n      salesforceAccessToken: 'test-sf-token',\n      hubspotAccessToken: 'test-hs-token',\n      resolveCompanyDomain: async (companyId: number) => {\n        if (companyId === 67890) return 'acme.com';\n        throw new Error(`Unknown company ${companyId}`);\n      },\n    };\n    const result = await handle(SOURCE_EXAMPLE as unknown as HubSpotDealWebhookPayload, config);\n    expect(calls.length).toBeGreaterThan(0);\n    expect(result.id).toBe('001xx000003DGhpAAG');\n    expect(result.created).toBe(false);\n  });\n});\n\ndescribe('handle', () => {\n  it('validates required fields', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 500));\n    const baseConfig: ConnectorConfig = {\n      fetch,\n      salesforceInstanceUrl: 'https://test.salesforce.com',\n      salesforceAccessToken: 'test-sf-token',\n      hubspotAccessToken: 'test-hs-token',\n    };\n\n    await expect(handle({\n      ...SOURCE_EXAMPLE,\n      properties: { ...SOURCE_EXAMPLE.properties, dealname: undefined as any },\n    }, baseConfig)).rejects.toThrow('Missing required field: properties.dealname');\n\n    await expect(handle({\n      ...SOURCE_EXAMPLE,\n      properties: { ...SOURCE_EXAMPLE.properties, amount: undefined as any },\n    }, baseConfig)).rejects.toThrow('Missing required field: properties.amount');\n\n    await expect(handle({\n      ...SOURCE_EXAMPLE,\n      properties: { ...SOURCE_EXAMPLE.properties, associatedcompanyid: undefined as any },\n    }, baseConfig)).rejects.toThrow('Missing required field: properties.associatedcompanyid');\n  });\n\n  it('fetches company domain from HubSpot and upserts Account', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.url.includes('/crm/v3/objects/companies/67890')) {\n        return jsonResponse({ domain: 'acme.com' });\n      }\n      if (req.url.includes('/services/data/v68.0/sobjects/Account/Domain/acme.com')) {\n        return jsonResponse({ id: '001xx000003DGhpAAG', success: true, errors: [], created: true });\n      }\n      return jsonResponse({ error: 'not found' }, 404);\n    });\n\n    const config: ConnectorConfig = {\n      fetch,\n      salesforceInstanceUrl: 'https://test.salesforce.com',\n      salesforceAccessToken: 'test-sf-token',\n      hubspotAccessToken: 'test-hs-token',\n      hubspotBaseUrl: 'https://api.hubapi.com',\n    };\n\n    const result = await handle(SOURCE_EXAMPLE as unknown as HubSpotDealWebhookPayload, config);\n\n    expect(calls.length).toBe(2);\n    expect(calls[0].method).toBe('GET');\n    expect(calls[0].url).toBe('https://api.hubapi.com/crm/v3/objects/companies/67890');\n    expect(calls[0].headers.get('authorization')).toBe('Bearer test-hs-token');\n    expect(calls[1].method).toBe('PATCH');\n    expect(calls[1].url).toBe('https://test.salesforce.com/services/data/v68.0/sobjects/Account/Domain/acme.com');\n    expect(calls[1].headers.get('authorization')).toBe('Bearer test-sf-token');\n    expect(calls[1].json).toEqual({\n      attributes: { type: 'Account' },\n      Name: 'Acme Corp Deal',\n      Website: 'acme.com',\n      AnnualRevenue: 50000,\n    });\n    expect(result.id).toBe('001xx000003DGhpAAG');\n    expect(result.created).toBe(true);\n  });\n\n  it('handles Salesforce 300 Multiple Choices error', async () => {\n    const { fetch } = fakeFetch((req) => {\n      if (req.url.includes('/crm/v3/objects/companies/67890')) {\n        return jsonResponse({ domain: 'acme.com' });\n      }\n      if (req.url.includes('/services/data/v68.0/sobjects/Account/Domain/acme.com')) {\n        return jsonResponse({ error: 'Multiple matches' }, 300);\n      }\n      return jsonResponse({ error: 'not found' }, 404);\n    });\n\n    const config: ConnectorConfig = {\n      fetch,\n      salesforceInstanceUrl: 'https://test.salesforce.com',\n      salesforceAccessToken: 'test-sf-token',\n      hubspotAccessToken: 'test-hs-token',\n      hubspotBaseUrl: 'https://api.hubapi.com',\n    };\n\n    await expect(handle(SOURCE_EXAMPLE as unknown as HubSpotDealWebhookPayload, config))\n      .rejects.toThrow('Multiple Accounts found for domain acme.com (300 Multiple Choices)');\n  });\n\n  it('handles Salesforce 204 No Content (legacy API)', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.url.includes('/crm/v3/objects/companies/67890')) {\n        return jsonResponse({ domain: 'acme.com' });\n      }\n      if (req.url.includes('/services/data/v68.0/sobjects/Account/Domain/acme.com')) {\n        return jsonResponse(null, 204);\n      }\n      return jsonResponse({ error: 'not found' }, 404);\n    });\n\n    const config: ConnectorConfig = {\n      fetch,\n      salesforceInstanceUrl: 'https://test.salesforce.com',\n      salesforceAccessToken: 'test-sf-token',\n      hubspotAccessToken: 'test-hs-token',\n      hubspotBaseUrl: 'https://api.hubapi.com',\n    };\n\n    const result = await handle(SOURCE_EXAMPLE as unknown as HubSpotDealWebhookPayload, config);\n\n    expect(result.success).toBe(true);\n    expect(result.id).toBe('');\n    expect(result.created).toBe(false);\n  });\n\n  it('uses domain from payload if present', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.url.includes('/services/data/v68.0/sobjects/Account/Domain/direct.com')) {\n        return jsonResponse({ id: '001xx000003DGhpAAG', success: true, errors: [], created: false });\n      }\n      return jsonResponse({ error: 'not found' }, 404);\n    });\n\n    const config: ConnectorConfig = {\n      fetch,\n      salesforceInstanceUrl: 'https://test.salesforce.com',\n      salesforceAccessToken: 'test-sf-token',\n      hubspotAccessToken: 'test-hs-token',\n    };\n\n    const payload = {\n      ...SOURCE_EXAMPLE,\n      properties: { ...SOURCE_EXAMPLE.properties, domain: 'direct.com' },\n    };\n\n    const result = await handle(payload as unknown as HubSpotDealWebhookPayload, config);\n\n    expect(calls.length).toBe(1);\n    expect(calls[0].url).toContain('/Domain/direct.com');\n    expect(result.id).toBe('001xx000003DGhpAAG');\n  });\n\n  it('throws on HubSpot fetch failure', async () => {\n    const { fetch } = fakeFetch((req) => {\n      if (req.url.includes('/crm/v3/objects/companies/67890')) {\n        return jsonResponse({ error: 'Unauthorized' }, 401);\n      }\n      return jsonResponse({ error: 'not found' }, 404);\n    });\n\n    const config: ConnectorConfig = {\n      fetch,\n      salesforceInstanceUrl: 'https://test.salesforce.com',\n      salesforceAccessToken: 'test-sf-token',\n      hubspotAccessToken: 'test-hs-token',\n      hubspotBaseUrl: 'https://api.hubapi.com',\n    };\n\n    await expect(handle(SOURCE_EXAMPLE as unknown as HubSpotDealWebhookPayload, config))\n      .rejects.toThrow('Failed to fetch company from HubSpot: 401 Unauthorized');\n  });\n\n  it('throws when company has no domain', async () => {\n    const { fetch } = fakeFetch((req) => {\n      if (req.url.includes('/crm/v3/objects/companies/67890')) {\n        return jsonResponse({ name: 'Acme Corp' });\n      }\n      return jsonResponse({ error: 'not found' }, 404);\n    });\n\n    const config: ConnectorConfig = {\n      fetch,\n      salesforceInstanceUrl: 'https://test.salesforce.com',\n      salesforceAccessToken: 'test-sf-token',\n      hubspotAccessToken: 'test-hs-token',\n      hubspotBaseUrl: 'https://api.hubapi.com',\n    };\n\n    await expect(handle(SOURCE_EXAMPLE as unknown as HubSpotDealWebhookPayload, config))\n      .rejects.toThrow('Company 67890 does not have a domain property');\n  });\n});\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# HubSpot Deal to Salesforce Account Connector\n\nThis connector processes HubSpot deal updated webhooks and upserts corresponding Salesforce Accounts using the company domain as an external ID.\n\n## What it does\n\n1. Receives a HubSpot deal updated webhook payload\n2. Extracts the associated company ID from the deal properties\n3. Fetches the company details from HubSpot CRM API to get the domain\n4. Uses the domain as an external ID to upsert (create or update) a Salesforce Account\n5. Maps deal fields to Account fields:\n   - Deal name → Account Name\n   - Deal amount → Annual Revenue\n   - Company domain → Website\n\n## Configuration\n\nThe connector requires the following configuration (provided via environment variables or config object):\n\n| Config Property | Environment Variable | Description |\n|-----------------|---------------------|-------------|\n| `salesforceInstanceUrl` | `SALESFORCE_INSTANCE_URL` | Salesforce instance URL (e.g., `https://mycompany.my.salesforce.com`) |\n| `salesforceAccessToken` | `SALESFORCE_ACCESS_TOKEN` | Salesforce OAuth access token with API permissions |\n| `hubspotAccessToken` | `HUBSPOT_ACCESS_TOKEN` | HubSpot private app access token for CRM API |\n| `hubspotBaseUrl` | `HUBSPOT_BASE_URL` | (Optional) HubSpot API base URL, defaults to `https://api.hubapi.com` |\n| `resolveCompanyDomain` | N/A | (Optional) Function to resolve company domain from ID, used for testing or caching |\n\n## Usage Example\n\n```typescript\nimport { handle, ConnectorConfig } from './connector';\n\nconst config: ConnectorConfig = {\n  fetch: globalThis.fetch,\n  salesforceInstanceUrl: process.env.SALESFORCE_INSTANCE_URL!,\n  salesforceAccessToken: process.env.SALESFORCE_ACCESS_TOKEN!,\n  hubspotAccessToken: process.env.HUBSPOT_ACCESS_TOKEN!,\n  hubspotBaseUrl: process.env.HUBSPOT_BASE_URL,\n};\n\n// In your webhook handler:\napp.post('/hubspot/deal-updated', async (req, res) => {\n  try {\n    const result = await handle(req.body, config);\n    res.json({ success: true, accountId: result.id, created: result.created });\n  } catch (error) {\n    console.error('Connector error:', error);\n    res.status(500).json({ success: false, error: error.message });\n  }\n});\n```\n\n## Assumptions\n\n- HubSpot deal has an associated company with a domain property\n- Salesforce Account has an External Id field named \"Domain\" for upsert matching\n- If no matching Account exists, a new Account is created with the mapped fields\n- If multiple Accounts match the domain, Salesforce returns 300 Multiple Choices and the connector throws an error\n- The connector handles both modern (200 with JSON) and legacy (204 No Content) Salesforce API responses\n- HubSpot webhook payloads are sent via POST to a configured URL (URL setup is outside this connector)\n- The `changeSource` field can be used to filter for manual updates, but filtering is done by the connector if needed\n- Property change events fire on both creation and update; deduplication should be handled at the webhook subscription level if required\n\n## Error Handling\n\nThe connector throws descriptive errors for:\n- Missing required fields in the webhook payload\n- HubSpot API failures (network, auth, missing domain)\n- Salesforce upsert failures (non-2xx responses except 204)\n- Multiple Account matches for the same domain (300 response)\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://developers.hubspot.com/docs/api-reference/legacy/webhooks/guide\n// Source: https://developer.salesforce.com/docs/platform/api-rest/guide/dome-upsert.html\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"dealId\": 12345,\n  \"properties\": {\n    \"dealname\": \"Acme Corp Deal\",\n    \"amount\": 50000,\n    \"associatedcompanyid\": 67890\n  },\n  \"objectId\": 12345,\n  \"subscriptionId\": \"deal_updated_subscription\",\n  \"propertyName\": \"dealname\",\n  \"propertyValue\": \"Acme Corp Deal\",\n  \"changeSource\": \"USER_INTERFACE\"\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"PATCH\",\n    \"url\": \"https://{instance}.salesforce.com/services/data/v68.0/sobjects/Account/Domain/{external_domain_value}\",\n    \"response\": {\n      \"id\": \"001xx000003DGhpAAG\",\n      \"success\": true,\n      \"errors\": [],\n      \"created\": false\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ]
+    },
+    {
+      "type": "step",
+      "step": "generate",
+      "status": "done",
+      "detail": "src/connector.ts, src/connector.test.ts, README.md, src/fixtures.ts"
+    },
+    {
+      "type": "step",
+      "step": "verify",
+      "status": "start"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Checkpoint ready: 92b6bc5f"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Forking checkpoint 92b6bc5f with 4 files, network off"
+    },
+    {
+      "type": "tests",
+      "attempt": 1,
+      "report": {
+        "typecheckOk": true,
+        "typecheckOutput": "",
+        "passed": 8,
+        "failed": 0,
+        "total": 8,
+        "failures": [],
+        "durationMs": 285.548583984375,
+        "ranOn": "nebius-sandbox:01a0fc64-799c-73ac-a074-159c1bb627f6",
+        "passedNames": [
+          "contract handles the documented example payload",
+          "handle validates required fields",
+          "handle fetches company domain from HubSpot and upserts Account",
+          "handle handles Salesforce 300 Multiple Choices error",
+          "handle handles Salesforce 204 No Content (legacy API)",
+          "handle uses domain from payload if present",
+          "handle throws on HubSpot fetch failure",
+          "handle throws when company has no domain"
+        ],
+        "contract": "passed"
+      }
+    },
+    {
+      "type": "step",
+      "step": "verify",
+      "status": "done",
+      "detail": "8/8 tests after 1 attempt"
+    },
+    {
+      "type": "step",
+      "step": "package",
+      "status": "start"
+    },
+    {
+      "type": "usage",
+      "usage": [
+        {
+          "model": "nvidia/Nemotron-3_5-Lightning",
+          "promptTokens": 430,
+          "completionTokens": 281,
+          "costUsd": 0.00009324
+        },
+        {
+          "model": "nvidia/nemotron-3-super-120b-a12b",
+          "promptTokens": 7396,
+          "completionTokens": 808,
+          "costUsd": 0.002946
+        },
+        {
+          "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+          "promptTokens": 3526,
+          "completionTokens": 12205,
+          "costUsd": 0.040141
+        }
+      ]
+    },
+    {
+      "type": "result",
+      "ok": true,
+      "attempts": 1,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "export interface HubSpotDealWebhookPayload {\n  dealId: number;\n  properties: {\n    dealname: string;\n    amount: number;\n    associatedcompanyid: number;\n    domain?: string;\n  };\n  objectId: number;\n  subscriptionId: string;\n  propertyName: string;\n  propertyValue: string;\n  changeSource: string;\n}\n\nexport interface ConnectorConfig {\n  fetch: typeof fetch;\n  salesforceInstanceUrl: string;\n  salesforceAccessToken: string;\n  hubspotAccessToken: string;\n  hubspotBaseUrl?: string;\n  resolveCompanyDomain?: (companyId: number) => Promise<string>;\n}\n\nexport interface UpsertResult {\n  id: string;\n  success: boolean;\n  errors: string[];\n  created: boolean;\n}\n\nexport async function handle(\n  payload: HubSpotDealWebhookPayload,\n  config: ConnectorConfig\n): Promise<UpsertResult> {\n  if (!payload.properties?.dealname) {\n    throw new Error('Missing required field: properties.dealname');\n  }\n  if (payload.properties.amount === undefined || payload.properties.amount === null) {\n    throw new Error('Missing required field: properties.amount');\n  }\n  if (!payload.properties.associatedcompanyid) {\n    throw new Error('Missing required field: properties.associatedcompanyid');\n  }\n\n  const { dealname, amount, associatedcompanyid } = payload.properties;\n\n  let domain: string;\n  if (payload.properties.domain) {\n    domain = payload.properties.domain;\n  } else if (config.resolveCompanyDomain) {\n    domain = await config.resolveCompanyDomain(associatedcompanyid);\n  } else {\n    const hubspotBaseUrl = config.hubspotBaseUrl || 'https://api.hubapi.com';\n    const companyUrl = `${hubspotBaseUrl}/crm/v3/objects/companies/${associatedcompanyid}`;\n    const response = await config.fetch(companyUrl, {\n      method: 'GET',\n      headers: {\n        'Authorization': `Bearer ${config.hubspotAccessToken}`,\n        'Content-Type': 'application/json',\n      },\n    });\n    if (!response.ok) {\n      throw new Error(`Failed to fetch company from HubSpot: ${response.status} ${response.statusText} at ${companyUrl}`);\n    }\n    const companyData = await response.json() as { domain?: string };\n    if (!companyData.domain) {\n      throw new Error(`Company ${associatedcompanyid} does not have a domain property`);\n    }\n    domain = companyData.domain;\n  }\n\n  const salesforceUrl = `${config.salesforceInstanceUrl}/services/data/v68.0/sobjects/Account/Domain/${encodeURIComponent(domain)}`;\n  const body = {\n    attributes: { type: 'Account' },\n    Name: dealname,\n    Website: domain,\n    AnnualRevenue: amount,\n  };\n\n  const response = await config.fetch(salesforceUrl, {\n    method: 'PATCH',\n    headers: {\n      'Authorization': `Bearer ${config.salesforceAccessToken}`,\n      'Content-Type': 'application/json',\n    },\n    body: JSON.stringify(body),\n  });\n\n  if (response.status === 300) {\n    throw new Error(`Multiple Accounts found for domain ${domain} (300 Multiple Choices)`);\n  }\n  if (!response.ok && response.status !== 204) {\n    throw new Error(`Salesforce upsert failed: ${response.status} ${response.statusText} at ${salesforceUrl}`);\n  }\n\n  if (response.status === 204) {\n    return {\n      id: '',\n      success: true,\n      errors: [],\n      created: false,\n    };\n  }\n\n  const result = await response.json() as UpsertResult;\n  return result;\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi } from 'vitest';\nimport { handle, HubSpotDealWebhookPayload, ConnectorConfig } from './connector';\nimport { SOURCE_EXAMPLE, contractFetch, fakeFetch, jsonResponse } from './fixtures';\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch();\n    const config: ConnectorConfig = {\n      fetch,\n      salesforceInstanceUrl: 'https://test.salesforce.com',\n      salesforceAccessToken: 'test-sf-token',\n      hubspotAccessToken: 'test-hs-token',\n      resolveCompanyDomain: async (companyId: number) => {\n        if (companyId === 67890) return 'acme.com';\n        throw new Error(`Unknown company ${companyId}`);\n      },\n    };\n    const result = await handle(SOURCE_EXAMPLE as unknown as HubSpotDealWebhookPayload, config);\n    expect(calls.length).toBeGreaterThan(0);\n    expect(result.id).toBe('001xx000003DGhpAAG');\n    expect(result.created).toBe(false);\n  });\n});\n\ndescribe('handle', () => {\n  it('validates required fields', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 500));\n    const baseConfig: ConnectorConfig = {\n      fetch,\n      salesforceInstanceUrl: 'https://test.salesforce.com',\n      salesforceAccessToken: 'test-sf-token',\n      hubspotAccessToken: 'test-hs-token',\n    };\n\n    await expect(handle({\n      ...SOURCE_EXAMPLE,\n      properties: { ...SOURCE_EXAMPLE.properties, dealname: undefined as any },\n    }, baseConfig)).rejects.toThrow('Missing required field: properties.dealname');\n\n    await expect(handle({\n      ...SOURCE_EXAMPLE,\n      properties: { ...SOURCE_EXAMPLE.properties, amount: undefined as any },\n    }, baseConfig)).rejects.toThrow('Missing required field: properties.amount');\n\n    await expect(handle({\n      ...SOURCE_EXAMPLE,\n      properties: { ...SOURCE_EXAMPLE.properties, associatedcompanyid: undefined as any },\n    }, baseConfig)).rejects.toThrow('Missing required field: properties.associatedcompanyid');\n  });\n\n  it('fetches company domain from HubSpot and upserts Account', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.url.includes('/crm/v3/objects/companies/67890')) {\n        return jsonResponse({ domain: 'acme.com' });\n      }\n      if (req.url.includes('/services/data/v68.0/sobjects/Account/Domain/acme.com')) {\n        return jsonResponse({ id: '001xx000003DGhpAAG', success: true, errors: [], created: true });\n      }\n      return jsonResponse({ error: 'not found' }, 404);\n    });\n\n    const config: ConnectorConfig = {\n      fetch,\n      salesforceInstanceUrl: 'https://test.salesforce.com',\n      salesforceAccessToken: 'test-sf-token',\n      hubspotAccessToken: 'test-hs-token',\n      hubspotBaseUrl: 'https://api.hubapi.com',\n    };\n\n    const result = await handle(SOURCE_EXAMPLE as unknown as HubSpotDealWebhookPayload, config);\n\n    expect(calls.length).toBe(2);\n    expect(calls[0].method).toBe('GET');\n    expect(calls[0].url).toBe('https://api.hubapi.com/crm/v3/objects/companies/67890');\n    expect(calls[0].headers.get('authorization')).toBe('Bearer test-hs-token');\n    expect(calls[1].method).toBe('PATCH');\n    expect(calls[1].url).toBe('https://test.salesforce.com/services/data/v68.0/sobjects/Account/Domain/acme.com');\n    expect(calls[1].headers.get('authorization')).toBe('Bearer test-sf-token');\n    expect(calls[1].json).toEqual({\n      attributes: { type: 'Account' },\n      Name: 'Acme Corp Deal',\n      Website: 'acme.com',\n      AnnualRevenue: 50000,\n    });\n    expect(result.id).toBe('001xx000003DGhpAAG');\n    expect(result.created).toBe(true);\n  });\n\n  it('handles Salesforce 300 Multiple Choices error', async () => {\n    const { fetch } = fakeFetch((req) => {\n      if (req.url.includes('/crm/v3/objects/companies/67890')) {\n        return jsonResponse({ domain: 'acme.com' });\n      }\n      if (req.url.includes('/services/data/v68.0/sobjects/Account/Domain/acme.com')) {\n        return jsonResponse({ error: 'Multiple matches' }, 300);\n      }\n      return jsonResponse({ error: 'not found' }, 404);\n    });\n\n    const config: ConnectorConfig = {\n      fetch,\n      salesforceInstanceUrl: 'https://test.salesforce.com',\n      salesforceAccessToken: 'test-sf-token',\n      hubspotAccessToken: 'test-hs-token',\n      hubspotBaseUrl: 'https://api.hubapi.com',\n    };\n\n    await expect(handle(SOURCE_EXAMPLE as unknown as HubSpotDealWebhookPayload, config))\n      .rejects.toThrow('Multiple Accounts found for domain acme.com (300 Multiple Choices)');\n  });\n\n  it('handles Salesforce 204 No Content (legacy API)', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.url.includes('/crm/v3/objects/companies/67890')) {\n        return jsonResponse({ domain: 'acme.com' });\n      }\n      if (req.url.includes('/services/data/v68.0/sobjects/Account/Domain/acme.com')) {\n        return jsonResponse(null, 204);\n      }\n      return jsonResponse({ error: 'not found' }, 404);\n    });\n\n    const config: ConnectorConfig = {\n      fetch,\n      salesforceInstanceUrl: 'https://test.salesforce.com',\n      salesforceAccessToken: 'test-sf-token',\n      hubspotAccessToken: 'test-hs-token',\n      hubspotBaseUrl: 'https://api.hubapi.com',\n    };\n\n    const result = await handle(SOURCE_EXAMPLE as unknown as HubSpotDealWebhookPayload, config);\n\n    expect(result.success).toBe(true);\n    expect(result.id).toBe('');\n    expect(result.created).toBe(false);\n  });\n\n  it('uses domain from payload if present', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.url.includes('/services/data/v68.0/sobjects/Account/Domain/direct.com')) {\n        return jsonResponse({ id: '001xx000003DGhpAAG', success: true, errors: [], created: false });\n      }\n      return jsonResponse({ error: 'not found' }, 404);\n    });\n\n    const config: ConnectorConfig = {\n      fetch,\n      salesforceInstanceUrl: 'https://test.salesforce.com',\n      salesforceAccessToken: 'test-sf-token',\n      hubspotAccessToken: 'test-hs-token',\n    };\n\n    const payload = {\n      ...SOURCE_EXAMPLE,\n      properties: { ...SOURCE_EXAMPLE.properties, domain: 'direct.com' },\n    };\n\n    const result = await handle(payload as unknown as HubSpotDealWebhookPayload, config);\n\n    expect(calls.length).toBe(1);\n    expect(calls[0].url).toContain('/Domain/direct.com');\n    expect(result.id).toBe('001xx000003DGhpAAG');\n  });\n\n  it('throws on HubSpot fetch failure', async () => {\n    const { fetch } = fakeFetch((req) => {\n      if (req.url.includes('/crm/v3/objects/companies/67890')) {\n        return jsonResponse({ error: 'Unauthorized' }, 401);\n      }\n      return jsonResponse({ error: 'not found' }, 404);\n    });\n\n    const config: ConnectorConfig = {\n      fetch,\n      salesforceInstanceUrl: 'https://test.salesforce.com',\n      salesforceAccessToken: 'test-sf-token',\n      hubspotAccessToken: 'test-hs-token',\n      hubspotBaseUrl: 'https://api.hubapi.com',\n    };\n\n    await expect(handle(SOURCE_EXAMPLE as unknown as HubSpotDealWebhookPayload, config))\n      .rejects.toThrow('Failed to fetch company from HubSpot: 401 Unauthorized');\n  });\n\n  it('throws when company has no domain', async () => {\n    const { fetch } = fakeFetch((req) => {\n      if (req.url.includes('/crm/v3/objects/companies/67890')) {\n        return jsonResponse({ name: 'Acme Corp' });\n      }\n      return jsonResponse({ error: 'not found' }, 404);\n    });\n\n    const config: ConnectorConfig = {\n      fetch,\n      salesforceInstanceUrl: 'https://test.salesforce.com',\n      salesforceAccessToken: 'test-sf-token',\n      hubspotAccessToken: 'test-hs-token',\n      hubspotBaseUrl: 'https://api.hubapi.com',\n    };\n\n    await expect(handle(SOURCE_EXAMPLE as unknown as HubSpotDealWebhookPayload, config))\n      .rejects.toThrow('Company 67890 does not have a domain property');\n  });\n});\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# HubSpot Deal to Salesforce Account Connector\n\nThis connector processes HubSpot deal updated webhooks and upserts corresponding Salesforce Accounts using the company domain as an external ID.\n\n## What it does\n\n1. Receives a HubSpot deal updated webhook payload\n2. Extracts the associated company ID from the deal properties\n3. Fetches the company details from HubSpot CRM API to get the domain\n4. Uses the domain as an external ID to upsert (create or update) a Salesforce Account\n5. Maps deal fields to Account fields:\n   - Deal name → Account Name\n   - Deal amount → Annual Revenue\n   - Company domain → Website\n\n## Configuration\n\nThe connector requires the following configuration (provided via environment variables or config object):\n\n| Config Property | Environment Variable | Description |\n|-----------------|---------------------|-------------|\n| `salesforceInstanceUrl` | `SALESFORCE_INSTANCE_URL` | Salesforce instance URL (e.g., `https://mycompany.my.salesforce.com`) |\n| `salesforceAccessToken` | `SALESFORCE_ACCESS_TOKEN` | Salesforce OAuth access token with API permissions |\n| `hubspotAccessToken` | `HUBSPOT_ACCESS_TOKEN` | HubSpot private app access token for CRM API |\n| `hubspotBaseUrl` | `HUBSPOT_BASE_URL` | (Optional) HubSpot API base URL, defaults to `https://api.hubapi.com` |\n| `resolveCompanyDomain` | N/A | (Optional) Function to resolve company domain from ID, used for testing or caching |\n\n## Usage Example\n\n```typescript\nimport { handle, ConnectorConfig } from './connector';\n\nconst config: ConnectorConfig = {\n  fetch: globalThis.fetch,\n  salesforceInstanceUrl: process.env.SALESFORCE_INSTANCE_URL!,\n  salesforceAccessToken: process.env.SALESFORCE_ACCESS_TOKEN!,\n  hubspotAccessToken: process.env.HUBSPOT_ACCESS_TOKEN!,\n  hubspotBaseUrl: process.env.HUBSPOT_BASE_URL,\n};\n\n// In your webhook handler:\napp.post('/hubspot/deal-updated', async (req, res) => {\n  try {\n    const result = await handle(req.body, config);\n    res.json({ success: true, accountId: result.id, created: result.created });\n  } catch (error) {\n    console.error('Connector error:', error);\n    res.status(500).json({ success: false, error: error.message });\n  }\n});\n```\n\n## Assumptions\n\n- HubSpot deal has an associated company with a domain property\n- Salesforce Account has an External Id field named \"Domain\" for upsert matching\n- If no matching Account exists, a new Account is created with the mapped fields\n- If multiple Accounts match the domain, Salesforce returns 300 Multiple Choices and the connector throws an error\n- The connector handles both modern (200 with JSON) and legacy (204 No Content) Salesforce API responses\n- HubSpot webhook payloads are sent via POST to a configured URL (URL setup is outside this connector)\n- The `changeSource` field can be used to filter for manual updates, but filtering is done by the connector if needed\n- Property change events fire on both creation and update; deduplication should be handled at the webhook subscription level if required\n\n## Error Handling\n\nThe connector throws descriptive errors for:\n- Missing required fields in the webhook payload\n- HubSpot API failures (network, auth, missing domain)\n- Salesforce upsert failures (non-2xx responses except 204)\n- Multiple Account matches for the same domain (300 response)\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://developers.hubspot.com/docs/api-reference/legacy/webhooks/guide\n// Source: https://developer.salesforce.com/docs/platform/api-rest/guide/dome-upsert.html\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"dealId\": 12345,\n  \"properties\": {\n    \"dealname\": \"Acme Corp Deal\",\n    \"amount\": 50000,\n    \"associatedcompanyid\": 67890\n  },\n  \"objectId\": 12345,\n  \"subscriptionId\": \"deal_updated_subscription\",\n  \"propertyName\": \"dealname\",\n  \"propertyValue\": \"Acme Corp Deal\",\n  \"changeSource\": \"USER_INTERFACE\"\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"PATCH\",\n    \"url\": \"https://{instance}.salesforce.com/services/data/v68.0/sobjects/Account/Domain/{external_domain_value}\",\n    \"response\": {\n      \"id\": \"001xx000003DGhpAAG\",\n      \"success\": true,\n      \"errors\": [],\n      \"created\": false\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ],
+      "report": {
+        "typecheckOk": true,
+        "typecheckOutput": "",
+        "passed": 8,
+        "failed": 0,
+        "total": 8,
+        "failures": [],
+        "durationMs": 285.548583984375,
+        "ranOn": "nebius-sandbox:01a0fc64-799c-73ac-a074-159c1bb627f6",
+        "passedNames": [
+          "contract handles the documented example payload",
+          "handle validates required fields",
+          "handle fetches company domain from HubSpot and upserts Account",
+          "handle handles Salesforce 300 Multiple Choices error",
+          "handle handles Salesforce 204 No Content (legacy API)",
+          "handle uses domain from payload if present",
+          "handle throws on HubSpot fetch failure",
+          "handle throws when company has no domain"
+        ],
+        "contract": "passed"
+      }
+    },
+    {
+      "type": "step",
+      "step": "package",
+      "status": "done"
+    }
+  ]
+}

@@ -1,0 +1,427 @@
+{
+  "prompt": "When a GitHub issue gets the label \"bug\", create an issue in Linear in the Triage team.",
+  "events": [
+    {
+      "type": "mode",
+      "mode": "live"
+    },
+    {
+      "type": "step",
+      "step": "plan",
+      "status": "start"
+    },
+    {
+      "type": "plan",
+      "plan": {
+        "summary": "When a GitHub issue receives the label 'bug', create a corresponding issue in the Linear Triage team.",
+        "source": {
+          "app": "GitHub",
+          "trigger": "issues labeled bug webhook",
+          "docsQuery": "GitHub webhook issues labeled event payload label name"
+        },
+        "target": {
+          "app": "Linear",
+          "action": "create issue",
+          "docsQuery": "Linear API create issue endpoint team slug title description"
+        },
+        "fieldMapping": [
+          {
+            "from": "issue.title",
+            "to": "title",
+            "note": "Title of the GitHub issue"
+          },
+          {
+            "from": "issue.body",
+            "to": "description",
+            "note": "Body/text of the GitHub issue"
+          },
+          {
+            "from": "issue.labels",
+            "to": "labels",
+            "note": "Extract name from label object where name equals 'bug'"
+          }
+        ],
+        "assumptions": [
+          "The GitHub webhook payload includes the issue title, body, and an array of label objects with a 'name' field.",
+          "The Linear API requires a team identifier (e.g., 'triage') and an issue title and description to create an issue.",
+          "The integration will filter the GitHub label array to only trigger when a label with name 'bug' is present."
+        ]
+      }
+    },
+    {
+      "type": "step",
+      "step": "plan",
+      "status": "done",
+      "detail": "When a GitHub issue receives the label 'bug', create a corresponding issue in the Linear Triage team."
+    },
+    {
+      "type": "step",
+      "step": "research",
+      "status": "start"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Installing typescript + vitest in a sandbox checkpoint"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Searched \"GitHub webhook issues labeled event payload label name\": 2 of 2 picked from GitHub's own docs"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Searched \"Linear API create issue endpoint team slug title description\": 1 of 2 picked from Linear's own docs"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Extracted 4 documentation pages"
+    },
+    {
+      "type": "sources",
+      "sources": [
+        {
+          "title": "Events that trigger workflows - GitHub Docs",
+          "url": "https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows",
+          "official": true
+        },
+        {
+          "title": "docs/content/webhooks/webhook-events-and-payloads.md at main · github/docs · GitHub",
+          "url": "https://github.com/github/docs/blob/main/content/webhooks/webhook-events-and-payloads.md",
+          "official": true
+        },
+        {
+          "title": "Create issues – Linear Docs",
+          "url": "https://linear.app/docs/creating-issues",
+          "official": true
+        },
+        {
+          "title": "Linear action: Create an issue",
+          "url": "https://ifttt.com/linear/actions/create_an_issue",
+          "official": false
+        }
+      ]
+    },
+    {
+      "type": "spec",
+      "spec": {
+        "source": {
+          "app": "GitHub",
+          "role": "source",
+          "method": "POST",
+          "url": "(where the webhook is delivered)",
+          "auth": {
+            "type": "none",
+            "name": null,
+            "envVar": null
+          },
+          "example": {
+            "action": "labeled",
+            "issue": {
+              "title": "Fix login button alignment",
+              "body": "The login button is misaligned on mobile devices. Need to adjust CSS.",
+              "labels": [
+                {
+                  "name": "bug"
+                },
+                {
+                  "name": "frontend"
+                }
+              ]
+            },
+            "label": {
+              "name": "bug"
+            }
+          },
+          "docsUrl": "https://github.com/github/docs/blob/main/content/webhooks/webhook-events-and-payloads.md",
+          "notes": [
+            "The webhook payload includes an 'action' field; for label events, action will be 'labeled' when a label is added.",
+            "The 'issue' object contains 'title', 'body', and 'labels' (array of objects with 'name' field).",
+            "To filter for 'bug' label, check that action is 'labeled' and label.name is 'bug'.",
+            "GitHub delivers webhooks via POST to the configured endpoint with JSON payload (default) or form-urlencoded.",
+            "No authentication is required on the source side; the connector must validate the webhook signature using a secret if configured."
+          ]
+        },
+        "target": [
+          {
+            "app": "Linear",
+            "role": "target",
+            "method": "POST",
+            "url": "https://api.linear.app/graphql",
+            "auth": {
+              "type": "bearer",
+              "name": "Authorization",
+              "envVar": "LINEAR_API_KEY"
+            },
+            "example": {
+              "query": "mutation IssueCreate($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { id identifier title description } } }",
+              "variables": {
+                "input": {
+                  "title": "Fix login button alignment",
+                  "description": "The login button is misaligned on mobile devices. Need to adjust CSS.",
+                  "teamId": "triage"
+                }
+              }
+            },
+            "responseExample": {
+              "data": {
+                "issueCreate": {
+                  "success": true,
+                  "issue": {
+                    "id": "cml0ZXNzaW9uOnVzZXJfMTIz",
+                    "identifier": "TRI-123",
+                    "title": "Fix login button alignment",
+                    "description": "The login button is misaligned on mobile devices. Need to adjust CSS."
+                  }
+                }
+              }
+            },
+            "docsUrl": "https://linear.app/docs/creating-issues",
+            "notes": [
+              "Linear uses GraphQL; the endpoint is https://api.linear.app/graphql.",
+              "Authentication requires a Bearer token in the Authorization header (env var LINEAR_API_KEY).",
+              "To create an issue, the team must be specified via teamId (can be UUID or slug like 'triage').",
+              "The mutation returns success and the created issue details; the connector should extract issue.id or identifier for reference.",
+              "Title and description are required; other fields (assignee, priority, etc.) are optional.",
+              "The Linear API does not have a REST endpoint for issue creation; GraphQL is required.",
+              "If using a team slug, ensure it exists in the workspace; otherwise use the team UUID."
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "step",
+      "step": "research",
+      "status": "done",
+      "detail": "2 endpoints from 4 pages"
+    },
+    {
+      "type": "step",
+      "step": "generate",
+      "status": "start"
+    },
+    {
+      "type": "files",
+      "attempt": 1,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "export interface ConnectorConfig {\n  /** Linear API key (Bearer token). Typically from LINEAR_API_KEY env var. */\n  linearApiKey: string\n  /** Linear team identifier (slug or UUID). Defaults to 'triage'. */\n  teamId?: string\n  /** Injected fetch for testing. Uses global fetch when omitted. */\n  fetch?: typeof fetch\n}\n\nexport interface GitHubIssueLabelEvent {\n  action: string\n  issue: {\n    title: string\n    body: string | null\n    labels: Array<{ name: string }>\n  }\n  label: {\n    name: string\n  }\n}\n\nexport interface HandleResult {\n  linearIssueId: string\n  linearIssueIdentifier: string\n}\n\nasync function graphqlRequest(\n  fetch: typeof fetch,\n  apiKey: string,\n  query: string,\n  variables: Record<string, unknown>\n): Promise<unknown> {\n  const response = await fetch('https://api.linear.app/graphql', {\n    method: 'POST',\n    headers: {\n      'Content-Type': 'application/json',\n      Authorization: `Bearer ${apiKey}`,\n    },\n    body: JSON.stringify({ query, variables }),\n  })\n\n  if (!response.ok) {\n    const text = await response.text().catch(() => '')\n    throw new Error(`Linear API error: ${response.status} ${response.statusText} at POST https://api.linear.app/graphql - ${text}`)\n  }\n\n  return response.json()\n}\n\nexport async function handle(\n  payload: GitHubIssueLabelEvent,\n  config: ConnectorConfig\n): Promise<HandleResult> {\n  const fetchImpl = config.fetch ?? fetch\n\n  // Validate required fields\n  if (!payload.action) {\n    throw new Error('Missing required field: action')\n  }\n  if (payload.action !== 'labeled') {\n    throw new Error(`Unsupported action: ${payload.action}. Expected 'labeled'.`)\n  }\n  if (!payload.label?.name) {\n    throw new Error('Missing required field: label.name')\n  }\n  if (payload.label.name !== 'bug') {\n    throw new Error(`Label is not 'bug': ${payload.label.name}`)\n  }\n  if (!payload.issue?.title) {\n    throw new Error('Missing required field: issue.title')\n  }\n  if (payload.issue.body === null || payload.issue.body === undefined) {\n    throw new Error('Missing required field: issue.body')\n  }\n\n  const teamId = config.teamId ?? 'triage'\n  const title = payload.issue.title\n  const description = payload.issue.body\n\n  const query = `\n    mutation IssueCreate($input: IssueCreateInput!) {\n      issueCreate(input: $input) {\n        success\n        issue {\n          id\n          identifier\n          title\n          description\n        }\n      }\n    }\n  `\n\n  const variables = {\n    input: {\n      title,\n      description,\n      teamId,\n    },\n  }\n\n  const result = await graphqlRequest(fetchImpl, config.linearApiKey, query, variables)\n\n  const data = result as {\n    data?: {\n      issueCreate?: {\n        success?: boolean\n        issue?: {\n          id?: string\n          identifier?: string\n        }\n      }\n    }\n    errors?: Array<{ message: string }>\n  }\n\n  if (data.errors?.length) {\n    throw new Error(`Linear GraphQL errors: ${data.errors.map(e => e.message).join(', ')}`)\n  }\n\n  const issueCreate = data.data?.issueCreate\n  if (!issueCreate?.success || !issueCreate.issue?.id) {\n    throw new Error('Linear issue creation failed: unexpected response shape')\n  }\n\n  return {\n    linearIssueId: issueCreate.issue.id,\n    linearIssueIdentifier: issueCreate.issue.identifier ?? '',\n  }\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi, beforeEach } from 'vitest'\nimport { handle, ConnectorConfig, GitHubIssueLabelEvent } from './connector'\nimport {\n  SOURCE_EXAMPLE,\n  TARGET_ENDPOINTS,\n  contractFetch,\n  fakeFetch,\n  jsonResponse,\n  RecordedCall,\n} from './fixtures'\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch()\n    const config: ConnectorConfig = {\n      linearApiKey: 'test-linear-key',\n      teamId: 'triage',\n      fetch,\n    }\n    const result = await handle(SOURCE_EXAMPLE as unknown as GitHubIssueLabelEvent, config)\n    expect(calls.length).toBeGreaterThan(0)\n    expect(result.linearIssueId).toBe('cml0ZXNzaW9uOnVzZXJfMTIz')\n    expect(result.linearIssueIdentifier).toBe('TRI-123')\n  })\n})\n\ndescribe('handle', () => {\n  let calls: RecordedCall[]\n  let fetch: typeof fetch\n  let baseConfig: ConnectorConfig\n\n  beforeEach(() => {\n    const fake = fakeFetch((req) => {\n      if (req.url === 'https://api.linear.app/graphql' && req.method === 'POST') {\n        return jsonResponse(TARGET_ENDPOINTS[0].response)\n      }\n      return jsonResponse({ error: 'not found' }, 404)\n    })\n    fetch = fake.fetch\n    calls = fake.calls\n    baseConfig = {\n      linearApiKey: 'test-linear-key',\n      teamId: 'triage',\n      fetch,\n    }\n  })\n\n  it('creates a Linear issue with correct title, description, and teamId', async () => {\n    const payload: GitHubIssueLabelEvent = {\n      action: 'labeled',\n      issue: {\n        title: 'Fix login button alignment',\n        body: 'The login button is misaligned on mobile devices. Need to adjust CSS.',\n        labels: [{ name: 'bug' }, { name: 'frontend' }],\n      },\n      label: { name: 'bug' },\n    }\n\n    const result = await handle(payload, baseConfig)\n\n    expect(calls.length).toBe(1)\n    const call = calls[0]\n    expect(call.method).toBe('POST')\n    expect(call.url).toBe('https://api.linear.app/graphql')\n    expect(call.headers.get('authorization')).toBe('Bearer test-linear-key')\n    expect(call.headers.get('content-type')).toBe('application/json')\n\n    const body = call.json as { query: string; variables: { input: { title: string; description: string; teamId: string } } }\n    expect(body.variables.input.title).toBe('Fix login button alignment')\n    expect(body.variables.input.description).toBe('The login button is misaligned on mobile devices. Need to adjust CSS.')\n    expect(body.variables.input.teamId).toBe('triage')\n\n    expect(result.linearIssueId).toBe('cml0ZXNzaW9uOnVzZXJfMTIz')\n    expect(result.linearIssueIdentifier).toBe('TRI-123')\n  })\n\n  it('uses custom teamId from config', async () => {\n    const payload: GitHubIssueLabelEvent = {\n      action: 'labeled',\n      issue: { title: 'Test', body: 'Body', labels: [{ name: 'bug' }] },\n      label: { name: 'bug' },\n    }\n    const config = { ...baseConfig, teamId: 'custom-team-slug' }\n\n    await handle(payload, config)\n\n    const body = calls[0].json as { variables: { input: { teamId: string } } }\n    expect(body.variables.input.teamId).toBe('custom-team-slug')\n  })\n\n  it('throws when action is missing', async () => {\n    const payload = {\n      action: undefined,\n      issue: { title: 'Test', body: 'Body', labels: [{ name: 'bug' }] },\n      label: { name: 'bug' },\n    } as unknown as GitHubIssueLabelEvent\n\n    await expect(handle(payload, baseConfig)).rejects.toThrow('Missing required field: action')\n  })\n\n  it('throws when action is not labeled', async () => {\n    const payload: GitHubIssueLabelEvent = {\n      action: 'unlabeled',\n      issue: { title: 'Test', body: 'Body', labels: [{ name: 'bug' }] },\n      label: { name: 'bug' },\n    }\n\n    await expect(handle(payload, baseConfig)).rejects.toThrow(\"Unsupported action: unlabeled. Expected 'labeled'.\")\n  })\n\n  it('throws when label.name is missing', async () => {\n    const payload = {\n      action: 'labeled',\n      issue: { title: 'Test', body: 'Body', labels: [{ name: 'bug' }] },\n      label: { name: undefined },\n    } as unknown as GitHubIssueLabelEvent\n\n    await expect(handle(payload, baseConfig)).rejects.toThrow('Missing required field: label.name')\n  })\n\n  it('throws when label.name is not bug', async () => {\n    const payload: GitHubIssueLabelEvent = {\n      action: 'labeled',\n      issue: { title: 'Test', body: 'Body', labels: [{ name: 'feature' }] },\n      label: { name: 'feature' },\n    }\n\n    await expect(handle(payload, baseConfig)).rejects.toThrow(\"Label is not 'bug': feature\")\n  })\n\n  it('throws when issue.title is missing', async () => {\n    const payload = {\n      action: 'labeled',\n      issue: { title: undefined, body: 'Body', labels: [{ name: 'bug' }] },\n      label: { name: 'bug' },\n    } as unknown as GitHubIssueLabelEvent\n\n    await expect(handle(payload, baseConfig)).rejects.toThrow('Missing required field: issue.title')\n  })\n\n  it('throws when issue.body is missing', async () => {\n    const payload = {\n      action: 'labeled',\n      issue: { title: 'Test', body: undefined, labels: [{ name: 'bug' }] },\n      label: { name: 'bug' },\n    } as unknown as GitHubIssueLabelEvent\n\n    await expect(handle(payload, baseConfig)).rejects.toThrow('Missing required field: issue.body')\n  })\n\n  it('throws on non-2xx response from Linear API', async () => {\n    const errorFetch = fakeFetch(() => jsonResponse({ error: 'Unauthorized' }, 401))\n    const config = { ...baseConfig, fetch: errorFetch.fetch }\n\n    const payload: GitHubIssueLabelEvent = {\n      action: 'labeled',\n      issue: { title: 'Test', body: 'Body', labels: [{ name: 'bug' }] },\n      label: { name: 'bug' },\n    }\n\n    await expect(handle(payload, config)).rejects.toThrow('Linear API error: 401 Unauthorized at POST https://api.linear.app/graphql')\n  })\n\n  it('throws on GraphQL errors in response', async () => {\n    const errorFetch = fakeFetch(() =>\n      jsonResponse({\n        errors: [{ message: 'Team not found' }],\n      })\n    )\n    const config = { ...baseConfig, fetch: errorFetch.fetch }\n\n    const payload: GitHubIssueLabelEvent = {\n      action: 'labeled',\n      issue: { title: 'Test', body: 'Body', labels: [{ name: 'bug' }] },\n      label: { name: 'bug' },\n    }\n\n    await expect(handle(payload, config)).rejects.toThrow('Linear GraphQL errors: Team not found')\n  })\n\n  it('throws when issueCreate.success is false', async () => {\n    const errorFetch = fakeFetch(() =>\n      jsonResponse({\n        data: {\n          issueCreate: {\n            success: false,\n            issue: null,\n          },\n        },\n      })\n    )\n    const config = { ...baseConfig, fetch: errorFetch.fetch }\n\n    const payload: GitHubIssueLabelEvent = {\n      action: 'labeled',\n      issue: { title: 'Test', body: 'Body', labels: [{ name: 'bug' }] },\n      label: { name: 'bug' },\n    }\n\n    await expect(handle(payload, config)).rejects.toThrow('Linear issue creation failed: unexpected response shape')\n  })\n})\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# GitHub Bug Label → Linear Issue Connector\n\nCreates a Linear issue in the Triage team when a GitHub issue receives the `bug` label.\n\n## What it does\n\n1. Receives a GitHub `issues` webhook payload (action: `labeled`)\n2. Validates that the added label is `bug`\n3. Extracts the issue title and body\n4. Calls the Linear GraphQL API to create an issue in the configured team (default: `triage`)\n5. Returns the created Linear issue ID and identifier\n\n## Configuration\n\n| Config Property | Environment Variable | Required | Default | Description |\n|-----------------|---------------------|----------|---------|-------------|\n| `linearApiKey` | `LINEAR_API_KEY` | Yes | — | Linear API Bearer token |\n| `teamId` | — | No | `triage` | Linear team slug or UUID |\n| `fetch` | — | No | `globalThis.fetch` | Injected fetch for testing |\n\n## Usage Example\n\n```typescript\nimport { handle, ConnectorConfig } from './connector'\n\nconst config: ConnectorConfig = {\n  linearApiKey: process.env.LINEAR_API_KEY!,\n  teamId: 'triage',\n}\n\n// In your webhook handler (e.g., Express, Fastify, Cloudflare Workers):\napp.post('/github-webhook', async (req, res) => {\n  try {\n    const result = await handle(req.body, config)\n    res.json({ success: true, linearIssueId: result.linearIssueId })\n  } catch (err) {\n    res.status(400).json({ error: err.message })\n  }\n})\n```\n\n## Assumptions\n\n- The GitHub webhook payload includes the issue title, body, and an array of label objects with a `name` field.\n- The Linear API requires a team identifier (e.g., `triage`) and an issue title and description to create an issue.\n- The integration filters the GitHub label array to only trigger when a label with name `bug` is present.\n- The Linear GraphQL endpoint is `https://api.linear.app/graphql` and uses Bearer token authentication.\n- The `IssueCreate` mutation returns `success`, `issue.id`, and `issue.identifier`.\n- No webhook signature verification is performed (GitHub webhook secret not configured). Add HMAC validation if needed.\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://github.com/github/docs/blob/main/content/webhooks/webhook-events-and-payloads.md\n// Source: https://linear.app/docs/creating-issues\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"action\": \"labeled\",\n  \"issue\": {\n    \"title\": \"Fix login button alignment\",\n    \"body\": \"The login button is misaligned on mobile devices. Need to adjust CSS.\",\n    \"labels\": [\n      {\n        \"name\": \"bug\"\n      },\n      {\n        \"name\": \"frontend\"\n      }\n    ]\n  },\n  \"label\": {\n    \"name\": \"bug\"\n  }\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://api.linear.app/graphql\",\n    \"response\": {\n      \"data\": {\n        \"issueCreate\": {\n          \"success\": true,\n          \"issue\": {\n            \"id\": \"cml0ZXNzaW9uOnVzZXJfMTIz\",\n            \"identifier\": \"TRI-123\",\n            \"title\": \"Fix login button alignment\",\n            \"description\": \"The login button is misaligned on mobile devices. Need to adjust CSS.\"\n          }\n        }\n      }\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ]
+    },
+    {
+      "type": "step",
+      "step": "generate",
+      "status": "done",
+      "detail": "src/connector.ts, src/connector.test.ts, README.md, src/fixtures.ts"
+    },
+    {
+      "type": "step",
+      "step": "verify",
+      "status": "start"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Checkpoint ready: 96cf663e"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Forking checkpoint 96cf663e with 4 files, network off"
+    },
+    {
+      "type": "tests",
+      "attempt": 1,
+      "report": {
+        "typecheckOk": false,
+        "typecheckOutput": "src/connector.test.ts(29,7): error TS2502: 'fetch' is referenced directly or indirectly in its own type annotation.\nsrc/connector.ts(28,3): error TS2502: 'fetch' is referenced directly or indirectly in its own type annotation.",
+        "passed": 12,
+        "failed": 0,
+        "total": 12,
+        "failures": [],
+        "durationMs": 289.521484375,
+        "ranOn": "nebius-sandbox:01a0fc3a-588a-758a-a13f-5c6f89877e4e",
+        "passedNames": [
+          "contract handles the documented example payload",
+          "handle creates a Linear issue with correct title, description, and teamId",
+          "handle uses custom teamId from config",
+          "handle throws when action is missing",
+          "handle throws when action is not labeled",
+          "handle throws when label.name is missing",
+          "handle throws when label.name is not bug",
+          "handle throws when issue.title is missing",
+          "handle throws when issue.body is missing",
+          "handle throws on non-2xx response from Linear API",
+          "handle throws on GraphQL errors in response",
+          "handle throws when issueCreate.success is false"
+        ],
+        "contract": "passed"
+      }
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Attempt 1 failed (0 tests, typecheck failed), repairing"
+    },
+    {
+      "type": "files",
+      "attempt": 2,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "export interface ConnectorConfig {\n  /** Linear API key (Bearer token). Typically from LINEAR_API_KEY env var. */\n  linearApiKey: string\n  /** Linear team identifier (slug or UUID). Defaults to 'triage'. */\n  teamId?: string\n  /** Injected fetch for testing. Uses global fetch when omitted. */\n  fetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>\n}\n\nexport interface GitHubIssueLabelEvent {\n  action: string\n  issue: {\n    title: string\n    body: string | null\n    labels: Array<{ name: string }>\n  }\n  label: {\n    name: string\n  }\n}\n\nexport interface HandleResult {\n  linearIssueId: string\n  linearIssueIdentifier: string\n}\n\nasync function graphqlRequest(\n  fetch: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>,\n  apiKey: string,\n  query: string,\n  variables: Record<string, unknown>\n): Promise<unknown> {\n  const response = await fetch('https://api.linear.app/graphql', {\n    method: 'POST',\n    headers: {\n      'Content-Type': 'application/json',\n      Authorization: `Bearer ${apiKey}`,\n    },\n    body: JSON.stringify({ query, variables }),\n  })\n\n  if (!response.ok) {\n    const text = await response.text().catch(() => '')\n    throw new Error(`Linear API error: ${response.status} ${response.statusText} at POST https://api.linear.app/graphql - ${text}`)\n  }\n\n  return response.json()\n}\n\nexport async function handle(\n  payload: GitHubIssueLabelEvent,\n  config: ConnectorConfig\n): Promise<HandleResult> {\n  const fetchImpl = config.fetch ?? fetch\n\n  // Validate required fields\n  if (!payload.action) {\n    throw new Error('Missing required field: action')\n  }\n  if (payload.action !== 'labeled') {\n    throw new Error(`Unsupported action: ${payload.action}. Expected 'labeled'.`)\n  }\n  if (!payload.label?.name) {\n    throw new Error('Missing required field: label.name')\n  }\n  if (payload.label.name !== 'bug') {\n    throw new Error(`Label is not 'bug': ${payload.label.name}`)\n  }\n  if (!payload.issue?.title) {\n    throw new Error('Missing required field: issue.title')\n  }\n  if (payload.issue.body === null || payload.issue.body === undefined) {\n    throw new Error('Missing required field: issue.body')\n  }\n\n  const teamId = config.teamId ?? 'triage'\n  const title = payload.issue.title\n  const description = payload.issue.body\n\n  const query = `\n    mutation IssueCreate($input: IssueCreateInput!) {\n      issueCreate(input: $input) {\n        success\n        issue {\n          id\n          identifier\n          title\n          description\n        }\n      }\n    }\n  `\n\n  const variables = {\n    input: {\n      title,\n      description,\n      teamId,\n    },\n  }\n\n  const result = await graphqlRequest(fetchImpl, config.linearApiKey, query, variables)\n\n  const data = result as {\n    data?: {\n      issueCreate?: {\n        success?: boolean\n        issue?: {\n          id?: string\n          identifier?: string\n        }\n      }\n    }\n    errors?: Array<{ message: string }>\n  }\n\n  if (data.errors?.length) {\n    throw new Error(`Linear GraphQL errors: ${data.errors.map(e => e.message).join(', ')}`)\n  }\n\n  const issueCreate = data.data?.issueCreate\n  if (!issueCreate?.success || !issueCreate.issue?.id) {\n    throw new Error('Linear issue creation failed: unexpected response shape')\n  }\n\n  return {\n    linearIssueId: issueCreate.issue.id,\n    linearIssueIdentifier: issueCreate.issue.identifier ?? '',\n  }\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi, beforeEach } from 'vitest'\nimport { handle, ConnectorConfig, GitHubIssueLabelEvent } from './connector'\nimport {\n  SOURCE_EXAMPLE,\n  TARGET_ENDPOINTS,\n  contractFetch,\n  fakeFetch,\n  jsonResponse,\n  RecordedCall,\n} from './fixtures'\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch()\n    const config: ConnectorConfig = {\n      linearApiKey: 'test-linear-key',\n      teamId: 'triage',\n      fetch,\n    }\n    const result = await handle(SOURCE_EXAMPLE as unknown as GitHubIssueLabelEvent, config)\n    expect(calls.length).toBeGreaterThan(0)\n    expect(result.linearIssueId).toBe('cml0ZXNzaW9uOnVzZXJfMTIz')\n    expect(result.linearIssueIdentifier).toBe('TRI-123')\n  })\n})\n\ndescribe('handle', () => {\n  let calls: RecordedCall[]\n  let fetch: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>\n  let baseConfig: ConnectorConfig\n\n  beforeEach(() => {\n    const fake = fakeFetch((req) => {\n      if (req.url === 'https://api.linear.app/graphql' && req.method === 'POST') {\n        return jsonResponse(TARGET_ENDPOINTS[0].response)\n      }\n      return jsonResponse({ error: 'not found' }, 404)\n    })\n    fetch = fake.fetch\n    calls = fake.calls\n    baseConfig = {\n      linearApiKey: 'test-linear-key',\n      teamId: 'triage',\n      fetch,\n    }\n  })\n\n  it('creates a Linear issue with correct title, description, and teamId', async () => {\n    const payload: GitHubIssueLabelEvent = {\n      action: 'labeled',\n      issue: {\n        title: 'Fix login button alignment',\n        body: 'The login button is misaligned on mobile devices. Need to adjust CSS.',\n        labels: [{ name: 'bug' }, { name: 'frontend' }],\n      },\n      label: { name: 'bug' },\n    }\n\n    const result = await handle(payload, baseConfig)\n\n    expect(calls.length).toBe(1)\n    const call = calls[0]\n    expect(call.method).toBe('POST')\n    expect(call.url).toBe('https://api.linear.app/graphql')\n    expect(call.headers.get('authorization')).toBe('Bearer test-linear-key')\n    expect(call.headers.get('content-type')).toBe('application/json')\n\n    const body = call.json as { query: string; variables: { input: { title: string; description: string; teamId: string } } }\n    expect(body.variables.input.title).toBe('Fix login button alignment')\n    expect(body.variables.input.description).toBe('The login button is misaligned on mobile devices. Need to adjust CSS.')\n    expect(body.variables.input.teamId).toBe('triage')\n\n    expect(result.linearIssueId).toBe('cml0ZXNzaW9uOnVzZXJfMTIz')\n    expect(result.linearIssueIdentifier).toBe('TRI-123')\n  })\n\n  it('uses custom teamId from config', async () => {\n    const payload: GitHubIssueLabelEvent = {\n      action: 'labeled',\n      issue: { title: 'Test', body: 'Body', labels: [{ name: 'bug' }] },\n      label: { name: 'bug' },\n    }\n    const config = { ...baseConfig, teamId: 'custom-team-slug' }\n\n    await handle(payload, config)\n\n    const body = calls[0].json as { variables: { input: { teamId: string } } }\n    expect(body.variables.input.teamId).toBe('custom-team-slug')\n  })\n\n  it('throws when action is missing', async () => {\n    const payload = {\n      action: undefined,\n      issue: { title: 'Test', body: 'Body', labels: [{ name: 'bug' }] },\n      label: { name: 'bug' },\n    } as unknown as GitHubIssueLabelEvent\n\n    await expect(handle(payload, baseConfig)).rejects.toThrow('Missing required field: action')\n  })\n\n  it('throws when action is not labeled', async () => {\n    const payload: GitHubIssueLabelEvent = {\n      action: 'unlabeled',\n      issue: { title: 'Test', body: 'Body', labels: [{ name: 'bug' }] },\n      label: { name: 'bug' },\n    }\n\n    await expect(handle(payload, baseConfig)).rejects.toThrow(\"Unsupported action: unlabeled. Expected 'labeled'.\")\n  })\n\n  it('throws when label.name is missing', async () => {\n    const payload = {\n      action: 'labeled',\n      issue: { title: 'Test', body: 'Body', labels: [{ name: 'bug' }] },\n      label: { name: undefined },\n    } as unknown as GitHubIssueLabelEvent\n\n    await expect(handle(payload, baseConfig)).rejects.toThrow('Missing required field: label.name')\n  })\n\n  it('throws when label.name is not bug', async () => {\n    const payload: GitHubIssueLabelEvent = {\n      action: 'labeled',\n      issue: { title: 'Test', body: 'Body', labels: [{ name: 'feature' }] },\n      label: { name: 'feature' },\n    }\n\n    await expect(handle(payload, baseConfig)).rejects.toThrow(\"Label is not 'bug': feature\")\n  })\n\n  it('throws when issue.title is missing', async () => {\n    const payload = {\n      action: 'labeled',\n      issue: { title: undefined, body: 'Body', labels: [{ name: 'bug' }] },\n      label: { name: 'bug' },\n    } as unknown as GitHubIssueLabelEvent\n\n    await expect(handle(payload, baseConfig)).rejects.toThrow('Missing required field: issue.title')\n  })\n\n  it('throws when issue.body is missing', async () => {\n    const payload = {\n      action: 'labeled',\n      issue: { title: 'Test', body: undefined, labels: [{ name: 'bug' }] },\n      label: { name: 'bug' },\n    } as unknown as GitHubIssueLabelEvent\n\n    await expect(handle(payload, baseConfig)).rejects.toThrow('Missing required field: issue.body')\n  })\n\n  it('throws on non-2xx response from Linear API', async () => {\n    const errorFetch = fakeFetch(() => jsonResponse({ error: 'Unauthorized' }, 401))\n    const config = { ...baseConfig, fetch: errorFetch.fetch }\n\n    const payload: GitHubIssueLabelEvent = {\n      action: 'labeled',\n      issue: { title: 'Test', body: 'Body', labels: [{ name: 'bug' }] },\n      label: { name: 'bug' },\n    }\n\n    await expect(handle(payload, config)).rejects.toThrow('Linear API error: 401 Unauthorized at POST https://api.linear.app/graphql')\n  })\n\n  it('throws on GraphQL errors in response', async () => {\n    const errorFetch = fakeFetch(() =>\n      jsonResponse({\n        errors: [{ message: 'Team not found' }],\n      })\n    )\n    const config = { ...baseConfig, fetch: errorFetch.fetch }\n\n    const payload: GitHubIssueLabelEvent = {\n      action: 'labeled',\n      issue: { title: 'Test', body: 'Body', labels: [{ name: 'bug' }] },\n      label: { name: 'bug' },\n    }\n\n    await expect(handle(payload, config)).rejects.toThrow('Linear GraphQL errors: Team not found')\n  })\n\n  it('throws when issueCreate.success is false', async () => {\n    const errorFetch = fakeFetch(() =>\n      jsonResponse({\n        data: {\n          issueCreate: {\n            success: false,\n            issue: null,\n          },\n        },\n      })\n    )\n    const config = { ...baseConfig, fetch: errorFetch.fetch }\n\n    const payload: GitHubIssueLabelEvent = {\n      action: 'labeled',\n      issue: { title: 'Test', body: 'Body', labels: [{ name: 'bug' }] },\n      label: { name: 'bug' },\n    }\n\n    await expect(handle(payload, config)).rejects.toThrow('Linear issue creation failed: unexpected response shape')\n  })\n})\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# GitHub Bug Label → Linear Issue Connector\n\nCreates a Linear issue in the Triage team when a GitHub issue receives the `bug` label.\n\n## What it does\n\n1. Receives a GitHub `issues` webhook payload (action: `labeled`)\n2. Validates that the added label is `bug`\n3. Extracts the issue title and body\n4. Calls the Linear GraphQL API to create an issue in the configured team (default: `triage`)\n5. Returns the created Linear issue ID and identifier\n\n## Configuration\n\n| Config Property | Environment Variable | Required | Default | Description |\n|-----------------|---------------------|----------|---------|-------------|\n| `linearApiKey` | `LINEAR_API_KEY` | Yes | — | Linear API Bearer token |\n| `teamId` | — | No | `triage` | Linear team slug or UUID |\n| `fetch` | — | No | `globalThis.fetch` | Injected fetch for testing |\n\n## Usage Example\n\n```typescript\nimport { handle, ConnectorConfig } from './connector'\n\nconst config: ConnectorConfig = {\n  linearApiKey: process.env.LINEAR_API_KEY!,\n  teamId: 'triage',\n}\n\n// In your webhook handler (e.g., Express, Fastify, Cloudflare Workers):\napp.post('/github-webhook', async (req, res) => {\n  try {\n    const result = await handle(req.body, config)\n    res.json({ success: true, linearIssueId: result.linearIssueId })\n  } catch (err) {\n    res.status(400).json({ error: err.message })\n  }\n})\n```\n\n## Assumptions\n\n- The GitHub webhook payload includes the issue title, body, and an array of label objects with a `name` field.\n- The Linear API requires a team identifier (e.g., `triage`) and an issue title and description to create an issue.\n- The integration filters the GitHub label array to only trigger when a label with name `bug` is present.\n- The Linear GraphQL endpoint is `https://api.linear.app/graphql` and uses Bearer token authentication.\n- The `IssueCreate` mutation returns `success`, `issue.id`, and `issue.identifier`.\n- No webhook signature verification is performed (GitHub webhook secret not configured). Add HMAC validation if needed.\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://github.com/github/docs/blob/main/content/webhooks/webhook-events-and-payloads.md\n// Source: https://linear.app/docs/creating-issues\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"action\": \"labeled\",\n  \"issue\": {\n    \"title\": \"Fix login button alignment\",\n    \"body\": \"The login button is misaligned on mobile devices. Need to adjust CSS.\",\n    \"labels\": [\n      {\n        \"name\": \"bug\"\n      },\n      {\n        \"name\": \"frontend\"\n      }\n    ]\n  },\n  \"label\": {\n    \"name\": \"bug\"\n  }\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://api.linear.app/graphql\",\n    \"response\": {\n      \"data\": {\n        \"issueCreate\": {\n          \"success\": true,\n          \"issue\": {\n            \"id\": \"cml0ZXNzaW9uOnVzZXJfMTIz\",\n            \"identifier\": \"TRI-123\",\n            \"title\": \"Fix login button alignment\",\n            \"description\": \"The login button is misaligned on mobile devices. Need to adjust CSS.\"\n          }\n        }\n      }\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ]
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Forking checkpoint 96cf663e with 4 files, network off"
+    },
+    {
+      "type": "tests",
+      "attempt": 2,
+      "report": {
+        "typecheckOk": true,
+        "typecheckOutput": "",
+        "passed": 12,
+        "failed": 0,
+        "total": 12,
+        "failures": [],
+        "durationMs": 297.6513671875,
+        "ranOn": "nebius-sandbox:01a0fc3a-8d4a-76df-a06b-a9873e2bbc9e",
+        "passedNames": [
+          "contract handles the documented example payload",
+          "handle creates a Linear issue with correct title, description, and teamId",
+          "handle uses custom teamId from config",
+          "handle throws when action is missing",
+          "handle throws when action is not labeled",
+          "handle throws when label.name is missing",
+          "handle throws when label.name is not bug",
+          "handle throws when issue.title is missing",
+          "handle throws when issue.body is missing",
+          "handle throws on non-2xx response from Linear API",
+          "handle throws on GraphQL errors in response",
+          "handle throws when issueCreate.success is false"
+        ],
+        "contract": "passed"
+      }
+    },
+    {
+      "type": "step",
+      "step": "verify",
+      "status": "done",
+      "detail": "12/12 tests after 2 attempts"
+    },
+    {
+      "type": "step",
+      "step": "package",
+      "status": "start"
+    },
+    {
+      "type": "usage",
+      "usage": [
+        {
+          "model": "nvidia/Nemotron-3_5-Lightning",
+          "promptTokens": 420,
+          "completionTokens": 296,
+          "costUsd": 0.00009624
+        },
+        {
+          "model": "nvidia/nemotron-3-super-120b-a12b",
+          "promptTokens": 11790,
+          "completionTokens": 777,
+          "costUsd": 0.0042363
+        },
+        {
+          "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+          "promptTokens": 9285,
+          "completionTokens": 7223,
+          "costUsd": 0.030954000000000002
+        }
+      ]
+    },
+    {
+      "type": "result",
+      "ok": true,
+      "attempts": 2,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "export interface ConnectorConfig {\n  /** Linear API key (Bearer token). Typically from LINEAR_API_KEY env var. */\n  linearApiKey: string\n  /** Linear team identifier (slug or UUID). Defaults to 'triage'. */\n  teamId?: string\n  /** Injected fetch for testing. Uses global fetch when omitted. */\n  fetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>\n}\n\nexport interface GitHubIssueLabelEvent {\n  action: string\n  issue: {\n    title: string\n    body: string | null\n    labels: Array<{ name: string }>\n  }\n  label: {\n    name: string\n  }\n}\n\nexport interface HandleResult {\n  linearIssueId: string\n  linearIssueIdentifier: string\n}\n\nasync function graphqlRequest(\n  fetch: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>,\n  apiKey: string,\n  query: string,\n  variables: Record<string, unknown>\n): Promise<unknown> {\n  const response = await fetch('https://api.linear.app/graphql', {\n    method: 'POST',\n    headers: {\n      'Content-Type': 'application/json',\n      Authorization: `Bearer ${apiKey}`,\n    },\n    body: JSON.stringify({ query, variables }),\n  })\n\n  if (!response.ok) {\n    const text = await response.text().catch(() => '')\n    throw new Error(`Linear API error: ${response.status} ${response.statusText} at POST https://api.linear.app/graphql - ${text}`)\n  }\n\n  return response.json()\n}\n\nexport async function handle(\n  payload: GitHubIssueLabelEvent,\n  config: ConnectorConfig\n): Promise<HandleResult> {\n  const fetchImpl = config.fetch ?? fetch\n\n  // Validate required fields\n  if (!payload.action) {\n    throw new Error('Missing required field: action')\n  }\n  if (payload.action !== 'labeled') {\n    throw new Error(`Unsupported action: ${payload.action}. Expected 'labeled'.`)\n  }\n  if (!payload.label?.name) {\n    throw new Error('Missing required field: label.name')\n  }\n  if (payload.label.name !== 'bug') {\n    throw new Error(`Label is not 'bug': ${payload.label.name}`)\n  }\n  if (!payload.issue?.title) {\n    throw new Error('Missing required field: issue.title')\n  }\n  if (payload.issue.body === null || payload.issue.body === undefined) {\n    throw new Error('Missing required field: issue.body')\n  }\n\n  const teamId = config.teamId ?? 'triage'\n  const title = payload.issue.title\n  const description = payload.issue.body\n\n  const query = `\n    mutation IssueCreate($input: IssueCreateInput!) {\n      issueCreate(input: $input) {\n        success\n        issue {\n          id\n          identifier\n          title\n          description\n        }\n      }\n    }\n  `\n\n  const variables = {\n    input: {\n      title,\n      description,\n      teamId,\n    },\n  }\n\n  const result = await graphqlRequest(fetchImpl, config.linearApiKey, query, variables)\n\n  const data = result as {\n    data?: {\n      issueCreate?: {\n        success?: boolean\n        issue?: {\n          id?: string\n          identifier?: string\n        }\n      }\n    }\n    errors?: Array<{ message: string }>\n  }\n\n  if (data.errors?.length) {\n    throw new Error(`Linear GraphQL errors: ${data.errors.map(e => e.message).join(', ')}`)\n  }\n\n  const issueCreate = data.data?.issueCreate\n  if (!issueCreate?.success || !issueCreate.issue?.id) {\n    throw new Error('Linear issue creation failed: unexpected response shape')\n  }\n\n  return {\n    linearIssueId: issueCreate.issue.id,\n    linearIssueIdentifier: issueCreate.issue.identifier ?? '',\n  }\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi, beforeEach } from 'vitest'\nimport { handle, ConnectorConfig, GitHubIssueLabelEvent } from './connector'\nimport {\n  SOURCE_EXAMPLE,\n  TARGET_ENDPOINTS,\n  contractFetch,\n  fakeFetch,\n  jsonResponse,\n  RecordedCall,\n} from './fixtures'\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch()\n    const config: ConnectorConfig = {\n      linearApiKey: 'test-linear-key',\n      teamId: 'triage',\n      fetch,\n    }\n    const result = await handle(SOURCE_EXAMPLE as unknown as GitHubIssueLabelEvent, config)\n    expect(calls.length).toBeGreaterThan(0)\n    expect(result.linearIssueId).toBe('cml0ZXNzaW9uOnVzZXJfMTIz')\n    expect(result.linearIssueIdentifier).toBe('TRI-123')\n  })\n})\n\ndescribe('handle', () => {\n  let calls: RecordedCall[]\n  let fetch: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>\n  let baseConfig: ConnectorConfig\n\n  beforeEach(() => {\n    const fake = fakeFetch((req) => {\n      if (req.url === 'https://api.linear.app/graphql' && req.method === 'POST') {\n        return jsonResponse(TARGET_ENDPOINTS[0].response)\n      }\n      return jsonResponse({ error: 'not found' }, 404)\n    })\n    fetch = fake.fetch\n    calls = fake.calls\n    baseConfig = {\n      linearApiKey: 'test-linear-key',\n      teamId: 'triage',\n      fetch,\n    }\n  })\n\n  it('creates a Linear issue with correct title, description, and teamId', async () => {\n    const payload: GitHubIssueLabelEvent = {\n      action: 'labeled',\n      issue: {\n        title: 'Fix login button alignment',\n        body: 'The login button is misaligned on mobile devices. Need to adjust CSS.',\n        labels: [{ name: 'bug' }, { name: 'frontend' }],\n      },\n      label: { name: 'bug' },\n    }\n\n    const result = await handle(payload, baseConfig)\n\n    expect(calls.length).toBe(1)\n    const call = calls[0]\n    expect(call.method).toBe('POST')\n    expect(call.url).toBe('https://api.linear.app/graphql')\n    expect(call.headers.get('authorization')).toBe('Bearer test-linear-key')\n    expect(call.headers.get('content-type')).toBe('application/json')\n\n    const body = call.json as { query: string; variables: { input: { title: string; description: string; teamId: string } } }\n    expect(body.variables.input.title).toBe('Fix login button alignment')\n    expect(body.variables.input.description).toBe('The login button is misaligned on mobile devices. Need to adjust CSS.')\n    expect(body.variables.input.teamId).toBe('triage')\n\n    expect(result.linearIssueId).toBe('cml0ZXNzaW9uOnVzZXJfMTIz')\n    expect(result.linearIssueIdentifier).toBe('TRI-123')\n  })\n\n  it('uses custom teamId from config', async () => {\n    const payload: GitHubIssueLabelEvent = {\n      action: 'labeled',\n      issue: { title: 'Test', body: 'Body', labels: [{ name: 'bug' }] },\n      label: { name: 'bug' },\n    }\n    const config = { ...baseConfig, teamId: 'custom-team-slug' }\n\n    await handle(payload, config)\n\n    const body = calls[0].json as { variables: { input: { teamId: string } } }\n    expect(body.variables.input.teamId).toBe('custom-team-slug')\n  })\n\n  it('throws when action is missing', async () => {\n    const payload = {\n      action: undefined,\n      issue: { title: 'Test', body: 'Body', labels: [{ name: 'bug' }] },\n      label: { name: 'bug' },\n    } as unknown as GitHubIssueLabelEvent\n\n    await expect(handle(payload, baseConfig)).rejects.toThrow('Missing required field: action')\n  })\n\n  it('throws when action is not labeled', async () => {\n    const payload: GitHubIssueLabelEvent = {\n      action: 'unlabeled',\n      issue: { title: 'Test', body: 'Body', labels: [{ name: 'bug' }] },\n      label: { name: 'bug' },\n    }\n\n    await expect(handle(payload, baseConfig)).rejects.toThrow(\"Unsupported action: unlabeled. Expected 'labeled'.\")\n  })\n\n  it('throws when label.name is missing', async () => {\n    const payload = {\n      action: 'labeled',\n      issue: { title: 'Test', body: 'Body', labels: [{ name: 'bug' }] },\n      label: { name: undefined },\n    } as unknown as GitHubIssueLabelEvent\n\n    await expect(handle(payload, baseConfig)).rejects.toThrow('Missing required field: label.name')\n  })\n\n  it('throws when label.name is not bug', async () => {\n    const payload: GitHubIssueLabelEvent = {\n      action: 'labeled',\n      issue: { title: 'Test', body: 'Body', labels: [{ name: 'feature' }] },\n      label: { name: 'feature' },\n    }\n\n    await expect(handle(payload, baseConfig)).rejects.toThrow(\"Label is not 'bug': feature\")\n  })\n\n  it('throws when issue.title is missing', async () => {\n    const payload = {\n      action: 'labeled',\n      issue: { title: undefined, body: 'Body', labels: [{ name: 'bug' }] },\n      label: { name: 'bug' },\n    } as unknown as GitHubIssueLabelEvent\n\n    await expect(handle(payload, baseConfig)).rejects.toThrow('Missing required field: issue.title')\n  })\n\n  it('throws when issue.body is missing', async () => {\n    const payload = {\n      action: 'labeled',\n      issue: { title: 'Test', body: undefined, labels: [{ name: 'bug' }] },\n      label: { name: 'bug' },\n    } as unknown as GitHubIssueLabelEvent\n\n    await expect(handle(payload, baseConfig)).rejects.toThrow('Missing required field: issue.body')\n  })\n\n  it('throws on non-2xx response from Linear API', async () => {\n    const errorFetch = fakeFetch(() => jsonResponse({ error: 'Unauthorized' }, 401))\n    const config = { ...baseConfig, fetch: errorFetch.fetch }\n\n    const payload: GitHubIssueLabelEvent = {\n      action: 'labeled',\n      issue: { title: 'Test', body: 'Body', labels: [{ name: 'bug' }] },\n      label: { name: 'bug' },\n    }\n\n    await expect(handle(payload, config)).rejects.toThrow('Linear API error: 401 Unauthorized at POST https://api.linear.app/graphql')\n  })\n\n  it('throws on GraphQL errors in response', async () => {\n    const errorFetch = fakeFetch(() =>\n      jsonResponse({\n        errors: [{ message: 'Team not found' }],\n      })\n    )\n    const config = { ...baseConfig, fetch: errorFetch.fetch }\n\n    const payload: GitHubIssueLabelEvent = {\n      action: 'labeled',\n      issue: { title: 'Test', body: 'Body', labels: [{ name: 'bug' }] },\n      label: { name: 'bug' },\n    }\n\n    await expect(handle(payload, config)).rejects.toThrow('Linear GraphQL errors: Team not found')\n  })\n\n  it('throws when issueCreate.success is false', async () => {\n    const errorFetch = fakeFetch(() =>\n      jsonResponse({\n        data: {\n          issueCreate: {\n            success: false,\n            issue: null,\n          },\n        },\n      })\n    )\n    const config = { ...baseConfig, fetch: errorFetch.fetch }\n\n    const payload: GitHubIssueLabelEvent = {\n      action: 'labeled',\n      issue: { title: 'Test', body: 'Body', labels: [{ name: 'bug' }] },\n      label: { name: 'bug' },\n    }\n\n    await expect(handle(payload, config)).rejects.toThrow('Linear issue creation failed: unexpected response shape')\n  })\n})\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# GitHub Bug Label → Linear Issue Connector\n\nCreates a Linear issue in the Triage team when a GitHub issue receives the `bug` label.\n\n## What it does\n\n1. Receives a GitHub `issues` webhook payload (action: `labeled`)\n2. Validates that the added label is `bug`\n3. Extracts the issue title and body\n4. Calls the Linear GraphQL API to create an issue in the configured team (default: `triage`)\n5. Returns the created Linear issue ID and identifier\n\n## Configuration\n\n| Config Property | Environment Variable | Required | Default | Description |\n|-----------------|---------------------|----------|---------|-------------|\n| `linearApiKey` | `LINEAR_API_KEY` | Yes | — | Linear API Bearer token |\n| `teamId` | — | No | `triage` | Linear team slug or UUID |\n| `fetch` | — | No | `globalThis.fetch` | Injected fetch for testing |\n\n## Usage Example\n\n```typescript\nimport { handle, ConnectorConfig } from './connector'\n\nconst config: ConnectorConfig = {\n  linearApiKey: process.env.LINEAR_API_KEY!,\n  teamId: 'triage',\n}\n\n// In your webhook handler (e.g., Express, Fastify, Cloudflare Workers):\napp.post('/github-webhook', async (req, res) => {\n  try {\n    const result = await handle(req.body, config)\n    res.json({ success: true, linearIssueId: result.linearIssueId })\n  } catch (err) {\n    res.status(400).json({ error: err.message })\n  }\n})\n```\n\n## Assumptions\n\n- The GitHub webhook payload includes the issue title, body, and an array of label objects with a `name` field.\n- The Linear API requires a team identifier (e.g., `triage`) and an issue title and description to create an issue.\n- The integration filters the GitHub label array to only trigger when a label with name `bug` is present.\n- The Linear GraphQL endpoint is `https://api.linear.app/graphql` and uses Bearer token authentication.\n- The `IssueCreate` mutation returns `success`, `issue.id`, and `issue.identifier`.\n- No webhook signature verification is performed (GitHub webhook secret not configured). Add HMAC validation if needed.\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://github.com/github/docs/blob/main/content/webhooks/webhook-events-and-payloads.md\n// Source: https://linear.app/docs/creating-issues\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"action\": \"labeled\",\n  \"issue\": {\n    \"title\": \"Fix login button alignment\",\n    \"body\": \"The login button is misaligned on mobile devices. Need to adjust CSS.\",\n    \"labels\": [\n      {\n        \"name\": \"bug\"\n      },\n      {\n        \"name\": \"frontend\"\n      }\n    ]\n  },\n  \"label\": {\n    \"name\": \"bug\"\n  }\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://api.linear.app/graphql\",\n    \"response\": {\n      \"data\": {\n        \"issueCreate\": {\n          \"success\": true,\n          \"issue\": {\n            \"id\": \"cml0ZXNzaW9uOnVzZXJfMTIz\",\n            \"identifier\": \"TRI-123\",\n            \"title\": \"Fix login button alignment\",\n            \"description\": \"The login button is misaligned on mobile devices. Need to adjust CSS.\"\n          }\n        }\n      }\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ],
+      "report": {
+        "typecheckOk": true,
+        "typecheckOutput": "",
+        "passed": 12,
+        "failed": 0,
+        "total": 12,
+        "failures": [],
+        "durationMs": 297.6513671875,
+        "ranOn": "nebius-sandbox:01a0fc3a-8d4a-76df-a06b-a9873e2bbc9e",
+        "passedNames": [
+          "contract handles the documented example payload",
+          "handle creates a Linear issue with correct title, description, and teamId",
+          "handle uses custom teamId from config",
+          "handle throws when action is missing",
+          "handle throws when action is not labeled",
+          "handle throws when label.name is missing",
+          "handle throws when label.name is not bug",
+          "handle throws when issue.title is missing",
+          "handle throws when issue.body is missing",
+          "handle throws on non-2xx response from Linear API",
+          "handle throws on GraphQL errors in response",
+          "handle throws when issueCreate.success is false"
+        ],
+        "contract": "passed"
+      }
+    },
+    {
+      "type": "step",
+      "step": "package",
+      "status": "done"
+    }
+  ]
+}

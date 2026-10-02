@@ -1,0 +1,351 @@
+{
+  "prompt": "When a Typeform response comes in, add the respondent as a contact in Brevo and subscribe them to a list.",
+  "events": [
+    {
+      "type": "mode",
+      "mode": "live"
+    },
+    {
+      "type": "step",
+      "step": "plan",
+      "status": "start"
+    },
+    {
+      "type": "plan",
+      "plan": {
+        "summary": "When a Typeform response is submitted, create a contact in Brevo and subscribe that contact to a specified list.",
+        "source": {
+          "app": "Typeform",
+          "trigger": "form_response_submitted webhook",
+          "docsQuery": "Typeform webhook form response submitted payload fields contact email name"
+        },
+        "target": {
+          "app": "Brevo",
+          "action": "create contact and subscribe to list",
+          "docsQuery": "Brevo API create contact and add to list endpoint contact attributes list ID"
+        },
+        "fieldMapping": [
+          {
+            "from": "email",
+            "to": "email",
+            "note": "Typeform respondent email address"
+          },
+          {
+            "from": "name",
+            "to": "attributes.fullName",
+            "note": "Typeform respondent full name"
+          },
+          {
+            "from": "custom_fields",
+            "to": "listId",
+            "note": "Map the target Brevo list ID (static value) from user configuration"
+          }
+        ],
+        "assumptions": [
+          "The Typeform webhook payload includes 'email' and 'name' fields at the top level or under 'definition'/'answers'.",
+          "The user will provide a static Brevo list ID to which the contact will be subscribed.",
+          "Brevo API requires an email attribute and accepts optional attributes like fullName for contact creation.",
+          "The Brevo contact will be created or updated if it already exists based on the email address."
+        ]
+      }
+    },
+    {
+      "type": "step",
+      "step": "plan",
+      "status": "done",
+      "detail": "When a Typeform response is submitted, create a contact in Brevo and subscribe that contact to a specified list."
+    },
+    {
+      "type": "step",
+      "step": "research",
+      "status": "start"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Installing typescript + vitest in a sandbox checkpoint"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Searched \"Brevo API create contact and add to list endpoint contact attributes list ID\": 2 of 2 picked from Brevo's own docs"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Searched \"Typeform webhook form response submitted payload fields contact email name\": 1 of 2 picked from Typeform's own docs"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Extracted 4 documentation pages"
+    },
+    {
+      "type": "sources",
+      "sources": [
+        {
+          "title": "Example webhook payload",
+          "url": "https://www.typeform.com/developers/webhooks/example-payload",
+          "official": true
+        },
+        {
+          "title": "Typeform + Bubble Integration | RapidDev",
+          "url": "https://www.rapidevelopers.com/bubble-integrations/typeform",
+          "official": false
+        },
+        {
+          "title": "Manage your contacts in Brevo | Brevo API Documentation",
+          "url": "https://developers.brevo.com/docs/synchronise-contact-lists",
+          "official": true
+        },
+        {
+          "title": "Create a contact | Brevo API Documentation",
+          "url": "https://developers.brevo.com/reference/create-contact",
+          "official": true
+        }
+      ]
+    },
+    {
+      "type": "spec",
+      "spec": {
+        "source": {
+          "app": "Typeform",
+          "role": "source",
+          "method": "POST",
+          "url": "(webhook delivery URL configured in Typeform)",
+          "auth": {
+            "type": "none"
+          },
+          "example": {
+            "event_id": "LtWXD3crgy",
+            "event_type": "form_response",
+            "form_response": {
+              "form_id": "lT4Z3j",
+              "token": "a3a12ec67a1365927098a606107fac15",
+              "submitted_at": "2018-01-18T18:17:02Z",
+              "answers": [
+                {
+                  "type": "email",
+                  "email": "laura@example.com",
+                  "field": {
+                    "id": "SMEUb7VJz92Q",
+                    "type": "email"
+                  }
+                },
+                {
+                  "type": "text",
+                  "text": "Laura",
+                  "field": {
+                    "id": "JwWggjAKtOkA",
+                    "type": "short_text"
+                  }
+                }
+              ]
+            }
+          },
+          "docsUrl": "https://www.typeform.com/developers/webhooks/example-payload",
+          "notes": [
+            "Email and name fields are located in the answers array, not at the top level. Each answer object contains a 'type' and a value field (e.g., 'email' for email type, 'text' for text type) and a 'field' object with the question's ID and type.",
+            "To extract the email, find the answer object where field.type is 'email' and use its email property.",
+            "To extract the name, find the answer object where field.type is 'short_text' (or 'long_text') and use its text property. Note: the example uses a short_text field for first name; adjust filtering based on the actual form's field ref or ID.",
+            "The webhook does not require authentication; Typeform sends the payload as a POST request to the configured URL."
+          ]
+        },
+        "target": [
+          {
+            "app": "Brevo",
+            "role": "target",
+            "method": "POST",
+            "url": "https://api.brevo.com/v3/contacts",
+            "auth": {
+              "type": "header",
+              "name": "api-key",
+              "envVar": "BREVO_API_KEY"
+            },
+            "example": {
+              "email": "laura@example.com",
+              "attributes": {
+                "FULLNAME": "Laura"
+              },
+              "listIds": [
+                123
+              ]
+            },
+            "responseExample": {
+              "id": 123
+            },
+            "docsUrl": "https://developers.brevo.com/reference/create-contact",
+            "notes": [
+              "The Brevo API requires the email attribute for contact creation. Optional attributes like FULLNAME can be passed in the attributes object using uppercase attribute names.",
+              "To subscribe the contact to a list, include the list ID in the listIds array. The list ID must be obtained from the Brevo UI or via the Get all lists endpoint.",
+              "If the contact already exists (by email), the API will return a 400 error unless updateEnabled is set to true. The plan assumes the contact should be created or updated based on email, so updateEnabled should be considered in the connector logic.",
+              "The API key must be passed in the header as 'api-key'."
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "step",
+      "step": "research",
+      "status": "done",
+      "detail": "2 endpoints from 4 pages"
+    },
+    {
+      "type": "step",
+      "step": "generate",
+      "status": "start"
+    },
+    {
+      "type": "files",
+      "attempt": 1,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "export interface ConnectorConfig {\n  /** Brevo API key from environment variable BREVO_API_KEY */\n  apiKey: string\n  /** Static Brevo list ID to subscribe the contact to */\n  listId: number\n  /** Optional injected fetch for testing */\n  fetch?: typeof fetch\n}\n\nexport interface TypeformWebhookPayload {\n  event_id: string\n  event_type: string\n  form_response: {\n    form_id: string\n    token: string\n    submitted_at: string\n    answers: Array<{\n      type: string\n      email?: string\n      text?: string\n      field: {\n        id: string\n        type: string\n      }\n    }>\n  }\n}\n\nexport interface HandleResult {\n  contactId: number\n}\n\nfunction extractEmail(payload: TypeformWebhookPayload): string {\n  const emailAnswer = payload.form_response.answers.find(\n    (a) => a.field.type === 'email' && a.email\n  )\n  if (!emailAnswer?.email) {\n    throw new Error('Required email field not found in Typeform response answers')\n  }\n  return emailAnswer.email\n}\n\nfunction extractName(payload: TypeformWebhookPayload): string | undefined {\n  const nameAnswer = payload.form_response.answers.find(\n    (a) => (a.field.type === 'short_text' || a.field.type === 'long_text') && a.text\n  )\n  return nameAnswer?.text\n}\n\nexport async function handle(\n  payload: TypeformWebhookPayload,\n  config: ConnectorConfig\n): Promise<HandleResult> {\n  if (!config.apiKey) {\n    throw new Error('Missing required config: apiKey (BREVO_API_KEY)')\n  }\n  if (!config.listId) {\n    throw new Error('Missing required config: listId')\n  }\n\n  const email = extractEmail(payload)\n  const name = extractName(payload)\n\n  const body = {\n    email,\n    attributes: name ? { FULLNAME: name } : {},\n    listIds: [config.listId],\n    updateEnabled: true,\n  }\n\n  const fetchImpl = config.fetch ?? fetch\n  const response = await fetchImpl('https://api.brevo.com/v3/contacts', {\n    method: 'POST',\n    headers: {\n      'api-key': config.apiKey,\n      'Content-Type': 'application/json',\n      Accept: 'application/json',\n    },\n    body: JSON.stringify(body),\n  })\n\n  if (!response.ok) {\n    throw new Error(`Brevo API error: ${response.status} ${response.statusText} for POST https://api.brevo.com/v3/contacts`)\n  }\n\n  const data = (await response.json()) as { id: number }\n  return { contactId: data.id }\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi } from 'vitest'\nimport { handle, ConnectorConfig, TypeformWebhookPayload } from './connector'\nimport {\n  SOURCE_EXAMPLE,\n  contractFetch,\n  fakeFetch,\n  jsonResponse,\n  TARGET_ENDPOINTS,\n} from './fixtures'\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch()\n    const config: ConnectorConfig = {\n      apiKey: 'test-api-key',\n      listId: 123,\n      fetch,\n    }\n    const result = await handle(SOURCE_EXAMPLE as unknown as TypeformWebhookPayload, config)\n    expect(calls.length).toBeGreaterThan(0)\n    expect(result.contactId).toBe(123)\n  })\n})\n\ndescribe('handle', () => {\n  it('creates contact with email and name, subscribes to list', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url === 'https://api.brevo.com/v3/contacts' && req.method === 'POST'\n        ? jsonResponse({ id: 456 }, 201)\n        : jsonResponse({ error: 'not found' }, 404)\n    )\n\n    const payload: TypeformWebhookPayload = {\n      event_id: 'evt1',\n      event_type: 'form_response',\n      form_response: {\n        form_id: 'frm1',\n        token: 'tok1',\n        submitted_at: '2024-01-01T00:00:00Z',\n        answers: [\n          {\n            type: 'email',\n            email: 'test@example.com',\n            field: { id: 'f1', type: 'email' },\n          },\n          {\n            type: 'text',\n            text: 'Test User',\n            field: { id: 'f2', type: 'short_text' },\n          },\n        ],\n      },\n    }\n\n    const config: ConnectorConfig = {\n      apiKey: 'test-key',\n      listId: 789,\n      fetch,\n    }\n\n    const result = await handle(payload, config)\n\n    expect(result.contactId).toBe(456)\n    expect(calls).toHaveLength(1)\n    expect(calls[0].method).toBe('POST')\n    expect(calls[0].url).toBe('https://api.brevo.com/v3/contacts')\n    expect(calls[0].headers.get('api-key')).toBe('test-key')\n    expect(calls[0].json).toEqual({\n      email: 'test@example.com',\n      attributes: { FULLNAME: 'Test User' },\n      listIds: [789],\n      updateEnabled: true,\n    })\n  })\n\n  it('creates contact with only email when name is missing', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url === 'https://api.brevo.com/v3/contacts' && req.method === 'POST'\n        ? jsonResponse({ id: 789 }, 201)\n        : jsonResponse({ error: 'not found' }, 404)\n    )\n\n    const payload: TypeformWebhookPayload = {\n      event_id: 'evt2',\n      event_type: 'form_response',\n      form_response: {\n        form_id: 'frm2',\n        token: 'tok2',\n        submitted_at: '2024-01-01T00:00:00Z',\n        answers: [\n          {\n            type: 'email',\n            email: 'noname@example.com',\n            field: { id: 'f1', type: 'email' },\n          },\n        ],\n      },\n    }\n\n    const config: ConnectorConfig = {\n      apiKey: 'test-key',\n      listId: 111,\n      fetch,\n    }\n\n    const result = await handle(payload, config)\n\n    expect(result.contactId).toBe(789)\n    expect(calls[0].json).toEqual({\n      email: 'noname@example.com',\n      attributes: {},\n      listIds: [111],\n      updateEnabled: true,\n    })\n  })\n\n  it('throws when email is missing from answers', async () => {\n    const { fetch } = fakeFetch((req) => jsonResponse({ error: 'not found' }, 404))\n\n    const payload: TypeformWebhookPayload = {\n      event_id: 'evt3',\n      event_type: 'form_response',\n      form_response: {\n        form_id: 'frm3',\n        token: 'tok3',\n        submitted_at: '2024-01-01T00:00:00Z',\n        answers: [\n          {\n            type: 'text',\n            text: 'Only Name',\n            field: { id: 'f1', type: 'short_text' },\n          },\n        ],\n      },\n    }\n\n    const config: ConnectorConfig = {\n      apiKey: 'test-key',\n      listId: 111,\n      fetch,\n    }\n\n    await expect(handle(payload, config)).rejects.toThrow(\n      'Required email field not found in Typeform response answers'\n    )\n  })\n\n  it('throws when apiKey is missing from config', async () => {\n    const { fetch } = fakeFetch((req) => jsonResponse({ error: 'not found' }, 404))\n\n    const payload: TypeformWebhookPayload = {\n      event_id: 'evt4',\n      event_type: 'form_response',\n      form_response: {\n        form_id: 'frm4',\n        token: 'tok4',\n        submitted_at: '2024-01-01T00:00:00Z',\n        answers: [\n          {\n            type: 'email',\n            email: 'test@example.com',\n            field: { id: 'f1', type: 'email' },\n          },\n        ],\n      },\n    }\n\n    const config: ConnectorConfig = {\n      apiKey: '',\n      listId: 111,\n      fetch,\n    }\n\n    await expect(handle(payload, config)).rejects.toThrow('Missing required config: apiKey')\n  })\n\n  it('throws when listId is missing from config', async () => {\n    const { fetch } = fakeFetch((req) => jsonResponse({ error: 'not found' }, 404))\n\n    const payload: TypeformWebhookPayload = {\n      event_id: 'evt5',\n      event_type: 'form_response',\n      form_response: {\n        form_id: 'frm5',\n        token: 'tok5',\n        submitted_at: '2024-01-01T00:00:00Z',\n        answers: [\n          {\n            type: 'email',\n            email: 'test@example.com',\n            field: { id: 'f1', type: 'email' },\n          },\n        ],\n      },\n    }\n\n    const config: ConnectorConfig = {\n      apiKey: 'test-key',\n      listId: 0,\n      fetch,\n    }\n\n    await expect(handle(payload, config)).rejects.toThrow('Missing required config: listId')\n  })\n\n  it('throws on non-2xx response from Brevo API', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url === 'https://api.brevo.com/v3/contacts' && req.method === 'POST'\n        ? jsonResponse({ error: 'contact exists' }, 400)\n        : jsonResponse({ error: 'not found' }, 404)\n    )\n\n    const payload: TypeformWebhookPayload = {\n      event_id: 'evt6',\n      event_type: 'form_response',\n      form_response: {\n        form_id: 'frm6',\n        token: 'tok6',\n        submitted_at: '2024-01-01T00:00:00Z',\n        answers: [\n          {\n            type: 'email',\n            email: 'exists@example.com',\n            field: { id: 'f1', type: 'email' },\n          },\n        ],\n      },\n    }\n\n    const config: ConnectorConfig = {\n      apiKey: 'test-key',\n      listId: 111,\n      fetch,\n    }\n\n    await expect(handle(payload, config)).rejects.toThrow(\n      'Brevo API error: 400 Bad Request for POST https://api.brevo.com/v3/contacts'\n    )\n    expect(calls).toHaveLength(1)\n  })\n\n  it('uses long_text field type for name extraction', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url === 'https://api.brevo.com/v3/contacts' && req.method === 'POST'\n        ? jsonResponse({ id: 999 }, 201)\n        : jsonResponse({ error: 'not found' }, 404)\n    )\n\n    const payload: TypeformWebhookPayload = {\n      event_id: 'evt7',\n      event_type: 'form_response',\n      form_response: {\n        form_id: 'frm7',\n        token: 'tok7',\n        submitted_at: '2024-01-01T00:00:00Z',\n        answers: [\n          {\n            type: 'email',\n            email: 'longtext@example.com',\n            field: { id: 'f1', type: 'email' },\n          },\n          {\n            type: 'text',\n            text: 'Long Text Name',\n            field: { id: 'f2', type: 'long_text' },\n          },\n        ],\n      },\n    }\n\n    const config: ConnectorConfig = {\n      apiKey: 'test-key',\n      listId: 222,\n      fetch,\n    }\n\n    const result = await handle(payload, config)\n\n    expect(result.contactId).toBe(999)\n    expect(calls[0].json).toEqual({\n      email: 'longtext@example.com',\n      attributes: { FULLNAME: 'Long Text Name' },\n      listIds: [222],\n      updateEnabled: true,\n    })\n  })\n})\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# Typeform to Brevo Connector\n\nCreates a contact in Brevo and subscribes them to a specified list when a Typeform form response is submitted.\n\n## What it does\n\n1. Receives a Typeform `form_response` webhook payload\n2. Extracts the respondent's email and name from the answers array\n3. Calls the Brevo API to create/update a contact with the email and optional full name\n4. Subscribes the contact to a configured Brevo list\n\n## Configuration\n\n| Config Property | Environment Variable | Required | Description |\n|-----------------|---------------------|----------|-------------|\n| `apiKey` | `BREVO_API_KEY` | Yes | Brevo API key for authentication |\n| `listId` | (none, static config) | Yes | The Brevo list ID to subscribe contacts to |\n| `fetch` | N/A | No | Injected fetch implementation for testing |\n\n## Usage Example\n\n```typescript\nimport { handle, ConnectorConfig } from './connector'\n\nconst config: ConnectorConfig = {\n  apiKey: process.env.BREVO_API_KEY!,\n  listId: 123, // Your Brevo list ID\n}\n\n// In your webhook handler:\nconst result = await handle(typeformPayload, config)\nconsole.log(`Created/updated Brevo contact: ${result.contactId}`)\n```\n\n## Assumptions\n\n- The Typeform webhook payload includes `email` and `name` fields in the `answers` array (not at the top level)\n- Email is found in an answer where `field.type === 'email'` using the `email` property\n- Name is found in an answer where `field.type === 'short_text'` or `'long_text'` using the `text` property\n- The user provides a static Brevo list ID via configuration\n- Brevo API uses `updateEnabled: true` so existing contacts are updated rather than returning a 400 error\n- The Brevo API key is passed in the `api-key` header\n- Attribute names in Brevo are uppercase (e.g., `FULLNAME`)\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://www.typeform.com/developers/webhooks/example-payload\n// Source: https://developers.brevo.com/reference/create-contact\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"event_id\": \"LtWXD3crgy\",\n  \"event_type\": \"form_response\",\n  \"form_response\": {\n    \"form_id\": \"lT4Z3j\",\n    \"token\": \"a3a12ec67a1365927098a606107fac15\",\n    \"submitted_at\": \"2018-01-18T18:17:02Z\",\n    \"answers\": [\n      {\n        \"type\": \"email\",\n        \"email\": \"laura@example.com\",\n        \"field\": {\n          \"id\": \"SMEUb7VJz92Q\",\n          \"type\": \"email\"\n        }\n      },\n      {\n        \"type\": \"text\",\n        \"text\": \"Laura\",\n        \"field\": {\n          \"id\": \"JwWggjAKtOkA\",\n          \"type\": \"short_text\"\n        }\n      }\n    ]\n  }\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://api.brevo.com/v3/contacts\",\n    \"response\": {\n      \"id\": 123\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ]
+    },
+    {
+      "type": "step",
+      "step": "generate",
+      "status": "done",
+      "detail": "src/connector.ts, src/connector.test.ts, README.md, src/fixtures.ts"
+    },
+    {
+      "type": "step",
+      "step": "verify",
+      "status": "start"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Checkpoint ready: dccbc3e5"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Forking checkpoint dccbc3e5 with 4 files, network off"
+    },
+    {
+      "type": "tests",
+      "attempt": 1,
+      "report": {
+        "typecheckOk": true,
+        "typecheckOutput": "",
+        "passed": 8,
+        "failed": 0,
+        "total": 8,
+        "failures": [],
+        "durationMs": 289.464599609375,
+        "ranOn": "nebius-sandbox:01a0fc4d-70cc-743d-9155-9371816e8a7b",
+        "passedNames": [
+          "contract handles the documented example payload",
+          "handle creates contact with email and name, subscribes to list",
+          "handle creates contact with only email when name is missing",
+          "handle throws when email is missing from answers",
+          "handle throws when apiKey is missing from config",
+          "handle throws when listId is missing from config",
+          "handle throws on non-2xx response from Brevo API",
+          "handle uses long_text field type for name extraction"
+        ],
+        "contract": "passed"
+      }
+    },
+    {
+      "type": "step",
+      "step": "verify",
+      "status": "done",
+      "detail": "8/8 tests after 1 attempt"
+    },
+    {
+      "type": "step",
+      "step": "package",
+      "status": "start"
+    },
+    {
+      "type": "usage",
+      "usage": [
+        {
+          "model": "nvidia/Nemotron-3_5-Lightning",
+          "promptTokens": 422,
+          "completionTokens": 322,
+          "costUsd": 0.0001026
+        },
+        {
+          "model": "nvidia/nemotron-3-super-120b-a12b",
+          "promptTokens": 13286,
+          "completionTokens": 775,
+          "costUsd": 0.0046833
+        },
+        {
+          "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+          "promptTokens": 3602,
+          "completionTokens": 3551,
+          "costUsd": 0.014255
+        }
+      ]
+    },
+    {
+      "type": "result",
+      "ok": true,
+      "attempts": 1,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "export interface ConnectorConfig {\n  /** Brevo API key from environment variable BREVO_API_KEY */\n  apiKey: string\n  /** Static Brevo list ID to subscribe the contact to */\n  listId: number\n  /** Optional injected fetch for testing */\n  fetch?: typeof fetch\n}\n\nexport interface TypeformWebhookPayload {\n  event_id: string\n  event_type: string\n  form_response: {\n    form_id: string\n    token: string\n    submitted_at: string\n    answers: Array<{\n      type: string\n      email?: string\n      text?: string\n      field: {\n        id: string\n        type: string\n      }\n    }>\n  }\n}\n\nexport interface HandleResult {\n  contactId: number\n}\n\nfunction extractEmail(payload: TypeformWebhookPayload): string {\n  const emailAnswer = payload.form_response.answers.find(\n    (a) => a.field.type === 'email' && a.email\n  )\n  if (!emailAnswer?.email) {\n    throw new Error('Required email field not found in Typeform response answers')\n  }\n  return emailAnswer.email\n}\n\nfunction extractName(payload: TypeformWebhookPayload): string | undefined {\n  const nameAnswer = payload.form_response.answers.find(\n    (a) => (a.field.type === 'short_text' || a.field.type === 'long_text') && a.text\n  )\n  return nameAnswer?.text\n}\n\nexport async function handle(\n  payload: TypeformWebhookPayload,\n  config: ConnectorConfig\n): Promise<HandleResult> {\n  if (!config.apiKey) {\n    throw new Error('Missing required config: apiKey (BREVO_API_KEY)')\n  }\n  if (!config.listId) {\n    throw new Error('Missing required config: listId')\n  }\n\n  const email = extractEmail(payload)\n  const name = extractName(payload)\n\n  const body = {\n    email,\n    attributes: name ? { FULLNAME: name } : {},\n    listIds: [config.listId],\n    updateEnabled: true,\n  }\n\n  const fetchImpl = config.fetch ?? fetch\n  const response = await fetchImpl('https://api.brevo.com/v3/contacts', {\n    method: 'POST',\n    headers: {\n      'api-key': config.apiKey,\n      'Content-Type': 'application/json',\n      Accept: 'application/json',\n    },\n    body: JSON.stringify(body),\n  })\n\n  if (!response.ok) {\n    throw new Error(`Brevo API error: ${response.status} ${response.statusText} for POST https://api.brevo.com/v3/contacts`)\n  }\n\n  const data = (await response.json()) as { id: number }\n  return { contactId: data.id }\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi } from 'vitest'\nimport { handle, ConnectorConfig, TypeformWebhookPayload } from './connector'\nimport {\n  SOURCE_EXAMPLE,\n  contractFetch,\n  fakeFetch,\n  jsonResponse,\n  TARGET_ENDPOINTS,\n} from './fixtures'\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch()\n    const config: ConnectorConfig = {\n      apiKey: 'test-api-key',\n      listId: 123,\n      fetch,\n    }\n    const result = await handle(SOURCE_EXAMPLE as unknown as TypeformWebhookPayload, config)\n    expect(calls.length).toBeGreaterThan(0)\n    expect(result.contactId).toBe(123)\n  })\n})\n\ndescribe('handle', () => {\n  it('creates contact with email and name, subscribes to list', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url === 'https://api.brevo.com/v3/contacts' && req.method === 'POST'\n        ? jsonResponse({ id: 456 }, 201)\n        : jsonResponse({ error: 'not found' }, 404)\n    )\n\n    const payload: TypeformWebhookPayload = {\n      event_id: 'evt1',\n      event_type: 'form_response',\n      form_response: {\n        form_id: 'frm1',\n        token: 'tok1',\n        submitted_at: '2024-01-01T00:00:00Z',\n        answers: [\n          {\n            type: 'email',\n            email: 'test@example.com',\n            field: { id: 'f1', type: 'email' },\n          },\n          {\n            type: 'text',\n            text: 'Test User',\n            field: { id: 'f2', type: 'short_text' },\n          },\n        ],\n      },\n    }\n\n    const config: ConnectorConfig = {\n      apiKey: 'test-key',\n      listId: 789,\n      fetch,\n    }\n\n    const result = await handle(payload, config)\n\n    expect(result.contactId).toBe(456)\n    expect(calls).toHaveLength(1)\n    expect(calls[0].method).toBe('POST')\n    expect(calls[0].url).toBe('https://api.brevo.com/v3/contacts')\n    expect(calls[0].headers.get('api-key')).toBe('test-key')\n    expect(calls[0].json).toEqual({\n      email: 'test@example.com',\n      attributes: { FULLNAME: 'Test User' },\n      listIds: [789],\n      updateEnabled: true,\n    })\n  })\n\n  it('creates contact with only email when name is missing', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url === 'https://api.brevo.com/v3/contacts' && req.method === 'POST'\n        ? jsonResponse({ id: 789 }, 201)\n        : jsonResponse({ error: 'not found' }, 404)\n    )\n\n    const payload: TypeformWebhookPayload = {\n      event_id: 'evt2',\n      event_type: 'form_response',\n      form_response: {\n        form_id: 'frm2',\n        token: 'tok2',\n        submitted_at: '2024-01-01T00:00:00Z',\n        answers: [\n          {\n            type: 'email',\n            email: 'noname@example.com',\n            field: { id: 'f1', type: 'email' },\n          },\n        ],\n      },\n    }\n\n    const config: ConnectorConfig = {\n      apiKey: 'test-key',\n      listId: 111,\n      fetch,\n    }\n\n    const result = await handle(payload, config)\n\n    expect(result.contactId).toBe(789)\n    expect(calls[0].json).toEqual({\n      email: 'noname@example.com',\n      attributes: {},\n      listIds: [111],\n      updateEnabled: true,\n    })\n  })\n\n  it('throws when email is missing from answers', async () => {\n    const { fetch } = fakeFetch((req) => jsonResponse({ error: 'not found' }, 404))\n\n    const payload: TypeformWebhookPayload = {\n      event_id: 'evt3',\n      event_type: 'form_response',\n      form_response: {\n        form_id: 'frm3',\n        token: 'tok3',\n        submitted_at: '2024-01-01T00:00:00Z',\n        answers: [\n          {\n            type: 'text',\n            text: 'Only Name',\n            field: { id: 'f1', type: 'short_text' },\n          },\n        ],\n      },\n    }\n\n    const config: ConnectorConfig = {\n      apiKey: 'test-key',\n      listId: 111,\n      fetch,\n    }\n\n    await expect(handle(payload, config)).rejects.toThrow(\n      'Required email field not found in Typeform response answers'\n    )\n  })\n\n  it('throws when apiKey is missing from config', async () => {\n    const { fetch } = fakeFetch((req) => jsonResponse({ error: 'not found' }, 404))\n\n    const payload: TypeformWebhookPayload = {\n      event_id: 'evt4',\n      event_type: 'form_response',\n      form_response: {\n        form_id: 'frm4',\n        token: 'tok4',\n        submitted_at: '2024-01-01T00:00:00Z',\n        answers: [\n          {\n            type: 'email',\n            email: 'test@example.com',\n            field: { id: 'f1', type: 'email' },\n          },\n        ],\n      },\n    }\n\n    const config: ConnectorConfig = {\n      apiKey: '',\n      listId: 111,\n      fetch,\n    }\n\n    await expect(handle(payload, config)).rejects.toThrow('Missing required config: apiKey')\n  })\n\n  it('throws when listId is missing from config', async () => {\n    const { fetch } = fakeFetch((req) => jsonResponse({ error: 'not found' }, 404))\n\n    const payload: TypeformWebhookPayload = {\n      event_id: 'evt5',\n      event_type: 'form_response',\n      form_response: {\n        form_id: 'frm5',\n        token: 'tok5',\n        submitted_at: '2024-01-01T00:00:00Z',\n        answers: [\n          {\n            type: 'email',\n            email: 'test@example.com',\n            field: { id: 'f1', type: 'email' },\n          },\n        ],\n      },\n    }\n\n    const config: ConnectorConfig = {\n      apiKey: 'test-key',\n      listId: 0,\n      fetch,\n    }\n\n    await expect(handle(payload, config)).rejects.toThrow('Missing required config: listId')\n  })\n\n  it('throws on non-2xx response from Brevo API', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url === 'https://api.brevo.com/v3/contacts' && req.method === 'POST'\n        ? jsonResponse({ error: 'contact exists' }, 400)\n        : jsonResponse({ error: 'not found' }, 404)\n    )\n\n    const payload: TypeformWebhookPayload = {\n      event_id: 'evt6',\n      event_type: 'form_response',\n      form_response: {\n        form_id: 'frm6',\n        token: 'tok6',\n        submitted_at: '2024-01-01T00:00:00Z',\n        answers: [\n          {\n            type: 'email',\n            email: 'exists@example.com',\n            field: { id: 'f1', type: 'email' },\n          },\n        ],\n      },\n    }\n\n    const config: ConnectorConfig = {\n      apiKey: 'test-key',\n      listId: 111,\n      fetch,\n    }\n\n    await expect(handle(payload, config)).rejects.toThrow(\n      'Brevo API error: 400 Bad Request for POST https://api.brevo.com/v3/contacts'\n    )\n    expect(calls).toHaveLength(1)\n  })\n\n  it('uses long_text field type for name extraction', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url === 'https://api.brevo.com/v3/contacts' && req.method === 'POST'\n        ? jsonResponse({ id: 999 }, 201)\n        : jsonResponse({ error: 'not found' }, 404)\n    )\n\n    const payload: TypeformWebhookPayload = {\n      event_id: 'evt7',\n      event_type: 'form_response',\n      form_response: {\n        form_id: 'frm7',\n        token: 'tok7',\n        submitted_at: '2024-01-01T00:00:00Z',\n        answers: [\n          {\n            type: 'email',\n            email: 'longtext@example.com',\n            field: { id: 'f1', type: 'email' },\n          },\n          {\n            type: 'text',\n            text: 'Long Text Name',\n            field: { id: 'f2', type: 'long_text' },\n          },\n        ],\n      },\n    }\n\n    const config: ConnectorConfig = {\n      apiKey: 'test-key',\n      listId: 222,\n      fetch,\n    }\n\n    const result = await handle(payload, config)\n\n    expect(result.contactId).toBe(999)\n    expect(calls[0].json).toEqual({\n      email: 'longtext@example.com',\n      attributes: { FULLNAME: 'Long Text Name' },\n      listIds: [222],\n      updateEnabled: true,\n    })\n  })\n})\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# Typeform to Brevo Connector\n\nCreates a contact in Brevo and subscribes them to a specified list when a Typeform form response is submitted.\n\n## What it does\n\n1. Receives a Typeform `form_response` webhook payload\n2. Extracts the respondent's email and name from the answers array\n3. Calls the Brevo API to create/update a contact with the email and optional full name\n4. Subscribes the contact to a configured Brevo list\n\n## Configuration\n\n| Config Property | Environment Variable | Required | Description |\n|-----------------|---------------------|----------|-------------|\n| `apiKey` | `BREVO_API_KEY` | Yes | Brevo API key for authentication |\n| `listId` | (none, static config) | Yes | The Brevo list ID to subscribe contacts to |\n| `fetch` | N/A | No | Injected fetch implementation for testing |\n\n## Usage Example\n\n```typescript\nimport { handle, ConnectorConfig } from './connector'\n\nconst config: ConnectorConfig = {\n  apiKey: process.env.BREVO_API_KEY!,\n  listId: 123, // Your Brevo list ID\n}\n\n// In your webhook handler:\nconst result = await handle(typeformPayload, config)\nconsole.log(`Created/updated Brevo contact: ${result.contactId}`)\n```\n\n## Assumptions\n\n- The Typeform webhook payload includes `email` and `name` fields in the `answers` array (not at the top level)\n- Email is found in an answer where `field.type === 'email'` using the `email` property\n- Name is found in an answer where `field.type === 'short_text'` or `'long_text'` using the `text` property\n- The user provides a static Brevo list ID via configuration\n- Brevo API uses `updateEnabled: true` so existing contacts are updated rather than returning a 400 error\n- The Brevo API key is passed in the `api-key` header\n- Attribute names in Brevo are uppercase (e.g., `FULLNAME`)\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://www.typeform.com/developers/webhooks/example-payload\n// Source: https://developers.brevo.com/reference/create-contact\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"event_id\": \"LtWXD3crgy\",\n  \"event_type\": \"form_response\",\n  \"form_response\": {\n    \"form_id\": \"lT4Z3j\",\n    \"token\": \"a3a12ec67a1365927098a606107fac15\",\n    \"submitted_at\": \"2018-01-18T18:17:02Z\",\n    \"answers\": [\n      {\n        \"type\": \"email\",\n        \"email\": \"laura@example.com\",\n        \"field\": {\n          \"id\": \"SMEUb7VJz92Q\",\n          \"type\": \"email\"\n        }\n      },\n      {\n        \"type\": \"text\",\n        \"text\": \"Laura\",\n        \"field\": {\n          \"id\": \"JwWggjAKtOkA\",\n          \"type\": \"short_text\"\n        }\n      }\n    ]\n  }\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://api.brevo.com/v3/contacts\",\n    \"response\": {\n      \"id\": 123\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ],
+      "report": {
+        "typecheckOk": true,
+        "typecheckOutput": "",
+        "passed": 8,
+        "failed": 0,
+        "total": 8,
+        "failures": [],
+        "durationMs": 289.464599609375,
+        "ranOn": "nebius-sandbox:01a0fc4d-70cc-743d-9155-9371816e8a7b",
+        "passedNames": [
+          "contract handles the documented example payload",
+          "handle creates contact with email and name, subscribes to list",
+          "handle creates contact with only email when name is missing",
+          "handle throws when email is missing from answers",
+          "handle throws when apiKey is missing from config",
+          "handle throws when listId is missing from config",
+          "handle throws on non-2xx response from Brevo API",
+          "handle uses long_text field type for name extraction"
+        ],
+        "contract": "passed"
+      }
+    },
+    {
+      "type": "step",
+      "step": "package",
+      "status": "done"
+    }
+  ]
+}

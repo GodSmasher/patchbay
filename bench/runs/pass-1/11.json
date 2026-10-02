@@ -1,0 +1,448 @@
+{
+  "prompt": "When a Pipedrive deal is moved to the Won stage, create a Notion page in the \"Signed\" database with the deal title, value, owner and close date.",
+  "events": [
+    {
+      "type": "mode",
+      "mode": "live"
+    },
+    {
+      "type": "step",
+      "step": "plan",
+      "status": "start"
+    },
+    {
+      "type": "plan",
+      "plan": {
+        "summary": "When a Pipedrive deal is moved to Won stage, create a Notion page in the 'Signed' database with the deal title, value, owner and close date.",
+        "source": {
+          "app": "Pipedrive",
+          "trigger": "deals/movedToWon webhook",
+          "docsQuery": "Pipedrive deals moved to won webhook payload fields deal title value owner close date"
+        },
+        "target": {
+          "app": "Notion",
+          "action": "create page",
+          "docsQuery": "Notion API create page database_id request body properties title rich_text"
+        },
+        "fieldMapping": [
+          {
+            "from": "title",
+            "to": "properties['Deal Title'].title",
+            "note": "Pipedrive deal title mapped to Notion title property"
+          },
+          {
+            "from": "value",
+            "to": "properties['Deal Value'].number",
+            "note": "Pipedrive deal value as a number"
+          },
+          {
+            "from": "owner",
+            "to": "properties['Owner'].rich_text",
+            "note": "Pipedrive owner name mapped to Notion rich text"
+          },
+          {
+            "from": "close_date",
+            "to": "properties['Close Date'].date",
+            "note": "Pipedrive close date mapped to Notion date property"
+          }
+        ],
+        "assumptions": [
+          "The Notion database 'Signed' already exists and has properties named Deal Title (title), Deal Value (number), Owner (rich_text), and Close Date (date).",
+          "The Pipedrive webhook payload includes the fields deal_id, title, value, owner_name, and close_date when a deal moves to Won stage.",
+          "The Notion integration token has permission to write to the target database."
+        ]
+      }
+    },
+    {
+      "type": "step",
+      "step": "plan",
+      "status": "done",
+      "detail": "When a Pipedrive deal is moved to Won stage, create a Notion page in the 'Signed' database with the deal title, value, owner and close date."
+    },
+    {
+      "type": "step",
+      "step": "research",
+      "status": "start"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Installing typescript + vitest in a sandbox checkpoint"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Searched \"Notion API create page database_id request body properties title rich_text\": 2 of 2 picked from Notion's own docs"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Searched \"Pipedrive deals moved to won webhook payload fields deal title value owner close date\": 2 of 2 picked from Pipedrive's own docs"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Extracted 4 documentation pages"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Checkpoint ready: c527400c"
+    },
+    {
+      "type": "sources",
+      "sources": [
+        {
+          "title": "Webhooks v2 migration guide",
+          "url": "https://pipedrive.readme.io/docs/webhooks-v2-migration-guide",
+          "official": true
+        },
+        {
+          "title": "Pipedrive API v1–v2 Dev References (Deals) - View id Deals Query Params",
+          "url": "https://developers.pipedrive.com/docs/api/v1/Deals",
+          "official": true
+        },
+        {
+          "title": "Page properties - Notion Docs",
+          "url": "https://developers.notion.com/reference/page-property-values",
+          "official": true
+        },
+        {
+          "title": "Data source properties - Notion Docs",
+          "url": "https://developers.notion.com/reference/property-object",
+          "official": true
+        }
+      ]
+    },
+    {
+      "type": "spec",
+      "spec": {
+        "source": {
+          "app": "Pipedrive",
+          "role": "source",
+          "method": "POST",
+          "url": "/webhook-receiver-endpoint",
+          "auth": {
+            "type": "none"
+          },
+          "example": {
+            "meta": {
+              "action": "change",
+              "entity": "deal",
+              "entity_id": "123",
+              "timestamp": "2023-01-01T00:00:00.000Z",
+              "version": "2.0",
+              "webhook_id": "abc123",
+              "webhook_owner_id": "owner123",
+              "attempt": 1,
+              "host": "company.pipedrive.com"
+            },
+            "data": {
+              "id": 123,
+              "title": "Sample Deal",
+              "value": 1000,
+              "owner_name": "John Doe",
+              "close_date": "2023-01-15",
+              "status": "won",
+              "won_time": "2023-01-15T10:30:00Z",
+              "add_time": "2022-12-01T08:00:00Z",
+              "update_time": "2023-01-15T10:30:00Z",
+              "org_id": 1,
+              "pipeline_id": 1,
+              "stage_id": 5,
+              "creator_user_id": 12415231,
+              "person_id": 8,
+              "currency": "USD",
+              "probability": null,
+              "lost_reason": null,
+              "lost_time": null,
+              "expected_close_date": null,
+              "first_won_time": null,
+              "label_ids": [],
+              "channel": null,
+              "channel_id": null,
+              "close_time": null,
+              "visible_to": "3",
+              "custom_fields": {}
+            },
+            "previous": null
+          },
+          "docsUrl": "https://pipedrive.readme.io/docs/webhooks-v2-migration-guide",
+          "notes": [
+            "The webhook payload uses the v2 format with 'meta' and 'data' objects.",
+            "For a deal moved to Won stage, look for meta.action = 'change' and data.status = 'won'.",
+            "Required fields for mapping: data.title, data.value (numeric), data.owner_name (string), data.close_date (string in YYYY-MM-DD format).",
+            "If close_date is not present, use data.won_time and extract the date portion.",
+            "The value field is numeric and represents the deal amount in the deal's currency.",
+            "Custom fields are in data.custom_fields object if needed.",
+            "Webhook verification should be implemented using Pipedrive's signature headers (not detailed in provided docs)."
+          ]
+        },
+        "target": [
+          {
+            "app": "Notion",
+            "role": "target",
+            "method": "POST",
+            "url": "https://api.notion.com/v1/pages",
+            "auth": {
+              "type": "bearer",
+              "envVar": "NOTION_TOKEN"
+            },
+            "example": {
+              "parent": {
+                "database_id": "your-database-id-here"
+              },
+              "properties": {
+                "Deal Title": {
+                  "title": [
+                    {
+                      "text": {
+                        "content": "Sample Deal"
+                      }
+                    }
+                  ]
+                },
+                "Deal Value": {
+                  "number": 1000
+                },
+                "Owner": {
+                  "rich_text": [
+                    {
+                      "text": {
+                        "content": "John Doe"
+                      }
+                    }
+                  ]
+                },
+                "Close Date": {
+                  "date": {
+                    "start": "2023-01-15"
+                  }
+                }
+              }
+            },
+            "responseExample": {
+              "id": "page-id-generated-by-notion",
+              "created_time": "2023-01-01T00:00:00.000Z",
+              "last_edited_time": "2023-01-01T00:00:00.000Z",
+              "properties": {
+                "Deal Title": {
+                  "id": "title",
+                  "type": "title",
+                  "title": [
+                    {
+                      "text": {
+                        "content": "Sample Deal",
+                        "link": null
+                      }
+                    }
+                  ]
+                },
+                "Deal Value": {
+                  "id": "deal-value-prop-id",
+                  "type": "number",
+                  "number": 1000
+                },
+                "Owner": {
+                  "id": "owner-prop-id",
+                  "type": "rich_text",
+                  "rich_text": [
+                    {
+                      "text": {
+                        "content": "John Doe",
+                        "link": null
+                      }
+                    }
+                  ]
+                },
+                "Close Date": {
+                  "id": "close-date-prop-id",
+                  "type": "date",
+                  "date": {
+                    "start": "2023-01-15",
+                    "end": null,
+                    "time_zone": null
+                  }
+                }
+              }
+            },
+            "docsUrl": "https://developers.notion.com/reference/post-page",
+            "notes": [
+              "The database_id must point to the 'Signed' database as specified in the plan.",
+              "Properties must match exactly: Deal Title (title), Deal Value (number), Owner (rich_text), Close Date (date).",
+              "Date values must be in ISO 8601 format (YYYY-MM-DD) for date-only values.",
+              "Rich text and title arrays must contain at least one text object with content.",
+              "Number values must be numeric (not strings).",
+              "The Notion integration token must have 'insert content' capability for the target database.",
+              "Database must be shared with the integration before writing pages.",
+              "Rate limits: 3 requests per second average, burst up to 60 requests/minute."
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "step",
+      "step": "research",
+      "status": "done",
+      "detail": "2 endpoints from 4 pages"
+    },
+    {
+      "type": "step",
+      "step": "generate",
+      "status": "start"
+    },
+    {
+      "type": "files",
+      "attempt": 1,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "export interface ConnectorConfig {\n  /** Notion integration token with write access to the target database. */\n  notionToken: string\n  /** The Notion database ID for the 'Signed' database. */\n  databaseId: string\n  /** Optional injected fetch for testing. */\n  fetch?: typeof fetch\n}\n\nexport interface PipedriveWebhookPayload {\n  meta: {\n    action: string\n    entity: string\n    entity_id: string\n    timestamp: string\n    version: string\n    webhook_id: string\n    webhook_owner_id: string\n    attempt: number\n    host: string\n  }\n  data: {\n    id: number\n    title: string\n    value: number\n    owner_name: string\n    close_date?: string\n    status: string\n    won_time?: string\n    [key: string]: unknown\n  }\n  previous: unknown\n}\n\nexport interface HandleResult {\n  notionPageId: string\n  dealId: number\n}\n\nfunction getFetch(config: ConnectorConfig): typeof fetch {\n  return config.fetch ?? fetch\n}\n\nfunction validatePayload(payload: unknown): asserts payload is PipedriveWebhookPayload {\n  if (!payload || typeof payload !== 'object') {\n    throw new Error('Invalid payload: expected an object')\n  }\n  const p = payload as Record<string, unknown>\n  if (!p.meta || typeof p.meta !== 'object') {\n    throw new Error('Invalid payload: missing meta object')\n  }\n  const meta = p.meta as Record<string, unknown>\n  if (meta.action !== 'change' || meta.entity !== 'deal') {\n    throw new Error('Invalid payload: not a deal change event')\n  }\n  if (!p.data || typeof p.data !== 'object') {\n    throw new Error('Invalid payload: missing data object')\n  }\n  const data = p.data as Record<string, unknown>\n  if (data.status !== 'won') {\n    throw new Error('Invalid payload: deal status is not won')\n  }\n  if (typeof data.title !== 'string' || !data.title.trim()) {\n    throw new Error('Invalid payload: missing or empty title')\n  }\n  if (typeof data.value !== 'number' || !Number.isFinite(data.value)) {\n    throw new Error('Invalid payload: missing or invalid value')\n  }\n  if (typeof data.owner_name !== 'string' || !data.owner_name.trim()) {\n    throw new Error('Invalid payload: missing or empty owner_name')\n  }\n  const closeDate = data.close_date\n  const wonTime = data.won_time\n  if ((typeof closeDate !== 'string' || !closeDate.trim()) &&\n      (typeof wonTime !== 'string' || !wonTime.trim())) {\n    throw new Error('Invalid payload: missing close_date and won_time')\n  }\n}\n\nfunction extractCloseDate(data: PipedriveWebhookPayload['data']): string {\n  if (typeof data.close_date === 'string' && data.close_date.trim()) {\n    return data.close_date.trim()\n  }\n  if (typeof data.won_time === 'string' && data.won_time.trim()) {\n    return data.won_time.trim().split('T')[0]\n  }\n  throw new Error('Unable to determine close date')\n}\n\nfunction buildNotionBody(payload: PipedriveWebhookPayload, databaseId: string) {\n  const data = payload.data\n  const closeDate = extractCloseDate(data)\n  return {\n    parent: { database_id: databaseId },\n    properties: {\n      'Deal Title': {\n        title: [{ text: { content: data.title } }]\n      },\n      'Deal Value': {\n        number: data.value\n      },\n      Owner: {\n        rich_text: [{ text: { content: data.owner_name } }]\n      },\n      'Close Date': {\n        date: { start: closeDate }\n      }\n    }\n  }\n}\n\nexport async function handle(\n  payload: unknown,\n  config: ConnectorConfig\n): Promise<HandleResult> {\n  validatePayload(payload)\n  const typedPayload = payload as PipedriveWebhookPayload\n\n  const body = buildNotionBody(typedPayload, config.databaseId)\n  const fetchFn = getFetch(config)\n\n  const response = await fetchFn('https://api.notion.com/v1/pages', {\n    method: 'POST',\n    headers: {\n      'Authorization': `Bearer ${config.notionToken}`,\n      'Content-Type': 'application/json',\n      'Notion-Version': '2022-06-28'\n    },\n    body: JSON.stringify(body)\n  })\n\n  if (!response.ok) {\n    const text = await response.text().catch(() => '')\n    throw new Error(`Notion API error: ${response.status} ${response.statusText} - POST https://api.notion.com/v1/pages - ${text}`)\n  }\n\n  const result = await response.json() as { id: string }\n  return {\n    notionPageId: result.id,\n    dealId: typedPayload.data.id\n  }\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi, beforeEach } from 'vitest'\nimport { handle, ConnectorConfig, PipedriveWebhookPayload } from './connector'\nimport {\n  SOURCE_EXAMPLE,\n  TARGET_ENDPOINTS,\n  contractFetch,\n  fakeFetch,\n  jsonResponse,\n  RecordedCall\n} from './fixtures'\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch()\n    const config: ConnectorConfig = {\n      notionToken: 'test-notion-token',\n      databaseId: 'test-database-id',\n      fetch\n    }\n    const result = await handle(SOURCE_EXAMPLE as unknown as PipedriveWebhookPayload, config)\n    expect(calls.length).toBeGreaterThan(0)\n    expect(result.notionPageId).toBe('page-id-generated-by-notion')\n    expect(result.dealId).toBe(123)\n  })\n})\n\ndescribe('handle', () => {\n  let baseConfig: ConnectorConfig\n  let calls: RecordedCall[]\n\n  beforeEach(() => {\n    const { fetch, calls: recordedCalls } = fakeFetch((req) => {\n      if (req.url === 'https://api.notion.com/v1/pages' && req.method === 'POST') {\n        return jsonResponse(TARGET_ENDPOINTS[0].response, 200)\n      }\n      return jsonResponse({ error: 'not found' }, 404)\n    })\n    calls = recordedCalls\n    baseConfig = {\n      notionToken: 'test-notion-token',\n      databaseId: 'test-database-id',\n      fetch\n    }\n  })\n\n  it('maps all required fields correctly', async () => {\n    const payload: PipedriveWebhookPayload = {\n      meta: {\n        action: 'change',\n        entity: 'deal',\n        entity_id: '456',\n        timestamp: '2023-01-01T00:00:00.000Z',\n        version: '2.0',\n        webhook_id: 'webhook-1',\n        webhook_owner_id: 'owner-1',\n        attempt: 1,\n        host: 'company.pipedrive.com'\n      },\n      data: {\n        id: 456,\n        title: 'Enterprise Deal',\n        value: 50000,\n        owner_name: 'Jane Smith',\n        close_date: '2023-02-20',\n        status: 'won',\n        won_time: '2023-02-20T14:00:00Z'\n      },\n      previous: null\n    }\n\n    const result = await handle(payload, baseConfig)\n\n    expect(result.dealId).toBe(456)\n    expect(result.notionPageId).toBe('page-id-generated-by-notion')\n    expect(calls).toHaveLength(1)\n\n    const requestBody = calls[0].json as Record<string, unknown>\n    expect(requestBody.parent).toEqual({ database_id: 'test-database-id' })\n    expect(requestBody.properties).toEqual({\n      'Deal Title': { title: [{ text: { content: 'Enterprise Deal' } }] },\n      'Deal Value': { number: 50000 },\n      Owner: { rich_text: [{ text: { content: 'Jane Smith' } }] },\n      'Close Date': { date: { start: '2023-02-20' } }\n    })\n  })\n\n  it('uses won_time when close_date is missing', async () => {\n    const payload: PipedriveWebhookPayload = {\n      meta: {\n        action: 'change',\n        entity: 'deal',\n        entity_id: '789',\n        timestamp: '2023-01-01T00:00:00.000Z',\n        version: '2.0',\n        webhook_id: 'webhook-2',\n        webhook_owner_id: 'owner-2',\n        attempt: 1,\n        host: 'company.pipedrive.com'\n      },\n      data: {\n        id: 789,\n        title: 'Deal Without Close Date',\n        value: 2500,\n        owner_name: 'Bob Wilson',\n        status: 'won',\n        won_time: '2023-03-10T09:15:00Z'\n      },\n      previous: null\n    }\n\n    const result = await handle(payload, baseConfig)\n\n    expect(result.dealId).toBe(789)\n    const requestBody = calls[0].json as Record<string, unknown>\n    expect((requestBody.properties as Record<string, unknown>)['Close Date']).toEqual({\n      date: { start: '2023-03-10' }\n    })\n  })\n\n  it('sends Bearer authorization header', async () => {\n    const payload: PipedriveWebhookPayload = {\n      meta: {\n        action: 'change',\n        entity: 'deal',\n        entity_id: '111',\n        timestamp: '2023-01-01T00:00:00.000Z',\n        version: '2.0',\n        webhook_id: 'webhook-3',\n        webhook_owner_id: 'owner-3',\n        attempt: 1,\n        host: 'company.pipedrive.com'\n      },\n      data: {\n        id: 111,\n        title: 'Auth Test Deal',\n        value: 100,\n        owner_name: 'Auth User',\n        close_date: '2023-04-01',\n        status: 'won'\n      },\n      previous: null\n    }\n\n    await handle(payload, baseConfig)\n\n    const authHeader = calls[0].headers.get('authorization')\n    expect(authHeader).toBe('Bearer test-notion-token')\n  })\n\n  it('throws on missing required field: title', async () => {\n    const payload = {\n      meta: {\n        action: 'change',\n        entity: 'deal',\n        entity_id: '222',\n        timestamp: '2023-01-01T00:00:00.000Z',\n        version: '2.0',\n        webhook_id: 'webhook-4',\n        webhook_owner_id: 'owner-4',\n        attempt: 1,\n        host: 'company.pipedrive.com'\n      },\n      data: {\n        id: 222,\n        title: '',\n        value: 100,\n        owner_name: 'Test User',\n        close_date: '2023-04-01',\n        status: 'won'\n      },\n      previous: null\n    }\n\n    await expect(handle(payload as unknown as PipedriveWebhookPayload, baseConfig))\n      .rejects.toThrow('Invalid payload: missing or empty title')\n  })\n\n  it('throws on missing required field: value', async () => {\n    const payload = {\n      meta: {\n        action: 'change',\n        entity: 'deal',\n        entity_id: '333',\n        timestamp: '2023-01-01T00:00:00.000Z',\n        version: '2.0',\n        webhook_id: 'webhook-5',\n        webhook_owner_id: 'owner-5',\n        attempt: 1,\n        host: 'company.pipedrive.com'\n      },\n      data: {\n        id: 333,\n        title: 'Test Deal',\n        value: 'not-a-number' as unknown,\n        owner_name: 'Test User',\n        close_date: '2023-04-01',\n        status: 'won'\n      },\n      previous: null\n    }\n\n    await expect(handle(payload as unknown as PipedriveWebhookPayload, baseConfig))\n      .rejects.toThrow('Invalid payload: missing or invalid value')\n  })\n\n  it('throws on missing required field: owner_name', async () => {\n    const payload = {\n      meta: {\n        action: 'change',\n        entity: 'deal',\n        entity_id: '444',\n        timestamp: '2023-01-01T00:00:00.000Z',\n        version: '2.0',\n        webhook_id: 'webhook-6',\n        webhook_owner_id: 'owner-6',\n        attempt: 1,\n        host: 'company.pipedrive.com'\n      },\n      data: {\n        id: 444,\n        title: 'Test Deal',\n        value: 100,\n        owner_name: '',\n        close_date: '2023-04-01',\n        status: 'won'\n      },\n      previous: null\n    }\n\n    await expect(handle(payload as unknown as PipedriveWebhookPayload, baseConfig))\n      .rejects.toThrow('Invalid payload: missing or empty owner_name')\n  })\n\n  it('throws on missing close_date and won_time', async () => {\n    const payload = {\n      meta: {\n        action: 'change',\n        entity: 'deal',\n        entity_id: '555',\n        timestamp: '2023-01-01T00:00:00.000Z',\n        version: '2.0',\n        webhook_id: 'webhook-7',\n        webhook_owner_id: 'owner-7',\n        attempt: 1,\n        host: 'company.pipedrive.com'\n      },\n      data: {\n        id: 555,\n        title: 'Test Deal',\n        value: 100,\n        owner_name: 'Test User',\n        status: 'won'\n      },\n      previous: null\n    }\n\n    await expect(handle(payload as unknown as PipedriveWebhookPayload, baseConfig))\n      .rejects.toThrow('Invalid payload: missing close_date and won_time')\n  })\n\n  it('throws on non-won status', async () => {\n    const payload = {\n      meta: {\n        action: 'change',\n        entity: 'deal',\n        entity_id: '666',\n        timestamp: '2023-01-01T00:00:00.000Z',\n        version: '2.0',\n        webhook_id: 'webhook-8',\n        webhook_owner_id: 'owner-8',\n        attempt: 1,\n        host: 'company.pipedrive.com'\n      },\n      data: {\n        id: 666,\n        title: 'Test Deal',\n        value: 100,\n        owner_name: 'Test User',\n        close_date: '2023-04-01',\n        status: 'open'\n      },\n      previous: null\n    }\n\n    await expect(handle(payload as unknown as PipedriveWebhookPayload, baseConfig))\n      .rejects.toThrow('Invalid payload: deal status is not won')\n  })\n\n  it('throws on non-2xx response from Notion', async () => {\n    const { fetch, calls: errorCalls } = fakeFetch(() => jsonResponse({ error: 'unauthorized' }, 401))\n    const config: ConnectorConfig = {\n      notionToken: 'bad-token',\n      databaseId: 'test-database-id',\n      fetch\n    }\n\n    const payload: PipedriveWebhookPayload = {\n      meta: {\n        action: 'change',\n        entity: 'deal',\n        entity_id: '999',\n        timestamp: '2023-01-01T00:00:00.000Z',\n        version: '2.0',\n        webhook_id: 'webhook-9',\n        webhook_owner_id: 'owner-9',\n        attempt: 1,\n        host: 'company.pipedrive.com'\n      },\n      data: {\n        id: 999,\n        title: 'Error Deal',\n        value: 100,\n        owner_name: 'Error User',\n        close_date: '2023-04-01',\n        status: 'won'\n      },\n      previous: null\n    }\n\n    await expect(handle(payload, config)).rejects.toThrow('Notion API error: 401 Unauthorized - POST https://api.notion.com/v1/pages')\n    expect(errorCalls).toHaveLength(1)\n  })\n\n  it('includes Notion-Version header', async () => {\n    const payload: PipedriveWebhookPayload = {\n      meta: {\n        action: 'change',\n        entity: 'deal',\n        entity_id: '777',\n        timestamp: '2023-01-01T00:00:00.000Z',\n        version: '2.0',\n        webhook_id: 'webhook-10',\n        webhook_owner_id: 'owner-10',\n        attempt: 1,\n        host: 'company.pipedrive.com'\n      },\n      data: {\n        id: 777,\n        title: 'Version Header Test',\n        value: 100,\n        owner_name: 'Version User',\n        close_date: '2023-04-01',\n        status: 'won'\n      },\n      previous: null\n    }\n\n    await handle(payload, baseConfig)\n\n    const notionVersion = calls[0].headers.get('notion-version')\n    expect(notionVersion).toBe('2022-06-28')\n  })\n})\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# Pipedrive to Notion Connector\n\nCreates a Notion page in the \"Signed\" database when a Pipedrive deal is moved to the Won stage.\n\n## What it does\n\nListens for Pipedrive `deals/movedToWon` webhook events. When a deal's status changes to `won`, extracts the deal title, value, owner name, and close date, then creates a page in the configured Notion database with these properties mapped to the appropriate Notion property types.\n\n## Configuration\n\n| Environment Variable | Config Property | Required | Description |\n|---------------------|-----------------|----------|-------------|\n| `NOTION_TOKEN` | `notionToken` | Yes | Notion integration token with write access to the target database |\n| `NOTION_DATABASE_ID` | `databaseId` | Yes | The Notion database ID for the \"Signed\" database |\n\n## Usage Example\n\n```typescript\nimport { handle } from './connector'\n\n// In your webhook handler\napp.post('/pipedrive-webhook', async (req, res) => {\n  try {\n    const result = await handle(req.body, {\n      notionToken: process.env.NOTION_TOKEN!,\n      databaseId: process.env.NOTION_DATABASE_ID!\n    })\n    res.json({ success: true, notionPageId: result.notionPageId, dealId: result.dealId })\n  } catch (err) {\n    console.error('Connector error:', err)\n    res.status(500).json({ error: err.message })\n  }\n})\n```\n\n## Field Mapping\n\n| Pipedrive Field | Notion Property | Type |\n|----------------|-----------------|------|\n| `data.title` | Deal Title | Title |\n| `data.value` | Deal Value | Number |\n| `data.owner_name` | Owner | Rich Text |\n| `data.close_date` (or `data.won_time` date portion) | Close Date | Date |\n\n## Assumptions\n\n1. The Notion database \"Signed\" already exists and has properties named exactly: Deal Title (title), Deal Value (number), Owner (rich_text), and Close Date (date).\n2. The Pipedrive webhook payload includes `deal_id`, `title`, `value`, `owner_name`, and `close_date` (or `won_time`) when a deal moves to Won stage.\n3. The Notion integration token has permission to write to the target database.\n4. The database is shared with the Notion integration.\n5. Webhook verification (Pipedrive signature headers) is handled upstream or not required for this integration.\n\n## Error Handling\n\n- Throws descriptive errors for missing/invalid required fields in the payload\n- Throws on non-2xx responses from Notion API with status code, endpoint, and response body\n- Validates that the webhook is a deal change event with status \"won\"\n- Falls back to `won_time` date portion if `close_date` is not present\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://pipedrive.readme.io/docs/webhooks-v2-migration-guide\n// Source: https://developers.notion.com/reference/post-page\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"meta\": {\n    \"action\": \"change\",\n    \"entity\": \"deal\",\n    \"entity_id\": \"123\",\n    \"timestamp\": \"2023-01-01T00:00:00.000Z\",\n    \"version\": \"2.0\",\n    \"webhook_id\": \"abc123\",\n    \"webhook_owner_id\": \"owner123\",\n    \"attempt\": 1,\n    \"host\": \"company.pipedrive.com\"\n  },\n  \"data\": {\n    \"id\": 123,\n    \"title\": \"Sample Deal\",\n    \"value\": 1000,\n    \"owner_name\": \"John Doe\",\n    \"close_date\": \"2023-01-15\",\n    \"status\": \"won\",\n    \"won_time\": \"2023-01-15T10:30:00Z\",\n    \"add_time\": \"2022-12-01T08:00:00Z\",\n    \"update_time\": \"2023-01-15T10:30:00Z\",\n    \"org_id\": 1,\n    \"pipeline_id\": 1,\n    \"stage_id\": 5,\n    \"creator_user_id\": 12415231,\n    \"person_id\": 8,\n    \"currency\": \"USD\",\n    \"probability\": null,\n    \"lost_reason\": null,\n    \"lost_time\": null,\n    \"expected_close_date\": null,\n    \"first_won_time\": null,\n    \"label_ids\": [],\n    \"channel\": null,\n    \"channel_id\": null,\n    \"close_time\": null,\n    \"visible_to\": \"3\",\n    \"custom_fields\": {}\n  },\n  \"previous\": null\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://api.notion.com/v1/pages\",\n    \"response\": {\n      \"id\": \"page-id-generated-by-notion\",\n      \"created_time\": \"2023-01-01T00:00:00.000Z\",\n      \"last_edited_time\": \"2023-01-01T00:00:00.000Z\",\n      \"properties\": {\n        \"Deal Title\": {\n          \"id\": \"title\",\n          \"type\": \"title\",\n          \"title\": [\n            {\n              \"text\": {\n                \"content\": \"Sample Deal\",\n                \"link\": null\n              }\n            }\n          ]\n        },\n        \"Deal Value\": {\n          \"id\": \"deal-value-prop-id\",\n          \"type\": \"number\",\n          \"number\": 1000\n        },\n        \"Owner\": {\n          \"id\": \"owner-prop-id\",\n          \"type\": \"rich_text\",\n          \"rich_text\": [\n            {\n              \"text\": {\n                \"content\": \"John Doe\",\n                \"link\": null\n              }\n            }\n          ]\n        },\n        \"Close Date\": {\n          \"id\": \"close-date-prop-id\",\n          \"type\": \"date\",\n          \"date\": {\n            \"start\": \"2023-01-15\",\n            \"end\": null,\n            \"time_zone\": null\n          }\n        }\n      }\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ]
+    },
+    {
+      "type": "step",
+      "step": "generate",
+      "status": "done",
+      "detail": "src/connector.ts, src/connector.test.ts, README.md, src/fixtures.ts"
+    },
+    {
+      "type": "step",
+      "step": "verify",
+      "status": "start"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Forking checkpoint c527400c with 4 files, network off"
+    },
+    {
+      "type": "tests",
+      "attempt": 1,
+      "report": {
+        "typecheckOk": true,
+        "typecheckOutput": "",
+        "passed": 11,
+        "failed": 0,
+        "total": 11,
+        "failures": [],
+        "durationMs": 303.31005859375,
+        "ranOn": "nebius-sandbox:01a0fc3f-9b5d-7366-8dc2-1b267ad205f9",
+        "passedNames": [
+          "contract handles the documented example payload",
+          "handle maps all required fields correctly",
+          "handle uses won_time when close_date is missing",
+          "handle sends Bearer authorization header",
+          "handle throws on missing required field: title",
+          "handle throws on missing required field: value",
+          "handle throws on missing required field: owner_name",
+          "handle throws on missing close_date and won_time",
+          "handle throws on non-won status",
+          "handle throws on non-2xx response from Notion",
+          "handle includes Notion-Version header"
+        ],
+        "contract": "passed"
+      }
+    },
+    {
+      "type": "step",
+      "step": "verify",
+      "status": "done",
+      "detail": "11/11 tests after 1 attempt"
+    },
+    {
+      "type": "step",
+      "step": "package",
+      "status": "start"
+    },
+    {
+      "type": "usage",
+      "usage": [
+        {
+          "model": "nvidia/Nemotron-3_5-Lightning",
+          "promptTokens": 434,
+          "completionTokens": 388,
+          "costUsd": 0.00011916
+        },
+        {
+          "model": "nvidia/nemotron-3-super-120b-a12b",
+          "promptTokens": 21060,
+          "completionTokens": 1356,
+          "costUsd": 0.0075384
+        },
+        {
+          "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+          "promptTokens": 4712,
+          "completionTokens": 4913,
+          "costUsd": 0.019451
+        }
+      ]
+    },
+    {
+      "type": "result",
+      "ok": true,
+      "attempts": 1,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "export interface ConnectorConfig {\n  /** Notion integration token with write access to the target database. */\n  notionToken: string\n  /** The Notion database ID for the 'Signed' database. */\n  databaseId: string\n  /** Optional injected fetch for testing. */\n  fetch?: typeof fetch\n}\n\nexport interface PipedriveWebhookPayload {\n  meta: {\n    action: string\n    entity: string\n    entity_id: string\n    timestamp: string\n    version: string\n    webhook_id: string\n    webhook_owner_id: string\n    attempt: number\n    host: string\n  }\n  data: {\n    id: number\n    title: string\n    value: number\n    owner_name: string\n    close_date?: string\n    status: string\n    won_time?: string\n    [key: string]: unknown\n  }\n  previous: unknown\n}\n\nexport interface HandleResult {\n  notionPageId: string\n  dealId: number\n}\n\nfunction getFetch(config: ConnectorConfig): typeof fetch {\n  return config.fetch ?? fetch\n}\n\nfunction validatePayload(payload: unknown): asserts payload is PipedriveWebhookPayload {\n  if (!payload || typeof payload !== 'object') {\n    throw new Error('Invalid payload: expected an object')\n  }\n  const p = payload as Record<string, unknown>\n  if (!p.meta || typeof p.meta !== 'object') {\n    throw new Error('Invalid payload: missing meta object')\n  }\n  const meta = p.meta as Record<string, unknown>\n  if (meta.action !== 'change' || meta.entity !== 'deal') {\n    throw new Error('Invalid payload: not a deal change event')\n  }\n  if (!p.data || typeof p.data !== 'object') {\n    throw new Error('Invalid payload: missing data object')\n  }\n  const data = p.data as Record<string, unknown>\n  if (data.status !== 'won') {\n    throw new Error('Invalid payload: deal status is not won')\n  }\n  if (typeof data.title !== 'string' || !data.title.trim()) {\n    throw new Error('Invalid payload: missing or empty title')\n  }\n  if (typeof data.value !== 'number' || !Number.isFinite(data.value)) {\n    throw new Error('Invalid payload: missing or invalid value')\n  }\n  if (typeof data.owner_name !== 'string' || !data.owner_name.trim()) {\n    throw new Error('Invalid payload: missing or empty owner_name')\n  }\n  const closeDate = data.close_date\n  const wonTime = data.won_time\n  if ((typeof closeDate !== 'string' || !closeDate.trim()) &&\n      (typeof wonTime !== 'string' || !wonTime.trim())) {\n    throw new Error('Invalid payload: missing close_date and won_time')\n  }\n}\n\nfunction extractCloseDate(data: PipedriveWebhookPayload['data']): string {\n  if (typeof data.close_date === 'string' && data.close_date.trim()) {\n    return data.close_date.trim()\n  }\n  if (typeof data.won_time === 'string' && data.won_time.trim()) {\n    return data.won_time.trim().split('T')[0]\n  }\n  throw new Error('Unable to determine close date')\n}\n\nfunction buildNotionBody(payload: PipedriveWebhookPayload, databaseId: string) {\n  const data = payload.data\n  const closeDate = extractCloseDate(data)\n  return {\n    parent: { database_id: databaseId },\n    properties: {\n      'Deal Title': {\n        title: [{ text: { content: data.title } }]\n      },\n      'Deal Value': {\n        number: data.value\n      },\n      Owner: {\n        rich_text: [{ text: { content: data.owner_name } }]\n      },\n      'Close Date': {\n        date: { start: closeDate }\n      }\n    }\n  }\n}\n\nexport async function handle(\n  payload: unknown,\n  config: ConnectorConfig\n): Promise<HandleResult> {\n  validatePayload(payload)\n  const typedPayload = payload as PipedriveWebhookPayload\n\n  const body = buildNotionBody(typedPayload, config.databaseId)\n  const fetchFn = getFetch(config)\n\n  const response = await fetchFn('https://api.notion.com/v1/pages', {\n    method: 'POST',\n    headers: {\n      'Authorization': `Bearer ${config.notionToken}`,\n      'Content-Type': 'application/json',\n      'Notion-Version': '2022-06-28'\n    },\n    body: JSON.stringify(body)\n  })\n\n  if (!response.ok) {\n    const text = await response.text().catch(() => '')\n    throw new Error(`Notion API error: ${response.status} ${response.statusText} - POST https://api.notion.com/v1/pages - ${text}`)\n  }\n\n  const result = await response.json() as { id: string }\n  return {\n    notionPageId: result.id,\n    dealId: typedPayload.data.id\n  }\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi, beforeEach } from 'vitest'\nimport { handle, ConnectorConfig, PipedriveWebhookPayload } from './connector'\nimport {\n  SOURCE_EXAMPLE,\n  TARGET_ENDPOINTS,\n  contractFetch,\n  fakeFetch,\n  jsonResponse,\n  RecordedCall\n} from './fixtures'\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch()\n    const config: ConnectorConfig = {\n      notionToken: 'test-notion-token',\n      databaseId: 'test-database-id',\n      fetch\n    }\n    const result = await handle(SOURCE_EXAMPLE as unknown as PipedriveWebhookPayload, config)\n    expect(calls.length).toBeGreaterThan(0)\n    expect(result.notionPageId).toBe('page-id-generated-by-notion')\n    expect(result.dealId).toBe(123)\n  })\n})\n\ndescribe('handle', () => {\n  let baseConfig: ConnectorConfig\n  let calls: RecordedCall[]\n\n  beforeEach(() => {\n    const { fetch, calls: recordedCalls } = fakeFetch((req) => {\n      if (req.url === 'https://api.notion.com/v1/pages' && req.method === 'POST') {\n        return jsonResponse(TARGET_ENDPOINTS[0].response, 200)\n      }\n      return jsonResponse({ error: 'not found' }, 404)\n    })\n    calls = recordedCalls\n    baseConfig = {\n      notionToken: 'test-notion-token',\n      databaseId: 'test-database-id',\n      fetch\n    }\n  })\n\n  it('maps all required fields correctly', async () => {\n    const payload: PipedriveWebhookPayload = {\n      meta: {\n        action: 'change',\n        entity: 'deal',\n        entity_id: '456',\n        timestamp: '2023-01-01T00:00:00.000Z',\n        version: '2.0',\n        webhook_id: 'webhook-1',\n        webhook_owner_id: 'owner-1',\n        attempt: 1,\n        host: 'company.pipedrive.com'\n      },\n      data: {\n        id: 456,\n        title: 'Enterprise Deal',\n        value: 50000,\n        owner_name: 'Jane Smith',\n        close_date: '2023-02-20',\n        status: 'won',\n        won_time: '2023-02-20T14:00:00Z'\n      },\n      previous: null\n    }\n\n    const result = await handle(payload, baseConfig)\n\n    expect(result.dealId).toBe(456)\n    expect(result.notionPageId).toBe('page-id-generated-by-notion')\n    expect(calls).toHaveLength(1)\n\n    const requestBody = calls[0].json as Record<string, unknown>\n    expect(requestBody.parent).toEqual({ database_id: 'test-database-id' })\n    expect(requestBody.properties).toEqual({\n      'Deal Title': { title: [{ text: { content: 'Enterprise Deal' } }] },\n      'Deal Value': { number: 50000 },\n      Owner: { rich_text: [{ text: { content: 'Jane Smith' } }] },\n      'Close Date': { date: { start: '2023-02-20' } }\n    })\n  })\n\n  it('uses won_time when close_date is missing', async () => {\n    const payload: PipedriveWebhookPayload = {\n      meta: {\n        action: 'change',\n        entity: 'deal',\n        entity_id: '789',\n        timestamp: '2023-01-01T00:00:00.000Z',\n        version: '2.0',\n        webhook_id: 'webhook-2',\n        webhook_owner_id: 'owner-2',\n        attempt: 1,\n        host: 'company.pipedrive.com'\n      },\n      data: {\n        id: 789,\n        title: 'Deal Without Close Date',\n        value: 2500,\n        owner_name: 'Bob Wilson',\n        status: 'won',\n        won_time: '2023-03-10T09:15:00Z'\n      },\n      previous: null\n    }\n\n    const result = await handle(payload, baseConfig)\n\n    expect(result.dealId).toBe(789)\n    const requestBody = calls[0].json as Record<string, unknown>\n    expect((requestBody.properties as Record<string, unknown>)['Close Date']).toEqual({\n      date: { start: '2023-03-10' }\n    })\n  })\n\n  it('sends Bearer authorization header', async () => {\n    const payload: PipedriveWebhookPayload = {\n      meta: {\n        action: 'change',\n        entity: 'deal',\n        entity_id: '111',\n        timestamp: '2023-01-01T00:00:00.000Z',\n        version: '2.0',\n        webhook_id: 'webhook-3',\n        webhook_owner_id: 'owner-3',\n        attempt: 1,\n        host: 'company.pipedrive.com'\n      },\n      data: {\n        id: 111,\n        title: 'Auth Test Deal',\n        value: 100,\n        owner_name: 'Auth User',\n        close_date: '2023-04-01',\n        status: 'won'\n      },\n      previous: null\n    }\n\n    await handle(payload, baseConfig)\n\n    const authHeader = calls[0].headers.get('authorization')\n    expect(authHeader).toBe('Bearer test-notion-token')\n  })\n\n  it('throws on missing required field: title', async () => {\n    const payload = {\n      meta: {\n        action: 'change',\n        entity: 'deal',\n        entity_id: '222',\n        timestamp: '2023-01-01T00:00:00.000Z',\n        version: '2.0',\n        webhook_id: 'webhook-4',\n        webhook_owner_id: 'owner-4',\n        attempt: 1,\n        host: 'company.pipedrive.com'\n      },\n      data: {\n        id: 222,\n        title: '',\n        value: 100,\n        owner_name: 'Test User',\n        close_date: '2023-04-01',\n        status: 'won'\n      },\n      previous: null\n    }\n\n    await expect(handle(payload as unknown as PipedriveWebhookPayload, baseConfig))\n      .rejects.toThrow('Invalid payload: missing or empty title')\n  })\n\n  it('throws on missing required field: value', async () => {\n    const payload = {\n      meta: {\n        action: 'change',\n        entity: 'deal',\n        entity_id: '333',\n        timestamp: '2023-01-01T00:00:00.000Z',\n        version: '2.0',\n        webhook_id: 'webhook-5',\n        webhook_owner_id: 'owner-5',\n        attempt: 1,\n        host: 'company.pipedrive.com'\n      },\n      data: {\n        id: 333,\n        title: 'Test Deal',\n        value: 'not-a-number' as unknown,\n        owner_name: 'Test User',\n        close_date: '2023-04-01',\n        status: 'won'\n      },\n      previous: null\n    }\n\n    await expect(handle(payload as unknown as PipedriveWebhookPayload, baseConfig))\n      .rejects.toThrow('Invalid payload: missing or invalid value')\n  })\n\n  it('throws on missing required field: owner_name', async () => {\n    const payload = {\n      meta: {\n        action: 'change',\n        entity: 'deal',\n        entity_id: '444',\n        timestamp: '2023-01-01T00:00:00.000Z',\n        version: '2.0',\n        webhook_id: 'webhook-6',\n        webhook_owner_id: 'owner-6',\n        attempt: 1,\n        host: 'company.pipedrive.com'\n      },\n      data: {\n        id: 444,\n        title: 'Test Deal',\n        value: 100,\n        owner_name: '',\n        close_date: '2023-04-01',\n        status: 'won'\n      },\n      previous: null\n    }\n\n    await expect(handle(payload as unknown as PipedriveWebhookPayload, baseConfig))\n      .rejects.toThrow('Invalid payload: missing or empty owner_name')\n  })\n\n  it('throws on missing close_date and won_time', async () => {\n    const payload = {\n      meta: {\n        action: 'change',\n        entity: 'deal',\n        entity_id: '555',\n        timestamp: '2023-01-01T00:00:00.000Z',\n        version: '2.0',\n        webhook_id: 'webhook-7',\n        webhook_owner_id: 'owner-7',\n        attempt: 1,\n        host: 'company.pipedrive.com'\n      },\n      data: {\n        id: 555,\n        title: 'Test Deal',\n        value: 100,\n        owner_name: 'Test User',\n        status: 'won'\n      },\n      previous: null\n    }\n\n    await expect(handle(payload as unknown as PipedriveWebhookPayload, baseConfig))\n      .rejects.toThrow('Invalid payload: missing close_date and won_time')\n  })\n\n  it('throws on non-won status', async () => {\n    const payload = {\n      meta: {\n        action: 'change',\n        entity: 'deal',\n        entity_id: '666',\n        timestamp: '2023-01-01T00:00:00.000Z',\n        version: '2.0',\n        webhook_id: 'webhook-8',\n        webhook_owner_id: 'owner-8',\n        attempt: 1,\n        host: 'company.pipedrive.com'\n      },\n      data: {\n        id: 666,\n        title: 'Test Deal',\n        value: 100,\n        owner_name: 'Test User',\n        close_date: '2023-04-01',\n        status: 'open'\n      },\n      previous: null\n    }\n\n    await expect(handle(payload as unknown as PipedriveWebhookPayload, baseConfig))\n      .rejects.toThrow('Invalid payload: deal status is not won')\n  })\n\n  it('throws on non-2xx response from Notion', async () => {\n    const { fetch, calls: errorCalls } = fakeFetch(() => jsonResponse({ error: 'unauthorized' }, 401))\n    const config: ConnectorConfig = {\n      notionToken: 'bad-token',\n      databaseId: 'test-database-id',\n      fetch\n    }\n\n    const payload: PipedriveWebhookPayload = {\n      meta: {\n        action: 'change',\n        entity: 'deal',\n        entity_id: '999',\n        timestamp: '2023-01-01T00:00:00.000Z',\n        version: '2.0',\n        webhook_id: 'webhook-9',\n        webhook_owner_id: 'owner-9',\n        attempt: 1,\n        host: 'company.pipedrive.com'\n      },\n      data: {\n        id: 999,\n        title: 'Error Deal',\n        value: 100,\n        owner_name: 'Error User',\n        close_date: '2023-04-01',\n        status: 'won'\n      },\n      previous: null\n    }\n\n    await expect(handle(payload, config)).rejects.toThrow('Notion API error: 401 Unauthorized - POST https://api.notion.com/v1/pages')\n    expect(errorCalls).toHaveLength(1)\n  })\n\n  it('includes Notion-Version header', async () => {\n    const payload: PipedriveWebhookPayload = {\n      meta: {\n        action: 'change',\n        entity: 'deal',\n        entity_id: '777',\n        timestamp: '2023-01-01T00:00:00.000Z',\n        version: '2.0',\n        webhook_id: 'webhook-10',\n        webhook_owner_id: 'owner-10',\n        attempt: 1,\n        host: 'company.pipedrive.com'\n      },\n      data: {\n        id: 777,\n        title: 'Version Header Test',\n        value: 100,\n        owner_name: 'Version User',\n        close_date: '2023-04-01',\n        status: 'won'\n      },\n      previous: null\n    }\n\n    await handle(payload, baseConfig)\n\n    const notionVersion = calls[0].headers.get('notion-version')\n    expect(notionVersion).toBe('2022-06-28')\n  })\n})\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# Pipedrive to Notion Connector\n\nCreates a Notion page in the \"Signed\" database when a Pipedrive deal is moved to the Won stage.\n\n## What it does\n\nListens for Pipedrive `deals/movedToWon` webhook events. When a deal's status changes to `won`, extracts the deal title, value, owner name, and close date, then creates a page in the configured Notion database with these properties mapped to the appropriate Notion property types.\n\n## Configuration\n\n| Environment Variable | Config Property | Required | Description |\n|---------------------|-----------------|----------|-------------|\n| `NOTION_TOKEN` | `notionToken` | Yes | Notion integration token with write access to the target database |\n| `NOTION_DATABASE_ID` | `databaseId` | Yes | The Notion database ID for the \"Signed\" database |\n\n## Usage Example\n\n```typescript\nimport { handle } from './connector'\n\n// In your webhook handler\napp.post('/pipedrive-webhook', async (req, res) => {\n  try {\n    const result = await handle(req.body, {\n      notionToken: process.env.NOTION_TOKEN!,\n      databaseId: process.env.NOTION_DATABASE_ID!\n    })\n    res.json({ success: true, notionPageId: result.notionPageId, dealId: result.dealId })\n  } catch (err) {\n    console.error('Connector error:', err)\n    res.status(500).json({ error: err.message })\n  }\n})\n```\n\n## Field Mapping\n\n| Pipedrive Field | Notion Property | Type |\n|----------------|-----------------|------|\n| `data.title` | Deal Title | Title |\n| `data.value` | Deal Value | Number |\n| `data.owner_name` | Owner | Rich Text |\n| `data.close_date` (or `data.won_time` date portion) | Close Date | Date |\n\n## Assumptions\n\n1. The Notion database \"Signed\" already exists and has properties named exactly: Deal Title (title), Deal Value (number), Owner (rich_text), and Close Date (date).\n2. The Pipedrive webhook payload includes `deal_id`, `title`, `value`, `owner_name`, and `close_date` (or `won_time`) when a deal moves to Won stage.\n3. The Notion integration token has permission to write to the target database.\n4. The database is shared with the Notion integration.\n5. Webhook verification (Pipedrive signature headers) is handled upstream or not required for this integration.\n\n## Error Handling\n\n- Throws descriptive errors for missing/invalid required fields in the payload\n- Throws on non-2xx responses from Notion API with status code, endpoint, and response body\n- Validates that the webhook is a deal change event with status \"won\"\n- Falls back to `won_time` date portion if `close_date` is not present\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://pipedrive.readme.io/docs/webhooks-v2-migration-guide\n// Source: https://developers.notion.com/reference/post-page\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"meta\": {\n    \"action\": \"change\",\n    \"entity\": \"deal\",\n    \"entity_id\": \"123\",\n    \"timestamp\": \"2023-01-01T00:00:00.000Z\",\n    \"version\": \"2.0\",\n    \"webhook_id\": \"abc123\",\n    \"webhook_owner_id\": \"owner123\",\n    \"attempt\": 1,\n    \"host\": \"company.pipedrive.com\"\n  },\n  \"data\": {\n    \"id\": 123,\n    \"title\": \"Sample Deal\",\n    \"value\": 1000,\n    \"owner_name\": \"John Doe\",\n    \"close_date\": \"2023-01-15\",\n    \"status\": \"won\",\n    \"won_time\": \"2023-01-15T10:30:00Z\",\n    \"add_time\": \"2022-12-01T08:00:00Z\",\n    \"update_time\": \"2023-01-15T10:30:00Z\",\n    \"org_id\": 1,\n    \"pipeline_id\": 1,\n    \"stage_id\": 5,\n    \"creator_user_id\": 12415231,\n    \"person_id\": 8,\n    \"currency\": \"USD\",\n    \"probability\": null,\n    \"lost_reason\": null,\n    \"lost_time\": null,\n    \"expected_close_date\": null,\n    \"first_won_time\": null,\n    \"label_ids\": [],\n    \"channel\": null,\n    \"channel_id\": null,\n    \"close_time\": null,\n    \"visible_to\": \"3\",\n    \"custom_fields\": {}\n  },\n  \"previous\": null\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://api.notion.com/v1/pages\",\n    \"response\": {\n      \"id\": \"page-id-generated-by-notion\",\n      \"created_time\": \"2023-01-01T00:00:00.000Z\",\n      \"last_edited_time\": \"2023-01-01T00:00:00.000Z\",\n      \"properties\": {\n        \"Deal Title\": {\n          \"id\": \"title\",\n          \"type\": \"title\",\n          \"title\": [\n            {\n              \"text\": {\n                \"content\": \"Sample Deal\",\n                \"link\": null\n              }\n            }\n          ]\n        },\n        \"Deal Value\": {\n          \"id\": \"deal-value-prop-id\",\n          \"type\": \"number\",\n          \"number\": 1000\n        },\n        \"Owner\": {\n          \"id\": \"owner-prop-id\",\n          \"type\": \"rich_text\",\n          \"rich_text\": [\n            {\n              \"text\": {\n                \"content\": \"John Doe\",\n                \"link\": null\n              }\n            }\n          ]\n        },\n        \"Close Date\": {\n          \"id\": \"close-date-prop-id\",\n          \"type\": \"date\",\n          \"date\": {\n            \"start\": \"2023-01-15\",\n            \"end\": null,\n            \"time_zone\": null\n          }\n        }\n      }\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ],
+      "report": {
+        "typecheckOk": true,
+        "typecheckOutput": "",
+        "passed": 11,
+        "failed": 0,
+        "total": 11,
+        "failures": [],
+        "durationMs": 303.31005859375,
+        "ranOn": "nebius-sandbox:01a0fc3f-9b5d-7366-8dc2-1b267ad205f9",
+        "passedNames": [
+          "contract handles the documented example payload",
+          "handle maps all required fields correctly",
+          "handle uses won_time when close_date is missing",
+          "handle sends Bearer authorization header",
+          "handle throws on missing required field: title",
+          "handle throws on missing required field: value",
+          "handle throws on missing required field: owner_name",
+          "handle throws on missing close_date and won_time",
+          "handle throws on non-won status",
+          "handle throws on non-2xx response from Notion",
+          "handle includes Notion-Version header"
+        ],
+        "contract": "passed"
+      }
+    },
+    {
+      "type": "step",
+      "step": "package",
+      "status": "done"
+    }
+  ]
+}

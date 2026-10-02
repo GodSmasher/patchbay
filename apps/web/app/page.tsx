@@ -167,8 +167,8 @@ export default function Home() {
           <span className="mx-2 text-paper-line">·</span>
           Verified in: <span className="text-ink-soft">Nebius Sandboxes</span>
         </span>
-        <a href="https://github.com/GodSmasher/patchbay/blob/main/bench/RESULTS.md" className="hover:text-ink">
-          Benchmark: 19/20 green · 50% first-try · $0.86 for 20 integrations ↗
+        <a href="https://github.com/GodSmasher/patchbay/blob/main/bench/RESULTS-variance.md" className="hover:text-ink">
+          Benchmark: 85% green over 60 runs · $0.05 per connector ↗
         </a>
       </footer>
     </main>

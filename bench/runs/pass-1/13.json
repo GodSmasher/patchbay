@@ -1,0 +1,410 @@
+{
+  "prompt": "When a Google Calendar event is created, add the first attendee as a checklist item on a Trello card in a configured list.",
+  "events": [
+    {
+      "type": "mode",
+      "mode": "live"
+    },
+    {
+      "type": "step",
+      "step": "plan",
+      "status": "start"
+    },
+    {
+      "type": "plan",
+      "plan": {
+        "summary": "When a Google Calendar event is created, add the first attendee's email as a checklist item on a Trello card in a configured list.",
+        "source": {
+          "app": "Google Calendar",
+          "trigger": "event created webhook",
+          "docsQuery": "Google Calendar events created webhook attendee fields"
+        },
+        "target": {
+          "app": "Trello",
+          "action": "create checklist item",
+          "docsQuery": "Trello API create checklist item card"
+        },
+        "fieldMapping": [
+          {
+            "from": "attendees[0].email",
+            "to": "value",
+            "note": "First attendee email from the webhook payload"
+          },
+          {
+            "from": "cardId",
+            "to": "idCard",
+            "note": "Trello card ID to add the checklist item to (configured by user)"
+          }
+        ],
+        "assumptions": [
+          "The Google Calendar webhook payload includes an 'attendees' array with at least one object containing an 'email' field.",
+          "The user has a specific Trello card ID configured or will provide one to target for the checklist item.",
+          "The Trello API key and token are already configured for authentication.",
+          "The target Trello list exists and the card is within that list."
+        ]
+      }
+    },
+    {
+      "type": "step",
+      "step": "plan",
+      "status": "done",
+      "detail": "When a Google Calendar event is created, add the first attendee's email as a checklist item on a Trello card in a configured list."
+    },
+    {
+      "type": "step",
+      "step": "research",
+      "status": "start"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Installing typescript + vitest in a sandbox checkpoint"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "No Trello page in the results, searched trello.com directly: 5 results"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Searched \"Trello API create checklist item card\": 2 of 2 picked from Trello's own docs"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "No Google Calendar page in the results, searched googlecalendar.com directly: 0 results"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Searched \"Google Calendar events created webhook attendee fields\": 0 of 2 picked from Google Calendar's own docs"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Extracted 4 documentation pages"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Checkpoint ready: 943556e8"
+    },
+    {
+      "type": "sources",
+      "sources": [
+        {
+          "title": "Create Google Calendar Event\" Fails if Attendees Field is Empty - Bug Reports - MindStudio",
+          "url": "https://community.mindstudio.ai/t/create-google-calendar-event-fails-if-attendees-field-is-empty/1887",
+          "official": false
+        },
+        {
+          "title": "Effortlessly Integrate Google Calendar API Into Your Applications – Unipile",
+          "url": "https://www.unipile.com/communication-api/calendar-api/google-calendar-api",
+          "official": false
+        },
+        {
+          "title": "Add, delete, and manage checklists | Trello | Atlassian Support",
+          "url": "https://help.trello.com/article/737-adding-checklists-to-cards",
+          "official": true
+        },
+        {
+          "title": "Create cards by email | Trello | Atlassian Support",
+          "url": "https://help.trello.com/article/809-creating-cards-by-email",
+          "official": true
+        }
+      ]
+    },
+    {
+      "type": "spec",
+      "spec": {
+        "source": {
+          "app": "Google Calendar",
+          "role": "source",
+          "method": "POST",
+          "url": "(webhook delivery URL configured by user)",
+          "auth": {
+            "type": "none",
+            "name": null,
+            "envVar": null
+          },
+          "example": {
+            "event": "calendar.event.created",
+            "event_id": "evt_9xKq2mP...",
+            "account_id": "acc_7mBzRt...",
+            "attendees": [
+              {
+                "email": "first.attendee@example.com"
+              },
+              {
+                "email": "second.attendee@example.com"
+              }
+            ]
+          },
+          "docsUrl": "https://developer.unipile.com/docs/calendar-webhook",
+          "notes": [
+            "The webhook payload structure shown is inferred from Unipile's documentation example under 'Real-Time Notifications'. Actual attendee field structure may vary; verify with Unipile's API reference.",
+            "The 'attendees' array may be empty or absent per the community discussion about optional attendees; connector should handle missing or empty attendees gracefully.",
+            "The webhook URL is user-defined and not provided in the docs; it must be configured in the Unipile dashboard or via API."
+          ]
+        },
+        "target": [
+          {
+            "app": "Trello",
+            "role": "target",
+            "method": "POST",
+            "url": "https://api.trello.com/1/checklists/{idChecklist}/checkItems",
+            "auth": {
+              "type": "query",
+              "name": "key",
+              "envVar": "TRELLO_API_KEY"
+            },
+            "example": {
+              "value": "first.attendee@example.com",
+              "idChecklist": "5f9d1b2b8c9d440000000000"
+            },
+            "responseExample": {
+              "id": "5f9d1b2b8c9d440000000001",
+              "name": "first.attendee@example.com",
+              "state": "incomplete",
+              "idChecklist": "5f9d1b2b8c9d440000000000",
+              "idCard": "5f9d1b2b8c9d440000000002"
+            },
+            "docsUrl": "https://developer.atlassian.com/cloud/trello/rest/api-group-checklists/#api-checklists-idchecklist-checkitems-post",
+            "notes": [
+              "Trello API requires either API key and token as query parameters or OAuth; the docs assume API key and token are configured per plan assumptions.",
+              "The endpoint creates a checklist item within an existing checklist. The plan does not specify how the checklist is obtained; connector must either use a pre-existing checklist ID or create one first (requires additional API calls not covered in plan).",
+              "The 'idChecklist' parameter is required and must be obtained separately; the plan maps 'cardId' to 'idCard' but the checklist item endpoint does not take 'idCard' directly—this indicates a gap in the plan.",
+              "To properly associate with a card, the connector must first get the card's checklist or create one. The current mapping from 'cardId' to 'idCard' is not applicable to the checklist item creation endpoint.",
+              "The plan's field mapping appears incorrect for the target endpoint: 'value' maps to checklist item name, but 'idCard' is not a parameter for this endpoint. Likely intent was to add item to a card's default checklist, requiring lookup of checklist ID from card ID first."
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "step",
+      "step": "research",
+      "status": "done",
+      "detail": "2 endpoints from 4 pages"
+    },
+    {
+      "type": "step",
+      "step": "generate",
+      "status": "start"
+    },
+    {
+      "type": "files",
+      "attempt": 1,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "export interface ConnectorConfig {\n  trelloApiKey: string\n  trelloApiToken: string\n  idChecklist: string\n  fetch?: typeof fetch\n}\n\nexport interface GoogleCalendarWebhookPayload {\n  event: string\n  event_id: string\n  account_id: string\n  attendees?: Array<{ email: string }>\n}\n\nexport interface HandleResult {\n  checkItemId: string\n  name: string\n  state: string\n  idChecklist: string\n  idCard: string\n}\n\nexport async function handle(\n  payload: GoogleCalendarWebhookPayload,\n  config: ConnectorConfig\n): Promise<HandleResult> {\n  const fetchImpl = config.fetch ?? fetch\n\n  if (!payload.attendees || payload.attendees.length === 0) {\n    throw new Error('Google Calendar webhook payload must contain at least one attendee with an email')\n  }\n\n  const firstAttendee = payload.attendees[0]\n  if (!firstAttendee.email) {\n    throw new Error('First attendee in Google Calendar webhook payload is missing an email field')\n  }\n\n  const email = firstAttendee.email\n  const url = `https://api.trello.com/1/checklists/${encodeURIComponent(config.idChecklist)}/checkItems`\n\n  const queryParams = new URLSearchParams({\n    key: config.trelloApiKey,\n    token: config.trelloApiToken,\n  })\n\n  const response = await fetchImpl(`${url}?${queryParams.toString()}`, {\n    method: 'POST',\n    headers: {\n      'Content-Type': 'application/json',\n    },\n    body: JSON.stringify({ value: email }),\n  })\n\n  if (!response.ok) {\n    throw new Error(`Trello API request failed: ${response.status} ${response.statusText} for POST ${url}`)\n  }\n\n  const data = (await response.json()) as HandleResult\n  return data\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi } from 'vitest'\nimport { handle, ConnectorConfig, GoogleCalendarWebhookPayload } from './connector'\nimport {\n  SOURCE_EXAMPLE,\n  TARGET_ENDPOINTS,\n  contractFetch,\n  fakeFetch,\n  jsonResponse,\n  RecordedCall,\n} from './fixtures'\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch()\n    const config: ConnectorConfig = {\n      trelloApiKey: 'test-key',\n      trelloApiToken: 'test-token',\n      idChecklist: '5f9d1b2b8c9d440000000000',\n      fetch,\n    }\n    const result = await handle(SOURCE_EXAMPLE as unknown as GoogleCalendarWebhookPayload, config)\n    expect(calls.length).toBeGreaterThan(0)\n    expect(result.checkItemId).toBe('5f9d1b2b8c9d440000000001')\n  })\n})\n\ndescribe('handle', () => {\n  it('creates a checklist item with the first attendee email on happy path', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url.includes('/checklists/5f9d1b2b8c9d440000000000/checkItems')\n        ? jsonResponse(\n            {\n              id: '5f9d1b2b8c9d440000000001',\n              name: 'first.attendee@example.com',\n              state: 'incomplete',\n              idChecklist: '5f9d1b2b8c9d440000000000',\n              idCard: '5f9d1b2b8c9d440000000002',\n            },\n            201\n          )\n        : jsonResponse({ error: 'not found' }, 404)\n    )\n\n    const config: ConnectorConfig = {\n      trelloApiKey: 'test-key',\n      trelloApiToken: 'test-token',\n      idChecklist: '5f9d1b2b8c9d440000000000',\n      fetch,\n    }\n\n    const payload: GoogleCalendarWebhookPayload = {\n      event: 'calendar.event.created',\n      event_id: 'evt_123',\n      account_id: 'acc_456',\n      attendees: [{ email: 'first.attendee@example.com' }, { email: 'second@example.com' }],\n    }\n\n    const result = await handle(payload, config)\n\n    expect(result.checkItemId).toBe('5f9d1b2b8c9d440000000001')\n    expect(result.name).toBe('first.attendee@example.com')\n    expect(calls.length).toBe(1)\n\n    const call = calls[0]\n    expect(call.method).toBe('POST')\n    expect(call.url).toContain('/checklists/5f9d1b2b8c9d440000000000/checkItems')\n    expect(call.url).toContain('key=test-key')\n    expect(call.url).toContain('token=test-token')\n    expect(call.json).toEqual({ value: 'first.attendee@example.com' })\n  })\n\n  it('includes both API key and token as query parameters for auth', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url.includes('key=custom-key') && req.url.includes('token=custom-token')\n        ? jsonResponse(\n            {\n              id: 'chk_1',\n              name: 'test@example.com',\n              state: 'incomplete',\n              idChecklist: 'cl_1',\n              idCard: 'card_1',\n            },\n            201\n          )\n        : jsonResponse({ error: 'unauthorized' }, 401)\n    )\n\n    const config: ConnectorConfig = {\n      trelloApiKey: 'custom-key',\n      trelloApiToken: 'custom-token',\n      idChecklist: 'cl_1',\n      fetch,\n    }\n\n    const payload: GoogleCalendarWebhookPayload = {\n      event: 'calendar.event.created',\n      event_id: 'evt_1',\n      account_id: 'acc_1',\n      attendees: [{ email: 'test@example.com' }],\n    }\n\n    await handle(payload, config)\n\n    const call = calls[0]\n    expect(call.url).toContain('key=custom-key')\n    expect(call.url).toContain('token=custom-token')\n  })\n\n  it('maps the first attendee email to the checklist item value field', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url.includes('/checklists/cl_1/checkItems')\n        ? jsonResponse(\n            {\n              id: 'chk_1',\n              name: 'mapped@example.com',\n              state: 'incomplete',\n              idChecklist: 'cl_1',\n              idCard: 'card_1',\n            },\n            201\n          )\n        : jsonResponse({ error: 'not found' }, 404)\n    )\n\n    const config: ConnectorConfig = {\n      trelloApiKey: 'key',\n      trelloApiToken: 'token',\n      idChecklist: 'cl_1',\n      fetch,\n    }\n\n    const payload: GoogleCalendarWebhookPayload = {\n      event: 'calendar.event.created',\n      event_id: 'evt_1',\n      account_id: 'acc_1',\n      attendees: [\n        { email: 'first@example.com' },\n        { email: 'second@example.com' },\n        { email: 'third@example.com' },\n      ],\n    }\n\n    await handle(payload, config)\n\n    expect(calls[0].json).toEqual({ value: 'first@example.com' })\n  })\n\n  it('throws when attendees array is missing', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n\n    const config: ConnectorConfig = {\n      trelloApiKey: 'key',\n      trelloApiToken: 'token',\n      idChecklist: 'cl_1',\n      fetch,\n    }\n\n    const payload: GoogleCalendarWebhookPayload = {\n      event: 'calendar.event.created',\n      event_id: 'evt_1',\n      account_id: 'acc_1',\n    }\n\n    await expect(handle(payload, config)).rejects.toThrow(\n      'Google Calendar webhook payload must contain at least one attendee with an email'\n    )\n  })\n\n  it('throws when attendees array is empty', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n\n    const config: ConnectorConfig = {\n      trelloApiKey: 'key',\n      trelloApiToken: 'token',\n      idChecklist: 'cl_1',\n      fetch,\n    }\n\n    const payload: GoogleCalendarWebhookPayload = {\n      event: 'calendar.event.created',\n      event_id: 'evt_1',\n      account_id: 'acc_1',\n      attendees: [],\n    }\n\n    await expect(handle(payload, config)).rejects.toThrow(\n      'Google Calendar webhook payload must contain at least one attendee with an email'\n    )\n  })\n\n  it('throws when first attendee is missing email', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n\n    const config: ConnectorConfig = {\n      trelloApiKey: 'key',\n      trelloApiToken: 'token',\n      idChecklist: 'cl_1',\n      fetch,\n    }\n\n    const payload: GoogleCalendarWebhookPayload = {\n      event: 'calendar.event.created',\n      event_id: 'evt_1',\n      account_id: 'acc_1',\n      attendees: [{}],\n    }\n\n    await expect(handle(payload, config)).rejects.toThrow(\n      'First attendee in Google Calendar webhook payload is missing an email field'\n    )\n  })\n\n  it('throws on non-2xx response from Trello API with status and endpoint', async () => {\n    const { fetch, calls } = fakeFetch(() => jsonResponse({ error: 'invalid key' }, 401))\n\n    const config: ConnectorConfig = {\n      trelloApiKey: 'bad-key',\n      trelloApiToken: 'bad-token',\n      idChecklist: 'cl_1',\n      fetch,\n    }\n\n    const payload: GoogleCalendarWebhookPayload = {\n      event: 'calendar.event.created',\n      event_id: 'evt_1',\n      account_id: 'acc_1',\n      attendees: [{ email: 'test@example.com' }],\n    }\n\n    await expect(handle(payload, config)).rejects.toThrow(\n      'Trello API request failed: 401 Unauthorized for POST https://api.trello.com/1/checklists/cl_1/checkItems'\n    )\n\n    expect(calls.length).toBe(1)\n  })\n\n  it('throws on 500 response from Trello API', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({ error: 'server error' }, 500))\n\n    const config: ConnectorConfig = {\n      trelloApiKey: 'key',\n      trelloApiToken: 'token',\n      idChecklist: 'cl_1',\n      fetch,\n    }\n\n    const payload: GoogleCalendarWebhookPayload = {\n      event: 'calendar.event.created',\n      event_id: 'evt_1',\n      account_id: 'acc_1',\n      attendees: [{ email: 'test@example.com' }],\n    }\n\n    await expect(handle(payload, config)).rejects.toThrow(\n      'Trello API request failed: 500 Internal Server Error for POST https://api.trello.com/1/checklists/cl_1/checkItems'\n    )\n  })\n})\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# Google Calendar to Trello Checklist Item Connector\n\nThis connector listens for Google Calendar \"event created\" webhooks and adds the first attendee's email as a checklist item on a specified Trello card.\n\n## What it does\n\n1. Receives a Google Calendar webhook payload when a new event is created\n2. Extracts the email address from the first attendee in the `attendees` array\n3. Creates a checklist item on a Trello card using the Trello API\n4. Returns the created checklist item details\n\n## Configuration\n\nThe connector requires the following configuration parameters (typically provided via environment variables):\n\n| Config Property | Environment Variable | Description |\n|-----------------|---------------------|-------------|\n| `trelloApiKey` | `TRELLO_API_KEY` | Your Trello API key |\n| `trelloApiToken` | `TRELLO_API_TOKEN` | Your Trello API token (required alongside the key) |\n| `idChecklist` | `TRELLO_CHECKLIST_ID` | The ID of the Trello checklist to add items to |\n\n### Environment Variables\n\n```bash\nexport TRELLO_API_KEY=\"your-trello-api-key\"\nexport TRELLO_API_TOKEN=\"your-trello-api-token\"\nexport TRELLO_CHECKLIST_ID=\"5f9d1b2b8c9d440000000000\"\n```\n\n## Usage Example\n\n```typescript\nimport { handle, ConnectorConfig, GoogleCalendarWebhookPayload } from './connector'\n\nconst config: ConnectorConfig = {\n  trelloApiKey: process.env.TRELLO_API_KEY!,\n  trelloApiToken: process.env.TRELLO_API_TOKEN!,\n  idChecklist: process.env.TRELLO_CHECKLIST_ID!,\n}\n\nconst payload: GoogleCalendarWebhookPayload = {\n  event: 'calendar.event.created',\n  event_id: 'evt_9xKq2mP...',\n  account_id: 'acc_7mBzRt...',\n  attendees: [\n    { email: 'first.attendee@example.com' },\n    { email: 'second.attendee@example.com' }\n  ]\n}\n\nconst result = await handle(payload, config)\nconsole.log('Created checklist item:', result)\n// {\n//   checkItemId: '5f9d1b2b8c9d440000000001',\n//   name: 'first.attendee@example.com',\n//   state: 'incomplete',\n//   idChecklist: '5f9d1b2b8c9d440000000000',\n//   idCard: '5f9d1b2b8c9d440000000002'\n// }\n```\n\n## Assumptions\n\n1. **Google Calendar webhook payload structure**: The payload includes an `attendees` array with at least one object containing an `email` field. The connector validates this and throws a descriptive error if missing or empty.\n\n2. **Trello checklist ID**: The user must provide a valid `idChecklist` (checklist ID) in the configuration. The connector uses the Trello endpoint `POST /checklists/{idChecklist}/checkItems` which requires a checklist ID, not a card ID directly.\n\n3. **Trello authentication**: Both API key and token are required as query parameters (`key` and `token`) for all Trello API requests.\n\n4. **Target checklist exists**: The specified checklist must already exist in Trello. The connector does not create checklists or look up checklist IDs from card IDs.\n\n5. **First attendee only**: Only the first attendee's email is used for the checklist item. Additional attendees are ignored.\n\n## Error Handling\n\nThe connector throws descriptive errors for:\n- Missing or empty `attendees` array in the webhook payload\n- First attendee missing an `email` field\n- Non-2xx responses from the Trello API (includes status code and endpoint in the error message)\n\n## API References\n\n- Google Calendar Webhook: https://developer.unipile.com/docs/calendar-webhook\n- Trello Create Checklist Item: https://developer.atlassian.com/cloud/trello/rest/api-group-checklists/#api-checklists-idchecklist-checkitems-post\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://developer.unipile.com/docs/calendar-webhook\n// Source: https://developer.atlassian.com/cloud/trello/rest/api-group-checklists/#api-checklists-idchecklist-checkitems-post\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"event\": \"calendar.event.created\",\n  \"event_id\": \"evt_9xKq2mP...\",\n  \"account_id\": \"acc_7mBzRt...\",\n  \"attendees\": [\n    {\n      \"email\": \"first.attendee@example.com\"\n    },\n    {\n      \"email\": \"second.attendee@example.com\"\n    }\n  ]\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://api.trello.com/1/checklists/{idChecklist}/checkItems\",\n    \"response\": {\n      \"id\": \"5f9d1b2b8c9d440000000001\",\n      \"name\": \"first.attendee@example.com\",\n      \"state\": \"incomplete\",\n      \"idChecklist\": \"5f9d1b2b8c9d440000000000\",\n      \"idCard\": \"5f9d1b2b8c9d440000000002\"\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ]
+    },
+    {
+      "type": "step",
+      "step": "generate",
+      "status": "done",
+      "detail": "src/connector.ts, src/connector.test.ts, README.md, src/fixtures.ts"
+    },
+    {
+      "type": "step",
+      "step": "verify",
+      "status": "start"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Forking checkpoint 943556e8 with 4 files, network off"
+    },
+    {
+      "type": "tests",
+      "attempt": 1,
+      "report": {
+        "typecheckOk": false,
+        "typecheckOutput": "src/connector.test.ts(205,19): error TS2741: Property 'email' is missing in type '{}' but required in type '{ email: string; }'.",
+        "passed": 7,
+        "failed": 2,
+        "total": 9,
+        "failures": [
+          {
+            "name": "contract handles the documented example payload",
+            "message": "AssertionError: expected undefined to be '5f9d1b2b8c9d440000000001' // Object.is equality\n    at /work/src/connector.test.ts:23:32\n    at processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20"
+          },
+          {
+            "name": "handle creates a checklist item with the first attendee email on happy path",
+            "message": "AssertionError: expected undefined to be '5f9d1b2b8c9d440000000001' // Object.is equality\n    at /work/src/connector.test.ts:60:32\n    at processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20"
+          }
+        ],
+        "durationMs": 284.453125,
+        "ranOn": "nebius-sandbox:01a0fc40-6b5a-7270-b34b-a1a608a9a626",
+        "passedNames": [
+          "handle includes both API key and token as query parameters for auth",
+          "handle maps the first attendee email to the checklist item value field",
+          "handle throws when attendees array is missing",
+          "handle throws when attendees array is empty",
+          "handle throws when first attendee is missing email",
+          "handle throws on non-2xx response from Trello API with status and endpoint",
+          "handle throws on 500 response from Trello API"
+        ],
+        "contract": "failed"
+      }
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Attempt 1 failed (2 tests, typecheck failed), repairing"
+    },
+    {
+      "type": "files",
+      "attempt": 2,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "export interface ConnectorConfig {\n  trelloApiKey: string\n  trelloApiToken: string\n  idChecklist: string\n  fetch?: typeof fetch\n}\n\nexport interface GoogleCalendarWebhookPayload {\n  event: string\n  event_id: string\n  account_id: string\n  attendees?: Array<{ email?: string }>\n}\n\nexport interface HandleResult {\n  checkItemId: string\n  name: string\n  state: string\n  idChecklist: string\n  idCard: string\n}\n\ninterface TrelloCheckItemResponse {\n  id: string\n  name: string\n  state: string\n  idChecklist: string\n  idCard: string\n}\n\nexport async function handle(\n  payload: GoogleCalendarWebhookPayload,\n  config: ConnectorConfig\n): Promise<HandleResult> {\n  const fetchImpl = config.fetch ?? fetch\n\n  if (!payload.attendees || payload.attendees.length === 0) {\n    throw new Error('Google Calendar webhook payload must contain at least one attendee with an email')\n  }\n\n  const firstAttendee = payload.attendees[0]\n  if (!firstAttendee.email) {\n    throw new Error('First attendee in Google Calendar webhook payload is missing an email field')\n  }\n\n  const email = firstAttendee.email\n  const url = `https://api.trello.com/1/checklists/${encodeURIComponent(config.idChecklist)}/checkItems`\n\n  const queryParams = new URLSearchParams({\n    key: config.trelloApiKey,\n    token: config.trelloApiToken,\n  })\n\n  const response = await fetchImpl(`${url}?${queryParams.toString()}`, {\n    method: 'POST',\n    headers: {\n      'Content-Type': 'application/json',\n    },\n    body: JSON.stringify({ value: email }),\n  })\n\n  if (!response.ok) {\n    throw new Error(`Trello API request failed: ${response.status} ${response.statusText} for POST ${url}`)\n  }\n\n  const data = (await response.json()) as TrelloCheckItemResponse\n  return {\n    checkItemId: data.id,\n    name: data.name,\n    state: data.state,\n    idChecklist: data.idChecklist,\n    idCard: data.idCard,\n  }\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi } from 'vitest'\nimport { handle, ConnectorConfig, GoogleCalendarWebhookPayload } from './connector'\nimport {\n  SOURCE_EXAMPLE,\n  TARGET_ENDPOINTS,\n  contractFetch,\n  fakeFetch,\n  jsonResponse,\n  RecordedCall,\n} from './fixtures'\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch()\n    const config: ConnectorConfig = {\n      trelloApiKey: 'test-key',\n      trelloApiToken: 'test-token',\n      idChecklist: '5f9d1b2b8c9d440000000000',\n      fetch,\n    }\n    const result = await handle(SOURCE_EXAMPLE as unknown as GoogleCalendarWebhookPayload, config)\n    expect(calls.length).toBeGreaterThan(0)\n    expect(result.checkItemId).toBe('5f9d1b2b8c9d440000000001')\n  })\n})\n\ndescribe('handle', () => {\n  it('creates a checklist item with the first attendee email on happy path', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url.includes('/checklists/5f9d1b2b8c9d440000000000/checkItems')\n        ? jsonResponse(\n            {\n              id: '5f9d1b2b8c9d440000000001',\n              name: 'first.attendee@example.com',\n              state: 'incomplete',\n              idChecklist: '5f9d1b2b8c9d440000000000',\n              idCard: '5f9d1b2b8c9d440000000002',\n            },\n            201\n          )\n        : jsonResponse({ error: 'not found' }, 404)\n    )\n\n    const config: ConnectorConfig = {\n      trelloApiKey: 'test-key',\n      trelloApiToken: 'test-token',\n      idChecklist: '5f9d1b2b8c9d440000000000',\n      fetch,\n    }\n\n    const payload: GoogleCalendarWebhookPayload = {\n      event: 'calendar.event.created',\n      event_id: 'evt_123',\n      account_id: 'acc_456',\n      attendees: [{ email: 'first.attendee@example.com' }, { email: 'second@example.com' }],\n    }\n\n    const result = await handle(payload, config)\n\n    expect(result.checkItemId).toBe('5f9d1b2b8c9d440000000001')\n    expect(result.name).toBe('first.attendee@example.com')\n    expect(calls.length).toBe(1)\n\n    const call = calls[0]\n    expect(call.method).toBe('POST')\n    expect(call.url).toContain('/checklists/5f9d1b2b8c9d440000000000/checkItems')\n    expect(call.url).toContain('key=test-key')\n    expect(call.url).toContain('token=test-token')\n    expect(call.json).toEqual({ value: 'first.attendee@example.com' })\n  })\n\n  it('includes both API key and token as query parameters for auth', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url.includes('key=custom-key') && req.url.includes('token=custom-token')\n        ? jsonResponse(\n            {\n              id: 'chk_1',\n              name: 'test@example.com',\n              state: 'incomplete',\n              idChecklist: 'cl_1',\n              idCard: 'card_1',\n            },\n            201\n          )\n        : jsonResponse({ error: 'unauthorized' }, 401)\n    )\n\n    const config: ConnectorConfig = {\n      trelloApiKey: 'custom-key',\n      trelloApiToken: 'custom-token',\n      idChecklist: 'cl_1',\n      fetch,\n    }\n\n    const payload: GoogleCalendarWebhookPayload = {\n      event: 'calendar.event.created',\n      event_id: 'evt_1',\n      account_id: 'acc_1',\n      attendees: [{ email: 'test@example.com' }],\n    }\n\n    await handle(payload, config)\n\n    const call = calls[0]\n    expect(call.url).toContain('key=custom-key')\n    expect(call.url).toContain('token=custom-token')\n  })\n\n  it('maps the first attendee email to the checklist item value field', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url.includes('/checklists/cl_1/checkItems')\n        ? jsonResponse(\n            {\n              id: 'chk_1',\n              name: 'mapped@example.com',\n              state: 'incomplete',\n              idChecklist: 'cl_1',\n              idCard: 'card_1',\n            },\n            201\n          )\n        : jsonResponse({ error: 'not found' }, 404)\n    )\n\n    const config: ConnectorConfig = {\n      trelloApiKey: 'key',\n      trelloApiToken: 'token',\n      idChecklist: 'cl_1',\n      fetch,\n    }\n\n    const payload: GoogleCalendarWebhookPayload = {\n      event: 'calendar.event.created',\n      event_id: 'evt_1',\n      account_id: 'acc_1',\n      attendees: [\n        { email: 'first@example.com' },\n        { email: 'second@example.com' },\n        { email: 'third@example.com' },\n      ],\n    }\n\n    await handle(payload, config)\n\n    expect(calls[0].json).toEqual({ value: 'first@example.com' })\n  })\n\n  it('throws when attendees array is missing', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n\n    const config: ConnectorConfig = {\n      trelloApiKey: 'key',\n      trelloApiToken: 'token',\n      idChecklist: 'cl_1',\n      fetch,\n    }\n\n    const payload: GoogleCalendarWebhookPayload = {\n      event: 'calendar.event.created',\n      event_id: 'evt_1',\n      account_id: 'acc_1',\n    }\n\n    await expect(handle(payload, config)).rejects.toThrow(\n      'Google Calendar webhook payload must contain at least one attendee with an email'\n    )\n  })\n\n  it('throws when attendees array is empty', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n\n    const config: ConnectorConfig = {\n      trelloApiKey: 'key',\n      trelloApiToken: 'token',\n      idChecklist: 'cl_1',\n      fetch,\n    }\n\n    const payload: GoogleCalendarWebhookPayload = {\n      event: 'calendar.event.created',\n      event_id: 'evt_1',\n      account_id: 'acc_1',\n      attendees: [],\n    }\n\n    await expect(handle(payload, config)).rejects.toThrow(\n      'Google Calendar webhook payload must contain at least one attendee with an email'\n    )\n  })\n\n  it('throws when first attendee is missing email', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n\n    const config: ConnectorConfig = {\n      trelloApiKey: 'key',\n      trelloApiToken: 'token',\n      idChecklist: 'cl_1',\n      fetch,\n    }\n\n    const payload: GoogleCalendarWebhookPayload = {\n      event: 'calendar.event.created',\n      event_id: 'evt_1',\n      account_id: 'acc_1',\n      attendees: [{} as { email?: string }],\n    }\n\n    await expect(handle(payload, config)).rejects.toThrow(\n      'First attendee in Google Calendar webhook payload is missing an email field'\n    )\n  })\n\n  it('throws on non-2xx response from Trello API with status and endpoint', async () => {\n    const { fetch, calls } = fakeFetch(() => jsonResponse({ error: 'invalid key' }, 401))\n\n    const config: ConnectorConfig = {\n      trelloApiKey: 'bad-key',\n      trelloApiToken: 'bad-token',\n      idChecklist: 'cl_1',\n      fetch,\n    }\n\n    const payload: GoogleCalendarWebhookPayload = {\n      event: 'calendar.event.created',\n      event_id: 'evt_1',\n      account_id: 'acc_1',\n      attendees: [{ email: 'test@example.com' }],\n    }\n\n    await expect(handle(payload, config)).rejects.toThrow(\n      'Trello API request failed: 401 Unauthorized for POST https://api.trello.com/1/checklists/cl_1/checkItems'\n    )\n\n    expect(calls.length).toBe(1)\n  })\n\n  it('throws on 500 response from Trello API', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({ error: 'server error' }, 500))\n\n    const config: ConnectorConfig = {\n      trelloApiKey: 'key',\n      trelloApiToken: 'token',\n      idChecklist: 'cl_1',\n      fetch,\n    }\n\n    const payload: GoogleCalendarWebhookPayload = {\n      event: 'calendar.event.created',\n      event_id: 'evt_1',\n      account_id: 'acc_1',\n      attendees: [{ email: 'test@example.com' }],\n    }\n\n    await expect(handle(payload, config)).rejects.toThrow(\n      'Trello API request failed: 500 Internal Server Error for POST https://api.trello.com/1/checklists/cl_1/checkItems'\n    )\n  })\n})\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# Google Calendar to Trello Checklist Item Connector\n\nThis connector listens for Google Calendar \"event created\" webhooks and adds the first attendee's email as a checklist item on a specified Trello card.\n\n## What it does\n\n1. Receives a Google Calendar webhook payload when a new event is created\n2. Extracts the email address from the first attendee in the `attendees` array\n3. Creates a checklist item on a Trello card using the Trello API\n4. Returns the created checklist item details\n\n## Configuration\n\nThe connector requires the following configuration parameters (typically provided via environment variables):\n\n| Config Property | Environment Variable | Description |\n|-----------------|---------------------|-------------|\n| `trelloApiKey` | `TRELLO_API_KEY` | Your Trello API key |\n| `trelloApiToken` | `TRELLO_API_TOKEN` | Your Trello API token (required alongside the key) |\n| `idChecklist` | `TRELLO_CHECKLIST_ID` | The ID of the Trello checklist to add items to |\n\n### Environment Variables\n\n```bash\nexport TRELLO_API_KEY=\"your-trello-api-key\"\nexport TRELLO_API_TOKEN=\"your-trello-api-token\"\nexport TRELLO_CHECKLIST_ID=\"5f9d1b2b8c9d440000000000\"\n```\n\n## Usage Example\n\n```typescript\nimport { handle, ConnectorConfig, GoogleCalendarWebhookPayload } from './connector'\n\nconst config: ConnectorConfig = {\n  trelloApiKey: process.env.TRELLO_API_KEY!,\n  trelloApiToken: process.env.TRELLO_API_TOKEN!,\n  idChecklist: process.env.TRELLO_CHECKLIST_ID!,\n}\n\nconst payload: GoogleCalendarWebhookPayload = {\n  event: 'calendar.event.created',\n  event_id: 'evt_9xKq2mP...',\n  account_id: 'acc_7mBzRt...',\n  attendees: [\n    { email: 'first.attendee@example.com' },\n    { email: 'second.attendee@example.com' }\n  ]\n}\n\nconst result = await handle(payload, config)\nconsole.log('Created checklist item:', result)\n// {\n//   checkItemId: '5f9d1b2b8c9d440000000001',\n//   name: 'first.attendee@example.com',\n//   state: 'incomplete',\n//   idChecklist: '5f9d1b2b8c9d440000000000',\n//   idCard: '5f9d1b2b8c9d440000000002'\n// }\n```\n\n## Assumptions\n\n1. **Google Calendar webhook payload structure**: The payload includes an `attendees` array with at least one object containing an `email` field. The connector validates this and throws a descriptive error if missing or empty.\n\n2. **Trello checklist ID**: The user must provide a valid `idChecklist` (checklist ID) in the configuration. The connector uses the Trello endpoint `POST /checklists/{idChecklist}/checkItems` which requires a checklist ID, not a card ID directly.\n\n3. **Trello authentication**: Both API key and token are required as query parameters (`key` and `token`) for all Trello API requests.\n\n4. **Target checklist exists**: The specified checklist must already exist in Trello. The connector does not create checklists or look up checklist IDs from card IDs.\n\n5. **First attendee only**: Only the first attendee's email is used for the checklist item. Additional attendees are ignored.\n\n## Error Handling\n\nThe connector throws descriptive errors for:\n- Missing or empty `attendees` array in the webhook payload\n- First attendee missing an `email` field\n- Non-2xx responses from the Trello API (includes status code and endpoint in the error message)\n\n## API References\n\n- Google Calendar Webhook: https://developer.unipile.com/docs/calendar-webhook\n- Trello Create Checklist Item: https://developer.atlassian.com/cloud/trello/rest/api-group-checklists/#api-checklists-idchecklist-checkitems-post\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://developer.unipile.com/docs/calendar-webhook\n// Source: https://developer.atlassian.com/cloud/trello/rest/api-group-checklists/#api-checklists-idchecklist-checkitems-post\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"event\": \"calendar.event.created\",\n  \"event_id\": \"evt_9xKq2mP...\",\n  \"account_id\": \"acc_7mBzRt...\",\n  \"attendees\": [\n    {\n      \"email\": \"first.attendee@example.com\"\n    },\n    {\n      \"email\": \"second.attendee@example.com\"\n    }\n  ]\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://api.trello.com/1/checklists/{idChecklist}/checkItems\",\n    \"response\": {\n      \"id\": \"5f9d1b2b8c9d440000000001\",\n      \"name\": \"first.attendee@example.com\",\n      \"state\": \"incomplete\",\n      \"idChecklist\": \"5f9d1b2b8c9d440000000000\",\n      \"idCard\": \"5f9d1b2b8c9d440000000002\"\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ]
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Forking checkpoint 943556e8 with 4 files, network off"
+    },
+    {
+      "type": "tests",
+      "attempt": 2,
+      "report": {
+        "typecheckOk": true,
+        "typecheckOutput": "",
+        "passed": 9,
+        "failed": 0,
+        "total": 9,
+        "failures": [],
+        "durationMs": 286.47412109375,
+        "ranOn": "nebius-sandbox:01a0fc40-a6cf-711f-92c2-5e407bfbcdb2",
+        "passedNames": [
+          "contract handles the documented example payload",
+          "handle creates a checklist item with the first attendee email on happy path",
+          "handle includes both API key and token as query parameters for auth",
+          "handle maps the first attendee email to the checklist item value field",
+          "handle throws when attendees array is missing",
+          "handle throws when attendees array is empty",
+          "handle throws when first attendee is missing email",
+          "handle throws on non-2xx response from Trello API with status and endpoint",
+          "handle throws on 500 response from Trello API"
+        ],
+        "contract": "passed"
+      }
+    },
+    {
+      "type": "step",
+      "step": "verify",
+      "status": "done",
+      "detail": "9/9 tests after 2 attempts"
+    },
+    {
+      "type": "step",
+      "step": "package",
+      "status": "start"
+    },
+    {
+      "type": "usage",
+      "usage": [
+        {
+          "model": "nvidia/Nemotron-3_5-Lightning",
+          "promptTokens": 425,
+          "completionTokens": 290,
+          "costUsd": 0.0000951
+        },
+        {
+          "model": "nvidia/nemotron-3-super-120b-a12b",
+          "promptTokens": 9757,
+          "completionTokens": 830,
+          "costUsd": 0.0036740999999999996
+        },
+        {
+          "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+          "promptTokens": 9967,
+          "completionTokens": 8683,
+          "costUsd": 0.036016
+        }
+      ]
+    },
+    {
+      "type": "result",
+      "ok": true,
+      "attempts": 2,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "export interface ConnectorConfig {\n  trelloApiKey: string\n  trelloApiToken: string\n  idChecklist: string\n  fetch?: typeof fetch\n}\n\nexport interface GoogleCalendarWebhookPayload {\n  event: string\n  event_id: string\n  account_id: string\n  attendees?: Array<{ email?: string }>\n}\n\nexport interface HandleResult {\n  checkItemId: string\n  name: string\n  state: string\n  idChecklist: string\n  idCard: string\n}\n\ninterface TrelloCheckItemResponse {\n  id: string\n  name: string\n  state: string\n  idChecklist: string\n  idCard: string\n}\n\nexport async function handle(\n  payload: GoogleCalendarWebhookPayload,\n  config: ConnectorConfig\n): Promise<HandleResult> {\n  const fetchImpl = config.fetch ?? fetch\n\n  if (!payload.attendees || payload.attendees.length === 0) {\n    throw new Error('Google Calendar webhook payload must contain at least one attendee with an email')\n  }\n\n  const firstAttendee = payload.attendees[0]\n  if (!firstAttendee.email) {\n    throw new Error('First attendee in Google Calendar webhook payload is missing an email field')\n  }\n\n  const email = firstAttendee.email\n  const url = `https://api.trello.com/1/checklists/${encodeURIComponent(config.idChecklist)}/checkItems`\n\n  const queryParams = new URLSearchParams({\n    key: config.trelloApiKey,\n    token: config.trelloApiToken,\n  })\n\n  const response = await fetchImpl(`${url}?${queryParams.toString()}`, {\n    method: 'POST',\n    headers: {\n      'Content-Type': 'application/json',\n    },\n    body: JSON.stringify({ value: email }),\n  })\n\n  if (!response.ok) {\n    throw new Error(`Trello API request failed: ${response.status} ${response.statusText} for POST ${url}`)\n  }\n\n  const data = (await response.json()) as TrelloCheckItemResponse\n  return {\n    checkItemId: data.id,\n    name: data.name,\n    state: data.state,\n    idChecklist: data.idChecklist,\n    idCard: data.idCard,\n  }\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi } from 'vitest'\nimport { handle, ConnectorConfig, GoogleCalendarWebhookPayload } from './connector'\nimport {\n  SOURCE_EXAMPLE,\n  TARGET_ENDPOINTS,\n  contractFetch,\n  fakeFetch,\n  jsonResponse,\n  RecordedCall,\n} from './fixtures'\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch()\n    const config: ConnectorConfig = {\n      trelloApiKey: 'test-key',\n      trelloApiToken: 'test-token',\n      idChecklist: '5f9d1b2b8c9d440000000000',\n      fetch,\n    }\n    const result = await handle(SOURCE_EXAMPLE as unknown as GoogleCalendarWebhookPayload, config)\n    expect(calls.length).toBeGreaterThan(0)\n    expect(result.checkItemId).toBe('5f9d1b2b8c9d440000000001')\n  })\n})\n\ndescribe('handle', () => {\n  it('creates a checklist item with the first attendee email on happy path', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url.includes('/checklists/5f9d1b2b8c9d440000000000/checkItems')\n        ? jsonResponse(\n            {\n              id: '5f9d1b2b8c9d440000000001',\n              name: 'first.attendee@example.com',\n              state: 'incomplete',\n              idChecklist: '5f9d1b2b8c9d440000000000',\n              idCard: '5f9d1b2b8c9d440000000002',\n            },\n            201\n          )\n        : jsonResponse({ error: 'not found' }, 404)\n    )\n\n    const config: ConnectorConfig = {\n      trelloApiKey: 'test-key',\n      trelloApiToken: 'test-token',\n      idChecklist: '5f9d1b2b8c9d440000000000',\n      fetch,\n    }\n\n    const payload: GoogleCalendarWebhookPayload = {\n      event: 'calendar.event.created',\n      event_id: 'evt_123',\n      account_id: 'acc_456',\n      attendees: [{ email: 'first.attendee@example.com' }, { email: 'second@example.com' }],\n    }\n\n    const result = await handle(payload, config)\n\n    expect(result.checkItemId).toBe('5f9d1b2b8c9d440000000001')\n    expect(result.name).toBe('first.attendee@example.com')\n    expect(calls.length).toBe(1)\n\n    const call = calls[0]\n    expect(call.method).toBe('POST')\n    expect(call.url).toContain('/checklists/5f9d1b2b8c9d440000000000/checkItems')\n    expect(call.url).toContain('key=test-key')\n    expect(call.url).toContain('token=test-token')\n    expect(call.json).toEqual({ value: 'first.attendee@example.com' })\n  })\n\n  it('includes both API key and token as query parameters for auth', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url.includes('key=custom-key') && req.url.includes('token=custom-token')\n        ? jsonResponse(\n            {\n              id: 'chk_1',\n              name: 'test@example.com',\n              state: 'incomplete',\n              idChecklist: 'cl_1',\n              idCard: 'card_1',\n            },\n            201\n          )\n        : jsonResponse({ error: 'unauthorized' }, 401)\n    )\n\n    const config: ConnectorConfig = {\n      trelloApiKey: 'custom-key',\n      trelloApiToken: 'custom-token',\n      idChecklist: 'cl_1',\n      fetch,\n    }\n\n    const payload: GoogleCalendarWebhookPayload = {\n      event: 'calendar.event.created',\n      event_id: 'evt_1',\n      account_id: 'acc_1',\n      attendees: [{ email: 'test@example.com' }],\n    }\n\n    await handle(payload, config)\n\n    const call = calls[0]\n    expect(call.url).toContain('key=custom-key')\n    expect(call.url).toContain('token=custom-token')\n  })\n\n  it('maps the first attendee email to the checklist item value field', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url.includes('/checklists/cl_1/checkItems')\n        ? jsonResponse(\n            {\n              id: 'chk_1',\n              name: 'mapped@example.com',\n              state: 'incomplete',\n              idChecklist: 'cl_1',\n              idCard: 'card_1',\n            },\n            201\n          )\n        : jsonResponse({ error: 'not found' }, 404)\n    )\n\n    const config: ConnectorConfig = {\n      trelloApiKey: 'key',\n      trelloApiToken: 'token',\n      idChecklist: 'cl_1',\n      fetch,\n    }\n\n    const payload: GoogleCalendarWebhookPayload = {\n      event: 'calendar.event.created',\n      event_id: 'evt_1',\n      account_id: 'acc_1',\n      attendees: [\n        { email: 'first@example.com' },\n        { email: 'second@example.com' },\n        { email: 'third@example.com' },\n      ],\n    }\n\n    await handle(payload, config)\n\n    expect(calls[0].json).toEqual({ value: 'first@example.com' })\n  })\n\n  it('throws when attendees array is missing', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n\n    const config: ConnectorConfig = {\n      trelloApiKey: 'key',\n      trelloApiToken: 'token',\n      idChecklist: 'cl_1',\n      fetch,\n    }\n\n    const payload: GoogleCalendarWebhookPayload = {\n      event: 'calendar.event.created',\n      event_id: 'evt_1',\n      account_id: 'acc_1',\n    }\n\n    await expect(handle(payload, config)).rejects.toThrow(\n      'Google Calendar webhook payload must contain at least one attendee with an email'\n    )\n  })\n\n  it('throws when attendees array is empty', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n\n    const config: ConnectorConfig = {\n      trelloApiKey: 'key',\n      trelloApiToken: 'token',\n      idChecklist: 'cl_1',\n      fetch,\n    }\n\n    const payload: GoogleCalendarWebhookPayload = {\n      event: 'calendar.event.created',\n      event_id: 'evt_1',\n      account_id: 'acc_1',\n      attendees: [],\n    }\n\n    await expect(handle(payload, config)).rejects.toThrow(\n      'Google Calendar webhook payload must contain at least one attendee with an email'\n    )\n  })\n\n  it('throws when first attendee is missing email', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n\n    const config: ConnectorConfig = {\n      trelloApiKey: 'key',\n      trelloApiToken: 'token',\n      idChecklist: 'cl_1',\n      fetch,\n    }\n\n    const payload: GoogleCalendarWebhookPayload = {\n      event: 'calendar.event.created',\n      event_id: 'evt_1',\n      account_id: 'acc_1',\n      attendees: [{} as { email?: string }],\n    }\n\n    await expect(handle(payload, config)).rejects.toThrow(\n      'First attendee in Google Calendar webhook payload is missing an email field'\n    )\n  })\n\n  it('throws on non-2xx response from Trello API with status and endpoint', async () => {\n    const { fetch, calls } = fakeFetch(() => jsonResponse({ error: 'invalid key' }, 401))\n\n    const config: ConnectorConfig = {\n      trelloApiKey: 'bad-key',\n      trelloApiToken: 'bad-token',\n      idChecklist: 'cl_1',\n      fetch,\n    }\n\n    const payload: GoogleCalendarWebhookPayload = {\n      event: 'calendar.event.created',\n      event_id: 'evt_1',\n      account_id: 'acc_1',\n      attendees: [{ email: 'test@example.com' }],\n    }\n\n    await expect(handle(payload, config)).rejects.toThrow(\n      'Trello API request failed: 401 Unauthorized for POST https://api.trello.com/1/checklists/cl_1/checkItems'\n    )\n\n    expect(calls.length).toBe(1)\n  })\n\n  it('throws on 500 response from Trello API', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({ error: 'server error' }, 500))\n\n    const config: ConnectorConfig = {\n      trelloApiKey: 'key',\n      trelloApiToken: 'token',\n      idChecklist: 'cl_1',\n      fetch,\n    }\n\n    const payload: GoogleCalendarWebhookPayload = {\n      event: 'calendar.event.created',\n      event_id: 'evt_1',\n      account_id: 'acc_1',\n      attendees: [{ email: 'test@example.com' }],\n    }\n\n    await expect(handle(payload, config)).rejects.toThrow(\n      'Trello API request failed: 500 Internal Server Error for POST https://api.trello.com/1/checklists/cl_1/checkItems'\n    )\n  })\n})\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# Google Calendar to Trello Checklist Item Connector\n\nThis connector listens for Google Calendar \"event created\" webhooks and adds the first attendee's email as a checklist item on a specified Trello card.\n\n## What it does\n\n1. Receives a Google Calendar webhook payload when a new event is created\n2. Extracts the email address from the first attendee in the `attendees` array\n3. Creates a checklist item on a Trello card using the Trello API\n4. Returns the created checklist item details\n\n## Configuration\n\nThe connector requires the following configuration parameters (typically provided via environment variables):\n\n| Config Property | Environment Variable | Description |\n|-----------------|---------------------|-------------|\n| `trelloApiKey` | `TRELLO_API_KEY` | Your Trello API key |\n| `trelloApiToken` | `TRELLO_API_TOKEN` | Your Trello API token (required alongside the key) |\n| `idChecklist` | `TRELLO_CHECKLIST_ID` | The ID of the Trello checklist to add items to |\n\n### Environment Variables\n\n```bash\nexport TRELLO_API_KEY=\"your-trello-api-key\"\nexport TRELLO_API_TOKEN=\"your-trello-api-token\"\nexport TRELLO_CHECKLIST_ID=\"5f9d1b2b8c9d440000000000\"\n```\n\n## Usage Example\n\n```typescript\nimport { handle, ConnectorConfig, GoogleCalendarWebhookPayload } from './connector'\n\nconst config: ConnectorConfig = {\n  trelloApiKey: process.env.TRELLO_API_KEY!,\n  trelloApiToken: process.env.TRELLO_API_TOKEN!,\n  idChecklist: process.env.TRELLO_CHECKLIST_ID!,\n}\n\nconst payload: GoogleCalendarWebhookPayload = {\n  event: 'calendar.event.created',\n  event_id: 'evt_9xKq2mP...',\n  account_id: 'acc_7mBzRt...',\n  attendees: [\n    { email: 'first.attendee@example.com' },\n    { email: 'second.attendee@example.com' }\n  ]\n}\n\nconst result = await handle(payload, config)\nconsole.log('Created checklist item:', result)\n// {\n//   checkItemId: '5f9d1b2b8c9d440000000001',\n//   name: 'first.attendee@example.com',\n//   state: 'incomplete',\n//   idChecklist: '5f9d1b2b8c9d440000000000',\n//   idCard: '5f9d1b2b8c9d440000000002'\n// }\n```\n\n## Assumptions\n\n1. **Google Calendar webhook payload structure**: The payload includes an `attendees` array with at least one object containing an `email` field. The connector validates this and throws a descriptive error if missing or empty.\n\n2. **Trello checklist ID**: The user must provide a valid `idChecklist` (checklist ID) in the configuration. The connector uses the Trello endpoint `POST /checklists/{idChecklist}/checkItems` which requires a checklist ID, not a card ID directly.\n\n3. **Trello authentication**: Both API key and token are required as query parameters (`key` and `token`) for all Trello API requests.\n\n4. **Target checklist exists**: The specified checklist must already exist in Trello. The connector does not create checklists or look up checklist IDs from card IDs.\n\n5. **First attendee only**: Only the first attendee's email is used for the checklist item. Additional attendees are ignored.\n\n## Error Handling\n\nThe connector throws descriptive errors for:\n- Missing or empty `attendees` array in the webhook payload\n- First attendee missing an `email` field\n- Non-2xx responses from the Trello API (includes status code and endpoint in the error message)\n\n## API References\n\n- Google Calendar Webhook: https://developer.unipile.com/docs/calendar-webhook\n- Trello Create Checklist Item: https://developer.atlassian.com/cloud/trello/rest/api-group-checklists/#api-checklists-idchecklist-checkitems-post\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://developer.unipile.com/docs/calendar-webhook\n// Source: https://developer.atlassian.com/cloud/trello/rest/api-group-checklists/#api-checklists-idchecklist-checkitems-post\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"event\": \"calendar.event.created\",\n  \"event_id\": \"evt_9xKq2mP...\",\n  \"account_id\": \"acc_7mBzRt...\",\n  \"attendees\": [\n    {\n      \"email\": \"first.attendee@example.com\"\n    },\n    {\n      \"email\": \"second.attendee@example.com\"\n    }\n  ]\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://api.trello.com/1/checklists/{idChecklist}/checkItems\",\n    \"response\": {\n      \"id\": \"5f9d1b2b8c9d440000000001\",\n      \"name\": \"first.attendee@example.com\",\n      \"state\": \"incomplete\",\n      \"idChecklist\": \"5f9d1b2b8c9d440000000000\",\n      \"idCard\": \"5f9d1b2b8c9d440000000002\"\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ],
+      "report": {
+        "typecheckOk": true,
+        "typecheckOutput": "",
+        "passed": 9,
+        "failed": 0,
+        "total": 9,
+        "failures": [],
+        "durationMs": 286.47412109375,
+        "ranOn": "nebius-sandbox:01a0fc40-a6cf-711f-92c2-5e407bfbcdb2",
+        "passedNames": [
+          "contract handles the documented example payload",
+          "handle creates a checklist item with the first attendee email on happy path",
+          "handle includes both API key and token as query parameters for auth",
+          "handle maps the first attendee email to the checklist item value field",
+          "handle throws when attendees array is missing",
+          "handle throws when attendees array is empty",
+          "handle throws when first attendee is missing email",
+          "handle throws on non-2xx response from Trello API with status and endpoint",
+          "handle throws on 500 response from Trello API"
+        ],
+        "contract": "passed"
+      }
+    },
+    {
+      "type": "step",
+      "step": "package",
+      "status": "done"
+    }
+  ]
+}

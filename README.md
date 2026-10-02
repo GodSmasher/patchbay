@@ -1,7 +1,7 @@
 # patchbay
 
 [![ci](https://github.com/GodSmasher/patchbay/actions/workflows/ci.yml/badge.svg)](https://github.com/GodSmasher/patchbay/actions/workflows/ci.yml)
-[![benchmark](https://img.shields.io/badge/benchmark-19%2F20%20green%20·%20%240.86-brightgreen)](bench/RESULTS.md)
+[![benchmark](https://img.shields.io/badge/benchmark-85%25%20green%20over%2060%20runs-brightgreen)](bench/RESULTS-variance.md)
 [![mcp](https://img.shields.io/badge/MCP-stdio-6938EF)](docs/mcp-setup.md)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![nebius](https://img.shields.io/badge/powered%20by-Nebius%20Token%20Factory-0F172A)](https://tokenfactory.nebius.com)
@@ -40,7 +40,7 @@ Three tools (`build_connector`, `research_api`, `verify_code`) with live progres
 
 ## Status
 
-Live benchmark (2026-10-02, Nebius sandbox, `bench/RESULTS.md`): **19/20 green, 10/20 on the first draft, $0.86 across 20 integrations.** The hard half of the benchmark covers HMAC verification, 429 retry with Retry-After, Idempotency-Key, cursor pagination, chained search-or-create and signature-driven routing — most finish in one or two attempts. The one remaining red (Shopify HMAC → Slack) was first-try green in an earlier pass and flipped on model variance; running the benchmark three times would smooth that out.
+Live benchmark (2026-10-02, Nebius sandbox): **85% green over 60 runs** (3 passes × 20 integrations), **33% first-try**, **$1.04 ± $0.13 per 20-prompt pass** (≈ $0.05 per connector). 13 of 20 prompts finished 3/3 green across all passes; one case (Linear → Discord cursor pagination) finished 1/3. The hard half of the benchmark covers HMAC verification, 429 retry with Retry-After, Idempotency-Key, cursor pagination, chained search-or-create and signature-driven routing. Full breakdown: [bench/RESULTS-variance.md](bench/RESULTS-variance.md).
 
 ## Dev
 

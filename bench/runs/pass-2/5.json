@@ -1,0 +1,348 @@
+{
+  "prompt": "When a HubSpot contact becomes a customer, create a customer in Stripe with the same email and name.",
+  "events": [
+    {
+      "type": "mode",
+      "mode": "live"
+    },
+    {
+      "type": "step",
+      "step": "plan",
+      "status": "start"
+    },
+    {
+      "type": "plan",
+      "plan": {
+        "summary": "When a HubSpot contact's lifecycle stage becomes customer, create a Stripe customer record using the contact's email and full name.",
+        "source": {
+          "app": "HubSpot",
+          "trigger": "contact property change webhook",
+          "docsQuery": "HubSpot contact webhook lifecycle stage customer payload fields"
+        },
+        "target": {
+          "app": "Stripe",
+          "action": "create customer",
+          "docsQuery": "Stripe API create customer endpoint email name parameters"
+        },
+        "fieldMapping": [
+          {
+            "from": "email",
+            "to": "email",
+            "note": "Contact email address"
+          },
+          {
+            "from": "firstname",
+            "to": "name",
+            "note": "Contact first name"
+          },
+          {
+            "from": "lastname",
+            "to": "name",
+            "note": "Contact last name; combine with firstname if needed"
+          }
+        ],
+        "assumptions": [
+          "The HubSpot webhook payload includes the contact's email, firstname, and lastname properties when the lifecycle stage changes to customer.",
+          "The Stripe API expects a name string that can be formed from the contact's first and last name, or the full name field if available.",
+          "No duplicate customer check is required; the integration will create a new Stripe customer record each time the trigger fires."
+        ]
+      }
+    },
+    {
+      "type": "step",
+      "step": "plan",
+      "status": "done",
+      "detail": "When a HubSpot contact's lifecycle stage becomes customer, create a Stripe customer record using the contact's email and full name."
+    },
+    {
+      "type": "step",
+      "step": "research",
+      "status": "start"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Installing typescript + vitest in a sandbox checkpoint"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Searched \"Stripe API create customer endpoint email name parameters\": 2 of 2 picked from Stripe's own docs"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "No HubSpot page in the results, searched hubspot.com directly: 5 results"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Searched \"HubSpot contact webhook lifecycle stage customer payload fields\": 2 of 2 picked from HubSpot's own docs"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Checkpoint ready: 1a91aa9b"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Extracted 3 documentation pages"
+    },
+    {
+      "type": "sources",
+      "sources": [
+        {
+          "title": "CRM API | Contacts - HubSpot docs",
+          "url": "https://developers.hubspot.com/docs/api-reference/legacy/crm/objects/contacts/guide",
+          "official": true
+        },
+        {
+          "title": "Solved: HubSpot Community - Re: Contact creation webhook information on payload - HubSpot Community",
+          "url": "https://community.hubspot.com/t5/CRM/Contact-creation-webhook-information-on-payload/m-p/866294",
+          "official": true
+        },
+        {
+          "title": "Create a customer | Stripe API Reference",
+          "url": "https://docs.stripe.com/api/customers/create",
+          "official": true
+        },
+        {
+          "title": "The Customer object | Stripe API Reference",
+          "url": "https://docs.stripe.com/api/customers/object",
+          "official": true
+        }
+      ]
+    },
+    {
+      "type": "spec",
+      "spec": {
+        "source": {
+          "app": "HubSpot",
+          "role": "source",
+          "method": "POST",
+          "url": "/webhook/contact-lifecycle-stage-customer",
+          "auth": {
+            "type": "none",
+            "name": null,
+            "envVar": null
+          },
+          "example": {
+            "properties": {
+              "email": "jane.doe@example.com",
+              "firstname": "Jane",
+              "lastname": "Doe",
+              "lifecyclestage": "customer"
+            },
+            "objectId": "123456",
+            "subscriptionType": "contact.propertyChange",
+            "propertyName": "lifecyclestage",
+            "propertyValue": "customer"
+          },
+          "docsUrl": "https://developers.hubspot.com/docs/api-reference/legacy/crm/objects/contacts/guide",
+          "notes": [
+            "HubSpot sends webhook payloads for contact property changes; ensure the subscription is configured for 'lifecyclestage' property changes.",
+            "The payload includes the contact's objectId and changed property values under 'properties'.",
+            "The webhook URL must be publicly accessible and registered in HubSpot under Settings > Integrations > Webhooks.",
+            "HubSpot may retry failed deliveries; ensure idempotency in the connector if needed.",
+            "The example assumes the webhook includes email, firstname, and lastname properties as per the plan assumptions."
+          ]
+        },
+        "target": [
+          {
+            "app": "Stripe",
+            "role": "target",
+            "method": "POST",
+            "url": "https://api.stripe.com/v1/customers",
+            "auth": {
+              "type": "bearer",
+              "name": "Authorization",
+              "envVar": "STRIPE_SECRET_KEY"
+            },
+            "example": {
+              "email": "jane.doe@example.com",
+              "name": "Jane Doe"
+            },
+            "responseExample": {
+              "id": "cus_NffrFeUfNV2Hib",
+              "object": "customer",
+              "email": "jane.doe@example.com",
+              "name": "Jane Doe",
+              "created": 1680893993,
+              "livemode": false
+            },
+            "docsUrl": "https://docs.stripe.com/api/customers/create",
+            "notes": [
+              "Stripe requires email and name parameters for customer creation; name can be combined from firstname and lastname.",
+              "The API uses basic auth with username as the secret key and empty password; in practice, use Bearer token via Authorization header.",
+              "Email must be <= 512 characters, name <= 256 characters.",
+              "No duplicate check is performed; each webhook trigger creates a new Stripe customer.",
+              "Metadata or idempotency key can be added to prevent duplicates if needed, but not required per plan."
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "step",
+      "step": "research",
+      "status": "done",
+      "detail": "2 endpoints from 4 pages"
+    },
+    {
+      "type": "step",
+      "step": "generate",
+      "status": "start"
+    },
+    {
+      "type": "files",
+      "attempt": 1,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "export interface ConnectorConfig {\n  stripeSecretKey: string\n  fetch?: typeof fetch\n}\n\nexport interface HubSpotContactPayload {\n  properties: {\n    email: string\n    firstname: string\n    lastname: string\n    lifecyclestage: string\n  }\n  objectId: string\n  subscriptionType: string\n  propertyName: string\n  propertyValue: string\n}\n\nexport interface HandleResult {\n  stripeCustomerId: string\n}\n\nexport async function handle(\n  payload: HubSpotContactPayload,\n  config: ConnectorConfig\n): Promise<HandleResult> {\n  const fetchImpl = config.fetch ?? fetch\n\n  if (!payload.properties?.email) {\n    throw new Error('Missing required field: properties.email')\n  }\n  if (!payload.properties?.firstname) {\n    throw new Error('Missing required field: properties.firstname')\n  }\n  if (!payload.properties?.lastname) {\n    throw new Error('Missing required field: properties.lastname')\n  }\n  if (payload.properties?.lifecyclestage !== 'customer') {\n    throw new Error('Lifecycle stage is not \"customer\", skipping')\n  }\n\n  const email = payload.properties.email\n  const name = `${payload.properties.firstname} ${payload.properties.lastname}`.trim()\n\n  const body = JSON.stringify({ email, name })\n\n  const response = await fetchImpl('https://api.stripe.com/v1/customers', {\n    method: 'POST',\n    headers: {\n      Authorization: `Bearer ${config.stripeSecretKey}`,\n      'Content-Type': 'application/x-www-form-urlencoded',\n    },\n    body: new URLSearchParams({ email, name }).toString(),\n  })\n\n  if (!response.ok) {\n    throw new Error(`Stripe API error: ${response.status} ${response.statusText} at POST https://api.stripe.com/v1/customers`)\n  }\n\n  const data = (await response.json()) as { id: string }\n  return { stripeCustomerId: data.id }\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi } from 'vitest'\nimport { handle, HubSpotContactPayload, ConnectorConfig } from './connector'\nimport {\n  SOURCE_EXAMPLE,\n  contractFetch,\n  fakeFetch,\n  jsonResponse,\n  TARGET_ENDPOINTS,\n} from './fixtures'\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch()\n    const config: ConnectorConfig = {\n      stripeSecretKey: 'sk_test_123',\n      fetch,\n    }\n    const result = await handle(SOURCE_EXAMPLE as unknown as HubSpotContactPayload, config)\n    expect(calls.length).toBeGreaterThan(0)\n    expect(result.stripeCustomerId).toBe('cus_NffrFeUfNV2Hib')\n  })\n})\n\ndescribe('handle', () => {\n  it('creates a Stripe customer with combined name on happy path', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url === 'https://api.stripe.com/v1/customers' && req.method === 'POST'\n        ? jsonResponse({ id: 'cus_test123', object: 'customer', email: 'jane.doe@example.com', name: 'Jane Doe' }, 201)\n        : jsonResponse({ error: 'not found' }, 404)\n    )\n\n    const payload: HubSpotContactPayload = {\n      properties: {\n        email: 'jane.doe@example.com',\n        firstname: 'Jane',\n        lastname: 'Doe',\n        lifecyclestage: 'customer',\n      },\n      objectId: '123456',\n      subscriptionType: 'contact.propertyChange',\n      propertyName: 'lifecyclestage',\n      propertyValue: 'customer',\n    }\n\n    const result = await handle(payload, { stripeSecretKey: 'sk_test_123', fetch })\n\n    expect(result.stripeCustomerId).toBe('cus_test123')\n    expect(calls).toHaveLength(1)\n    expect(calls[0].method).toBe('POST')\n    expect(calls[0].url).toBe('https://api.stripe.com/v1/customers')\n    expect(calls[0].headers.get('authorization')).toBe('Bearer sk_test_123')\n    expect(calls[0].headers.get('content-type')).toBe('application/x-www-form-urlencoded')\n    const bodyParams = new URLSearchParams(calls[0].body as string)\n    expect(bodyParams.get('email')).toBe('jane.doe@example.com')\n    expect(bodyParams.get('name')).toBe('Jane Doe')\n  })\n\n  it('uses Bearer token authentication', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url === 'https://api.stripe.com/v1/customers' && req.method === 'POST'\n        ? jsonResponse({ id: 'cus_auth123' }, 201)\n        : jsonResponse({ error: 'not found' }, 404)\n    )\n\n    await handle(\n      {\n        properties: { email: 'a@b.com', firstname: 'A', lastname: 'B', lifecyclestage: 'customer' },\n        objectId: '1',\n        subscriptionType: 'contact.propertyChange',\n        propertyName: 'lifecyclestage',\n        propertyValue: 'customer',\n      },\n      { stripeSecretKey: 'sk_live_abc', fetch }\n    )\n\n    expect(calls[0].headers.get('authorization')).toBe('Bearer sk_live_abc')\n  })\n\n  it('maps firstname and lastname to combined name field', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url === 'https://api.stripe.com/v1/customers' && req.method === 'POST'\n        ? jsonResponse({ id: 'cus_name123' }, 201)\n        : jsonResponse({ error: 'not found' }, 404)\n    )\n\n    await handle(\n      {\n        properties: { email: 'test@example.com', firstname: 'John', lastname: 'Smith', lifecyclestage: 'customer' },\n        objectId: '2',\n        subscriptionType: 'contact.propertyChange',\n        propertyName: 'lifecyclestage',\n        propertyValue: 'customer',\n      },\n      { stripeSecretKey: 'sk_test', fetch }\n    )\n\n    const bodyParams = new URLSearchParams(calls[0].body as string)\n    expect(bodyParams.get('name')).toBe('John Smith')\n  })\n\n  it('throws when email is missing', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n\n    const payload = {\n      properties: { firstname: 'Jane', lastname: 'Doe', lifecyclestage: 'customer' },\n      objectId: '123',\n      subscriptionType: 'contact.propertyChange',\n      propertyName: 'lifecyclestage',\n      propertyValue: 'customer',\n    } as HubSpotContactPayload\n\n    await expect(handle(payload, { stripeSecretKey: 'sk_test', fetch })).rejects.toThrow(\n      'Missing required field: properties.email'\n    )\n  })\n\n  it('throws when firstname is missing', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n\n    const payload = {\n      properties: { email: 'jane@example.com', lastname: 'Doe', lifecyclestage: 'customer' },\n      objectId: '123',\n      subscriptionType: 'contact.propertyChange',\n      propertyName: 'lifecyclestage',\n      propertyValue: 'customer',\n    } as HubSpotContactPayload\n\n    await expect(handle(payload, { stripeSecretKey: 'sk_test', fetch })).rejects.toThrow(\n      'Missing required field: properties.firstname'\n    )\n  })\n\n  it('throws when lastname is missing', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n\n    const payload = {\n      properties: { email: 'jane@example.com', firstname: 'Jane', lifecyclestage: 'customer' },\n      objectId: '123',\n      subscriptionType: 'contact.propertyChange',\n      propertyName: 'lifecyclestage',\n      propertyValue: 'customer',\n    } as HubSpotContactPayload\n\n    await expect(handle(payload, { stripeSecretKey: 'sk_test', fetch })).rejects.toThrow(\n      'Missing required field: properties.lastname'\n    )\n  })\n\n  it('throws when lifecycle stage is not customer', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n\n    const payload: HubSpotContactPayload = {\n      properties: { email: 'jane@example.com', firstname: 'Jane', lastname: 'Doe', lifecyclestage: 'lead' },\n      objectId: '123',\n      subscriptionType: 'contact.propertyChange',\n      propertyName: 'lifecyclestage',\n      propertyValue: 'lead',\n    }\n\n    await expect(handle(payload, { stripeSecretKey: 'sk_test', fetch })).rejects.toThrow(\n      'Lifecycle stage is not \"customer\", skipping'\n    )\n  })\n\n  it('throws on non-2xx response from Stripe', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url === 'https://api.stripe.com/v1/customers' && req.method === 'POST'\n        ? jsonResponse({ error: { message: 'Invalid email' } }, 400)\n        : jsonResponse({ error: 'not found' }, 404)\n    )\n\n    const payload: HubSpotContactPayload = {\n      properties: { email: 'invalid', firstname: 'Jane', lastname: 'Doe', lifecyclestage: 'customer' },\n      objectId: '123',\n      subscriptionType: 'contact.propertyChange',\n      propertyName: 'lifecyclestage',\n      propertyValue: 'customer',\n    }\n\n    await expect(handle(payload, { stripeSecretKey: 'sk_test', fetch })).rejects.toThrow(\n      'Stripe API error: 400 Bad Request at POST https://api.stripe.com/v1/customers'\n    )\n    expect(calls).toHaveLength(1)\n  })\n\n  it('throws on 5xx response from Stripe', async () => {\n    const { fetch } = fakeFetch((req) =>\n      req.url === 'https://api.stripe.com/v1/customers' && req.method === 'POST'\n        ? jsonResponse({ error: { message: 'Internal server error' } }, 500)\n        : jsonResponse({ error: 'not found' }, 404)\n    )\n\n    const payload: HubSpotContactPayload = {\n      properties: { email: 'jane@example.com', firstname: 'Jane', lastname: 'Doe', lifecyclestage: 'customer' },\n      objectId: '123',\n      subscriptionType: 'contact.propertyChange',\n      propertyName: 'lifecyclestage',\n      propertyValue: 'customer',\n    }\n\n    await expect(handle(payload, { stripeSecretKey: 'sk_test', fetch })).rejects.toThrow(\n      'Stripe API error: 500 Internal Server Error at POST https://api.stripe.com/v1/customers'\n    )\n  })\n})\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# HubSpot to Stripe Customer Connector\n\nCreates a Stripe customer record when a HubSpot contact's lifecycle stage changes to \"customer\".\n\n## What it does\n\nListens for HubSpot contact property change webhooks. When the `lifecyclestage` property becomes `customer`, extracts the contact's email, first name, and last name, then creates a Stripe customer with the email and combined full name.\n\n## Configuration\n\n| Config Property | Environment Variable | Required | Description |\n|-----------------|---------------------|----------|-------------|\n| `stripeSecretKey` | `STRIPE_SECRET_KEY` | Yes | Stripe secret key (sk_live_... or sk_test_...) for Bearer authentication |\n\n## Usage Example\n\n```typescript\nimport { handle } from './connector'\n\nconst payload = {\n  properties: {\n    email: 'jane.doe@example.com',\n    firstname: 'Jane',\n    lastname: 'Doe',\n    lifecyclestage: 'customer'\n  },\n  objectId: '123456',\n  subscriptionType: 'contact.propertyChange',\n  propertyName: 'lifecyclestage',\n  propertyValue: 'customer'\n}\n\nconst result = await handle(payload, {\n  stripeSecretKey: process.env.STRIPE_SECRET_KEY!\n})\n\nconsole.log(`Created Stripe customer: ${result.stripeCustomerId}`)\n```\n\n## Assumptions\n\n1. The HubSpot webhook payload includes the contact's `email`, `firstname`, and `lastname` properties when the lifecycle stage changes to customer.\n2. The Stripe API expects a `name` string formed by combining the contact's first and last name with a space.\n3. No duplicate customer check is performed; each webhook trigger creates a new Stripe customer record.\n4. The webhook is configured in HubSpot to fire on `lifecyclestage` property changes for contacts.\n5. The connector is deployed at a publicly accessible URL registered in HubSpot under Settings > Integrations > Webhooks.\n\n## Field Mapping\n\n| HubSpot Field | Stripe Field | Transformation |\n|---------------|--------------|----------------|\n| `properties.email` | `email` | Direct copy |\n| `properties.firstname` + `properties.lastname` | `name` | Combined as \"Firstname Lastname\" |\n\n## Error Handling\n\n- Throws descriptive errors for missing required fields (`email`, `firstname`, `lastname`)\n- Skips processing (throws) when `lifecyclestage` is not `customer`\n- Throws with status code and endpoint on non-2xx responses from Stripe API\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://developers.hubspot.com/docs/api-reference/legacy/crm/objects/contacts/guide\n// Source: https://docs.stripe.com/api/customers/create\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"properties\": {\n    \"email\": \"jane.doe@example.com\",\n    \"firstname\": \"Jane\",\n    \"lastname\": \"Doe\",\n    \"lifecyclestage\": \"customer\"\n  },\n  \"objectId\": \"123456\",\n  \"subscriptionType\": \"contact.propertyChange\",\n  \"propertyName\": \"lifecyclestage\",\n  \"propertyValue\": \"customer\"\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://api.stripe.com/v1/customers\",\n    \"response\": {\n      \"id\": \"cus_NffrFeUfNV2Hib\",\n      \"object\": \"customer\",\n      \"email\": \"jane.doe@example.com\",\n      \"name\": \"Jane Doe\",\n      \"created\": 1680893993,\n      \"livemode\": false\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ]
+    },
+    {
+      "type": "step",
+      "step": "generate",
+      "status": "done",
+      "detail": "src/connector.ts, src/connector.test.ts, README.md, src/fixtures.ts"
+    },
+    {
+      "type": "step",
+      "step": "verify",
+      "status": "start"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Forking checkpoint 1a91aa9b with 4 files, network off"
+    },
+    {
+      "type": "tests",
+      "attempt": 1,
+      "report": {
+        "typecheckOk": true,
+        "typecheckOutput": "",
+        "passed": 10,
+        "failed": 0,
+        "total": 10,
+        "failures": [],
+        "durationMs": 275.642333984375,
+        "ranOn": "nebius-sandbox:01a0fc4a-648f-75a6-b549-40fed500d83d",
+        "passedNames": [
+          "contract handles the documented example payload",
+          "handle creates a Stripe customer with combined name on happy path",
+          "handle uses Bearer token authentication",
+          "handle maps firstname and lastname to combined name field",
+          "handle throws when email is missing",
+          "handle throws when firstname is missing",
+          "handle throws when lastname is missing",
+          "handle throws when lifecycle stage is not customer",
+          "handle throws on non-2xx response from Stripe",
+          "handle throws on 5xx response from Stripe"
+        ],
+        "contract": "passed"
+      }
+    },
+    {
+      "type": "step",
+      "step": "verify",
+      "status": "done",
+      "detail": "10/10 tests after 1 attempt"
+    },
+    {
+      "type": "step",
+      "step": "package",
+      "status": "start"
+    },
+    {
+      "type": "usage",
+      "usage": [
+        {
+          "model": "nvidia/Nemotron-3_5-Lightning",
+          "promptTokens": 420,
+          "completionTokens": 291,
+          "costUsd": 0.00009504000000000001
+        },
+        {
+          "model": "nvidia/nemotron-3-super-120b-a12b",
+          "promptTokens": 11843,
+          "completionTokens": 643,
+          "costUsd": 0.004131599999999999
+        },
+        {
+          "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+          "promptTokens": 3365,
+          "completionTokens": 3386,
+          "costUsd": 0.013523
+        }
+      ]
+    },
+    {
+      "type": "result",
+      "ok": true,
+      "attempts": 1,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "export interface ConnectorConfig {\n  stripeSecretKey: string\n  fetch?: typeof fetch\n}\n\nexport interface HubSpotContactPayload {\n  properties: {\n    email: string\n    firstname: string\n    lastname: string\n    lifecyclestage: string\n  }\n  objectId: string\n  subscriptionType: string\n  propertyName: string\n  propertyValue: string\n}\n\nexport interface HandleResult {\n  stripeCustomerId: string\n}\n\nexport async function handle(\n  payload: HubSpotContactPayload,\n  config: ConnectorConfig\n): Promise<HandleResult> {\n  const fetchImpl = config.fetch ?? fetch\n\n  if (!payload.properties?.email) {\n    throw new Error('Missing required field: properties.email')\n  }\n  if (!payload.properties?.firstname) {\n    throw new Error('Missing required field: properties.firstname')\n  }\n  if (!payload.properties?.lastname) {\n    throw new Error('Missing required field: properties.lastname')\n  }\n  if (payload.properties?.lifecyclestage !== 'customer') {\n    throw new Error('Lifecycle stage is not \"customer\", skipping')\n  }\n\n  const email = payload.properties.email\n  const name = `${payload.properties.firstname} ${payload.properties.lastname}`.trim()\n\n  const body = JSON.stringify({ email, name })\n\n  const response = await fetchImpl('https://api.stripe.com/v1/customers', {\n    method: 'POST',\n    headers: {\n      Authorization: `Bearer ${config.stripeSecretKey}`,\n      'Content-Type': 'application/x-www-form-urlencoded',\n    },\n    body: new URLSearchParams({ email, name }).toString(),\n  })\n\n  if (!response.ok) {\n    throw new Error(`Stripe API error: ${response.status} ${response.statusText} at POST https://api.stripe.com/v1/customers`)\n  }\n\n  const data = (await response.json()) as { id: string }\n  return { stripeCustomerId: data.id }\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi } from 'vitest'\nimport { handle, HubSpotContactPayload, ConnectorConfig } from './connector'\nimport {\n  SOURCE_EXAMPLE,\n  contractFetch,\n  fakeFetch,\n  jsonResponse,\n  TARGET_ENDPOINTS,\n} from './fixtures'\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch()\n    const config: ConnectorConfig = {\n      stripeSecretKey: 'sk_test_123',\n      fetch,\n    }\n    const result = await handle(SOURCE_EXAMPLE as unknown as HubSpotContactPayload, config)\n    expect(calls.length).toBeGreaterThan(0)\n    expect(result.stripeCustomerId).toBe('cus_NffrFeUfNV2Hib')\n  })\n})\n\ndescribe('handle', () => {\n  it('creates a Stripe customer with combined name on happy path', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url === 'https://api.stripe.com/v1/customers' && req.method === 'POST'\n        ? jsonResponse({ id: 'cus_test123', object: 'customer', email: 'jane.doe@example.com', name: 'Jane Doe' }, 201)\n        : jsonResponse({ error: 'not found' }, 404)\n    )\n\n    const payload: HubSpotContactPayload = {\n      properties: {\n        email: 'jane.doe@example.com',\n        firstname: 'Jane',\n        lastname: 'Doe',\n        lifecyclestage: 'customer',\n      },\n      objectId: '123456',\n      subscriptionType: 'contact.propertyChange',\n      propertyName: 'lifecyclestage',\n      propertyValue: 'customer',\n    }\n\n    const result = await handle(payload, { stripeSecretKey: 'sk_test_123', fetch })\n\n    expect(result.stripeCustomerId).toBe('cus_test123')\n    expect(calls).toHaveLength(1)\n    expect(calls[0].method).toBe('POST')\n    expect(calls[0].url).toBe('https://api.stripe.com/v1/customers')\n    expect(calls[0].headers.get('authorization')).toBe('Bearer sk_test_123')\n    expect(calls[0].headers.get('content-type')).toBe('application/x-www-form-urlencoded')\n    const bodyParams = new URLSearchParams(calls[0].body as string)\n    expect(bodyParams.get('email')).toBe('jane.doe@example.com')\n    expect(bodyParams.get('name')).toBe('Jane Doe')\n  })\n\n  it('uses Bearer token authentication', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url === 'https://api.stripe.com/v1/customers' && req.method === 'POST'\n        ? jsonResponse({ id: 'cus_auth123' }, 201)\n        : jsonResponse({ error: 'not found' }, 404)\n    )\n\n    await handle(\n      {\n        properties: { email: 'a@b.com', firstname: 'A', lastname: 'B', lifecyclestage: 'customer' },\n        objectId: '1',\n        subscriptionType: 'contact.propertyChange',\n        propertyName: 'lifecyclestage',\n        propertyValue: 'customer',\n      },\n      { stripeSecretKey: 'sk_live_abc', fetch }\n    )\n\n    expect(calls[0].headers.get('authorization')).toBe('Bearer sk_live_abc')\n  })\n\n  it('maps firstname and lastname to combined name field', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url === 'https://api.stripe.com/v1/customers' && req.method === 'POST'\n        ? jsonResponse({ id: 'cus_name123' }, 201)\n        : jsonResponse({ error: 'not found' }, 404)\n    )\n\n    await handle(\n      {\n        properties: { email: 'test@example.com', firstname: 'John', lastname: 'Smith', lifecyclestage: 'customer' },\n        objectId: '2',\n        subscriptionType: 'contact.propertyChange',\n        propertyName: 'lifecyclestage',\n        propertyValue: 'customer',\n      },\n      { stripeSecretKey: 'sk_test', fetch }\n    )\n\n    const bodyParams = new URLSearchParams(calls[0].body as string)\n    expect(bodyParams.get('name')).toBe('John Smith')\n  })\n\n  it('throws when email is missing', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n\n    const payload = {\n      properties: { firstname: 'Jane', lastname: 'Doe', lifecyclestage: 'customer' },\n      objectId: '123',\n      subscriptionType: 'contact.propertyChange',\n      propertyName: 'lifecyclestage',\n      propertyValue: 'customer',\n    } as HubSpotContactPayload\n\n    await expect(handle(payload, { stripeSecretKey: 'sk_test', fetch })).rejects.toThrow(\n      'Missing required field: properties.email'\n    )\n  })\n\n  it('throws when firstname is missing', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n\n    const payload = {\n      properties: { email: 'jane@example.com', lastname: 'Doe', lifecyclestage: 'customer' },\n      objectId: '123',\n      subscriptionType: 'contact.propertyChange',\n      propertyName: 'lifecyclestage',\n      propertyValue: 'customer',\n    } as HubSpotContactPayload\n\n    await expect(handle(payload, { stripeSecretKey: 'sk_test', fetch })).rejects.toThrow(\n      'Missing required field: properties.firstname'\n    )\n  })\n\n  it('throws when lastname is missing', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n\n    const payload = {\n      properties: { email: 'jane@example.com', firstname: 'Jane', lifecyclestage: 'customer' },\n      objectId: '123',\n      subscriptionType: 'contact.propertyChange',\n      propertyName: 'lifecyclestage',\n      propertyValue: 'customer',\n    } as HubSpotContactPayload\n\n    await expect(handle(payload, { stripeSecretKey: 'sk_test', fetch })).rejects.toThrow(\n      'Missing required field: properties.lastname'\n    )\n  })\n\n  it('throws when lifecycle stage is not customer', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n\n    const payload: HubSpotContactPayload = {\n      properties: { email: 'jane@example.com', firstname: 'Jane', lastname: 'Doe', lifecyclestage: 'lead' },\n      objectId: '123',\n      subscriptionType: 'contact.propertyChange',\n      propertyName: 'lifecyclestage',\n      propertyValue: 'lead',\n    }\n\n    await expect(handle(payload, { stripeSecretKey: 'sk_test', fetch })).rejects.toThrow(\n      'Lifecycle stage is not \"customer\", skipping'\n    )\n  })\n\n  it('throws on non-2xx response from Stripe', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url === 'https://api.stripe.com/v1/customers' && req.method === 'POST'\n        ? jsonResponse({ error: { message: 'Invalid email' } }, 400)\n        : jsonResponse({ error: 'not found' }, 404)\n    )\n\n    const payload: HubSpotContactPayload = {\n      properties: { email: 'invalid', firstname: 'Jane', lastname: 'Doe', lifecyclestage: 'customer' },\n      objectId: '123',\n      subscriptionType: 'contact.propertyChange',\n      propertyName: 'lifecyclestage',\n      propertyValue: 'customer',\n    }\n\n    await expect(handle(payload, { stripeSecretKey: 'sk_test', fetch })).rejects.toThrow(\n      'Stripe API error: 400 Bad Request at POST https://api.stripe.com/v1/customers'\n    )\n    expect(calls).toHaveLength(1)\n  })\n\n  it('throws on 5xx response from Stripe', async () => {\n    const { fetch } = fakeFetch((req) =>\n      req.url === 'https://api.stripe.com/v1/customers' && req.method === 'POST'\n        ? jsonResponse({ error: { message: 'Internal server error' } }, 500)\n        : jsonResponse({ error: 'not found' }, 404)\n    )\n\n    const payload: HubSpotContactPayload = {\n      properties: { email: 'jane@example.com', firstname: 'Jane', lastname: 'Doe', lifecyclestage: 'customer' },\n      objectId: '123',\n      subscriptionType: 'contact.propertyChange',\n      propertyName: 'lifecyclestage',\n      propertyValue: 'customer',\n    }\n\n    await expect(handle(payload, { stripeSecretKey: 'sk_test', fetch })).rejects.toThrow(\n      'Stripe API error: 500 Internal Server Error at POST https://api.stripe.com/v1/customers'\n    )\n  })\n})\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# HubSpot to Stripe Customer Connector\n\nCreates a Stripe customer record when a HubSpot contact's lifecycle stage changes to \"customer\".\n\n## What it does\n\nListens for HubSpot contact property change webhooks. When the `lifecyclestage` property becomes `customer`, extracts the contact's email, first name, and last name, then creates a Stripe customer with the email and combined full name.\n\n## Configuration\n\n| Config Property | Environment Variable | Required | Description |\n|-----------------|---------------------|----------|-------------|\n| `stripeSecretKey` | `STRIPE_SECRET_KEY` | Yes | Stripe secret key (sk_live_... or sk_test_...) for Bearer authentication |\n\n## Usage Example\n\n```typescript\nimport { handle } from './connector'\n\nconst payload = {\n  properties: {\n    email: 'jane.doe@example.com',\n    firstname: 'Jane',\n    lastname: 'Doe',\n    lifecyclestage: 'customer'\n  },\n  objectId: '123456',\n  subscriptionType: 'contact.propertyChange',\n  propertyName: 'lifecyclestage',\n  propertyValue: 'customer'\n}\n\nconst result = await handle(payload, {\n  stripeSecretKey: process.env.STRIPE_SECRET_KEY!\n})\n\nconsole.log(`Created Stripe customer: ${result.stripeCustomerId}`)\n```\n\n## Assumptions\n\n1. The HubSpot webhook payload includes the contact's `email`, `firstname`, and `lastname` properties when the lifecycle stage changes to customer.\n2. The Stripe API expects a `name` string formed by combining the contact's first and last name with a space.\n3. No duplicate customer check is performed; each webhook trigger creates a new Stripe customer record.\n4. The webhook is configured in HubSpot to fire on `lifecyclestage` property changes for contacts.\n5. The connector is deployed at a publicly accessible URL registered in HubSpot under Settings > Integrations > Webhooks.\n\n## Field Mapping\n\n| HubSpot Field | Stripe Field | Transformation |\n|---------------|--------------|----------------|\n| `properties.email` | `email` | Direct copy |\n| `properties.firstname` + `properties.lastname` | `name` | Combined as \"Firstname Lastname\" |\n\n## Error Handling\n\n- Throws descriptive errors for missing required fields (`email`, `firstname`, `lastname`)\n- Skips processing (throws) when `lifecyclestage` is not `customer`\n- Throws with status code and endpoint on non-2xx responses from Stripe API\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://developers.hubspot.com/docs/api-reference/legacy/crm/objects/contacts/guide\n// Source: https://docs.stripe.com/api/customers/create\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"properties\": {\n    \"email\": \"jane.doe@example.com\",\n    \"firstname\": \"Jane\",\n    \"lastname\": \"Doe\",\n    \"lifecyclestage\": \"customer\"\n  },\n  \"objectId\": \"123456\",\n  \"subscriptionType\": \"contact.propertyChange\",\n  \"propertyName\": \"lifecyclestage\",\n  \"propertyValue\": \"customer\"\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://api.stripe.com/v1/customers\",\n    \"response\": {\n      \"id\": \"cus_NffrFeUfNV2Hib\",\n      \"object\": \"customer\",\n      \"email\": \"jane.doe@example.com\",\n      \"name\": \"Jane Doe\",\n      \"created\": 1680893993,\n      \"livemode\": false\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ],
+      "report": {
+        "typecheckOk": true,
+        "typecheckOutput": "",
+        "passed": 10,
+        "failed": 0,
+        "total": 10,
+        "failures": [],
+        "durationMs": 275.642333984375,
+        "ranOn": "nebius-sandbox:01a0fc4a-648f-75a6-b549-40fed500d83d",
+        "passedNames": [
+          "contract handles the documented example payload",
+          "handle creates a Stripe customer with combined name on happy path",
+          "handle uses Bearer token authentication",
+          "handle maps firstname and lastname to combined name field",
+          "handle throws when email is missing",
+          "handle throws when firstname is missing",
+          "handle throws when lastname is missing",
+          "handle throws when lifecycle stage is not customer",
+          "handle throws on non-2xx response from Stripe",
+          "handle throws on 5xx response from Stripe"
+        ],
+        "contract": "passed"
+      }
+    },
+    {
+      "type": "step",
+      "step": "package",
+      "status": "done"
+    }
+  ]
+}
