@@ -83,7 +83,7 @@ export type RunEvent =
   | { type: 'sources'; sources: Source[] }
   | { type: 'spec'; spec: ApiSpec }
   | { type: 'files'; attempt: number; files: GeneratedFile[] }
-  | { type: 'tests'; attempt: number; report: TestReport }
+  | { type: 'tests'; attempt: number; report: TestReport; branches?: Array<{ branch: number; passed: number; total: number; typecheckOk: boolean; green: boolean }> }
   | { type: 'usage'; usage: Usage[] }
   | { type: 'result'; ok: boolean; attempts: number; files: GeneratedFile[]; report: TestReport | null }
   | { type: 'error'; message: string }
