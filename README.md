@@ -1,5 +1,11 @@
 # patchbay
 
+[![ci](https://github.com/GodSmasher/patchbay/actions/workflows/ci.yml/badge.svg)](https://github.com/GodSmasher/patchbay/actions/workflows/ci.yml)
+[![benchmark](https://img.shields.io/badge/benchmark-18%2F20%20green%20·%20%240.87-brightgreen)](bench/RESULTS.md)
+[![mcp](https://img.shields.io/badge/MCP-stdio-6938EF)](docs/mcp-setup.md)
+[![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![nebius](https://img.shields.io/badge/powered%20by-Nebius%20Token%20Factory-0F172A)](https://tokenfactory.nebius.com)
+
 **Describe an integration in one sentence. Get a tested TypeScript connector.**
 
 ```
