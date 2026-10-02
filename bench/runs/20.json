@@ -1,0 +1,457 @@
+{
+  "prompt": "When a Twilio incoming SMS webhook arrives, route it to Slack #sales when the body matches /pricing|quote|demo/i, otherwise to Slack #support.",
+  "events": [
+    {
+      "type": "mode",
+      "mode": "live"
+    },
+    {
+      "type": "step",
+      "step": "plan",
+      "status": "start"
+    },
+    {
+      "type": "plan",
+      "plan": {
+        "summary": "When a Twilio incoming SMS webhook arrives, route it to Slack #sales when the body matches /pricing|quote|demo/i, otherwise to Slack #support.",
+        "source": {
+          "app": "Twilio",
+          "trigger": "incoming SMS webhook",
+          "docsQuery": "Twilio incoming SMS webhook payload body From MessageSid"
+        },
+        "target": {
+          "app": "Slack",
+          "action": "send message",
+          "docsQuery": "Slack Web API chat.postMessage channel text"
+        },
+        "fieldMapping": [
+          {
+            "from": "Body",
+            "to": "text",
+            "note": "The text content of the incoming SMS"
+          },
+          {
+            "from": "From",
+            "to": "channel",
+            "note": "Slack channel name (#sales or #support) determined by regex match"
+          }
+        ],
+        "assumptions": [
+          "The Twilio webhook payload includes a 'Body' field containing the SMS text and a 'From' field with the sender's phone number.",
+          "The integration will evaluate the regex /pricing|quote|demo/i against the SMS Body to decide the destination channel.",
+          "The Slack API token has permissions to post messages to both #sales and #support channels.",
+          "The target Slack channels (#sales and #support) already exist in the workspace.",
+          "The routing logic is: if Body matches the regex → post to #sales; else → post to #support."
+        ]
+      }
+    },
+    {
+      "type": "step",
+      "step": "plan",
+      "status": "done",
+      "detail": "When a Twilio incoming SMS webhook arrives, route it to Slack #sales when the body matches /pricing|quote|demo/i, otherwise to Slack #support."
+    },
+    {
+      "type": "step",
+      "step": "research",
+      "status": "start"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Installing typescript + vitest in a sandbox checkpoint"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Searched \"Twilio incoming SMS webhook payload body From MessageSid\": 2 of 2 picked from Twilio's own docs"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Searched \"Slack Web API chat.postMessage channel text\": 2 of 2 picked from Slack's own docs"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Extracted 4 documentation pages"
+    },
+    {
+      "type": "sources",
+      "sources": [
+        {
+          "title": "Twilio's request to your incoming message Webhook URL | Twilio",
+          "url": "https://www.twilio.com/docs/messaging/guides/webhook-request",
+          "official": true
+        },
+        {
+          "title": "Receive an inbound SMS | Twilio",
+          "url": "https://www.twilio.com/docs/serverless/functions-assets/quickstart/receive-sms",
+          "official": true
+        },
+        {
+          "title": "chat.postMessage method | Slack Developer Docs",
+          "url": "https://docs.slack.dev/reference/methods/chat.postMessage",
+          "official": true
+        },
+        {
+          "title": "Sending and scheduling messages | Slack Developer Docs",
+          "url": "https://docs.slack.dev/messaging/sending-and-scheduling-messages",
+          "official": true
+        }
+      ]
+    },
+    {
+      "type": "spec",
+      "spec": {
+        "source": {
+          "app": "Twilio",
+          "role": "source",
+          "method": "POST",
+          "url": "",
+          "auth": {
+            "type": "none",
+            "name": null,
+            "envVar": null
+          },
+          "example": {
+            "MessageSid": "SMXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+            "AccountSid": "ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+            "From": "+14017122661",
+            "To": "+15558675310",
+            "Body": "What is the pricing for your demo?",
+            "NumMedia": "0",
+            "NumSegments": "1"
+          },
+          "docsUrl": "https://www.twilio.com/docs/messaging/guides/webhook-request",
+          "notes": [
+            "Twilio sends the webhook as application/x-www-form-urlencoded; parse accordingly.",
+            "The webhook URL must be publicly reachable and configured in the Twilio Console or via API.",
+            "No authentication headers are included by Twilio; validate requests using the X-Twilio-Signature header and your Auth Token.",
+            "Only Body and From fields are guaranteed for basic SMS; other parameters may be absent.",
+            "The connector must implement regex matching (/pricing|quote|demo/i) on Body to decide target channel."
+          ]
+        },
+        "target": [
+          {
+            "app": "Slack",
+            "role": "target",
+            "method": "POST",
+            "url": "https://slack.com/api/chat.postMessage",
+            "auth": {
+              "type": "bearer",
+              "name": "Authorization",
+              "envVar": "SLACK_BOT_TOKEN"
+            },
+            "example": {
+              "channel": "#sales",
+              "text": "What is the pricing for your demo?"
+            },
+            "responseExample": {
+              "ok": true,
+              "channel": "C01JASD6802",
+              "ts": "1234567890.123456"
+            },
+            "docsUrl": "https://docs.slack.dev/reference/methods/chat.postMessage",
+            "notes": [
+              "The channel parameter accepts either a channel ID (e.g., C01JASD6802) or a channel name (e.g., #sales).",
+              "The token must have the chat:write scope for posting to public channels.",
+              "If using a channel name, Slack will resolve it to an ID internally; using the ID is more reliable.",
+              "The text field supports plain text and mrkdwn formatting by default.",
+              "The connector must map the resolved channel name (#sales or #support) to the channel parameter.",
+              "Rate limits: 1 message per second per channel, with higher burst limits for the workspace."
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "step",
+      "step": "research",
+      "status": "done",
+      "detail": "2 endpoints from 4 pages"
+    },
+    {
+      "type": "step",
+      "step": "generate",
+      "status": "start"
+    },
+    {
+      "type": "files",
+      "attempt": 1,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "export interface ConnectorConfig {\n  /** Slack Bot Token with chat:write scope. Expected env var: SLACK_BOT_TOKEN */\n  slackBotToken: string\n  /** Injected fetch for testing or customization. */\n  fetch?: typeof fetch\n}\n\nexport interface TwilioSmsPayload {\n  MessageSid: string\n  AccountSid: string\n  From: string\n  To: string\n  Body: string\n  NumMedia: string\n  NumSegments: string\n  [key: string]: string\n}\n\nexport interface HandleResult {\n  channel: string\n  ts: string\n  slackChannelId: string\n}\n\nconst SALES_REGEX = /pricing|quote|demo/i\nconst SLACK_API_URL = 'https://slack.com/api/chat.postMessage'\n\nfunction determineChannel(body: string): string {\n  return SALES_REGEX.test(body) ? '#sales' : '#support'\n}\n\nexport async function handle(payload: TwilioSmsPayload, config: ConnectorConfig): Promise<HandleResult> {\n  const fetchImpl = config.fetch ?? fetch\n\n  if (!payload.Body || typeof payload.Body !== 'string') {\n    throw new Error('Missing required field: Body')\n  }\n  if (!payload.From || typeof payload.From !== 'string') {\n    throw new Error('Missing required field: From')\n  }\n\n  const channel = determineChannel(payload.Body)\n  const text = payload.Body\n\n  const response = await fetchImpl(SLACK_API_URL, {\n    method: 'POST',\n    headers: {\n      'Authorization': `Bearer ${config.slackBotToken}`,\n      'Content-Type': 'application/json'\n    },\n    body: JSON.stringify({ channel, text })\n  })\n\n  if (!response.ok) {\n    throw new Error(`Slack API error: ${response.status} ${response.statusText} at POST ${SLACK_API_URL}`)\n  }\n\n  const data = await response.json() as { ok: boolean; channel: string; ts: string }\n\n  if (!data.ok) {\n    throw new Error(`Slack API returned ok=false: ${JSON.stringify(data)}`)\n  }\n\n  return {\n    channel,\n    ts: data.ts,\n    slackChannelId: data.channel\n  }\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi } from 'vitest'\nimport { handle, TwilioSmsPayload, ConnectorConfig } from './connector'\nimport { SOURCE_EXAMPLE, contractFetch, fakeFetch, jsonResponse, TARGET_ENDPOINTS } from './fixtures'\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch()\n    const config: ConnectorConfig = { slackBotToken: 'xoxb-test-token', fetch }\n    const result = await handle(SOURCE_EXAMPLE as unknown as TwilioSmsPayload, config)\n    expect(calls.length).toBeGreaterThan(0)\n    expect(result.channel).toBe('#sales')\n    expect(result.slackChannelId).toBe('C01JASD6802')\n    expect(result.ts).toBe('1234567890.123456')\n  })\n})\n\ndescribe('handle', () => {\n  it('routes to #sales when Body matches pricing', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url === 'https://slack.com/api/chat.postMessage' && req.json?.channel === '#sales'\n        ? jsonResponse({ ok: true, channel: 'C01JASD680000001', ts: '1111111111.111111' }, 200)\n        : jsonResponse({ error: 'unexpected' }, 500)\n    )\n    const payload: TwilioSmsPayload = {\n      ...SOURCE_EXAMPLE,\n      Body: 'I need pricing info'\n    }\n    const result = await handle(payload, { slackBotToken: 'xoxb-test', fetch })\n    expect(result.channel).toBe('#sales')\n    expect(calls[0].json).toEqual({ channel: '#sales', text: 'I need pricing info' })\n    expect(calls[0].headers.get('authorization')).toBe('Bearer xoxb-test')\n  })\n\n  it('routes to #sales when Body matches quote', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url === 'https://slack.com/api/chat.postMessage' && req.json?.channel === '#sales'\n        ? jsonResponse({ ok: true, channel: 'C01JASD6002', ts: '2222222222.222222' }, 200)\n        : jsonResponse({ error: 'unexpected' }, 500)\n    )\n    const payload: TwilioSmsPayload = {\n      ...SOURCE_EXAMPLE,\n      Body: 'Please send me a quote'\n    }\n    const result = await handle(payload, { slackBotToken: 'xoxb-test', fetch })\n    expect(result.channel).toBe('#sales')\n    expect(calls[0].json).toEqual({ channel: '#sales', text: 'Please send me a quote' })\n  })\n\n  it('routes to #sales when Body matches demo (case insensitive)', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url === 'https://slack.com/api/chat.postMessage' && req.json?.channel === '#sales'\n        ? jsonResponse({ ok: true, channel: 'C01JASD6003', ts: '3333333333.333333' }, 200)\n        : jsonResponse({ error: 'unexpected' }, 500)\n    )\n    const payload: TwilioSmsPayload = {\n      ...SOURCE_EXAMPLE,\n      Body: 'Can I schedule a DEMO?'\n    }\n    const result = await handle(payload, { slackBotToken: 'xoxb-test', fetch })\n    expect(result.channel).toBe('#sales')\n    expect(calls[0].json).toEqual({ channel: '#sales', text: 'Can I schedule a DEMO?' })\n  })\n\n  it('routes to #support when Body does not match', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url === 'https://slack.com/api/chat.postMessage' && req.json?.channel === '#support'\n        ? jsonResponse({ ok: true, channel: 'C01JASD7001', ts: '4444444444.444444' }, 200)\n        : jsonResponse({ error: 'unexpected' }, 500)\n    )\n    const payload: TwilioSmsPayload = {\n      ...SOURCE_EXAMPLE,\n      Body: 'Hello, I have a general question'\n    }\n    const result = await handle(payload, { slackBotToken: 'xoxb-test', fetch })\n    expect(result.channel).toBe('#support')\n    expect(calls[0].json).toEqual({ channel: '#support', text: 'Hello, I have a general question' })\n  })\n\n  it('throws when Body is missing', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n    const payload = { ...SOURCE_EXAMPLE, Body: undefined as unknown as string }\n    await expect(handle(payload as unknown as TwilioSmsPayload, { slackBotToken: 'xoxb-test', fetch }))\n      .rejects.toThrow('Missing required field: Body')\n  })\n\n  it('throws when From is missing', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n    const payload = { ...SOURCE_EXAMPLE, From: undefined as unknown as string }\n    await expect(handle(payload as unknown as TwilioSmsPayload, { slackBotToken: 'xoxb-test', fetch }))\n      .rejects.toThrow('Missing required field: From')\n  })\n\n  it('throws on non-2xx response from Slack', async () => {\n    const { fetch, calls } = fakeFetch(() => jsonResponse({ error: 'invalid_auth' }, 401))\n    const payload: TwilioSmsPayload = { ...SOURCE_EXAMPLE, Body: 'pricing please' }\n    await expect(handle(payload, { slackBotToken: 'xoxb-test', fetch }))\n      .rejects.toThrow('Slack API error: 401 Unauthorized at POST https://slack.com/api/chat.postMessage')\n    expect(calls[0].url).toBe('https://slack.com/api/chat.postMessage')\n  })\n\n  it('throws when Slack returns ok=false', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({ ok: false, error: 'channel_not_found' }, 200))\n    const payload: TwilioSmsPayload = { ...SOURCE_EXAMPLE, Body: 'pricing please' }\n    await expect(handle(payload, { slackBotToken: 'xoxb-test', fetch }))\n      .rejects.toThrow('Slack API returned ok=false')\n  })\n\n  it('uses injected fetch from config', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url === 'https://slack.com/api/chat.postMessage'\n        ? jsonResponse({ ok: true, channel: 'C01JASD6999', ts: '9999999999.999999' }, 200)\n        : jsonResponse({ error: 'unexpected' }, 500)\n    )\n    const payload: TwilioSmsPayload = { ...SOURCE_EXAMPLE, Body: 'demo request' }\n    await handle(payload, { slackBotToken: 'xoxb-injected', fetch })\n    expect(calls.length).toBe(1)\n    expect(calls[0].headers.get('authorization')).toBe('Bearer xoxb-injected')\n  })\n})\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# Twilio SMS to Slack Router\n\nRoutes incoming Twilio SMS webhooks to Slack channels based on message content.\n\n## What it does\n\nWhen a Twilio incoming SMS webhook arrives, this connector:\n1. Extracts the message body (`Body`) and sender (`From`)\n2. Evaluates the body against the regex `/pricing|quote|demo/i`\n3. Posts the message to **#sales** if the regex matches, otherwise to **#support**\n4. Returns the Slack channel ID and timestamp\n\n## Configuration\n\n| Config Property | Environment Variable | Required | Description |\n|-----------------|---------------------|----------|-------------|\n| `slackBotToken` | `SLACK_BOT_TOKEN` | Yes | Slack Bot User OAuth Token with `chat:write` scope |\n\n## Usage Example\n\n```typescript\nimport { handle, TwilioSmsPayload, ConnectorConfig } from './connector'\n\nconst config: ConnectorConfig = {\n  slackBotToken: process.env.SLACK_BOT_TOKEN!\n}\n\n// In your webhook handler (e.g., Express, Fastify, Cloudflare Worker)\napp.post('/twilio/sms', async (req, res) => {\n  // Twilio sends application/x-www-form-urlencoded; parse it first\n  const payload = req.body as TwilioSmsPayload\n\n  try {\n    const result = await handle(payload, config)\n    console.log(`Posted to ${result.channel} (${result.slackChannelId}) at ${result.ts}`)\n    res.sendStatus(200)\n  } catch (err) {\n    console.error('Failed to route SMS:', err)\n    res.sendStatus(500)\n  }\n})\n```\n\n## Assumptions\n\n- The Twilio webhook payload includes a `Body` field containing the SMS text and a `From` field with the sender's phone number.\n- The integration evaluates the regex `/pricing|quote|demo/i` against the SMS `Body` to decide the destination channel.\n- The Slack API token has permissions to post messages to both `#sales` and `#support` channels.\n- The target Slack channels (`#sales` and `#support`) already exist in the workspace.\n- The routing logic is: if `Body` matches the regex → post to `#sales`; else → post to `#support`.\n- Twilio sends the webhook as `application/x-www-form-urlencoded`; the hosting framework must parse it before calling `handle`.\n- No authentication headers are included by Twilio; validate requests using the `X-Twilio-Signature` header and your Auth Token at the webhook entry point (outside this connector).\n- The Slack `chat.postMessage` endpoint accepts channel names (e.g., `#sales`) which Slack resolves internally.\n- Rate limits: 1 message per second per channel, with higher burst limits for the workspace.\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://www.twilio.com/docs/messaging/guides/webhook-request\n// Source: https://docs.slack.dev/reference/methods/chat.postMessage\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"MessageSid\": \"SMXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\",\n  \"AccountSid\": \"ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\",\n  \"From\": \"+14017122661\",\n  \"To\": \"+15558675310\",\n  \"Body\": \"What is the pricing for your demo?\",\n  \"NumMedia\": \"0\",\n  \"NumSegments\": \"1\"\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://slack.com/api/chat.postMessage\",\n    \"response\": {\n      \"ok\": true,\n      \"channel\": \"C01JASD6802\",\n      \"ts\": \"1234567890.123456\"\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ]
+    },
+    {
+      "type": "step",
+      "step": "generate",
+      "status": "done",
+      "detail": "src/connector.ts, src/connector.test.ts, README.md, src/fixtures.ts"
+    },
+    {
+      "type": "step",
+      "step": "verify",
+      "status": "start"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Checkpoint ready: 2eab2336"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Forking checkpoint 2eab2336 with 4 files, network off"
+    },
+    {
+      "type": "tests",
+      "attempt": 1,
+      "report": {
+        "typecheckOk": false,
+        "typecheckOutput": "src/connector.test.ts(20,73): error TS2339: Property 'channel' does not exist on type '{}'.\nsrc/connector.test.ts(36,73): error TS2339: Property 'channel' does not exist on type '{}'.\nsrc/connector.test.ts(51,73): error TS2339: Property 'channel' does not exist on type '{}'.\nsrc/connector.test.ts(66,73): error TS2339: Property 'channel' does not exist on type '{}'.",
+        "passed": 10,
+        "failed": 0,
+        "total": 10,
+        "failures": [],
+        "durationMs": 273.52197265625,
+        "ranOn": "nebius-sandbox:01a0fc15-f6e2-7707-93c7-738be717704a",
+        "passedNames": [
+          "contract handles the documented example payload",
+          "handle routes to #sales when Body matches pricing",
+          "handle routes to #sales when Body matches quote",
+          "handle routes to #sales when Body matches demo (case insensitive)",
+          "handle routes to #support when Body does not match",
+          "handle throws when Body is missing",
+          "handle throws when From is missing",
+          "handle throws on non-2xx response from Slack",
+          "handle throws when Slack returns ok=false",
+          "handle uses injected fetch from config"
+        ],
+        "contract": "passed"
+      }
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Attempt 1 failed (0 tests, typecheck failed), repairing"
+    },
+    {
+      "type": "files",
+      "attempt": 2,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "export interface ConnectorConfig {\n  /** Slack Bot Token with chat:write scope. Expected env var: SLACK_BOT_TOKEN */\n  slackBotToken: string\n  /** Injected fetch for testing or customization. */\n  fetch?: typeof fetch\n}\n\nexport interface TwilioSmsPayload {\n  MessageSid: string\n  AccountSid: string\n  From: string\n  To: string\n  Body: string\n  NumMedia: string\n  NumSegments: string\n  [key: string]: string\n}\n\nexport interface HandleResult {\n  channel: string\n  ts: string\n  slackChannelId: string\n}\n\nconst SALES_REGEX = /pricing|quote|demo/i\nconst SLACK_API_URL = 'https://slack.com/api/chat.postMessage'\n\nfunction determineChannel(body: string): string {\n  return SALES_REGEX.test(body) ? '#sales' : '#support'\n}\n\nexport async function handle(payload: TwilioSmsPayload, config: ConnectorConfig): Promise<HandleResult> {\n  const fetchImpl = config.fetch ?? fetch\n\n  if (!payload.Body || typeof payload.Body !== 'string') {\n    throw new Error('Missing required field: Body')\n  }\n  if (!payload.From || typeof payload.From !== 'string') {\n    throw new Error('Missing required field: From')\n  }\n\n  const channel = determineChannel(payload.Body)\n  const text = payload.Body\n\n  const response = await fetchImpl(SLACK_API_URL, {\n    method: 'POST',\n    headers: {\n      'Authorization': `Bearer ${config.slackBotToken}`,\n      'Content-Type': 'application/json'\n    },\n    body: JSON.stringify({ channel, text })\n  })\n\n  if (!response.ok) {\n    throw new Error(`Slack API error: ${response.status} ${response.statusText} at POST ${SLACK_API_URL}`)\n  }\n\n  const data = await response.json() as { ok: boolean; channel: string; ts: string }\n\n  if (!data.ok) {\n    throw new Error(`Slack API returned ok=false: ${JSON.stringify(data)}`)\n  }\n\n  return {\n    channel,\n    ts: data.ts,\n    slackChannelId: data.channel\n  }\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi } from 'vitest'\nimport { handle, TwilioSmsPayload, ConnectorConfig, HandleResult } from './connector'\nimport { SOURCE_EXAMPLE, contractFetch, fakeFetch, jsonResponse, TARGET_ENDPOINTS } from './fixtures'\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch()\n    const config: ConnectorConfig = { slackBotToken: 'xoxb-test-token', fetch }\n    const result: HandleResult = await handle(SOURCE_EXAMPLE as unknown as TwilioSmsPayload, config)\n    expect(calls.length).toBeGreaterThan(0)\n    expect(result.channel).toBe('#sales')\n    expect(result.slackChannelId).toBe('C01JASD6802')\n    expect(result.ts).toBe('1234567890.123456')\n  })\n})\n\ndescribe('handle', () => {\n  it('routes to #sales when Body matches pricing', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url === 'https://slack.com/api/chat.postMessage' && req.json?.channel === '#sales'\n        ? jsonResponse({ ok: true, channel: 'C01JASD680000001', ts: '1111111111.111111' }, 200)\n        : jsonResponse({ error: 'unexpected' }, 500)\n    )\n    const payload: TwilioSmsPayload = {\n      ...SOURCE_EXAMPLE,\n      Body: 'I need pricing info'\n    }\n    const result: HandleResult = await handle(payload, { slackBotToken: 'xoxb-test', fetch })\n    expect(result.channel).toBe('#sales')\n    expect(calls[0].json).toEqual({ channel: '#sales', text: 'I need pricing info' })\n    expect(calls[0].headers.get('authorization')).toBe('Bearer xoxb-test')\n  })\n\n  it('routes to #sales when Body matches quote', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url === 'https://slack.com/api/chat.postMessage' && req.json?.channel === '#sales'\n        ? jsonResponse({ ok: true, channel: 'C01JASD6002', ts: '2222222222.222222' }, 200)\n        : jsonResponse({ error: 'unexpected' }, 500)\n    )\n    const payload: TwilioSmsPayload = {\n      ...SOURCE_EXAMPLE,\n      Body: 'Please send me a quote'\n    }\n    const result: HandleResult = await handle(payload, { slackBotToken: 'xoxb-test', fetch })\n    expect(result.channel).toBe('#sales')\n    expect(calls[0].json).toEqual({ channel: '#sales', text: 'Please send me a quote' })\n  })\n\n  it('routes to #sales when Body matches demo (case insensitive)', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url === 'https://slack.com/api/chat.postMessage' && req.json?.channel === '#sales'\n        ? jsonResponse({ ok: true, channel: 'C01JASD6003', ts: '3333333333.333333' }, 200)\n        : jsonResponse({ error: 'unexpected' }, 500)\n    )\n    const payload: TwilioSmsPayload = {\n      ...SOURCE_EXAMPLE,\n      Body: 'Can I schedule a DEMO?'\n    }\n    const result: HandleResult = await handle(payload, { slackBotToken: 'xoxb-test', fetch })\n    expect(result.channel).toBe('#sales')\n    expect(calls[0].json).toEqual({ channel: '#sales', text: 'Can I schedule a DEMO?' })\n  })\n\n  it('routes to #support when Body does not match', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url === 'https://slack.com/api/chat.postMessage' && req.json?.channel === '#support'\n        ? jsonResponse({ ok: true, channel: 'C01JASD7001', ts: '4444444444.444444' }, 200)\n        : jsonResponse({ error: 'unexpected' }, 500)\n    )\n    const payload: TwilioSmsPayload = {\n      ...SOURCE_EXAMPLE,\n      Body: 'Hello, I have a general question'\n    }\n    const result: HandleResult = await handle(payload, { slackBotToken: 'xoxb-test', fetch })\n    expect(result.channel).toBe('#support')\n    expect(calls[0].json).toEqual({ channel: '#support', text: 'Hello, I have a general question' })\n  })\n\n  it('throws when Body is missing', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n    const payload = { ...SOURCE_EXAMPLE, Body: undefined as unknown as string }\n    await expect(handle(payload as unknown as TwilioSmsPayload, { slackBotToken: 'xoxb-test', fetch }))\n      .rejects.toThrow('Missing required field: Body')\n  })\n\n  it('throws when From is missing', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n    const payload = { ...SOURCE_EXAMPLE, From: undefined as unknown as string }\n    await expect(handle(payload as unknown as TwilioSmsPayload, { slackBotToken: 'xoxb-test', fetch }))\n      .rejects.toThrow('Missing required field: From')\n  })\n\n  it('throws on non-2xx response from Slack', async () => {\n    const { fetch, calls } = fakeFetch(() => jsonResponse({ error: 'invalid_auth' }, 401))\n    const payload: TwilioSmsPayload = { ...SOURCE_EXAMPLE, Body: 'pricing please' }\n    await expect(handle(payload, { slackBotToken: 'xoxb-test', fetch }))\n      .rejects.toThrow('Slack API error: 401 Unauthorized at POST https://slack.com/api/chat.postMessage')\n    expect(calls[0].url).toBe('https://slack.com/api/chat.postMessage')\n  })\n\n  it('throws when Slack returns ok=false', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({ ok: false, error: 'channel_not_found' }, 20))\n    const payload: TwilioSmsPayload = { ...SOURCE_EXAMPLE, Body: 'pricing please' }\n    await expect(handle(payload, { slackBotToken: 'xoxb-test', fetch }))\n      .rejects.toThrow('Slack API returned ok=false')\n  })\n\n  it('uses injected fetch from config', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url === 'https://slack.com/api/chat.postMessage'\n        ? jsonResponse({ ok: true, channel: 'C01JASD6999', ts: '9999999999.999999' }, 200)\n        : jsonResponse({ error: 'unexpected' }, 500)\n    )\n    const payload: TwilioSmsPayload = { ...SOURCE_EXAMPLE, Body: 'demo request' }\n    await handle(payload, { slackBotToken: 'xoxb-injected', fetch })\n    expect(calls.length).toBe(1)\n    expect(calls[0].headers.get('authorization')).toBe('Bearer xoxb-injected')\n  })\n})\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# Twilio SMS to Slack Router\n\nRoutes incoming Twilio SMS webhooks to Slack channels based on message content.\n\n## What it does\n\nWhen a Twilio incoming SMS webhook arrives, this connector:\n1. Extracts the message body (`Body`) and sender (`From`)\n2. Evaluates the body against the regex `/pricing|quote|demo/i`\n3. Posts the message to **#sales** if the regex matches, otherwise to **#support**\n4. Returns the Slack channel ID and timestamp\n\n## Configuration\n\n| Config Property | Environment Variable | Required | Description |\n|-----------------|---------------------|----------|-------------|\n| `slackBotToken` | `SLACK_BOT_TOKEN` | Yes | Slack Bot User OAuth Token with `chat:write` scope |\n\n## Usage Example\n\n```typescript\nimport { handle, TwilioSmsPayload, ConnectorConfig } from './connector'\n\nconst config: ConnectorConfig = {\n  slackBotToken: process.env.SLACK_BOT_TOKEN!\n}\n\n// In your webhook handler (e.g., Express, Fastify, Cloudflare Worker)\napp.post('/twilio/sms', async (req, res) => {\n  // Twilio sends application/x-www-form-urlencoded; parse it first\n  const payload = req.body as TwilioSmsPayload\n\n  try {\n    const result = await handle(payload, config)\n    console.log(`Posted to ${result.channel} (${result.slackChannelId}) at ${result.ts}`)\n    res.sendStatus(200)\n  } catch (err) {\n    console.error('Failed to route SMS:', err)\n    res.sendStatus(500)\n  }\n})\n```\n\n## Assumptions\n\n- The Twilio webhook payload includes a `Body` field containing the SMS text and a `From` field with the sender's phone number.\n- The integration evaluates the regex `/pricing|quote|demo/i` against the SMS `Body` to decide the destination channel.\n- The Slack API token has permissions to post messages to both `#sales` and `#support` channels.\n- The target Slack channels (`#sales` and `#support`) already exist in the workspace.\n- The routing logic is: if `Body` matches the regex → post to `#sales`; else → post to `#support`.\n- Twilio sends the webhook as `application/x-www-form-urlencoded`; the hosting framework must parse it before calling `handle`.\n- No authentication headers are included by Twilio; validate requests using the `X-Twilio-Signature` header and your Auth Token at the webhook entry point (outside this connector).\n- The Slack `chat.postMessage` endpoint accepts channel names (e.g., `#sales`) which Slack resolves internally.\n- Rate limits: 1 message per second per channel, with higher burst limits for the workspace.\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://www.twilio.com/docs/messaging/guides/webhook-request\n// Source: https://docs.slack.dev/reference/methods/chat.postMessage\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"MessageSid\": \"SMXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\",\n  \"AccountSid\": \"ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\",\n  \"From\": \"+14017122661\",\n  \"To\": \"+15558675310\",\n  \"Body\": \"What is the pricing for your demo?\",\n  \"NumMedia\": \"0\",\n  \"NumSegments\": \"1\"\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://slack.com/api/chat.postMessage\",\n    \"response\": {\n      \"ok\": true,\n      \"channel\": \"C01JASD6802\",\n      \"ts\": \"1234567890.123456\"\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ]
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Forking checkpoint 2eab2336 with 4 files, network off"
+    },
+    {
+      "type": "tests",
+      "attempt": 2,
+      "report": {
+        "typecheckOk": false,
+        "typecheckOutput": "src/connector.test.ts(20,73): error TS2339: Property 'channel' does not exist on type '{}'.\nsrc/connector.test.ts(36,73): error TS2339: Property 'channel' does not exist on type '{}'.\nsrc/connector.test.ts(51,73): error TS2339: Property 'channel' does not exist on type '{}'.\nsrc/connector.test.ts(66,73): error TS2339: Property 'channel' does not exist on type '{}'.",
+        "passed": 9,
+        "failed": 1,
+        "total": 10,
+        "failures": [
+          {
+            "name": "handle throws when Slack returns ok=false",
+            "message": "AssertionError: expected [Function] to throw error including 'Slack API returned ok=false' but got 'init[\"status\"] must be in the range o…'\n    at _Assertion.<anonymous> (file:///work/node_modules/@vitest/expect/dist/index.js:1420:16)\n    at _Assertion.<anonymous> (file:///work/node_modules/@vitest/expect/dist/index.js:1029:14)\n    at _Assertion.methodWrapper (file:///work/node_modules/chai/index.js:1686:25)\n    at file:///work/node_modules/@vitest/expect/dist/index.js:1639:20\n    at processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at /work/src/connector.test.ts:104:5\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20"
+          }
+        ],
+        "durationMs": 286.42041015625,
+        "ranOn": "nebius-sandbox:01a0fc16-c185-7156-8b63-cc5f83e81708",
+        "passedNames": [
+          "contract handles the documented example payload",
+          "handle routes to #sales when Body matches pricing",
+          "handle routes to #sales when Body matches quote",
+          "handle routes to #sales when Body matches demo (case insensitive)",
+          "handle routes to #support when Body does not match",
+          "handle throws when Body is missing",
+          "handle throws when From is missing",
+          "handle throws on non-2xx response from Slack",
+          "handle uses injected fetch from config"
+        ],
+        "contract": "passed"
+      }
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Attempt 2 failed (1 tests, typecheck failed), repairing"
+    },
+    {
+      "type": "files",
+      "attempt": 3,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "export interface ConnectorConfig {\n  /** Slack Bot Token with chat:write scope. Expected env var: SLACK_BOT_TOKEN */\n  slackBotToken: string\n  /** Injected fetch for testing or customization. */\n  fetch?: typeof fetch\n}\n\nexport interface TwilioSmsPayload {\n  MessageSid: string\n  AccountSid: string\n  From: string\n  To: string\n  Body: string\n  NumMedia: string\n  NumSegments: string\n  [key: string]: string\n}\n\nexport interface HandleResult {\n  channel: string\n  ts: string\n  slackChannelId: string\n}\n\nconst SALES_REGEX = /pricing|quote|demo/i\nconst SLACK_API_URL = 'https://slack.com/api/chat.postMessage'\n\nfunction determineChannel(body: string): string {\n  return SALES_REGEX.test(body) ? '#sales' : '#support'\n}\n\nexport async function handle(payload: TwilioSmsPayload, config: ConnectorConfig): Promise<HandleResult> {\n  const fetchImpl = config.fetch ?? fetch\n\n  if (!payload.Body || typeof payload.Body !== 'string') {\n    throw new Error('Missing required field: Body')\n  }\n  if (!payload.From || typeof payload.From !== 'string') {\n    throw new Error('Missing required field: From')\n  }\n\n  const channel = determineChannel(payload.Body)\n  const text = payload.Body\n\n  const response = await fetchImpl(SLACK_API_URL, {\n    method: 'POST',\n    headers: {\n      'Authorization': `Bearer ${config.slackBotToken}`,\n      'Content-Type': 'application/json'\n    },\n    body: JSON.stringify({ channel, text })\n  })\n\n  if (!response.ok) {\n    throw new Error(`Slack API error: ${response.status} ${response.statusText} at POST ${SLACK_API_URL}`)\n  }\n\n  const data = await response.json() as { ok: boolean; channel: string; ts: string }\n\n  if (!data.ok) {\n    throw new Error(`Slack API returned ok=false: ${JSON.stringify(data)}`)\n  }\n\n  return {\n    channel,\n    ts: data.ts,\n    slackChannelId: data.channel\n  }\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi } from 'vitest'\nimport { handle, TwilioSmsPayload, ConnectorConfig, HandleResult } from './connector'\nimport { SOURCE_EXAMPLE, contractFetch, fakeFetch, jsonResponse } from './fixtures'\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch()\n    const config: ConnectorConfig = { slackBotToken: 'xoxb-test-token', fetch }\n    const result: HandleResult = await handle(SOURCE_EXAMPLE as unknown as TwilioSmsPayload, config)\n    expect(calls.length).toBeGreaterThan(0)\n    expect(result.channel).toBe('#sales')\n    expect(result.slackChannelId).toBe('C01JASD6802')\n    expect(result.ts).toBe('1234567890.123456')\n  })\n})\n\ndescribe('handle', () => {\n  it('routes to #sales when Body matches pricing', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url === 'https://slack.com/api/chat.postMessage' && (req.json as { channel?: string } | undefined)?.channel === '#sales'\n        ? jsonResponse({ ok: true, channel: 'C01JASD680000001', ts: '1111111111.111111' }, 200)\n        : jsonResponse({ error: 'unexpected' }, 500)\n    )\n    const payload: TwilioSmsPayload = {\n      ...SOURCE_EXAMPLE,\n      Body: 'I need pricing info'\n    }\n    const result: HandleResult = await handle(payload, { slackBotToken: 'xoxb-test', fetch })\n    expect(result.channel).toBe('#sales')\n    expect(calls[0].json).toEqual({ channel: '#sales', text: 'I need pricing info' })\n    expect(calls[0].headers.get('authorization')).toBe('Bearer xoxb-test')\n  })\n\n  it('routes to #sales when Body matches quote', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url === 'https://slack.com/api/chat.postMessage' && (req.json as { channel?: string } | undefined)?.channel === '#sales'\n        ? jsonResponse({ ok: true, channel: 'C01JASD6002', ts: '2222222222.222222' }, 200)\n        : jsonResponse({ error: 'unexpected' }, 500)\n    )\n    const payload: TwilioSmsPayload = {\n      ...SOURCE_EXAMPLE,\n      Body: 'Please send me a quote'\n    }\n    const result: HandleResult = await handle(payload, { slackBotToken: 'xoxb-test', fetch })\n    expect(result.channel).toBe('#sales')\n    expect(calls[0].json).toEqual({ channel: '#sales', text: 'Please send me a quote' })\n  })\n\n  it('routes to #sales when Body matches demo (case insensitive)', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url === 'https://slack.com/api/chat.postMessage' && (req.json as { channel?: string } | undefined)?.channel === '#sales'\n        ? jsonResponse({ ok: true, channel: 'C01JASD6003', ts: '3333333333.333333' }, 200)\n        : jsonResponse({ error: 'unexpected' }, 500)\n    )\n    const payload: TwilioSmsPayload = {\n      ...SOURCE_EXAMPLE,\n      Body: 'Can I schedule a DEMO?'\n    }\n    const result: HandleResult = await handle(payload, { slackBotToken: 'xoxb-test', fetch })\n    expect(result.channel).toBe('#sales')\n    expect(calls[0].json).toEqual({ channel: '#sales', text: 'Can I schedule a DEMO?' })\n  })\n\n  it('routes to #support when Body does not match', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url === 'https://slack.com/api/chat.postMessage' && (req.json as { channel?: string } | undefined)?.channel === '#support'\n        ? jsonResponse({ ok: true, channel: 'C01JASD7001', ts: '4444444444.444444' }, 200)\n        : jsonResponse({ error: 'unexpected' }, 500)\n    )\n    const payload: TwilioSmsPayload = {\n      ...SOURCE_EXAMPLE,\n      Body: 'Hello, I have a general question'\n    }\n    const result: HandleResult = await handle(payload, { slackBotToken: 'xoxb-test', fetch })\n    expect(result.channel).toBe('#support')\n    expect(calls[0].json).toEqual({ channel: '#support', text: 'Hello, I have a general question' })\n  })\n\n  it('throws when Body is missing', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n    const payload = { ...SOURCE_EXAMPLE, Body: undefined as unknown as string }\n    await expect(handle(payload as unknown as TwilioSmsPayload, { slackBotToken: 'xoxb-test', fetch }))\n      .rejects.toThrow('Missing required field: Body')\n  })\n\n  it('throws when From is missing', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n    const payload = { ...SOURCE_EXAMPLE, From: undefined as unknown as string }\n    await expect(handle(payload as unknown as TwilioSmsPayload, { slackBotToken: 'xoxb-test', fetch }))\n      .rejects.toThrow('Missing required field: From')\n  })\n\n  it('throws on non-2xx response from Slack', async () => {\n    const { fetch, calls } = fakeFetch(() => jsonResponse({ error: 'invalid_auth' }, 401))\n    const payload: TwilioSmsPayload = { ...SOURCE_EXAMPLE, Body: 'pricing please' }\n    await expect(handle(payload, { slackBotToken: 'xoxb-test', fetch }))\n      .rejects.toThrow('Slack API error: 401 Unauthorized at POST https://slack.com/api/chat.postMessage')\n    expect(calls[0].url).toBe('https://slack.com/api/chat.postMessage')\n  })\n\n  it('throws when Slack returns ok=false', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({ ok: false, error: 'channel_not_found' }, 200))\n    const payload: TwilioSmsPayload = { ...SOURCE_EXAMPLE, Body: 'pricing please' }\n    await expect(handle(payload, { slackBotToken: 'xoxb-test', fetch }))\n      .rejects.toThrow('Slack API returned ok=false')\n  })\n\n  it('uses injected fetch from config', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url === 'https://slack.com/api/chat.postMessage'\n        ? jsonResponse({ ok: true, channel: 'C01JASD6999', ts: '9999999999.999999' }, 200)\n        : jsonResponse({ error: 'unexpected' }, 500)\n    )\n    const payload: TwilioSmsPayload = { ...SOURCE_EXAMPLE, Body: 'demo request' }\n    await handle(payload, { slackBotToken: 'xoxb-injected', fetch })\n    expect(calls.length).toBe(1)\n    expect(calls[0].headers.get('authorization')).toBe('Bearer xoxb-injected')\n  })\n})\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# Twilio SMS to Slack Router\n\nRoutes incoming Twilio SMS webhooks to Slack channels based on message content.\n\n## What it does\n\nWhen a Twilio incoming SMS webhook arrives, this connector:\n1. Extracts the message body (`Body`) and sender (`From`)\n2. Evaluates the body against the regex `/pricing|quote|demo/i`\n3. Posts the message to **#sales** if the regex matches, otherwise to **#support**\n4. Returns the Slack channel ID and timestamp\n\n## Configuration\n\n| Config Property | Environment Variable | Required | Description |\n|-----------------|---------------------|----------|-------------|\n| `slackBotToken` | `SLACK_BOT_TOKEN` | Yes | Slack Bot User OAuth Token with `chat:write` scope |\n\n## Usage Example\n\n```typescript\nimport { handle, TwilioSmsPayload, ConnectorConfig } from './connector'\n\nconst config: ConnectorConfig = {\n  slackBotToken: process.env.SLACK_BOT_TOKEN!\n}\n\n// In your webhook handler (e.g., Express, Fastify, Cloudflare Worker)\napp.post('/twilio/sms', async (req, res) => {\n  // Twilio sends application/x-www-form-urlencoded; parse it first\n  const payload = req.body as TwilioSmsPayload\n\n  try {\n    const result = await handle(payload, config)\n    console.log(`Posted to ${result.channel} (${result.slackChannelId}) at ${result.ts}`)\n    res.sendStatus(200)\n  } catch (err) {\n    console.error('Failed to route SMS:', err)\n    res.sendStatus(500)\n  }\n})\n```\n\n## Assumptions\n\n- The Twilio webhook payload includes a `Body` field containing the SMS text and a `From` field with the sender's phone number.\n- The integration evaluates the regex `/pricing|quote|demo/i` against the SMS `Body` to decide the destination channel.\n- The Slack API token has permissions to post messages to both `#sales` and `#support` channels.\n- The target Slack channels (`#sales` and `#support`) already exist in the workspace.\n- The routing logic is: if `Body` matches the regex → post to `#sales`; else → post to `#support`.\n- Twilio sends the webhook as `application/x-www-form-urlencoded`; the hosting framework must parse it before calling `handle`.\n- No authentication headers are included by Twilio; validate requests using the `X-Twilio-Signature` header and your Auth Token at the webhook entry point (outside this connector).\n- The Slack `chat.postMessage` endpoint accepts channel names (e.g., `#sales`) which Slack resolves internally.\n- Rate limits: 1 message per second per channel, with higher burst limits for the workspace.\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://www.twilio.com/docs/messaging/guides/webhook-request\n// Source: https://docs.slack.dev/reference/methods/chat.postMessage\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"MessageSid\": \"SMXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\",\n  \"AccountSid\": \"ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\",\n  \"From\": \"+14017122661\",\n  \"To\": \"+15558675310\",\n  \"Body\": \"What is the pricing for your demo?\",\n  \"NumMedia\": \"0\",\n  \"NumSegments\": \"1\"\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://slack.com/api/chat.postMessage\",\n    \"response\": {\n      \"ok\": true,\n      \"channel\": \"C01JASD6802\",\n      \"ts\": \"1234567890.123456\"\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ]
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Forking checkpoint 2eab2336 with 4 files, network off"
+    },
+    {
+      "type": "tests",
+      "attempt": 3,
+      "report": {
+        "typecheckOk": true,
+        "typecheckOutput": "",
+        "passed": 10,
+        "failed": 0,
+        "total": 10,
+        "failures": [],
+        "durationMs": 284.51953125,
+        "ranOn": "nebius-sandbox:01a0fc17-3cf2-7046-8023-040704e9b491",
+        "passedNames": [
+          "contract handles the documented example payload",
+          "handle routes to #sales when Body matches pricing",
+          "handle routes to #sales when Body matches quote",
+          "handle routes to #sales when Body matches demo (case insensitive)",
+          "handle routes to #support when Body does not match",
+          "handle throws when Body is missing",
+          "handle throws when From is missing",
+          "handle throws on non-2xx response from Slack",
+          "handle throws when Slack returns ok=false",
+          "handle uses injected fetch from config"
+        ],
+        "contract": "passed"
+      }
+    },
+    {
+      "type": "step",
+      "step": "verify",
+      "status": "done",
+      "detail": "10/10 tests after 3 attempts"
+    },
+    {
+      "type": "step",
+      "step": "package",
+      "status": "start"
+    },
+    {
+      "type": "usage",
+      "usage": [
+        {
+          "model": "nvidia/Nemotron-3_5-Lightning",
+          "promptTokens": 435,
+          "completionTokens": 336,
+          "costUsd": 0.00010673999999999998
+        },
+        {
+          "model": "nvidia/nemotron-3-super-120b-a12b",
+          "promptTokens": 15273,
+          "completionTokens": 634,
+          "costUsd": 0.0051525
+        },
+        {
+          "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+          "promptTokens": 14145,
+          "completionTokens": 10557,
+          "costUsd": 0.045816
+        }
+      ]
+    },
+    {
+      "type": "result",
+      "ok": true,
+      "attempts": 3,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "export interface ConnectorConfig {\n  /** Slack Bot Token with chat:write scope. Expected env var: SLACK_BOT_TOKEN */\n  slackBotToken: string\n  /** Injected fetch for testing or customization. */\n  fetch?: typeof fetch\n}\n\nexport interface TwilioSmsPayload {\n  MessageSid: string\n  AccountSid: string\n  From: string\n  To: string\n  Body: string\n  NumMedia: string\n  NumSegments: string\n  [key: string]: string\n}\n\nexport interface HandleResult {\n  channel: string\n  ts: string\n  slackChannelId: string\n}\n\nconst SALES_REGEX = /pricing|quote|demo/i\nconst SLACK_API_URL = 'https://slack.com/api/chat.postMessage'\n\nfunction determineChannel(body: string): string {\n  return SALES_REGEX.test(body) ? '#sales' : '#support'\n}\n\nexport async function handle(payload: TwilioSmsPayload, config: ConnectorConfig): Promise<HandleResult> {\n  const fetchImpl = config.fetch ?? fetch\n\n  if (!payload.Body || typeof payload.Body !== 'string') {\n    throw new Error('Missing required field: Body')\n  }\n  if (!payload.From || typeof payload.From !== 'string') {\n    throw new Error('Missing required field: From')\n  }\n\n  const channel = determineChannel(payload.Body)\n  const text = payload.Body\n\n  const response = await fetchImpl(SLACK_API_URL, {\n    method: 'POST',\n    headers: {\n      'Authorization': `Bearer ${config.slackBotToken}`,\n      'Content-Type': 'application/json'\n    },\n    body: JSON.stringify({ channel, text })\n  })\n\n  if (!response.ok) {\n    throw new Error(`Slack API error: ${response.status} ${response.statusText} at POST ${SLACK_API_URL}`)\n  }\n\n  const data = await response.json() as { ok: boolean; channel: string; ts: string }\n\n  if (!data.ok) {\n    throw new Error(`Slack API returned ok=false: ${JSON.stringify(data)}`)\n  }\n\n  return {\n    channel,\n    ts: data.ts,\n    slackChannelId: data.channel\n  }\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi } from 'vitest'\nimport { handle, TwilioSmsPayload, ConnectorConfig, HandleResult } from './connector'\nimport { SOURCE_EXAMPLE, contractFetch, fakeFetch, jsonResponse } from './fixtures'\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch()\n    const config: ConnectorConfig = { slackBotToken: 'xoxb-test-token', fetch }\n    const result: HandleResult = await handle(SOURCE_EXAMPLE as unknown as TwilioSmsPayload, config)\n    expect(calls.length).toBeGreaterThan(0)\n    expect(result.channel).toBe('#sales')\n    expect(result.slackChannelId).toBe('C01JASD6802')\n    expect(result.ts).toBe('1234567890.123456')\n  })\n})\n\ndescribe('handle', () => {\n  it('routes to #sales when Body matches pricing', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url === 'https://slack.com/api/chat.postMessage' && (req.json as { channel?: string } | undefined)?.channel === '#sales'\n        ? jsonResponse({ ok: true, channel: 'C01JASD680000001', ts: '1111111111.111111' }, 200)\n        : jsonResponse({ error: 'unexpected' }, 500)\n    )\n    const payload: TwilioSmsPayload = {\n      ...SOURCE_EXAMPLE,\n      Body: 'I need pricing info'\n    }\n    const result: HandleResult = await handle(payload, { slackBotToken: 'xoxb-test', fetch })\n    expect(result.channel).toBe('#sales')\n    expect(calls[0].json).toEqual({ channel: '#sales', text: 'I need pricing info' })\n    expect(calls[0].headers.get('authorization')).toBe('Bearer xoxb-test')\n  })\n\n  it('routes to #sales when Body matches quote', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url === 'https://slack.com/api/chat.postMessage' && (req.json as { channel?: string } | undefined)?.channel === '#sales'\n        ? jsonResponse({ ok: true, channel: 'C01JASD6002', ts: '2222222222.222222' }, 200)\n        : jsonResponse({ error: 'unexpected' }, 500)\n    )\n    const payload: TwilioSmsPayload = {\n      ...SOURCE_EXAMPLE,\n      Body: 'Please send me a quote'\n    }\n    const result: HandleResult = await handle(payload, { slackBotToken: 'xoxb-test', fetch })\n    expect(result.channel).toBe('#sales')\n    expect(calls[0].json).toEqual({ channel: '#sales', text: 'Please send me a quote' })\n  })\n\n  it('routes to #sales when Body matches demo (case insensitive)', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url === 'https://slack.com/api/chat.postMessage' && (req.json as { channel?: string } | undefined)?.channel === '#sales'\n        ? jsonResponse({ ok: true, channel: 'C01JASD6003', ts: '3333333333.333333' }, 200)\n        : jsonResponse({ error: 'unexpected' }, 500)\n    )\n    const payload: TwilioSmsPayload = {\n      ...SOURCE_EXAMPLE,\n      Body: 'Can I schedule a DEMO?'\n    }\n    const result: HandleResult = await handle(payload, { slackBotToken: 'xoxb-test', fetch })\n    expect(result.channel).toBe('#sales')\n    expect(calls[0].json).toEqual({ channel: '#sales', text: 'Can I schedule a DEMO?' })\n  })\n\n  it('routes to #support when Body does not match', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url === 'https://slack.com/api/chat.postMessage' && (req.json as { channel?: string } | undefined)?.channel === '#support'\n        ? jsonResponse({ ok: true, channel: 'C01JASD7001', ts: '4444444444.444444' }, 200)\n        : jsonResponse({ error: 'unexpected' }, 500)\n    )\n    const payload: TwilioSmsPayload = {\n      ...SOURCE_EXAMPLE,\n      Body: 'Hello, I have a general question'\n    }\n    const result: HandleResult = await handle(payload, { slackBotToken: 'xoxb-test', fetch })\n    expect(result.channel).toBe('#support')\n    expect(calls[0].json).toEqual({ channel: '#support', text: 'Hello, I have a general question' })\n  })\n\n  it('throws when Body is missing', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n    const payload = { ...SOURCE_EXAMPLE, Body: undefined as unknown as string }\n    await expect(handle(payload as unknown as TwilioSmsPayload, { slackBotToken: 'xoxb-test', fetch }))\n      .rejects.toThrow('Missing required field: Body')\n  })\n\n  it('throws when From is missing', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n    const payload = { ...SOURCE_EXAMPLE, From: undefined as unknown as string }\n    await expect(handle(payload as unknown as TwilioSmsPayload, { slackBotToken: 'xoxb-test', fetch }))\n      .rejects.toThrow('Missing required field: From')\n  })\n\n  it('throws on non-2xx response from Slack', async () => {\n    const { fetch, calls } = fakeFetch(() => jsonResponse({ error: 'invalid_auth' }, 401))\n    const payload: TwilioSmsPayload = { ...SOURCE_EXAMPLE, Body: 'pricing please' }\n    await expect(handle(payload, { slackBotToken: 'xoxb-test', fetch }))\n      .rejects.toThrow('Slack API error: 401 Unauthorized at POST https://slack.com/api/chat.postMessage')\n    expect(calls[0].url).toBe('https://slack.com/api/chat.postMessage')\n  })\n\n  it('throws when Slack returns ok=false', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({ ok: false, error: 'channel_not_found' }, 200))\n    const payload: TwilioSmsPayload = { ...SOURCE_EXAMPLE, Body: 'pricing please' }\n    await expect(handle(payload, { slackBotToken: 'xoxb-test', fetch }))\n      .rejects.toThrow('Slack API returned ok=false')\n  })\n\n  it('uses injected fetch from config', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url === 'https://slack.com/api/chat.postMessage'\n        ? jsonResponse({ ok: true, channel: 'C01JASD6999', ts: '9999999999.999999' }, 200)\n        : jsonResponse({ error: 'unexpected' }, 500)\n    )\n    const payload: TwilioSmsPayload = { ...SOURCE_EXAMPLE, Body: 'demo request' }\n    await handle(payload, { slackBotToken: 'xoxb-injected', fetch })\n    expect(calls.length).toBe(1)\n    expect(calls[0].headers.get('authorization')).toBe('Bearer xoxb-injected')\n  })\n})\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# Twilio SMS to Slack Router\n\nRoutes incoming Twilio SMS webhooks to Slack channels based on message content.\n\n## What it does\n\nWhen a Twilio incoming SMS webhook arrives, this connector:\n1. Extracts the message body (`Body`) and sender (`From`)\n2. Evaluates the body against the regex `/pricing|quote|demo/i`\n3. Posts the message to **#sales** if the regex matches, otherwise to **#support**\n4. Returns the Slack channel ID and timestamp\n\n## Configuration\n\n| Config Property | Environment Variable | Required | Description |\n|-----------------|---------------------|----------|-------------|\n| `slackBotToken` | `SLACK_BOT_TOKEN` | Yes | Slack Bot User OAuth Token with `chat:write` scope |\n\n## Usage Example\n\n```typescript\nimport { handle, TwilioSmsPayload, ConnectorConfig } from './connector'\n\nconst config: ConnectorConfig = {\n  slackBotToken: process.env.SLACK_BOT_TOKEN!\n}\n\n// In your webhook handler (e.g., Express, Fastify, Cloudflare Worker)\napp.post('/twilio/sms', async (req, res) => {\n  // Twilio sends application/x-www-form-urlencoded; parse it first\n  const payload = req.body as TwilioSmsPayload\n\n  try {\n    const result = await handle(payload, config)\n    console.log(`Posted to ${result.channel} (${result.slackChannelId}) at ${result.ts}`)\n    res.sendStatus(200)\n  } catch (err) {\n    console.error('Failed to route SMS:', err)\n    res.sendStatus(500)\n  }\n})\n```\n\n## Assumptions\n\n- The Twilio webhook payload includes a `Body` field containing the SMS text and a `From` field with the sender's phone number.\n- The integration evaluates the regex `/pricing|quote|demo/i` against the SMS `Body` to decide the destination channel.\n- The Slack API token has permissions to post messages to both `#sales` and `#support` channels.\n- The target Slack channels (`#sales` and `#support`) already exist in the workspace.\n- The routing logic is: if `Body` matches the regex → post to `#sales`; else → post to `#support`.\n- Twilio sends the webhook as `application/x-www-form-urlencoded`; the hosting framework must parse it before calling `handle`.\n- No authentication headers are included by Twilio; validate requests using the `X-Twilio-Signature` header and your Auth Token at the webhook entry point (outside this connector).\n- The Slack `chat.postMessage` endpoint accepts channel names (e.g., `#sales`) which Slack resolves internally.\n- Rate limits: 1 message per second per channel, with higher burst limits for the workspace.\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://www.twilio.com/docs/messaging/guides/webhook-request\n// Source: https://docs.slack.dev/reference/methods/chat.postMessage\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"MessageSid\": \"SMXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\",\n  \"AccountSid\": \"ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\",\n  \"From\": \"+14017122661\",\n  \"To\": \"+15558675310\",\n  \"Body\": \"What is the pricing for your demo?\",\n  \"NumMedia\": \"0\",\n  \"NumSegments\": \"1\"\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://slack.com/api/chat.postMessage\",\n    \"response\": {\n      \"ok\": true,\n      \"channel\": \"C01JASD6802\",\n      \"ts\": \"1234567890.123456\"\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ],
+      "report": {
+        "typecheckOk": true,
+        "typecheckOutput": "",
+        "passed": 10,
+        "failed": 0,
+        "total": 10,
+        "failures": [],
+        "durationMs": 284.51953125,
+        "ranOn": "nebius-sandbox:01a0fc17-3cf2-7046-8023-040704e9b491",
+        "passedNames": [
+          "contract handles the documented example payload",
+          "handle routes to #sales when Body matches pricing",
+          "handle routes to #sales when Body matches quote",
+          "handle routes to #sales when Body matches demo (case insensitive)",
+          "handle routes to #support when Body does not match",
+          "handle throws when Body is missing",
+          "handle throws when From is missing",
+          "handle throws on non-2xx response from Slack",
+          "handle throws when Slack returns ok=false",
+          "handle uses injected fetch from config"
+        ],
+        "contract": "passed"
+      }
+    },
+    {
+      "type": "step",
+      "step": "package",
+      "status": "done"
+    }
+  ]
+}

@@ -1,0 +1,442 @@
+{
+  "prompt": "When a new row is added to an Airtable base, send the row as a message to a Discord channel via webhook.",
+  "events": [
+    {
+      "type": "mode",
+      "mode": "live"
+    },
+    {
+      "type": "step",
+      "step": "plan",
+      "status": "start"
+    },
+    {
+      "type": "plan",
+      "plan": {
+        "summary": "When a new row is added to an Airtable base, send the row data as a message to a Discord channel via webhook.",
+        "source": {
+          "app": "Airtable",
+          "trigger": "new record webhook",
+          "docsQuery": "Airtable Web API new record webhook payload fields"
+        },
+        "target": {
+          "app": "Discord",
+          "action": "send webhook message",
+          "docsQuery": "Discord webhook send message payload content username"
+        },
+        "fieldMapping": [
+          {
+            "from": "id",
+            "to": "content",
+            "note": "Airtable record ID string"
+          },
+          {
+            "from": "createdTime",
+            "to": "embeds[0].title",
+            "note": "Timestamp of record creation"
+          },
+          {
+            "from": "fields",
+            "to": "embeds[0].description",
+            "note": "Object containing all column values; map specific fields below as needed"
+          },
+          {
+            "from": "fields.Name",
+            "to": "embeds[0].description",
+            "note": "Example: map a 'Name' column to the message description"
+          },
+          {
+            "from": "fields.Email",
+            "to": "embeds[0].description",
+            "note": "Example: map an 'Email' column to the message description"
+          }
+        ],
+        "assumptions": [
+          "The Airtable webhook payload includes a 'fields' object with column names as keys and cell values as values.",
+          "The Discord webhook accepts a JSON payload with 'content' and/or 'embeds' fields.",
+          "The user will configure specific field mappings from Airtable columns to the Discord message content based on their base schema."
+        ]
+      }
+    },
+    {
+      "type": "step",
+      "step": "plan",
+      "status": "done",
+      "detail": "When a new row is added to an Airtable base, send the row data as a message to a Discord channel via webhook."
+    },
+    {
+      "type": "step",
+      "step": "research",
+      "status": "start"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Installing typescript + vitest in a sandbox checkpoint"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Searched \"Airtable Web API new record webhook payload fields\": 2 of 2 picked from Airtable's own docs"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Searched \"Discord webhook send message payload content username\": 2 of 2 picked from Discord's own docs"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Extracted 4 documentation pages"
+    },
+    {
+      "type": "sources",
+      "sources": [
+        {
+          "title": "Get data from an external source using webhook | Airtable Community",
+          "url": "https://community.airtable.com/development-apis-11/get-data-from-an-external-source-using-webhook-3689",
+          "official": true
+        },
+        {
+          "title": "Get new record data with webhooks | Airtable Community",
+          "url": "https://community.airtable.com/other-questions-13/get-new-record-data-with-webhooks-18306",
+          "official": true
+        },
+        {
+          "title": "Webhook Resource - Documentation - Discord",
+          "url": "https://docs.discord.com/developers/resources/webhook",
+          "official": true
+        },
+        {
+          "title": "Discord Webhook Custom Avatar and Username: Per-Message Overrides — Discord Webhook",
+          "url": "https://discord-webhook.com/en/blog/discord-webhook-username-avatar",
+          "official": true
+        }
+      ]
+    },
+    {
+      "type": "spec",
+      "spec": {
+        "source": {
+          "app": "Airtable",
+          "role": "source",
+          "method": "GET",
+          "url": "https://api.airtable.com/v0/bases/{baseId}/webhooks/{webhookId}/payloads",
+          "auth": {
+            "type": "bearer",
+            "name": "Authorization",
+            "envVar": "AIRTABLE_PERSONAL_ACCESS_TOKEN"
+          },
+          "example": {
+            "payloads": [
+              {
+                "id": "recXXXXXXXXXXXXXX",
+                "baseTransactionNumber": 1,
+                "timestamp": "2023-04-10T12:34:56.000Z",
+                "data": {
+                  "recordId": "recXXXXXXXXXXXXXX",
+                  "record": {
+                    "id": "recXXXXXXXXXXXXXX",
+                    "createdTime": "2023-04-10T12:34:56.000Z",
+                    "fields": {
+                      "Name": "John Doe",
+                      "Email": "john@example.com"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "docsUrl": "https://community.airtable.com/other-questions-13/get-new-record-data-with-webhooks-18306",
+          "notes": [
+            "Airtable webhooks do not deliver full record data in the initial ping; you must poll the payloads endpoint to get the record data.",
+            "The payloads endpoint returns an array of payload objects; each contains a 'data' field with the record information.",
+            "Use 'baseTransactionNumber' to track which payloads have been processed, as it increments with each notification.",
+            "Authentication requires a Bearer token from Airtable Personal Access Token.",
+            "The webhook must be configured in Airtable Automations or via the Web API to trigger on record creation."
+          ]
+        },
+        "target": [
+          {
+            "app": "Discord",
+            "role": "target",
+            "method": "POST",
+            "url": "https://discord.com/api/webhooks/{webhookId}/{webhookToken}",
+            "auth": {
+              "type": "none",
+              "name": null,
+              "envVar": null
+            },
+            "example": {
+              "content": "recXXXXXXXXXXXXXX",
+              "embeds": [
+                {
+                  "title": "2023-04-10T12:34:56.000Z",
+                  "description": "Name: John Doe\\nEmail: john@example.com"
+                }
+              ]
+            },
+            "responseExample": {
+              "id": "123456789012345678",
+              "channel_id": "123456789012345678",
+              "author": {
+                "username": "Airtable Webhook",
+                "discriminator": "0001",
+                "id": "987654321098765432",
+                "avatar": null
+              },
+              "content": "recXXXXXXXXXXXXXX",
+              "embeds": [
+                {
+                  "title": "2023-04-10T12:34:56.000Z",
+                  "description": "Name: John Doe\\nEmail: john@example.com"
+                }
+              ]
+            },
+            "docsUrl": "https://docs.discord.com/developers/resources/webhook#execute-webhook",
+            "notes": [
+              "The Discord webhook URL includes the webhook ID and token as path parameters.",
+              "At least one of 'content', 'embeds', 'file', or 'poll' must be provided.",
+              "The 'embeds' field accepts an array of up to 10 embed objects.",
+              "Embeds support 'title' and 'description' fields as shown in the mapping.",
+              "Use '?wait=true' query parameter to get the message object in response for confirmation.",
+              "No authentication is required for executing a webhook; the token in the URL serves as authorization.",
+              "Rate limits apply per webhook; monitor for 429 responses."
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "step",
+      "step": "research",
+      "status": "done",
+      "detail": "2 endpoints from 4 pages"
+    },
+    {
+      "type": "step",
+      "step": "generate",
+      "status": "start"
+    },
+    {
+      "type": "files",
+      "attempt": 1,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "export interface ConnectorConfig {\n  discordWebhookId: string\n  discordWebhookToken: string\n  fetch?: typeof fetch\n}\n\nexport interface AirtablePayloadsResponse {\n  payloads: Array<{\n    id: string\n    baseTransactionNumber: number\n    timestamp: string\n    data: {\n      recordId: string\n      record: {\n        id: string\n        createdTime: string\n        fields: Record<string, unknown>\n      }\n    }\n  }>\n}\n\nexport interface HandleResult {\n  messageIds: string[]\n}\n\nfunction formatFields(fields: Record<string, unknown>): string {\n  return Object.entries(fields)\n    .map(([key, value]) => `${key}: ${String(value)}`)\n    .join('\\n')\n}\n\nexport async function handle(\n  payload: AirtablePayloadsResponse,\n  config: ConnectorConfig\n): Promise<HandleResult> {\n  const fetchImpl = config.fetch ?? fetch\n\n  if (!config.discordWebhookId) {\n    throw new Error('Missing required config: discordWebhookId')\n  }\n  if (!config.discordWebhookToken) {\n    throw new Error('Missing required config: discordWebhookToken')\n  }\n  if (!payload.payloads || !Array.isArray(payload.payloads)) {\n    throw new Error('Invalid payload: missing or invalid \"payloads\" array')\n  }\n\n  const messageIds: string[] = []\n  const webhookUrl = `https://discord.com/api/webhooks/${config.discordWebhookId}/${config.discordWebhookToken}?wait=true`\n\n  for (const item of payload.payloads) {\n    const record = item.data?.record\n    if (!record) {\n      throw new Error(`Payload item ${item.id} missing record data`)\n    }\n    if (!record.id) {\n      throw new Error(`Record missing required field: id`)\n    }\n    if (!record.createdTime) {\n      throw new Error(`Record ${record.id} missing required field: createdTime`)\n    }\n    if (!record.fields || typeof record.fields !== 'object') {\n      throw new Error(`Record ${record.id} missing required field: fields`)\n    }\n\n    const discordPayload = {\n      content: record.id,\n      embeds: [\n        {\n          title: record.createdTime,\n          description: formatFields(record.fields)\n        }\n      ]\n    }\n\n    const response = await fetchImpl(webhookUrl, {\n      method: 'POST',\n      headers: {\n        'Content-Type': 'application/json'\n      },\n      body: JSON.stringify(discordPayload)\n    })\n\n    if (!response.ok) {\n      throw new Error(\n        `Discord webhook request failed: ${response.status} ${response.statusText} at POST ${webhookUrl}`\n      )\n    }\n\n    const data = (await response.json()) as { id: string }\n    if (!data.id) {\n      throw new Error('Discord response missing message id')\n    }\n    messageIds.push(data.id)\n  }\n\n  return { messageIds }\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi } from 'vitest'\nimport { handle, ConnectorConfig, AirtablePayloadsResponse } from './connector'\nimport {\n  SOURCE_EXAMPLE,\n  TARGET_ENDPOINTS,\n  contractFetch,\n  fakeFetch,\n  jsonResponse,\n  RecordedCall\n} from './fixtures'\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch()\n    const config: ConnectorConfig = {\n      discordWebhookId: 'test-webhook-id',\n      discordWebhookToken: 'test-webhook-token',\n      fetch\n    }\n    const result = await handle(SOURCE_EXAMPLE as unknown as AirtablePayloadsResponse, config)\n    expect(calls.length).toBeGreaterThan(0)\n    expect(result.messageIds).toEqual(['123456789012345678'])\n  })\n})\n\ndescribe('handle', () => {\n  it('sends correctly mapped fields to Discord webhook on happy path', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url.includes('/webhooks/test-webhook-id/test-webhook-token')\n        ? jsonResponse({ id: 'msg-123' }, 200)\n        : jsonResponse({ error: 'not found' }, 404)\n    )\n\n    const payload: AirtablePayloadsResponse = {\n      payloads: [\n        {\n          id: 'rec111',\n          baseTransactionNumber: 1,\n          timestamp: '2023-01-01T00:00:00.000Z',\n          data: {\n            recordId: 'rec111',\n            record: {\n              id: 'rec111',\n              createdTime: '2023-01-01T12:00:00.000Z',\n              fields: {\n                Name: 'Alice',\n                Email: 'alice@example.com',\n                Age: 30\n              }\n            }\n          }\n        }\n      ]\n    }\n\n    const config: ConnectorConfig = {\n      discordWebhookId: 'test-webhook-id',\n      discordWebhookToken: 'test-webhook-token',\n      fetch\n    }\n\n    const result = await handle(payload, config)\n\n    expect(result.messageIds).toEqual(['msg-123'])\n    expect(calls).toHaveLength(1)\n    const call = calls[0]\n    expect(call.method).toBe('POST')\n    expect(call.url).toBe('https://discord.com/api/webhooks/test-webhook-id/test-webhook-token?wait=true')\n    expect(call.json).toEqual({\n      content: 'rec111',\n      embeds: [\n        {\n          title: '2023-01-01T12:00:00.000Z',\n          description: 'Name: Alice\\nEmail: alice@example.com\\nAge: 30'\n        }\n      ]\n    })\n    expect(call.headers.get('content-type')).toBe('application/json')\n  })\n\n  it('uses token in URL for authorization (no auth header)', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url.includes('/webhooks/wh-id/wh-token') ? jsonResponse({ id: 'm1' }, 200) : jsonResponse({}, 404)\n    )\n\n    const payload: AirtablePayloadsResponse = {\n      payloads: [\n        {\n          id: 'rec1',\n          baseTransactionNumber: 1,\n          timestamp: '2023-01-01T00:00:00.000Z',\n          data: {\n            recordId: 'rec1',\n            record: { id: 'rec1', createdTime: '2023-01-01T00:00:00.000Z', fields: { Foo: 'bar' } }\n          }\n        }\n      ]\n    }\n\n    await handle(payload, { discordWebhookId: 'wh-id', discordWebhookToken: 'wh-token', fetch })\n\n    expect(calls[0].url).toContain('/webhooks/wh-id/wh-token')\n    expect(calls[0].headers.get('authorization')).toBeNull()\n  })\n\n  it('maps record id to content and createdTime to embed title', async () => {\n    const { fetch, calls } = fakeFetch((req) => jsonResponse({ id: 'm1' }, 200))\n\n    const payload: AirtablePayloadsResponse = {\n      payloads: [\n        {\n          id: 'recXYZ',\n          baseTransactionNumber: 1,\n          timestamp: '2023-01-01T00:00:00.000Z',\n          data: {\n            recordId: 'recXYZ',\n            record: { id: 'recXYZ', createdTime: '2023-05-05T10:30:00.000Z', fields: { A: '1' } }\n          }\n        }\n      ]\n    }\n\n    await handle(payload, { discordWebhookId: 'id', discordWebhookToken: 'tok', fetch })\n\n    expect(calls[0].json).toEqual({\n      content: 'recXYZ',\n      embeds: [{ title: '2023-05-05T10:30:00.000Z', description: 'A: 1' }]\n    })\n  })\n\n  it('throws when payload missing payloads array', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n    const badPayload = { payloads: null } as unknown as AirtablePayloadsResponse\n    await expect(handle(badPayload, { discordWebhookId: 'id', discordWebhookToken: 'tok', fetch })).rejects.toThrow(\n      'Invalid payload: missing or invalid \"payloads\" array'\n    )\n  })\n\n  it('throws when record missing required id field', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n    const payload: AirtablePayloadsResponse = {\n      payloads: [\n        {\n          id: 'rec1',\n          baseTransactionNumber: 1,\n          timestamp: '2023-01-01T00:00:00.000Z',\n          data: { recordId: 'rec1', record: { createdTime: '2023-01-01T00:00:00.000Z', fields: {} } }\n        }\n      ]\n    }\n    await expect(handle(payload, { discordWebhookId: 'id', discordWebhookToken: 'tok', fetch })).rejects.toThrow(\n      'Record missing required field: id'\n    )\n  })\n\n  it('throws when record missing required createdTime field', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n    const payload: AirtablePayloadsResponse = {\n      payloads: [\n        {\n          id: 'rec1',\n          baseTransactionNumber: 1,\n          timestamp: '2023-01-01T00:00:00.000Z',\n          data: { recordId: 'rec1', record: { id: 'rec1', fields: {} } }\n        }\n      ]\n    }\n    await expect(handle(payload, { discordWebhookId: 'id', discordWebhookToken: 'tok', fetch })).rejects.toThrow(\n      'Record rec1 missing required field: createdTime'\n    )\n  })\n\n  it('throws when record missing required fields object', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n    const payload: AirtablePayloadsResponse = {\n      payloads: [\n        {\n          id: 'rec1',\n          baseTransactionNumber: 1,\n          timestamp: '2023-01-01T00:00:00.000Z',\n          data: { recordId: 'rec1', record: { id: 'rec1', createdTime: '2023-01-01T00:00:00.000Z' } }\n        }\n      ]\n    }\n    await expect(handle(payload, { discordWebhookId: 'id', discordWebhookToken: 'tok', fetch })).rejects.toThrow(\n      'Record rec1 missing required field: fields'\n    )\n  })\n\n  it('throws when config missing discordWebhookId', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n    const payload: AirtablePayloadsResponse = {\n      payloads: [\n        {\n          id: 'rec1',\n          baseTransactionNumber: 1,\n          timestamp: '2023-01-01T00:00:00.000Z',\n          data: { recordId: 'rec1', record: { id: 'rec1', createdTime: '2023-01-01T00:00:00.000Z', fields: {} } }\n        }\n      ]\n    }\n    await expect(handle(payload, { discordWebhookToken: 'tok', fetch })).rejects.toThrow(\n      'Missing required config: discordWebhookId'\n    )\n  })\n\n  it('throws when config missing discordWebhookToken', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n    const payload: AirtablePayloadsResponse = {\n      payloads: [\n        {\n          id: 'rec1',\n          baseTransactionNumber: 1,\n          timestamp: '2023-01-01T00:00:00.000Z',\n          data: { recordId: 'rec1', record: { id: 'rec1', createdTime: '2023-01-01T00:00:00.000Z', fields: {} } }\n        }\n      ]\n    }\n    await expect(handle(payload, { discordWebhookId: 'id', fetch })).rejects.toThrow(\n      'Missing required config: discordWebhookToken'\n    )\n  })\n\n  it('throws on non-2xx response from Discord with status and endpoint', async () => {\n    const { fetch, calls } = fakeFetch((req) => jsonResponse({ message: 'Invalid Webhook Token' }, 401))\n\n    const payload: AirtablePayloadsResponse = {\n      payloads: [\n        {\n          id: 'rec1',\n          baseTransactionNumber: 1,\n          timestamp: '2023-01-01T00:00:00.000Z',\n          data: { recordId: 'rec1', record: { id: 'rec1', createdTime: '2023-01-01T00:00:00.000Z', fields: {} } }\n        }\n      ]\n    }\n\n    await expect(handle(payload, { discordWebhookId: 'id', discordWebhookToken: 'tok', fetch })).rejects.toThrow(\n      'Discord webhook request failed: 401 Unauthorized at POST https://discord.com/api/webhooks/id/tok?wait=true'\n    )\n    expect(calls).toHaveLength(1)\n  })\n\n  it('processes multiple payloads and returns all message ids', async () => {\n    let callCount = 0\n    const { fetch, calls } = fakeFetch((req) => {\n      callCount++\n      return jsonResponse({ id: `msg-${callCount}` }, 200)\n    })\n\n    const payload: AirtablePayloadsResponse = {\n      payloads: [\n        {\n          id: 'rec1',\n          baseTransactionNumber: 1,\n          timestamp: '2023-01-01T00:00:00.000Z',\n          data: { recordId: 'rec1', record: { id: 'rec1', createdTime: '2023-01-01T00:00:00.000Z', fields: { A: '1' } } }\n        },\n        {\n          id: 'rec2',\n          baseTransactionNumber: 2,\n          timestamp: '2023-01-01T00:00:01.000Z',\n          data: { recordId: 'rec2', record: { id: 'rec2', createdTime: '2023-01-01T00:00:01.000Z', fields: { B: '2' } } }\n        }\n      ]\n    }\n\n    const result = await handle(payload, { discordWebhookId: 'id', discordWebhookToken: 'tok', fetch })\n\n    expect(result.messageIds).toEqual(['msg-1', 'msg-2'])\n    expect(calls).toHaveLength(2)\n  })\n})\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# Airtable to Discord Webhook Connector\n\nSends new Airtable records to a Discord channel via webhook when a new row is added to an Airtable base.\n\n## What it does\n\n1. Receives an Airtable webhook payloads response (from polling the payloads endpoint after a webhook ping)\n2. Extracts each record's ID, creation timestamp, and fields\n3. Formats the fields as `Key: Value` lines for the embed description\n4. Posts a message to a Discord webhook with:\n   - `content`: Airtable record ID\n   - `embeds[0].title`: Record creation timestamp\n   - `embeds[0].description`: Formatted field list\n5. Returns the Discord message IDs for confirmation\n\n## Configuration\n\n| Config Property | Environment Variable | Required | Description |\n|-----------------|---------------------|----------|-------------|\n| `discordWebhookId` | `DISCORD_WEBHOOK_ID` | Yes | Discord webhook ID (from webhook URL) |\n| `discordWebhookToken` | `DISCORD_WEBHOOK_TOKEN` | Yes | Discord webhook token (from webhook URL) |\n\nThe Airtable Personal Access Token (`AIRTABLE_PERSONAL_ACCESS_TOKEN`) is **not** required by this connector because it operates on the already-fetched payloads response. The token is only needed for the separate polling step that retrieves payloads from Airtable.\n\n## Usage Example\n\n```typescript\nimport { handle, ConnectorConfig } from './connector'\n\nconst config: ConnectorConfig = {\n  discordWebhookId: process.env.DISCORD_WEBHOOK_ID!,\n  discordWebhookToken: process.env.DISCORD_WEBHOOK_TOKEN!\n}\n\n// payload is the response from GET https://api.airtable.com/v0/bases/{baseId}/webhooks/{webhookId}/payloads\nconst result = await handle(payload, config)\nconsole.log('Posted message IDs:', result.messageIds)\n```\n\n## Assumptions\n\n- The input payload follows the Airtable payloads endpoint response structure (array of payload objects each containing `data.record` with `id`, `createdTime`, and `fields`).\n- The Discord webhook accepts JSON with `content` and/or `embeds` fields.\n- The webhook URL uses the format `https://discord.com/api/webhooks/{webhookId}/{webhookToken}?wait=true` to receive the created message in the response.\n- All fields in the Airtable record's `fields` object are included in the Discord embed description as `Key: Value` lines.\n- No authentication header is sent to Discord; the token in the webhook URL authorizes the request.\n- Rate limits (429 responses) are not handled automatically; the caller should implement retry logic if needed.\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://community.airtable.com/other-questions-13/get-new-record-data-with-webhooks-18306\n// Source: https://docs.discord.com/developers/resources/webhook#execute-webhook\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"payloads\": [\n    {\n      \"id\": \"recXXXXXXXXXXXXXX\",\n      \"baseTransactionNumber\": 1,\n      \"timestamp\": \"2023-04-10T12:34:56.000Z\",\n      \"data\": {\n        \"recordId\": \"recXXXXXXXXXXXXXX\",\n        \"record\": {\n          \"id\": \"recXXXXXXXXXXXXXX\",\n          \"createdTime\": \"2023-04-10T12:34:56.000Z\",\n          \"fields\": {\n            \"Name\": \"John Doe\",\n            \"Email\": \"john@example.com\"\n          }\n        }\n      }\n    }\n  ]\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://discord.com/api/webhooks/{webhookId}/{webhookToken}\",\n    \"response\": {\n      \"id\": \"123456789012345678\",\n      \"channel_id\": \"123456789012345678\",\n      \"author\": {\n        \"username\": \"Airtable Webhook\",\n        \"discriminator\": \"0001\",\n        \"id\": \"987654321098765432\",\n        \"avatar\": null\n      },\n      \"content\": \"recXXXXXXXXXXXXXX\",\n      \"embeds\": [\n        {\n          \"title\": \"2023-04-10T12:34:56.000Z\",\n          \"description\": \"Name: John Doe\\\\nEmail: john@example.com\"\n        }\n      ]\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ]
+    },
+    {
+      "type": "step",
+      "step": "generate",
+      "status": "done",
+      "detail": "src/connector.ts, src/connector.test.ts, README.md, src/fixtures.ts"
+    },
+    {
+      "type": "step",
+      "step": "verify",
+      "status": "start"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Checkpoint ready: 15ca879a"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Forking checkpoint 15ca879a with 4 files, network off"
+    },
+    {
+      "type": "tests",
+      "attempt": 1,
+      "report": {
+        "typecheckOk": false,
+        "typecheckOutput": "src/connector.test.ts(147,37): error TS2741: Property 'id' is missing in type '{ createdTime: string; fields: {}; }' but required in type '{ id: string; createdTime: string; fields: Record<string, unknown>; }'.\nsrc/connector.test.ts(164,37): error TS2741: Property 'createdTime' is missing in type '{ id: string; fields: {}; }' but required in type '{ id: string; createdTime: string; fields: Record<string, unknown>; }'.\nsrc/connector.test.ts(181,37): error TS2741: Property 'fields' is missing in type '{ id: string; createdTime: string; }' but required in type '{ id: string; createdTime: string; fields: Record<string, unknown>; }'.\nsrc/connector.test.ts(202,34): error TS2345: Argument of type '{ discordWebhookToken: string; fetch: { (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (input: string | URL | Request, init?: RequestInit): Promise<Response>; }; }' is not assignable to parameter of type 'ConnectorConfig'.\n  Property 'discordWebhookId' is missing in type '{ discordWebhookToken: string; fetch: { (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (input: string | URL | Request, init?: RequestInit): Promise<Response>; }; }' but required in type 'ConnectorConfig'.\nsrc/connector.test.ts(219,34): error TS2345: Argument of type '{ discordWebhookId: string; fetch: { (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (input: string | URL | Request, init?: RequestInit): Promise<Response>; }; }' is not assignable to parameter of type 'ConnectorConfig'.\n  Property 'discordWebhookToken' is missing in type '{ discordWebhookId: string; fetch: { (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (input: string | URL | Request, init?: RequestInit): Promise<Response>; }; }' but required in type 'ConnectorConfig'.",
+        "passed": 12,
+        "failed": 0,
+        "total": 12,
+        "failures": [],
+        "durationMs": 322.63232421875,
+        "ranOn": "nebius-sandbox:01a0fbc4-eaaa-7201-ad19-daed31602b28",
+        "passedNames": [
+          "contract handles the documented example payload",
+          "handle sends correctly mapped fields to Discord webhook on happy path",
+          "handle uses token in URL for authorization (no auth header)",
+          "handle maps record id to content and createdTime to embed title",
+          "handle throws when payload missing payloads array",
+          "handle throws when record missing required id field",
+          "handle throws when record missing required createdTime field",
+          "handle throws when record missing required fields object",
+          "handle throws when config missing discordWebhookId",
+          "handle throws when config missing discordWebhookToken",
+          "handle throws on non-2xx response from Discord with status and endpoint",
+          "handle processes multiple payloads and returns all message ids"
+        ],
+        "contract": "passed"
+      }
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Attempt 1 failed (0 tests, typecheck failed), repairing"
+    },
+    {
+      "type": "files",
+      "attempt": 2,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "export interface ConnectorConfig {\n  discordWebhookId: string\n  discordWebhookToken: string\n  fetch?: typeof fetch\n}\n\nexport interface AirtablePayloadsResponse {\n  payloads: Array<{\n    id: string\n    baseTransactionNumber: number\n    timestamp: string\n    data: {\n      recordId: string\n      record: {\n        id: string\n        createdTime: string\n        fields: Record<string, unknown>\n      }\n    }\n  }>\n}\n\nexport interface HandleResult {\n  messageIds: string[]\n}\n\nfunction formatFields(fields: Record<string, unknown>): string {\n  return Object.entries(fields)\n    .map(([key, value]) => `${key}: ${String(value)}`)\n    .join('\\n')\n}\n\nexport async function handle(\n  payload: AirtablePayloadsResponse,\n  config: ConnectorConfig\n): Promise<HandleResult> {\n  const fetchImpl = config.fetch ?? fetch\n\n  if (!config.discordWebhookId) {\n    throw new Error('Missing required config: discordWebhookId')\n  }\n  if (!config.discordWebhookToken) {\n    throw new Error('Missing required config: discordWebhookToken')\n  }\n  if (!payload.payloads || !Array.isArray(payload.payloads)) {\n    throw new Error('Invalid payload: missing or invalid \"payloads\" array')\n  }\n\n  const messageIds: string[] = []\n  const webhookUrl = `https://discord.com/api/webhooks/${config.discordWebhookId}/${config.discordWebhookToken}?wait=true`\n\n  for (const item of payload.payloads) {\n    const record = item.data?.record\n    if (!record) {\n      throw new Error(`Payload item ${item.id} missing record data`)\n    }\n    if (!record.id) {\n      throw new Error(`Record missing required field: id`)\n    }\n    if (!record.createdTime) {\n      throw new Error(`Record ${record.id} missing required field: createdTime`)\n    }\n    if (!record.fields || typeof record.fields !== 'object') {\n      throw new Error(`Record ${record.id} missing required field: fields`)\n    }\n\n    const discordPayload = {\n      content: record.id,\n      embeds: [\n        {\n          title: record.createdTime,\n          description: formatFields(record.fields)\n        }\n      ]\n    }\n\n    const response = await fetchImpl(webhookUrl, {\n      method: 'POST',\n      headers: {\n        'Content-Type': 'application/json'\n      },\n      body: JSON.stringify(discordPayload)\n    })\n\n    if (!response.ok) {\n      throw new Error(\n        `Discord webhook request failed: ${response.status} ${response.statusText} at POST ${webhookUrl}`\n      )\n    }\n\n    const data = (await response.json()) as { id: string }\n    if (!data.id) {\n      throw new Error('Discord response missing message id')\n    }\n    messageIds.push(data.id)\n  }\n\n  return { messageIds }\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi } from 'vitest'\nimport { handle, ConnectorConfig, AirtablePayloadsResponse } from './connector'\nimport {\n  SOURCE_EXAMPLE,\n  TARGET_ENDPOINTS,\n  contractFetch,\n  fakeFetch,\n  jsonResponse,\n  RecordedCall\n} from './fixtures'\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch()\n    const config: ConnectorConfig = {\n      discordWebhookId: 'test-webhook-id',\n      discordWebhookToken: 'test-webhook-token',\n      fetch\n    }\n    const result = await handle(SOURCE_EXAMPLE as unknown as AirtablePayloadsResponse, config)\n    expect(calls.length).toBeGreaterThan(0)\n    expect(result.messageIds).toEqual(['123456789012345678'])\n  })\n})\n\ndescribe('handle', () => {\n  it('sends correctly mapped fields to Discord webhook on happy path', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url.includes('/webhooks/test-webhook-id/test-webhook-token')\n        ? jsonResponse({ id: 'msg-123' }, 200)\n        : jsonResponse({ error: 'not found' }, 404)\n    )\n\n    const payload: AirtablePayloadsResponse = {\n      payloads: [\n        {\n          id: 'rec111',\n          baseTransactionNumber: 1,\n          timestamp: '2023-01-01T00:00:00.000Z',\n          data: {\n            recordId: 'rec111',\n            record: {\n              id: 'rec111',\n              createdTime: '2023-01-01T12:00:00.000Z',\n              fields: {\n                Name: 'Alice',\n                Email: 'alice@example.com',\n                Age: 30\n              }\n            }\n          }\n        }\n      ]\n    }\n\n    const config: ConnectorConfig = {\n      discordWebhookId: 'test-webhook-id',\n      discordWebhookToken: 'test-webhook-token',\n      fetch\n    }\n\n    const result = await handle(payload, config)\n\n    expect(result.messageIds).toEqual(['msg-123'])\n    expect(calls).toHaveLength(1)\n    const call = calls[0]\n    expect(call.method).toBe('POST')\n    expect(call.url).toBe('https://discord.com/api/webhooks/test-webhook-id/test-webhook-token?wait=true')\n    expect(call.json).toEqual({\n      content: 'rec111',\n      embeds: [\n        {\n          title: '2023-01-01T12:00:00.000Z',\n          description: 'Name: Alice\\nEmail: alice@example.com\\nAge: 30'\n        }\n      ]\n    })\n    expect(call.headers.get('content-type')).toBe('application/json')\n  })\n\n  it('uses token in URL for authorization (no auth header)', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url.includes('/webhooks/wh-id/wh-token') ? jsonResponse({ id: 'm1' }, 200) : jsonResponse({}, 404)\n    )\n\n    const payload: AirtablePayloadsResponse = {\n      payloads: [\n        {\n          id: 'rec1',\n          baseTransactionNumber: 1,\n          timestamp: '2023-01-01T00:00:00.000Z',\n          data: {\n            recordId: 'rec1',\n            record: { id: 'rec1', createdTime: '2023-01-01T00:00:00.000Z', fields: { Foo: 'bar' } }\n          }\n        }\n      ]\n    }\n\n    await handle(payload, { discordWebhookId: 'wh-id', discordWebhookToken: 'wh-token', fetch })\n\n    expect(calls[0].url).toContain('/webhooks/wh-id/wh-token')\n    expect(calls[0].headers.get('authorization')).toBeNull()\n  })\n\n  it('maps record id to content and createdTime to embed title', async () => {\n    const { fetch, calls } = fakeFetch((req) => jsonResponse({ id: 'm1' }, 200))\n\n    const payload: AirtablePayloadsResponse = {\n      payloads: [\n        {\n          id: 'recXYZ',\n          baseTransactionNumber: 1,\n          timestamp: '2023-01-01T00:00:00.000Z',\n          data: {\n            recordId: 'recXYZ',\n            record: { id: 'recXYZ', createdTime: '2023-05-05T10:30:00.000Z', fields: { A: '1' } }\n          }\n        }\n      ]\n    }\n\n    await handle(payload, { discordWebhookId: 'id', discordWebhookToken: 'tok', fetch })\n\n    expect(calls[0].json).toEqual({\n      content: 'recXYZ',\n      embeds: [{ title: '2023-05-05T10:30:00.000Z', description: 'A: 1' }]\n    })\n  })\n\n  it('throws when payload missing payloads array', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n    const badPayload = { payloads: null } as unknown as AirtablePayloadsResponse\n    await expect(handle(badPayload, { discordWebhookId: 'id', discordWebhookToken: 'tok', fetch })).rejects.toThrow(\n      'Invalid payload: missing or invalid \"payloads\" array'\n    )\n  })\n\n  it('throws when record missing required id field', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n    const payload = {\n      payloads: [\n        {\n          id: 'rec1',\n          baseTransactionNumber: 1,\n          timestamp: '2023-01-01T00:00:00.000Z',\n          data: { recordId: 'rec1', record: { createdTime: '2023-01-01T00:00:00.000Z', fields: {} } }\n        }\n      ]\n    } as unknown as AirtablePayloadsResponse\n    await expect(handle(payload, { discordWebhookId: 'id', discordWebhookToken: 'tok', fetch })).rejects.toThrow(\n      'Record missing required field: id'\n    )\n  })\n\n  it('throws when record missing required createdTime field', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n    const payload = {\n      payloads: [\n        {\n          id: 'rec1',\n          baseTransactionNumber: 1,\n          timestamp: '2023-01-01T00:00:00.000Z',\n          data: { recordId: 'rec1', record: { id: 'rec1', fields: {} } }\n        }\n      ]\n    } as unknown as AirtablePayloadsResponse\n    await expect(handle(payload, { discordWebhookId: 'id', discordWebhookToken: 'tok', fetch })).rejects.toThrow(\n      'Record rec1 missing required field: createdTime'\n    )\n  })\n\n  it('throws when record missing required fields object', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n    const payload = {\n      payloads: [\n        {\n          id: 'rec1',\n          baseTransactionNumber: 1,\n          timestamp: '2023-01-01T00:00:00.000Z',\n          data: { recordId: 'rec1', record: { id: 'rec1', createdTime: '2023-01-01T00:00:00.000Z' } }\n        }\n      ]\n    } as unknown as AirtablePayloadsResponse\n    await expect(handle(payload, { discordWebhookId: 'id', discordWebhookToken: 'tok', fetch })).rejects.toThrow(\n      'Record rec1 missing required field: fields'\n    )\n  })\n\n  it('throws when config missing discordWebhookId', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n    const payload: AirtablePayloadsResponse = {\n      payloads: [\n        {\n          id: 'rec1',\n          baseTransactionNumber: 1,\n          timestamp: '2023-01-01T00:00:00.000Z',\n          data: { recordId: 'rec1', record: { id: 'rec1', createdTime: '2023-01-01T00:00:00.000Z', fields: {} } }\n        }\n      ]\n    }\n    await expect(handle(payload, { discordWebhookId: '', discordWebhookToken: 'tok', fetch })).rejects.toThrow(\n      'Missing required config: discordWebhookId'\n    )\n  })\n\n  it('throws when config missing discordWebhookToken', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n    const payload: AirtablePayloadsResponse = {\n      payloads: [\n        {\n          id: 'rec1',\n          baseTransactionNumber: 1,\n          timestamp: '2023-01-01T00:00:00.000Z',\n          data: { recordId: 'rec1', record: { id: 'rec1', createdTime: '2023-01-01T00:00:00.000Z', fields: {} } }\n        }\n      ]\n    }\n    await expect(handle(payload, { discordWebhookId: 'id', discordWebhookToken: '', fetch })).rejects.toThrow(\n      'Missing required config: discordWebhookToken'\n    )\n  })\n\n  it('throws on non-2xx response from Discord with status and endpoint', async () => {\n    const { fetch, calls } = fakeFetch((req) => jsonResponse({ message: 'Invalid Webhook Token' }, 401))\n\n    const payload: AirtablePayloadsResponse = {\n      payloads: [\n        {\n          id: 'rec1',\n          baseTransactionNumber: 1,\n          timestamp: '2023-01-01T00:00:00.000Z',\n          data: { recordId: 'rec1', record: { id: 'rec1', createdTime: '2023-01-01T00:00:00.000Z', fields: {} } }\n        }\n      ]\n    }\n\n    await expect(handle(payload, { discordWebhookId: 'id', discordWebhookToken: 'tok', fetch })).rejects.toThrow(\n      'Discord webhook request failed: 401 Unauthorized at POST https://discord.com/api/webhooks/id/tok?wait=true'\n    )\n    expect(calls).toHaveLength(1)\n  })\n\n  it('processes multiple payloads and returns all message ids', async () => {\n    let callCount = 0\n    const { fetch, calls } = fakeFetch((req) => {\n      callCount++\n      return jsonResponse({ id: `msg-${callCount}` }, 200)\n    })\n\n    const payload: AirtablePayloadsResponse = {\n      payloads: [\n        {\n          id: 'rec1',\n          baseTransactionNumber: 1,\n          timestamp: '2023-01-01T00:00:00.000Z',\n          data: { recordId: 'rec1', record: { id: 'rec1', createdTime: '2023-01-01T00:00:00.000Z', fields: { A: '1' } } }\n        },\n        {\n          id: 'rec2',\n          baseTransactionNumber: 2,\n          timestamp: '2023-01-01T00:00:01.000Z',\n          data: { recordId: 'rec2', record: { id: 'rec2', createdTime: '2023-01-01T00:00:01.000Z', fields: { B: '2' } } }\n        }\n      ]\n    }\n\n    const result = await handle(payload, { discordWebhookId: 'id', discordWebhookToken: 'tok', fetch })\n\n    expect(result.messageIds).toEqual(['msg-1', 'msg-2'])\n    expect(calls).toHaveLength(2)\n  })\n})\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# Airtable to Discord Webhook Connector\n\nSends new Airtable records to a Discord channel via webhook when a new row is added to an Airtable base.\n\n## What it does\n\n1. Receives an Airtable webhook payloads response (from polling the payloads endpoint after a webhook ping)\n2. Extracts each record's ID, creation timestamp, and fields\n3. Formats the fields as `Key: Value` lines for the embed description\n4. Posts a message to a Discord webhook with:\n   - `content`: Airtable record ID\n   - `embeds[0].title`: Record creation timestamp\n   - `embeds[0].description`: Formatted field list\n5. Returns the Discord message IDs for confirmation\n\n## Configuration\n\n| Config Property | Environment Variable | Required | Description |\n|-----------------|---------------------|----------|-------------|\n| `discordWebhookId` | `DISCORD_WEBHOOK_ID` | Yes | Discord webhook ID (from webhook URL) |\n| `discordWebhookToken` | `DISCORD_WEBHOOK_TOKEN` | Yes | Discord webhook token (from webhook URL) |\n\nThe Airtable Personal Access Token (`AIRTABLE_PERSONAL_ACCESS_TOKEN`) is **not** required by this connector because it operates on the already-fetched payloads response. The token is only needed for the separate polling step that retrieves payloads from Airtable.\n\n## Usage Example\n\n```typescript\nimport { handle, ConnectorConfig } from './connector'\n\nconst config: ConnectorConfig = {\n  discordWebhookId: process.env.DISCORD_WEBHOOK_ID!,\n  discordWebhookToken: process.env.DISCORD_WEBHOOK_TOKEN!\n}\n\n// payload is the response from GET https://api.airtable.com/v0/bases/{baseId}/webhooks/{webhookId}/payloads\nconst result = await handle(payload, config)\nconsole.log('Posted message IDs:', result.messageIds)\n```\n\n## Assumptions\n\n- The input payload follows the Airtable payloads endpoint response structure (array of payload objects each containing `data.record` with `id`, `createdTime`, and `fields`).\n- The Discord webhook accepts JSON with `content` and/or `embeds` fields.\n- The webhook URL uses the format `https://discord.com/api/webhooks/{webhookId}/{webhookToken}?wait=true` to receive the created message in the response.\n- All fields in the Airtable record's `fields` object are included in the Discord embed description as `Key: Value` lines.\n- No authentication header is sent to Discord; the token in the webhook URL authorizes the request.\n- Rate limits (429 responses) are not handled automatically; the caller should implement retry logic if needed.\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://community.airtable.com/other-questions-13/get-new-record-data-with-webhooks-18306\n// Source: https://docs.discord.com/developers/resources/webhook#execute-webhook\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"payloads\": [\n    {\n      \"id\": \"recXXXXXXXXXXXXXX\",\n      \"baseTransactionNumber\": 1,\n      \"timestamp\": \"2023-04-10T12:34:56.000Z\",\n      \"data\": {\n        \"recordId\": \"recXXXXXXXXXXXXXX\",\n        \"record\": {\n          \"id\": \"recXXXXXXXXXXXXXX\",\n          \"createdTime\": \"2023-04-10T12:34:56.000Z\",\n          \"fields\": {\n            \"Name\": \"John Doe\",\n            \"Email\": \"john@example.com\"\n          }\n        }\n      }\n    }\n  ]\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://discord.com/api/webhooks/{webhookId}/{webhookToken}\",\n    \"response\": {\n      \"id\": \"123456789012345678\",\n      \"channel_id\": \"123456789012345678\",\n      \"author\": {\n        \"username\": \"Airtable Webhook\",\n        \"discriminator\": \"0001\",\n        \"id\": \"987654321098765432\",\n        \"avatar\": null\n      },\n      \"content\": \"recXXXXXXXXXXXXXX\",\n      \"embeds\": [\n        {\n          \"title\": \"2023-04-10T12:34:56.000Z\",\n          \"description\": \"Name: John Doe\\\\nEmail: john@example.com\"\n        }\n      ]\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ]
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Forking checkpoint 15ca879a with 4 files, network off"
+    },
+    {
+      "type": "tests",
+      "attempt": 2,
+      "report": {
+        "typecheckOk": true,
+        "typecheckOutput": "",
+        "passed": 12,
+        "failed": 0,
+        "total": 12,
+        "failures": [],
+        "durationMs": 287.628662109375,
+        "ranOn": "nebius-sandbox:01a0fbc5-42f0-70b3-a097-980009a9dd80",
+        "passedNames": [
+          "contract handles the documented example payload",
+          "handle sends correctly mapped fields to Discord webhook on happy path",
+          "handle uses token in URL for authorization (no auth header)",
+          "handle maps record id to content and createdTime to embed title",
+          "handle throws when payload missing payloads array",
+          "handle throws when record missing required id field",
+          "handle throws when record missing required createdTime field",
+          "handle throws when record missing required fields object",
+          "handle throws when config missing discordWebhookId",
+          "handle throws when config missing discordWebhookToken",
+          "handle throws on non-2xx response from Discord with status and endpoint",
+          "handle processes multiple payloads and returns all message ids"
+        ],
+        "contract": "passed"
+      }
+    },
+    {
+      "type": "step",
+      "step": "verify",
+      "status": "done",
+      "detail": "12/12 tests after 2 attempts"
+    },
+    {
+      "type": "step",
+      "step": "package",
+      "status": "start"
+    },
+    {
+      "type": "usage",
+      "usage": [
+        {
+          "model": "nvidia/Nemotron-3_5-Lightning",
+          "promptTokens": 424,
+          "completionTokens": 374,
+          "costUsd": 0.0001152
+        },
+        {
+          "model": "nvidia/nemotron-3-super-120b-a12b",
+          "promptTokens": 13229,
+          "completionTokens": 936,
+          "costUsd": 0.0048111
+        },
+        {
+          "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+          "promptTokens": 11088,
+          "completionTokens": 13292,
+          "costUsd": 0.050964
+        }
+      ]
+    },
+    {
+      "type": "result",
+      "ok": true,
+      "attempts": 2,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "export interface ConnectorConfig {\n  discordWebhookId: string\n  discordWebhookToken: string\n  fetch?: typeof fetch\n}\n\nexport interface AirtablePayloadsResponse {\n  payloads: Array<{\n    id: string\n    baseTransactionNumber: number\n    timestamp: string\n    data: {\n      recordId: string\n      record: {\n        id: string\n        createdTime: string\n        fields: Record<string, unknown>\n      }\n    }\n  }>\n}\n\nexport interface HandleResult {\n  messageIds: string[]\n}\n\nfunction formatFields(fields: Record<string, unknown>): string {\n  return Object.entries(fields)\n    .map(([key, value]) => `${key}: ${String(value)}`)\n    .join('\\n')\n}\n\nexport async function handle(\n  payload: AirtablePayloadsResponse,\n  config: ConnectorConfig\n): Promise<HandleResult> {\n  const fetchImpl = config.fetch ?? fetch\n\n  if (!config.discordWebhookId) {\n    throw new Error('Missing required config: discordWebhookId')\n  }\n  if (!config.discordWebhookToken) {\n    throw new Error('Missing required config: discordWebhookToken')\n  }\n  if (!payload.payloads || !Array.isArray(payload.payloads)) {\n    throw new Error('Invalid payload: missing or invalid \"payloads\" array')\n  }\n\n  const messageIds: string[] = []\n  const webhookUrl = `https://discord.com/api/webhooks/${config.discordWebhookId}/${config.discordWebhookToken}?wait=true`\n\n  for (const item of payload.payloads) {\n    const record = item.data?.record\n    if (!record) {\n      throw new Error(`Payload item ${item.id} missing record data`)\n    }\n    if (!record.id) {\n      throw new Error(`Record missing required field: id`)\n    }\n    if (!record.createdTime) {\n      throw new Error(`Record ${record.id} missing required field: createdTime`)\n    }\n    if (!record.fields || typeof record.fields !== 'object') {\n      throw new Error(`Record ${record.id} missing required field: fields`)\n    }\n\n    const discordPayload = {\n      content: record.id,\n      embeds: [\n        {\n          title: record.createdTime,\n          description: formatFields(record.fields)\n        }\n      ]\n    }\n\n    const response = await fetchImpl(webhookUrl, {\n      method: 'POST',\n      headers: {\n        'Content-Type': 'application/json'\n      },\n      body: JSON.stringify(discordPayload)\n    })\n\n    if (!response.ok) {\n      throw new Error(\n        `Discord webhook request failed: ${response.status} ${response.statusText} at POST ${webhookUrl}`\n      )\n    }\n\n    const data = (await response.json()) as { id: string }\n    if (!data.id) {\n      throw new Error('Discord response missing message id')\n    }\n    messageIds.push(data.id)\n  }\n\n  return { messageIds }\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi } from 'vitest'\nimport { handle, ConnectorConfig, AirtablePayloadsResponse } from './connector'\nimport {\n  SOURCE_EXAMPLE,\n  TARGET_ENDPOINTS,\n  contractFetch,\n  fakeFetch,\n  jsonResponse,\n  RecordedCall\n} from './fixtures'\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch()\n    const config: ConnectorConfig = {\n      discordWebhookId: 'test-webhook-id',\n      discordWebhookToken: 'test-webhook-token',\n      fetch\n    }\n    const result = await handle(SOURCE_EXAMPLE as unknown as AirtablePayloadsResponse, config)\n    expect(calls.length).toBeGreaterThan(0)\n    expect(result.messageIds).toEqual(['123456789012345678'])\n  })\n})\n\ndescribe('handle', () => {\n  it('sends correctly mapped fields to Discord webhook on happy path', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url.includes('/webhooks/test-webhook-id/test-webhook-token')\n        ? jsonResponse({ id: 'msg-123' }, 200)\n        : jsonResponse({ error: 'not found' }, 404)\n    )\n\n    const payload: AirtablePayloadsResponse = {\n      payloads: [\n        {\n          id: 'rec111',\n          baseTransactionNumber: 1,\n          timestamp: '2023-01-01T00:00:00.000Z',\n          data: {\n            recordId: 'rec111',\n            record: {\n              id: 'rec111',\n              createdTime: '2023-01-01T12:00:00.000Z',\n              fields: {\n                Name: 'Alice',\n                Email: 'alice@example.com',\n                Age: 30\n              }\n            }\n          }\n        }\n      ]\n    }\n\n    const config: ConnectorConfig = {\n      discordWebhookId: 'test-webhook-id',\n      discordWebhookToken: 'test-webhook-token',\n      fetch\n    }\n\n    const result = await handle(payload, config)\n\n    expect(result.messageIds).toEqual(['msg-123'])\n    expect(calls).toHaveLength(1)\n    const call = calls[0]\n    expect(call.method).toBe('POST')\n    expect(call.url).toBe('https://discord.com/api/webhooks/test-webhook-id/test-webhook-token?wait=true')\n    expect(call.json).toEqual({\n      content: 'rec111',\n      embeds: [\n        {\n          title: '2023-01-01T12:00:00.000Z',\n          description: 'Name: Alice\\nEmail: alice@example.com\\nAge: 30'\n        }\n      ]\n    })\n    expect(call.headers.get('content-type')).toBe('application/json')\n  })\n\n  it('uses token in URL for authorization (no auth header)', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url.includes('/webhooks/wh-id/wh-token') ? jsonResponse({ id: 'm1' }, 200) : jsonResponse({}, 404)\n    )\n\n    const payload: AirtablePayloadsResponse = {\n      payloads: [\n        {\n          id: 'rec1',\n          baseTransactionNumber: 1,\n          timestamp: '2023-01-01T00:00:00.000Z',\n          data: {\n            recordId: 'rec1',\n            record: { id: 'rec1', createdTime: '2023-01-01T00:00:00.000Z', fields: { Foo: 'bar' } }\n          }\n        }\n      ]\n    }\n\n    await handle(payload, { discordWebhookId: 'wh-id', discordWebhookToken: 'wh-token', fetch })\n\n    expect(calls[0].url).toContain('/webhooks/wh-id/wh-token')\n    expect(calls[0].headers.get('authorization')).toBeNull()\n  })\n\n  it('maps record id to content and createdTime to embed title', async () => {\n    const { fetch, calls } = fakeFetch((req) => jsonResponse({ id: 'm1' }, 200))\n\n    const payload: AirtablePayloadsResponse = {\n      payloads: [\n        {\n          id: 'recXYZ',\n          baseTransactionNumber: 1,\n          timestamp: '2023-01-01T00:00:00.000Z',\n          data: {\n            recordId: 'recXYZ',\n            record: { id: 'recXYZ', createdTime: '2023-05-05T10:30:00.000Z', fields: { A: '1' } }\n          }\n        }\n      ]\n    }\n\n    await handle(payload, { discordWebhookId: 'id', discordWebhookToken: 'tok', fetch })\n\n    expect(calls[0].json).toEqual({\n      content: 'recXYZ',\n      embeds: [{ title: '2023-05-05T10:30:00.000Z', description: 'A: 1' }]\n    })\n  })\n\n  it('throws when payload missing payloads array', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n    const badPayload = { payloads: null } as unknown as AirtablePayloadsResponse\n    await expect(handle(badPayload, { discordWebhookId: 'id', discordWebhookToken: 'tok', fetch })).rejects.toThrow(\n      'Invalid payload: missing or invalid \"payloads\" array'\n    )\n  })\n\n  it('throws when record missing required id field', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n    const payload = {\n      payloads: [\n        {\n          id: 'rec1',\n          baseTransactionNumber: 1,\n          timestamp: '2023-01-01T00:00:00.000Z',\n          data: { recordId: 'rec1', record: { createdTime: '2023-01-01T00:00:00.000Z', fields: {} } }\n        }\n      ]\n    } as unknown as AirtablePayloadsResponse\n    await expect(handle(payload, { discordWebhookId: 'id', discordWebhookToken: 'tok', fetch })).rejects.toThrow(\n      'Record missing required field: id'\n    )\n  })\n\n  it('throws when record missing required createdTime field', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n    const payload = {\n      payloads: [\n        {\n          id: 'rec1',\n          baseTransactionNumber: 1,\n          timestamp: '2023-01-01T00:00:00.000Z',\n          data: { recordId: 'rec1', record: { id: 'rec1', fields: {} } }\n        }\n      ]\n    } as unknown as AirtablePayloadsResponse\n    await expect(handle(payload, { discordWebhookId: 'id', discordWebhookToken: 'tok', fetch })).rejects.toThrow(\n      'Record rec1 missing required field: createdTime'\n    )\n  })\n\n  it('throws when record missing required fields object', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n    const payload = {\n      payloads: [\n        {\n          id: 'rec1',\n          baseTransactionNumber: 1,\n          timestamp: '2023-01-01T00:00:00.000Z',\n          data: { recordId: 'rec1', record: { id: 'rec1', createdTime: '2023-01-01T00:00:00.000Z' } }\n        }\n      ]\n    } as unknown as AirtablePayloadsResponse\n    await expect(handle(payload, { discordWebhookId: 'id', discordWebhookToken: 'tok', fetch })).rejects.toThrow(\n      'Record rec1 missing required field: fields'\n    )\n  })\n\n  it('throws when config missing discordWebhookId', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n    const payload: AirtablePayloadsResponse = {\n      payloads: [\n        {\n          id: 'rec1',\n          baseTransactionNumber: 1,\n          timestamp: '2023-01-01T00:00:00.000Z',\n          data: { recordId: 'rec1', record: { id: 'rec1', createdTime: '2023-01-01T00:00:00.000Z', fields: {} } }\n        }\n      ]\n    }\n    await expect(handle(payload, { discordWebhookId: '', discordWebhookToken: 'tok', fetch })).rejects.toThrow(\n      'Missing required config: discordWebhookId'\n    )\n  })\n\n  it('throws when config missing discordWebhookToken', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n    const payload: AirtablePayloadsResponse = {\n      payloads: [\n        {\n          id: 'rec1',\n          baseTransactionNumber: 1,\n          timestamp: '2023-01-01T00:00:00.000Z',\n          data: { recordId: 'rec1', record: { id: 'rec1', createdTime: '2023-01-01T00:00:00.000Z', fields: {} } }\n        }\n      ]\n    }\n    await expect(handle(payload, { discordWebhookId: 'id', discordWebhookToken: '', fetch })).rejects.toThrow(\n      'Missing required config: discordWebhookToken'\n    )\n  })\n\n  it('throws on non-2xx response from Discord with status and endpoint', async () => {\n    const { fetch, calls } = fakeFetch((req) => jsonResponse({ message: 'Invalid Webhook Token' }, 401))\n\n    const payload: AirtablePayloadsResponse = {\n      payloads: [\n        {\n          id: 'rec1',\n          baseTransactionNumber: 1,\n          timestamp: '2023-01-01T00:00:00.000Z',\n          data: { recordId: 'rec1', record: { id: 'rec1', createdTime: '2023-01-01T00:00:00.000Z', fields: {} } }\n        }\n      ]\n    }\n\n    await expect(handle(payload, { discordWebhookId: 'id', discordWebhookToken: 'tok', fetch })).rejects.toThrow(\n      'Discord webhook request failed: 401 Unauthorized at POST https://discord.com/api/webhooks/id/tok?wait=true'\n    )\n    expect(calls).toHaveLength(1)\n  })\n\n  it('processes multiple payloads and returns all message ids', async () => {\n    let callCount = 0\n    const { fetch, calls } = fakeFetch((req) => {\n      callCount++\n      return jsonResponse({ id: `msg-${callCount}` }, 200)\n    })\n\n    const payload: AirtablePayloadsResponse = {\n      payloads: [\n        {\n          id: 'rec1',\n          baseTransactionNumber: 1,\n          timestamp: '2023-01-01T00:00:00.000Z',\n          data: { recordId: 'rec1', record: { id: 'rec1', createdTime: '2023-01-01T00:00:00.000Z', fields: { A: '1' } } }\n        },\n        {\n          id: 'rec2',\n          baseTransactionNumber: 2,\n          timestamp: '2023-01-01T00:00:01.000Z',\n          data: { recordId: 'rec2', record: { id: 'rec2', createdTime: '2023-01-01T00:00:01.000Z', fields: { B: '2' } } }\n        }\n      ]\n    }\n\n    const result = await handle(payload, { discordWebhookId: 'id', discordWebhookToken: 'tok', fetch })\n\n    expect(result.messageIds).toEqual(['msg-1', 'msg-2'])\n    expect(calls).toHaveLength(2)\n  })\n})\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# Airtable to Discord Webhook Connector\n\nSends new Airtable records to a Discord channel via webhook when a new row is added to an Airtable base.\n\n## What it does\n\n1. Receives an Airtable webhook payloads response (from polling the payloads endpoint after a webhook ping)\n2. Extracts each record's ID, creation timestamp, and fields\n3. Formats the fields as `Key: Value` lines for the embed description\n4. Posts a message to a Discord webhook with:\n   - `content`: Airtable record ID\n   - `embeds[0].title`: Record creation timestamp\n   - `embeds[0].description`: Formatted field list\n5. Returns the Discord message IDs for confirmation\n\n## Configuration\n\n| Config Property | Environment Variable | Required | Description |\n|-----------------|---------------------|----------|-------------|\n| `discordWebhookId` | `DISCORD_WEBHOOK_ID` | Yes | Discord webhook ID (from webhook URL) |\n| `discordWebhookToken` | `DISCORD_WEBHOOK_TOKEN` | Yes | Discord webhook token (from webhook URL) |\n\nThe Airtable Personal Access Token (`AIRTABLE_PERSONAL_ACCESS_TOKEN`) is **not** required by this connector because it operates on the already-fetched payloads response. The token is only needed for the separate polling step that retrieves payloads from Airtable.\n\n## Usage Example\n\n```typescript\nimport { handle, ConnectorConfig } from './connector'\n\nconst config: ConnectorConfig = {\n  discordWebhookId: process.env.DISCORD_WEBHOOK_ID!,\n  discordWebhookToken: process.env.DISCORD_WEBHOOK_TOKEN!\n}\n\n// payload is the response from GET https://api.airtable.com/v0/bases/{baseId}/webhooks/{webhookId}/payloads\nconst result = await handle(payload, config)\nconsole.log('Posted message IDs:', result.messageIds)\n```\n\n## Assumptions\n\n- The input payload follows the Airtable payloads endpoint response structure (array of payload objects each containing `data.record` with `id`, `createdTime`, and `fields`).\n- The Discord webhook accepts JSON with `content` and/or `embeds` fields.\n- The webhook URL uses the format `https://discord.com/api/webhooks/{webhookId}/{webhookToken}?wait=true` to receive the created message in the response.\n- All fields in the Airtable record's `fields` object are included in the Discord embed description as `Key: Value` lines.\n- No authentication header is sent to Discord; the token in the webhook URL authorizes the request.\n- Rate limits (429 responses) are not handled automatically; the caller should implement retry logic if needed.\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://community.airtable.com/other-questions-13/get-new-record-data-with-webhooks-18306\n// Source: https://docs.discord.com/developers/resources/webhook#execute-webhook\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"payloads\": [\n    {\n      \"id\": \"recXXXXXXXXXXXXXX\",\n      \"baseTransactionNumber\": 1,\n      \"timestamp\": \"2023-04-10T12:34:56.000Z\",\n      \"data\": {\n        \"recordId\": \"recXXXXXXXXXXXXXX\",\n        \"record\": {\n          \"id\": \"recXXXXXXXXXXXXXX\",\n          \"createdTime\": \"2023-04-10T12:34:56.000Z\",\n          \"fields\": {\n            \"Name\": \"John Doe\",\n            \"Email\": \"john@example.com\"\n          }\n        }\n      }\n    }\n  ]\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://discord.com/api/webhooks/{webhookId}/{webhookToken}\",\n    \"response\": {\n      \"id\": \"123456789012345678\",\n      \"channel_id\": \"123456789012345678\",\n      \"author\": {\n        \"username\": \"Airtable Webhook\",\n        \"discriminator\": \"0001\",\n        \"id\": \"987654321098765432\",\n        \"avatar\": null\n      },\n      \"content\": \"recXXXXXXXXXXXXXX\",\n      \"embeds\": [\n        {\n          \"title\": \"2023-04-10T12:34:56.000Z\",\n          \"description\": \"Name: John Doe\\\\nEmail: john@example.com\"\n        }\n      ]\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ],
+      "report": {
+        "typecheckOk": true,
+        "typecheckOutput": "",
+        "passed": 12,
+        "failed": 0,
+        "total": 12,
+        "failures": [],
+        "durationMs": 287.628662109375,
+        "ranOn": "nebius-sandbox:01a0fbc5-42f0-70b3-a097-980009a9dd80",
+        "passedNames": [
+          "contract handles the documented example payload",
+          "handle sends correctly mapped fields to Discord webhook on happy path",
+          "handle uses token in URL for authorization (no auth header)",
+          "handle maps record id to content and createdTime to embed title",
+          "handle throws when payload missing payloads array",
+          "handle throws when record missing required id field",
+          "handle throws when record missing required createdTime field",
+          "handle throws when record missing required fields object",
+          "handle throws when config missing discordWebhookId",
+          "handle throws when config missing discordWebhookToken",
+          "handle throws on non-2xx response from Discord with status and endpoint",
+          "handle processes multiple payloads and returns all message ids"
+        ],
+        "contract": "passed"
+      }
+    },
+    {
+      "type": "step",
+      "step": "package",
+      "status": "done"
+    }
+  ]
+}

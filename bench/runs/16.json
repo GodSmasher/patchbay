@@ -1,0 +1,388 @@
+{
+  "prompt": "When a Jotform submission arrives, update an Airtable record by looking it up with filterByFormula on the email field and PATCHing only the empty fields.",
+  "events": [
+    {
+      "type": "mode",
+      "mode": "live"
+    },
+    {
+      "type": "step",
+      "step": "plan",
+      "status": "start"
+    },
+    {
+      "type": "plan",
+      "plan": {
+        "summary": "When a Jotform submission arrives, look up an Airtable record by email and PATCH only the fields that are empty.",
+        "source": {
+          "app": "Jotform",
+          "trigger": "submission webhook",
+          "docsQuery": "Jotform submission webhook payload fields email"
+        },
+        "target": {
+          "app": "Airtable",
+          "action": "update record",
+          "docsQuery": "Airtable Web API update record partial update patch"
+        },
+        "fieldMapping": [
+          {
+            "from": "email",
+            "to": "filterByFormula",
+            "note": "Jotform email field value used to find the Airtable record"
+          },
+          {
+            "from": "first_name",
+            "to": "fields['First Name']",
+            "note": "Map Jotform first name to Airtable field; only PATCH if empty"
+          },
+          {
+            "from": "last_name",
+            "to": "fields['Last Name']",
+            "note": "Map Jotform last name to Airtable field; only PATCH if empty"
+          },
+          {
+            "from": "phone",
+            "to": "fields['Phone']",
+            "note": "Map Jotform phone to Airtable field; only PATCH if empty"
+          },
+          {
+            "from": "address",
+            "to": "fields['Address']",
+            "note": "Map Jotform address to Airtable field; only PATCH if empty"
+          }
+        ],
+        "assumptions": [
+          "The Jotform submission contains standard contact fields (email, first_name, last_name, phone, address).",
+          "The Airtable table has columns named 'Email', 'First Name', 'Last Name', 'Phone', and 'Address'.",
+          "The email field in Jotform uniquely identifies the Airtable record to update.",
+          "The integration will evaluate each field locally before PATCHing; only fields that are empty in Airtable will be sent in the request body."
+        ]
+      }
+    },
+    {
+      "type": "step",
+      "step": "plan",
+      "status": "done",
+      "detail": "When a Jotform submission arrives, look up an Airtable record by email and PATCH only the fields that are empty."
+    },
+    {
+      "type": "step",
+      "step": "research",
+      "status": "start"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Installing typescript + vitest in a sandbox checkpoint"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Searched \"Airtable Web API update record partial update patch\": 2 of 2 picked from Airtable's own docs"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Searched \"Jotform submission webhook payload fields email\": 2 of 2 picked from Jotform's own docs"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Extracted 4 documentation pages"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Checkpoint ready: b2dfca93"
+    },
+    {
+      "type": "sources",
+      "sources": [
+        {
+          "title": "Sometimes the form doesn't send information to the webhook",
+          "url": "https://www.jotform.com/answers/35936941-sometimes-the-form-doesnt-send-information-to-the-webhook",
+          "official": true
+        },
+        {
+          "title": "Adding Custom User ID to Webhook Payload (customParams)",
+          "url": "https://www.jotform.com/answers/27666171-adding-custom-user-id-to-webhook-payload-customparams",
+          "official": true
+        },
+        {
+          "title": "Patch a record using the primary field",
+          "url": "https://community.airtable.com/other-questions-13/patch-a-record-using-the-primary-field-8226",
+          "official": true
+        },
+        {
+          "title": "Cannot Perform “PATCH” Request Using Google App Script",
+          "url": "https://community.airtable.com/development-apis-11/cannot-perform-patch-request-using-google-app-script-6732",
+          "official": true
+        }
+      ]
+    },
+    {
+      "type": "spec",
+      "spec": {
+        "source": {
+          "app": "Jotform",
+          "role": "source",
+          "method": "POST",
+          "url": "(webhook URL provided by the connector user)",
+          "auth": {
+            "type": "none",
+            "name": null,
+            "envVar": null
+          },
+          "example": {
+            "email": "user@example.com",
+            "first_name": "John",
+            "last_name": "Doe",
+            "phone": "555-123-4567",
+            "address": "123 Main St"
+          },
+          "docsUrl": "https://www.jotform.com/answers/35936941-sometimes-the-form-doesnt-send-information-to-the-webhook",
+          "notes": [
+            "Jotform webhooks may occasionally send empty payloads due to base64-encoded draw fields increasing payload size, timeouts (>30s), or incomplete form loading.",
+            "Using Jotform Workflows with Webhook element ensures reliable delivery; avoid relying solely on form integrations if empty payloads occur.",
+            "All form fields (including hidden) are sent in the request body as JSON; customParams is not user-populatable.",
+            "Connector should validate required fields (email, etc.) exist in payload before proceeding."
+          ]
+        },
+        "target": [
+          {
+            "app": "Airtable",
+            "role": "target",
+            "method": "GET",
+            "url": "https://api.airtable.com/v0/{baseId}/{tableNameOrId}",
+            "auth": {
+              "type": "bearer",
+              "name": "Authorization",
+              "envVar": "AIRTABLE_API_KEY"
+            },
+            "example": {},
+            "responseExample": {
+              "records": [
+                {
+                  "id": "recXXXXXXXXXXXXXX",
+                  "fields": {
+                    "Email": "user@example.com",
+                    "First Name": "John",
+                    "Last Name": "Doe",
+                    "Phone": "555-123-4567",
+                    "Address": "123 Main St"
+                  }
+                }
+              ]
+            },
+            "docsUrl": "https://community.airtable.com/other-questions-13/patch-a-record-using-the-primary-field-8226",
+            "notes": [
+              "To find a record by email (non-primary field), use filterByFormula in query parameters: ?filterByFormula={Email}='user@example.com'",
+              "Airtable does not allow filtering by non-primary field without record ID; must fetch then filter client-side or use filterByFormula.",
+              "Response includes array of matching records; connector should handle zero or multiple matches (plan assumes email is unique).",
+              "URL must be URI-encoded if table name contains spaces.",
+              "Rate limiting: 5 requests per second per base."
+            ]
+          },
+          {
+            "app": "Airtable",
+            "role": "target",
+            "method": "PATCH",
+            "url": "https://api.airtable.com/v0/{baseId}/{tableNameOrId}/{recordId}",
+            "auth": {
+              "type": "bearer",
+              "name": "Authorization",
+              "envVar": "AIRTABLE_API_KEY"
+            },
+            "example": {
+              "fields": {
+                "First Name": "John",
+                "Last Name": "Doe"
+              }
+            },
+            "responseExample": {
+              "id": "recXXXXXXXXXXXXXX",
+              "fields": {
+                "Email": "user@example.com",
+                "First Name": "John",
+                "Last Name": "Doe",
+                "Phone": "555-123-4567",
+                "Address": "123 Main St"
+              }
+            },
+            "docsUrl": "https://community.airtable.com/development-apis-11/cannot-perform-patch-request-using-google-app-script-6732",
+            "notes": [
+              "PATCH requires record ID in URL path (e.g., /{recordId}).",
+              "Only include fields in body that are empty in Airtable (per plan logic).",
+              "Fields must match exact Airtable column names (case-sensitive).",
+              "If no fields to update, skip PATCH request.",
+              "Content-Type must be application/json.",
+              "Returns updated record object.",
+              "Rate limiting: 5 requests per second per base."
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "step",
+      "step": "research",
+      "status": "done",
+      "detail": "3 endpoints from 4 pages"
+    },
+    {
+      "type": "step",
+      "step": "generate",
+      "status": "start"
+    },
+    {
+      "type": "files",
+      "attempt": 1,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "export interface ConnectorConfig {\n  airtableApiKey: string\n  baseId: string\n  tableNameOrId: string\n  fetch?: typeof fetch\n}\n\nexport interface JotformSubmission {\n  email: string\n  first_name?: string\n  last_name?: string\n  phone?: string\n  address?: string\n}\n\nexport interface HandleResult {\n  recordId: string\n  updatedFields: string[]\n}\n\nfunction buildAirtableUrl(baseId: string, tableNameOrId: string, recordId?: string): string {\n  const encodedTable = encodeURIComponent(tableNameOrId)\n  const base = `https://api.airtable.com/v0/${baseId}/${encodedTable}`\n  return recordId ? `${base}/${recordId}` : base\n}\n\nfunction buildFilterFormula(email: string): string {\n  const escaped = email.replace(/'/g, \"\\\\'\")\n  return `{Email}='${escaped}'`\n}\n\nasync function fetchWithAuth(\n  url: string,\n  options: RequestInit,\n  apiKey: string,\n  fetchFn: typeof fetch\n): Promise<Response> {\n  const headers = new Headers(options.headers)\n  headers.set('Authorization', `Bearer ${apiKey}`)\n  if (options.body && !headers.has('Content-Type')) {\n    headers.set('Content-Type', 'application/json')\n  }\n  return fetchFn(url, { ...options, headers })\n}\n\nexport async function handle(payload: JotformSubmission, config: ConnectorConfig): Promise<HandleResult> {\n  const fetchFn = config.fetch ?? fetch\n\n  if (!payload.email || typeof payload.email !== 'string') {\n    throw new Error('Missing required field: email')\n  }\n\n  const listUrl = buildAirtableUrl(config.baseId, config.tableNameOrId)\n  const filterFormula = buildFilterFormula(payload.email)\n  const listUrlWithFilter = `${listUrl}?filterByFormula=${encodeURIComponent(filterFormula)}`\n\n  const listResponse = await fetchWithAuth(listUrlWithFilter, { method: 'GET' }, config.airtableApiKey, fetchFn)\n\n  if (!listResponse.ok) {\n    throw new Error(`Airtable list records failed: ${listResponse.status} ${listResponse.statusText} at GET ${listUrlWithFilter}`)\n  }\n\n  const listData = await listResponse.json() as { records: Array<{ id: string; fields: Record<string, unknown> }> }\n\n  if (!listData.records || listData.records.length === 0) {\n    throw new Error(`No Airtable record found for email: ${payload.email}`)\n  }\n\n  if (listData.records.length > 1) {\n    throw new Error(`Multiple Airtable records found for email: ${payload.email} (expected unique)`)\n  }\n\n  const record = listData.records[0]\n  const existingFields = record.fields\n\n  const fieldMapping: Array<{ jotformKey: keyof JotformSubmission; airtableField: string }> = [\n    { jotformKey: 'first_name', airtableField: 'First Name' },\n    { jotformKey: 'last_name', airtableField: 'Last Name' },\n    { jotformKey: 'phone', airtableField: 'Phone' },\n    { jotformKey: 'address', airtableField: 'Address' }\n  ]\n\n  const fieldsToUpdate: Record<string, string> = {}\n  const updatedFieldNames: string[] = []\n\n  for (const mapping of fieldMapping) {\n    const jotformValue = payload[mapping.jotformKey]\n    const airtableValue = existingFields[mapping.airtableField]\n\n    if (jotformValue && typeof jotformValue === 'string' && jotformValue.trim() !== '') {\n      const isEmpty = airtableValue === undefined || airtableValue === null || airtableValue === ''\n      if (isEmpty) {\n        fieldsToUpdate[mapping.airtableField] = jotformValue.trim()\n        updatedFieldNames.push(mapping.airtableField)\n      }\n    }\n  }\n\n  if (Object.keys(fieldsToUpdate).length === 0) {\n    return { recordId: record.id, updatedFields: [] }\n  }\n\n  const patchUrl = buildAirtableUrl(config.baseId, config.tableNameOrId, record.id)\n  const patchBody = JSON.stringify({ fields: fieldsToUpdate })\n\n  const patchResponse = await fetchWithAuth(patchUrl, { method: 'PATCH', body: patchBody }, config.airtableApiKey, fetchFn)\n\n  if (!patchResponse.ok) {\n    throw new Error(`Airtable patch record failed: ${patchResponse.status} ${patchResponse.statusText} at PATCH ${patchUrl}`)\n  }\n\n  return { recordId: record.id, updatedFields: updatedFieldNames }\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi } from 'vitest'\nimport { handle, ConnectorConfig, JotformSubmission } from './connector'\nimport { SOURCE_EXAMPLE, contractFetch, fakeFetch, jsonResponse, TARGET_ENDPOINTS } from './fixtures'\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch()\n    const config: ConnectorConfig = {\n      airtableApiKey: 'test-api-key',\n      baseId: 'appTestBase',\n      tableNameOrId: 'TestTable',\n      fetch\n    }\n    const result = await handle(SOURCE_EXAMPLE as unknown as JotformSubmission, config)\n    expect(calls.length).toBeGreaterThan(0)\n    expect(result.recordId).toBe('recXXXXXXXXXXXXXX')\n  })\n})\n\ndescribe('handle', () => {\n  it('validates required email field', async () => {\n    const { fetch, calls } = fakeFetch(() => jsonResponse({}, 200))\n    const config: ConnectorConfig = {\n      airtableApiKey: 'test-key',\n      baseId: 'appBase',\n      tableNameOrId: 'Table',\n      fetch\n    }\n    const payload = { first_name: 'John' } as JotformSubmission\n    await expect(handle(payload, config)).rejects.toThrow('Missing required field: email')\n    expect(calls.length).toBe(0)\n  })\n\n  it('throws on non-2xx list response', async () => {\n    const { fetch, calls } = fakeFetch(() => jsonResponse({ error: 'Unauthorized' }, 401))\n    const config: ConnectorConfig = {\n      airtableApiKey: 'test-key',\n      baseId: 'appBase',\n      tableNameOrId: 'Table',\n      fetch\n    }\n    const payload: JotformSubmission = { email: 'user@example.com' }\n    await expect(handle(payload, config)).rejects.toThrow('Airtable list records failed: 401 Unauthorized')\n    expect(calls.length).toBe(1)\n    expect(calls[0].method).toBe('GET')\n    expect(calls[0].url).toContain('filterByFormula')\n  })\n\n  it('throws when no record found', async () => {\n    const { fetch, calls } = fakeFetch(() => jsonResponse({ records: [] }, 200))\n    const config: ConnectorConfig = {\n      airtableApiKey: 'test-key',\n      baseId: 'appBase',\n      tableNameOrId: 'Table',\n      fetch\n    }\n    const payload: JotformSubmission = { email: 'missing@example.com' }\n    await expect(handle(payload, config)).rejects.toThrow('No Airtable record found for email: missing@example.com')\n    expect(calls.length).toBe(1)\n  })\n\n  it('throws when multiple records found', async () => {\n    const { fetch, calls } = fakeFetch(() => jsonResponse({\n      records: [\n        { id: 'rec1', fields: { Email: 'user@example.com' } },\n        { id: 'rec2', fields: { Email: 'user@example.com' } }\n      ]\n    }, 200))\n    const config: ConnectorConfig = {\n      airtableApiKey: 'test-key',\n      baseId: 'appBase',\n      tableNameOrId: 'Table',\n      fetch\n    }\n    const payload: JotformSubmission = { email: 'user@example.com' }\n    await expect(handle(payload, config)).rejects.toThrow('Multiple Airtable records found')\n    expect(calls.length).toBe(1)\n  })\n\n  it('happy path: finds record and patches only empty fields', async () => {\n    const existingRecord = {\n      id: 'rec123',\n      fields: {\n        Email: 'user@example.com',\n        'First Name': '',\n        'Last Name': 'Doe',\n        Phone: '555-000-0000',\n        Address: ''\n      }\n    }\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.method === 'GET' && req.url.includes('filterByFormula')) {\n        return jsonResponse({ records: [existingRecord] }, 200)\n      }\n      if (req.method === 'PATCH' && req.url.endsWith('/rec123')) {\n        expect(req.json).toEqual({ fields: { 'First Name': 'John', Address: '123 Main St' } })\n        return jsonResponse({ id: 'rec123', fields: { ...existingRecord.fields, 'First Name': 'John', Address: '123 Main St' } }, 200)\n      }\n      return jsonResponse({ error: 'not found' }, 404)\n    })\n    const config: ConnectorConfig = {\n      airtableApiKey: 'test-key',\n      baseId: 'appBase',\n      tableNameOrId: 'Table',\n      fetch\n    }\n    const payload: JotformSubmission = {\n      email: 'user@example.com',\n      first_name: 'John',\n      last_name: 'Smith',\n      phone: '555-123-4567',\n      address: '123 Main St'\n    }\n    const result = await handle(payload, config)\n    expect(result.recordId).toBe('rec123')\n    expect(result.updatedFields).toEqual(['First Name', 'Address'])\n    expect(calls.length).toBe(2)\n    expect(calls[0].method).toBe('GET')\n    expect(calls[1].method).toBe('PATCH')\n    expect(calls[1].headers.get('authorization')).toBe('Bearer test-key')\n    expect(calls[1].headers.get('content-type')).toBe('application/json')\n  })\n\n  it('skips PATCH when no fields to update', async () => {\n    const existingRecord = {\n      id: 'rec123',\n      fields: {\n        Email: 'user@example.com',\n        'First Name': 'John',\n        'Last Name': 'Doe',\n        Phone: '555-123-4567',\n        Address: '123 Main St'\n      }\n    }\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.method === 'GET') {\n        return jsonResponse({ records: [existingRecord] }, 200)\n      }\n      return jsonResponse({ error: 'should not patch' }, 404)\n    })\n    const config: ConnectorConfig = {\n      airtableApiKey: 'test-key',\n      baseId: 'appBase',\n      tableNameOrId: 'Table',\n      fetch\n    }\n    const payload: JotformSubmission = {\n      email: 'user@example.com',\n      first_name: 'Jane',\n      last_name: 'Smith'\n    }\n    const result = await handle(payload, config)\n    expect(result.recordId).toBe('rec123')\n    expect(result.updatedFields).toEqual([])\n    expect(calls.length).toBe(1)\n    expect(calls[0].method).toBe('GET')\n  })\n\n  it('throws on non-2xx patch response', async () => {\n    const existingRecord = {\n      id: 'rec123',\n      fields: { Email: 'user@example.com', 'First Name': '' }\n    }\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.method === 'GET') {\n        return jsonResponse({ records: [existingRecord] }, 200)\n      }\n      if (req.method === 'PATCH') {\n        return jsonResponse({ error: 'Rate limited' }, 429)\n      }\n      return jsonResponse({}, 404)\n    })\n    const config: ConnectorConfig = {\n      airtableApiKey: 'test-key',\n      baseId: 'appBase',\n      tableNameOrId: 'Table',\n      fetch\n    }\n    const payload: JotformSubmission = { email: 'user@example.com', first_name: 'John' }\n    await expect(handle(payload, config)).rejects.toThrow('Airtable patch record failed: 429 Too Many Requests')\n    expect(calls.length).toBe(2)\n  })\n\n  it('handles URL encoding for table names with spaces', async () => {\n    const existingRecord = { id: 'rec123', fields: { Email: 'user@example.com', 'First Name': '' } }\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.method === 'GET') {\n        expect(req.url).toContain('Table%20Name')\n        return jsonResponse({ records: [existingRecord] }, 200)\n      }\n      if (req.method === 'PATCH') {\n        expect(req.url).toContain('Table%20Name/rec123')\n        return jsonResponse({ id: 'rec123', fields: { Email: 'user@example.com', 'First Name': 'John' } }, 200)\n      }\n      return jsonResponse({}, 404)\n    })\n    const config: ConnectorConfig = {\n      airtableApiKey: 'test-key',\n      baseId: 'appBase',\n      tableNameOrId: 'Table Name',\n      fetch\n    }\n    const payload: JotformSubmission = { email: 'user@example.com', first_name: 'John' }\n    await handle(payload, config)\n    expect(calls.length).toBe(2)\n  })\n\n  it('uses injected fetch over global fetch', async () => {\n    const globalFetch = vi.fn()\n    const injectedFetch = vi.fn().mockResolvedValue(jsonResponse({ records: [{ id: 'rec1', fields: { Email: 'user@example.com', 'First Name': '' } }] }, 200))\n    const config: ConnectorConfig = {\n      airtableApiKey: 'test-key',\n      baseId: 'appBase',\n      tableNameOrId: 'Table',\n      fetch: injectedFetch\n    }\n    const payload: JotformSubmission = { email: 'user@example.com', first_name: 'John' }\n    await handle(payload, config)\n    expect(injectedFetch).toHaveBeenCalled()\n    expect(globalFetch).not.toHaveBeenCalled()\n  })\n})\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# Jotform to Airtable Connector\n\nUpdates an Airtable record when a Jotform submission is received. The connector looks up the record by email address and patches only the fields that are currently empty in Airtable.\n\n## What it does\n\n1. Receives a Jotform webhook payload (POST, no auth)\n2. Validates the required `email` field exists\n3. Queries Airtable for a record matching that email using `filterByFormula`\n4. Compares each mapped field (First Name, Last Name, Phone, Address) against the existing Airtable values\n5. Sends a PATCH request with only the fields that are empty in Airtable\n6. Returns the record ID and list of updated field names\n\n## Configuration\n\n| Config Property | Environment Variable | Description |\n|-----------------|---------------------|-------------|\n| `airtableApiKey` | `AIRTABLE_API_KEY` | Airtable personal access token (Bearer auth) |\n| `baseId` | `AIRTABLE_BASE_ID` | Airtable base ID (e.g., `appXXXXXXXXXXXXXX`) |\n| `tableNameOrId` | `AIRTABLE_TABLE_NAME` | Table name or ID (URL-encoded if it contains spaces) |\n\nAll secrets must come from the config object at runtime. The connector never reads `process.env` directly.\n\n## Usage Example\n\n```typescript\nimport { handle, ConnectorConfig, JotformSubmission } from './connector'\n\nconst config: ConnectorConfig = {\n  airtableApiKey: process.env.AIRTABLE_API_KEY!,\n  baseId: process.env.AIRTABLE_BASE_ID!,\n  tableNameOrId: process.env.AIRTABLE_TABLE_NAME!\n}\n\nconst payload: JotformSubmission = {\n  email: 'user@example.com',\n  first_name: 'John',\n  last_name: 'Doe',\n  phone: '555-123-4567',\n  address: '123 Main St'\n}\n\nconst result = await handle(payload, config)\nconsole.log(`Updated record ${result.recordId}, fields: ${result.updatedFields.join(', ')}`)\n```\n\n## Assumptions\n\n- The Jotform submission contains standard contact fields: `email`, `first_name`, `last_name`, `phone`, `address`.\n- The Airtable table has columns named exactly: `Email`, `First Name`, `Last Name`, `Phone`, `Address` (case-sensitive).\n- The email field in Jotform uniquely identifies the Airtable record to update.\n- The integration evaluates each field locally before PATCHing; only fields that are empty (undefined, null, or empty string) in Airtable are sent in the request body.\n- If no fields need updating, the PATCH request is skipped entirely.\n- Airtable rate limit: 5 requests per second per base (connector makes at most 2 requests per invocation).\n- Table names with spaces are automatically URL-encoded in the API calls.\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://www.jotform.com/answers/35936941-sometimes-the-form-doesnt-send-information-to-the-webhook\n// Source: https://community.airtable.com/other-questions-13/patch-a-record-using-the-primary-field-8226\n// Source: https://community.airtable.com/development-apis-11/cannot-perform-patch-request-using-google-app-script-6732\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"email\": \"user@example.com\",\n  \"first_name\": \"John\",\n  \"last_name\": \"Doe\",\n  \"phone\": \"555-123-4567\",\n  \"address\": \"123 Main St\"\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"GET\",\n    \"url\": \"https://api.airtable.com/v0/{baseId}/{tableNameOrId}\",\n    \"response\": {\n      \"records\": [\n        {\n          \"id\": \"recXXXXXXXXXXXXXX\",\n          \"fields\": {\n            \"Email\": \"user@example.com\",\n            \"First Name\": \"John\",\n            \"Last Name\": \"Doe\",\n            \"Phone\": \"555-123-4567\",\n            \"Address\": \"123 Main St\"\n          }\n        }\n      ]\n    }\n  },\n  {\n    \"method\": \"PATCH\",\n    \"url\": \"https://api.airtable.com/v0/{baseId}/{tableNameOrId}/{recordId}\",\n    \"response\": {\n      \"id\": \"recXXXXXXXXXXXXXX\",\n      \"fields\": {\n        \"Email\": \"user@example.com\",\n        \"First Name\": \"John\",\n        \"Last Name\": \"Doe\",\n        \"Phone\": \"555-123-4567\",\n        \"Address\": \"123 Main St\"\n      }\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ]
+    },
+    {
+      "type": "step",
+      "step": "generate",
+      "status": "done",
+      "detail": "src/connector.ts, src/connector.test.ts, README.md, src/fixtures.ts"
+    },
+    {
+      "type": "step",
+      "step": "verify",
+      "status": "start"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Forking checkpoint b2dfca93 with 4 files, network off"
+    },
+    {
+      "type": "tests",
+      "attempt": 1,
+      "report": {
+        "typecheckOk": true,
+        "typecheckOutput": "",
+        "passed": 10,
+        "failed": 0,
+        "total": 10,
+        "failures": [],
+        "durationMs": 278.142578125,
+        "ranOn": "nebius-sandbox:01a0fc09-a8fc-7177-a5e1-1469ad15bbf2",
+        "passedNames": [
+          "contract handles the documented example payload",
+          "handle validates required email field",
+          "handle throws on non-2xx list response",
+          "handle throws when no record found",
+          "handle throws when multiple records found",
+          "handle happy path: finds record and patches only empty fields",
+          "handle skips PATCH when no fields to update",
+          "handle throws on non-2xx patch response",
+          "handle handles URL encoding for table names with spaces",
+          "handle uses injected fetch over global fetch"
+        ],
+        "contract": "passed"
+      }
+    },
+    {
+      "type": "step",
+      "step": "verify",
+      "status": "done",
+      "detail": "10/10 tests after 1 attempt"
+    },
+    {
+      "type": "step",
+      "step": "package",
+      "status": "start"
+    },
+    {
+      "type": "usage",
+      "usage": [
+        {
+          "model": "nvidia/Nemotron-3_5-Lightning",
+          "promptTokens": 432,
+          "completionTokens": 418,
+          "costUsd": 0.00012624
+        },
+        {
+          "model": "nvidia/nemotron-3-super-120b-a12b",
+          "promptTokens": 14685,
+          "completionTokens": 976,
+          "costUsd": 0.005283899999999999
+        },
+        {
+          "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+          "promptTokens": 3911,
+          "completionTokens": 4454,
+          "costUsd": 0.017273
+        }
+      ]
+    },
+    {
+      "type": "result",
+      "ok": true,
+      "attempts": 1,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "export interface ConnectorConfig {\n  airtableApiKey: string\n  baseId: string\n  tableNameOrId: string\n  fetch?: typeof fetch\n}\n\nexport interface JotformSubmission {\n  email: string\n  first_name?: string\n  last_name?: string\n  phone?: string\n  address?: string\n}\n\nexport interface HandleResult {\n  recordId: string\n  updatedFields: string[]\n}\n\nfunction buildAirtableUrl(baseId: string, tableNameOrId: string, recordId?: string): string {\n  const encodedTable = encodeURIComponent(tableNameOrId)\n  const base = `https://api.airtable.com/v0/${baseId}/${encodedTable}`\n  return recordId ? `${base}/${recordId}` : base\n}\n\nfunction buildFilterFormula(email: string): string {\n  const escaped = email.replace(/'/g, \"\\\\'\")\n  return `{Email}='${escaped}'`\n}\n\nasync function fetchWithAuth(\n  url: string,\n  options: RequestInit,\n  apiKey: string,\n  fetchFn: typeof fetch\n): Promise<Response> {\n  const headers = new Headers(options.headers)\n  headers.set('Authorization', `Bearer ${apiKey}`)\n  if (options.body && !headers.has('Content-Type')) {\n    headers.set('Content-Type', 'application/json')\n  }\n  return fetchFn(url, { ...options, headers })\n}\n\nexport async function handle(payload: JotformSubmission, config: ConnectorConfig): Promise<HandleResult> {\n  const fetchFn = config.fetch ?? fetch\n\n  if (!payload.email || typeof payload.email !== 'string') {\n    throw new Error('Missing required field: email')\n  }\n\n  const listUrl = buildAirtableUrl(config.baseId, config.tableNameOrId)\n  const filterFormula = buildFilterFormula(payload.email)\n  const listUrlWithFilter = `${listUrl}?filterByFormula=${encodeURIComponent(filterFormula)}`\n\n  const listResponse = await fetchWithAuth(listUrlWithFilter, { method: 'GET' }, config.airtableApiKey, fetchFn)\n\n  if (!listResponse.ok) {\n    throw new Error(`Airtable list records failed: ${listResponse.status} ${listResponse.statusText} at GET ${listUrlWithFilter}`)\n  }\n\n  const listData = await listResponse.json() as { records: Array<{ id: string; fields: Record<string, unknown> }> }\n\n  if (!listData.records || listData.records.length === 0) {\n    throw new Error(`No Airtable record found for email: ${payload.email}`)\n  }\n\n  if (listData.records.length > 1) {\n    throw new Error(`Multiple Airtable records found for email: ${payload.email} (expected unique)`)\n  }\n\n  const record = listData.records[0]\n  const existingFields = record.fields\n\n  const fieldMapping: Array<{ jotformKey: keyof JotformSubmission; airtableField: string }> = [\n    { jotformKey: 'first_name', airtableField: 'First Name' },\n    { jotformKey: 'last_name', airtableField: 'Last Name' },\n    { jotformKey: 'phone', airtableField: 'Phone' },\n    { jotformKey: 'address', airtableField: 'Address' }\n  ]\n\n  const fieldsToUpdate: Record<string, string> = {}\n  const updatedFieldNames: string[] = []\n\n  for (const mapping of fieldMapping) {\n    const jotformValue = payload[mapping.jotformKey]\n    const airtableValue = existingFields[mapping.airtableField]\n\n    if (jotformValue && typeof jotformValue === 'string' && jotformValue.trim() !== '') {\n      const isEmpty = airtableValue === undefined || airtableValue === null || airtableValue === ''\n      if (isEmpty) {\n        fieldsToUpdate[mapping.airtableField] = jotformValue.trim()\n        updatedFieldNames.push(mapping.airtableField)\n      }\n    }\n  }\n\n  if (Object.keys(fieldsToUpdate).length === 0) {\n    return { recordId: record.id, updatedFields: [] }\n  }\n\n  const patchUrl = buildAirtableUrl(config.baseId, config.tableNameOrId, record.id)\n  const patchBody = JSON.stringify({ fields: fieldsToUpdate })\n\n  const patchResponse = await fetchWithAuth(patchUrl, { method: 'PATCH', body: patchBody }, config.airtableApiKey, fetchFn)\n\n  if (!patchResponse.ok) {\n    throw new Error(`Airtable patch record failed: ${patchResponse.status} ${patchResponse.statusText} at PATCH ${patchUrl}`)\n  }\n\n  return { recordId: record.id, updatedFields: updatedFieldNames }\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi } from 'vitest'\nimport { handle, ConnectorConfig, JotformSubmission } from './connector'\nimport { SOURCE_EXAMPLE, contractFetch, fakeFetch, jsonResponse, TARGET_ENDPOINTS } from './fixtures'\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch()\n    const config: ConnectorConfig = {\n      airtableApiKey: 'test-api-key',\n      baseId: 'appTestBase',\n      tableNameOrId: 'TestTable',\n      fetch\n    }\n    const result = await handle(SOURCE_EXAMPLE as unknown as JotformSubmission, config)\n    expect(calls.length).toBeGreaterThan(0)\n    expect(result.recordId).toBe('recXXXXXXXXXXXXXX')\n  })\n})\n\ndescribe('handle', () => {\n  it('validates required email field', async () => {\n    const { fetch, calls } = fakeFetch(() => jsonResponse({}, 200))\n    const config: ConnectorConfig = {\n      airtableApiKey: 'test-key',\n      baseId: 'appBase',\n      tableNameOrId: 'Table',\n      fetch\n    }\n    const payload = { first_name: 'John' } as JotformSubmission\n    await expect(handle(payload, config)).rejects.toThrow('Missing required field: email')\n    expect(calls.length).toBe(0)\n  })\n\n  it('throws on non-2xx list response', async () => {\n    const { fetch, calls } = fakeFetch(() => jsonResponse({ error: 'Unauthorized' }, 401))\n    const config: ConnectorConfig = {\n      airtableApiKey: 'test-key',\n      baseId: 'appBase',\n      tableNameOrId: 'Table',\n      fetch\n    }\n    const payload: JotformSubmission = { email: 'user@example.com' }\n    await expect(handle(payload, config)).rejects.toThrow('Airtable list records failed: 401 Unauthorized')\n    expect(calls.length).toBe(1)\n    expect(calls[0].method).toBe('GET')\n    expect(calls[0].url).toContain('filterByFormula')\n  })\n\n  it('throws when no record found', async () => {\n    const { fetch, calls } = fakeFetch(() => jsonResponse({ records: [] }, 200))\n    const config: ConnectorConfig = {\n      airtableApiKey: 'test-key',\n      baseId: 'appBase',\n      tableNameOrId: 'Table',\n      fetch\n    }\n    const payload: JotformSubmission = { email: 'missing@example.com' }\n    await expect(handle(payload, config)).rejects.toThrow('No Airtable record found for email: missing@example.com')\n    expect(calls.length).toBe(1)\n  })\n\n  it('throws when multiple records found', async () => {\n    const { fetch, calls } = fakeFetch(() => jsonResponse({\n      records: [\n        { id: 'rec1', fields: { Email: 'user@example.com' } },\n        { id: 'rec2', fields: { Email: 'user@example.com' } }\n      ]\n    }, 200))\n    const config: ConnectorConfig = {\n      airtableApiKey: 'test-key',\n      baseId: 'appBase',\n      tableNameOrId: 'Table',\n      fetch\n    }\n    const payload: JotformSubmission = { email: 'user@example.com' }\n    await expect(handle(payload, config)).rejects.toThrow('Multiple Airtable records found')\n    expect(calls.length).toBe(1)\n  })\n\n  it('happy path: finds record and patches only empty fields', async () => {\n    const existingRecord = {\n      id: 'rec123',\n      fields: {\n        Email: 'user@example.com',\n        'First Name': '',\n        'Last Name': 'Doe',\n        Phone: '555-000-0000',\n        Address: ''\n      }\n    }\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.method === 'GET' && req.url.includes('filterByFormula')) {\n        return jsonResponse({ records: [existingRecord] }, 200)\n      }\n      if (req.method === 'PATCH' && req.url.endsWith('/rec123')) {\n        expect(req.json).toEqual({ fields: { 'First Name': 'John', Address: '123 Main St' } })\n        return jsonResponse({ id: 'rec123', fields: { ...existingRecord.fields, 'First Name': 'John', Address: '123 Main St' } }, 200)\n      }\n      return jsonResponse({ error: 'not found' }, 404)\n    })\n    const config: ConnectorConfig = {\n      airtableApiKey: 'test-key',\n      baseId: 'appBase',\n      tableNameOrId: 'Table',\n      fetch\n    }\n    const payload: JotformSubmission = {\n      email: 'user@example.com',\n      first_name: 'John',\n      last_name: 'Smith',\n      phone: '555-123-4567',\n      address: '123 Main St'\n    }\n    const result = await handle(payload, config)\n    expect(result.recordId).toBe('rec123')\n    expect(result.updatedFields).toEqual(['First Name', 'Address'])\n    expect(calls.length).toBe(2)\n    expect(calls[0].method).toBe('GET')\n    expect(calls[1].method).toBe('PATCH')\n    expect(calls[1].headers.get('authorization')).toBe('Bearer test-key')\n    expect(calls[1].headers.get('content-type')).toBe('application/json')\n  })\n\n  it('skips PATCH when no fields to update', async () => {\n    const existingRecord = {\n      id: 'rec123',\n      fields: {\n        Email: 'user@example.com',\n        'First Name': 'John',\n        'Last Name': 'Doe',\n        Phone: '555-123-4567',\n        Address: '123 Main St'\n      }\n    }\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.method === 'GET') {\n        return jsonResponse({ records: [existingRecord] }, 200)\n      }\n      return jsonResponse({ error: 'should not patch' }, 404)\n    })\n    const config: ConnectorConfig = {\n      airtableApiKey: 'test-key',\n      baseId: 'appBase',\n      tableNameOrId: 'Table',\n      fetch\n    }\n    const payload: JotformSubmission = {\n      email: 'user@example.com',\n      first_name: 'Jane',\n      last_name: 'Smith'\n    }\n    const result = await handle(payload, config)\n    expect(result.recordId).toBe('rec123')\n    expect(result.updatedFields).toEqual([])\n    expect(calls.length).toBe(1)\n    expect(calls[0].method).toBe('GET')\n  })\n\n  it('throws on non-2xx patch response', async () => {\n    const existingRecord = {\n      id: 'rec123',\n      fields: { Email: 'user@example.com', 'First Name': '' }\n    }\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.method === 'GET') {\n        return jsonResponse({ records: [existingRecord] }, 200)\n      }\n      if (req.method === 'PATCH') {\n        return jsonResponse({ error: 'Rate limited' }, 429)\n      }\n      return jsonResponse({}, 404)\n    })\n    const config: ConnectorConfig = {\n      airtableApiKey: 'test-key',\n      baseId: 'appBase',\n      tableNameOrId: 'Table',\n      fetch\n    }\n    const payload: JotformSubmission = { email: 'user@example.com', first_name: 'John' }\n    await expect(handle(payload, config)).rejects.toThrow('Airtable patch record failed: 429 Too Many Requests')\n    expect(calls.length).toBe(2)\n  })\n\n  it('handles URL encoding for table names with spaces', async () => {\n    const existingRecord = { id: 'rec123', fields: { Email: 'user@example.com', 'First Name': '' } }\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.method === 'GET') {\n        expect(req.url).toContain('Table%20Name')\n        return jsonResponse({ records: [existingRecord] }, 200)\n      }\n      if (req.method === 'PATCH') {\n        expect(req.url).toContain('Table%20Name/rec123')\n        return jsonResponse({ id: 'rec123', fields: { Email: 'user@example.com', 'First Name': 'John' } }, 200)\n      }\n      return jsonResponse({}, 404)\n    })\n    const config: ConnectorConfig = {\n      airtableApiKey: 'test-key',\n      baseId: 'appBase',\n      tableNameOrId: 'Table Name',\n      fetch\n    }\n    const payload: JotformSubmission = { email: 'user@example.com', first_name: 'John' }\n    await handle(payload, config)\n    expect(calls.length).toBe(2)\n  })\n\n  it('uses injected fetch over global fetch', async () => {\n    const globalFetch = vi.fn()\n    const injectedFetch = vi.fn().mockResolvedValue(jsonResponse({ records: [{ id: 'rec1', fields: { Email: 'user@example.com', 'First Name': '' } }] }, 200))\n    const config: ConnectorConfig = {\n      airtableApiKey: 'test-key',\n      baseId: 'appBase',\n      tableNameOrId: 'Table',\n      fetch: injectedFetch\n    }\n    const payload: JotformSubmission = { email: 'user@example.com', first_name: 'John' }\n    await handle(payload, config)\n    expect(injectedFetch).toHaveBeenCalled()\n    expect(globalFetch).not.toHaveBeenCalled()\n  })\n})\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# Jotform to Airtable Connector\n\nUpdates an Airtable record when a Jotform submission is received. The connector looks up the record by email address and patches only the fields that are currently empty in Airtable.\n\n## What it does\n\n1. Receives a Jotform webhook payload (POST, no auth)\n2. Validates the required `email` field exists\n3. Queries Airtable for a record matching that email using `filterByFormula`\n4. Compares each mapped field (First Name, Last Name, Phone, Address) against the existing Airtable values\n5. Sends a PATCH request with only the fields that are empty in Airtable\n6. Returns the record ID and list of updated field names\n\n## Configuration\n\n| Config Property | Environment Variable | Description |\n|-----------------|---------------------|-------------|\n| `airtableApiKey` | `AIRTABLE_API_KEY` | Airtable personal access token (Bearer auth) |\n| `baseId` | `AIRTABLE_BASE_ID` | Airtable base ID (e.g., `appXXXXXXXXXXXXXX`) |\n| `tableNameOrId` | `AIRTABLE_TABLE_NAME` | Table name or ID (URL-encoded if it contains spaces) |\n\nAll secrets must come from the config object at runtime. The connector never reads `process.env` directly.\n\n## Usage Example\n\n```typescript\nimport { handle, ConnectorConfig, JotformSubmission } from './connector'\n\nconst config: ConnectorConfig = {\n  airtableApiKey: process.env.AIRTABLE_API_KEY!,\n  baseId: process.env.AIRTABLE_BASE_ID!,\n  tableNameOrId: process.env.AIRTABLE_TABLE_NAME!\n}\n\nconst payload: JotformSubmission = {\n  email: 'user@example.com',\n  first_name: 'John',\n  last_name: 'Doe',\n  phone: '555-123-4567',\n  address: '123 Main St'\n}\n\nconst result = await handle(payload, config)\nconsole.log(`Updated record ${result.recordId}, fields: ${result.updatedFields.join(', ')}`)\n```\n\n## Assumptions\n\n- The Jotform submission contains standard contact fields: `email`, `first_name`, `last_name`, `phone`, `address`.\n- The Airtable table has columns named exactly: `Email`, `First Name`, `Last Name`, `Phone`, `Address` (case-sensitive).\n- The email field in Jotform uniquely identifies the Airtable record to update.\n- The integration evaluates each field locally before PATCHing; only fields that are empty (undefined, null, or empty string) in Airtable are sent in the request body.\n- If no fields need updating, the PATCH request is skipped entirely.\n- Airtable rate limit: 5 requests per second per base (connector makes at most 2 requests per invocation).\n- Table names with spaces are automatically URL-encoded in the API calls.\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://www.jotform.com/answers/35936941-sometimes-the-form-doesnt-send-information-to-the-webhook\n// Source: https://community.airtable.com/other-questions-13/patch-a-record-using-the-primary-field-8226\n// Source: https://community.airtable.com/development-apis-11/cannot-perform-patch-request-using-google-app-script-6732\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"email\": \"user@example.com\",\n  \"first_name\": \"John\",\n  \"last_name\": \"Doe\",\n  \"phone\": \"555-123-4567\",\n  \"address\": \"123 Main St\"\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"GET\",\n    \"url\": \"https://api.airtable.com/v0/{baseId}/{tableNameOrId}\",\n    \"response\": {\n      \"records\": [\n        {\n          \"id\": \"recXXXXXXXXXXXXXX\",\n          \"fields\": {\n            \"Email\": \"user@example.com\",\n            \"First Name\": \"John\",\n            \"Last Name\": \"Doe\",\n            \"Phone\": \"555-123-4567\",\n            \"Address\": \"123 Main St\"\n          }\n        }\n      ]\n    }\n  },\n  {\n    \"method\": \"PATCH\",\n    \"url\": \"https://api.airtable.com/v0/{baseId}/{tableNameOrId}/{recordId}\",\n    \"response\": {\n      \"id\": \"recXXXXXXXXXXXXXX\",\n      \"fields\": {\n        \"Email\": \"user@example.com\",\n        \"First Name\": \"John\",\n        \"Last Name\": \"Doe\",\n        \"Phone\": \"555-123-4567\",\n        \"Address\": \"123 Main St\"\n      }\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ],
+      "report": {
+        "typecheckOk": true,
+        "typecheckOutput": "",
+        "passed": 10,
+        "failed": 0,
+        "total": 10,
+        "failures": [],
+        "durationMs": 278.142578125,
+        "ranOn": "nebius-sandbox:01a0fc09-a8fc-7177-a5e1-1469ad15bbf2",
+        "passedNames": [
+          "contract handles the documented example payload",
+          "handle validates required email field",
+          "handle throws on non-2xx list response",
+          "handle throws when no record found",
+          "handle throws when multiple records found",
+          "handle happy path: finds record and patches only empty fields",
+          "handle skips PATCH when no fields to update",
+          "handle throws on non-2xx patch response",
+          "handle handles URL encoding for table names with spaces",
+          "handle uses injected fetch over global fetch"
+        ],
+        "contract": "passed"
+      }
+    },
+    {
+      "type": "step",
+      "step": "package",
+      "status": "done"
+    }
+  ]
+}

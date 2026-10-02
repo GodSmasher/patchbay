@@ -1,0 +1,340 @@
+{
+  "prompt": "When an Intercom conversation is tagged \"refund\", create a ticket in Zendesk with the conversation link.",
+  "events": [
+    {
+      "type": "mode",
+      "mode": "live"
+    },
+    {
+      "type": "step",
+      "step": "plan",
+      "status": "start"
+    },
+    {
+      "type": "plan",
+      "plan": {
+        "summary": "When an Intercom conversation receives the 'refund' tag, create a Zendesk ticket containing a link to the conversation.",
+        "source": {
+          "app": "Intercom",
+          "trigger": "conversation tagged refund",
+          "docsQuery": "Intercom conversation tagged webhook payload fields conversation id url"
+        },
+        "target": {
+          "app": "Zendesk",
+          "action": "create ticket",
+          "docsQuery": "Zendesk API create ticket request body subject description"
+        },
+        "fieldMapping": [
+          {
+            "from": "conversation.url",
+            "to": "subject",
+            "note": "Use the conversation URL as the ticket subject for easy reference"
+          },
+          {
+            "from": "conversation.id",
+            "to": "description",
+            "note": "Include the Intercom conversation ID in the ticket description"
+          }
+        ],
+        "assumptions": [
+          "The Intercom webhook payload includes a 'conversation' object with 'url' and 'id' fields.",
+          "The Zendesk integration uses a standard ticket creation endpoint accepting subject and description fields.",
+          "No additional ticket fields (like assignee or priority) are required for this specific trigger."
+        ]
+      }
+    },
+    {
+      "type": "step",
+      "step": "plan",
+      "status": "done",
+      "detail": "When an Intercom conversation receives the 'refund' tag, create a Zendesk ticket containing a link to the conversation."
+    },
+    {
+      "type": "step",
+      "step": "research",
+      "status": "start"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Installing typescript + vitest in a sandbox checkpoint"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Searched \"Intercom conversation tagged webhook payload fields conversation id url\": 2 of 2 picked from Intercom's own docs"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Searched \"Zendesk API create ticket request body subject description\": 2 of 2 picked from Zendesk's own docs"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Extracted 4 documentation pages"
+    },
+    {
+      "type": "sources",
+      "sources": [
+        {
+          "title": "What is the logic to create a conversation URL from the fields returned in the Intercom conversations API? | Community",
+          "url": "https://community.intercom.com/api-webhooks-23/what-is-the-logic-to-create-a-conversation-url-from-the-fields-returned-in-the-intercom-conversations-api-2345",
+          "official": true
+        },
+        {
+          "title": "Webhook Topics | Intercom and Fin Developer Platform",
+          "url": "https://developers.intercom.com/docs/references/2.1/webhooks/webhook-models",
+          "official": true
+        },
+        {
+          "title": "Tickets | Zendesk Developer Docs",
+          "url": "https://developer.zendesk.com/api-reference/ticketing/tickets/tickets",
+          "official": true
+        },
+        {
+          "title": "Ticket Fields | Zendesk Developer Docs",
+          "url": "https://developer.zendesk.com/api-reference/ticketing/tickets/ticket_fields",
+          "official": true
+        }
+      ]
+    },
+    {
+      "type": "spec",
+      "spec": {
+        "source": {
+          "app": "Intercom",
+          "role": "source",
+          "method": "POST",
+          "url": "",
+          "auth": {
+            "type": "none",
+            "name": null,
+            "envVar": null
+          },
+          "example": {
+            "type": "notification_event",
+            "topic": "conversation_part.tag.created",
+            "data": {
+              "item": {
+                "type": "conversation",
+                "id": "12345",
+                "url": "https://app.intercom.com/a/apps/<app_id>/inbox/shared/all/conversation/12345"
+              }
+            }
+          },
+          "docsUrl": "https://developers.intercom.com/docs/references/2.1/webhooks/webhook-models",
+          "notes": [
+            "Intercom does not provide a dedicated webhook topic for 'conversation tagged'; the closest is conversation_part.tag.created which fires when a tag is added to a conversation part.",
+            "The webhook payload includes a data.item object of type 'conversation' containing the conversation's id and other fields, but not the URL. The URL must be constructed using the pattern: https://app.intercom.com/a/inbox/[your_intercom_app_id]/inbox/shared/all/conversation/[conversation_id].",
+            "The source URL (where the webhook is delivered) is the connector's own endpoint and must be configured during setup.",
+            "The X-Hub-Signature header is present for verification using the app's client_secret."
+          ]
+        },
+        "target": [
+          {
+            "app": "Zendesk",
+            "role": "target",
+            "method": "POST",
+            "url": "https://{subdomain}.zendesk.com/api/v2/tickets.json",
+            "auth": {
+              "type": "bearer",
+              "name": "Authorization",
+              "envVar": "ZENDESK_ACCESS_TOKEN"
+            },
+            "example": {
+              "ticket": {
+                "subject": "https://app.intercom.com/a/apps/<app_id>/inbox/shared/all/conversation/12345",
+                "comment": {
+                  "body": "Intercom conversation ID: 12345"
+                }
+              }
+            },
+            "responseExample": {
+              "ticket": {
+                "id": 123,
+                "subject": "https://app.intercom.com/a/apps/<app_id>/inbox/shared/all/conversation/12345",
+                "description": "Intercom conversation ID: 12345",
+                "status": "new"
+              }
+            },
+            "docsUrl": "https://developer.zendesk.com/api-reference/ticketing/tickets/tickets",
+            "notes": [
+              "The Zendesk Tickets API requires the ticket description to be set via the comment.body field, not the description property (which is ignored on create).",
+              "The subject field is optional via API but required in Agent Workspace; providing it ensures the ticket appears correctly.",
+              "Authentication is done via Bearer token using an access token; alternatively, basic auth with email/token is supported.",
+              "The URL uses {subdomain} placeholder which must be replaced with the actual Zendesk subdomain.",
+              "No assignee, group, or priority is set as per the assumptions."
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "step",
+      "step": "research",
+      "status": "done",
+      "detail": "2 endpoints from 4 pages"
+    },
+    {
+      "type": "step",
+      "step": "generate",
+      "status": "start"
+    },
+    {
+      "type": "files",
+      "attempt": 1,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "export interface ConnectorConfig {\n  /** Zendesk subdomain (e.g., 'mycompany' for mycompany.zendesk.com) */\n  zendeskSubdomain: string;\n  /** Zendesk API access token (Bearer auth). Typically from ZENDESK_ACCESS_TOKEN env var. */\n  zendeskAccessToken: string;\n  /** Intercom App ID used to construct conversation URL if not provided in webhook payload. */\n  intercomAppId?: string;\n  /** Tag name that should trigger ticket creation. Defaults to 'refund'. */\n  refundTagName?: string;\n  /** Injected fetch for testing. */\n  fetch?: typeof fetch;\n}\n\nexport interface IntercomWebhookPayload {\n  type: string;\n  topic: string;\n  data: {\n    item: {\n      type: string;\n      id: string;\n      url?: string;\n    };\n    tag?: {\n      name: string;\n    };\n  };\n}\n\nexport interface HandleResult {\n  ticketId: number;\n  subject: string;\n  description: string;\n}\n\nconst DEFAULT_REFUND_TAG = 'refund';\nconst INTERCOM_URL_TEMPLATE = 'https://app.intercom.com/a/apps/{appId}/inbox/shared/all/conversation/{conversationId}';\n\nfunction getFetch(config: ConnectorConfig): typeof fetch {\n  return config.fetch ?? fetch;\n}\n\nfunction buildConversationUrl(conversationId: string, payloadUrl: string | undefined, intercomAppId: string | undefined): string {\n  if (payloadUrl && !payloadUrl.includes('<app_id>')) {\n    return payloadUrl;\n  }\n  if (intercomAppId) {\n    return INTERCOM_URL_TEMPLATE.replace('{appId}', intercomAppId).replace('{conversationId}', conversationId);\n  }\n  // Fallback: use payload URL even with placeholder, or construct minimal URL\n  return payloadUrl ?? `https://app.intercom.com/conversation/${conversationId}`;\n}\n\nexport async function handle(payload: IntercomWebhookPayload, config: ConnectorConfig): Promise<HandleResult> {\n  const fetchImpl = getFetch(config);\n\n  // Validate required fields\n  if (!payload.type) throw new Error('Missing required field: type');\n  if (!payload.topic) throw new Error('Missing required field: topic');\n  if (!payload.data?.item?.type) throw new Error('Missing required field: data.item.type');\n  if (!payload.data?.item?.id) throw new Error('Missing required field: data.item.id');\n\n  // Verify this is the expected webhook topic\n  if (payload.topic !== 'conversation_part.tag.created') {\n    throw new Error(`Unexpected webhook topic: ${payload.topic}. Expected 'conversation_part.tag.created'.`);\n  }\n\n  // Check tag name if present\n  const refundTagName = config.refundTagName ?? DEFAULT_REFUND_TAG;\n  const tagName = payload.data.tag?.name;\n  if (tagName && tagName !== refundTagName) {\n    throw new Error(`Tag '${tagName}' does not match required tag '${refundTagName}'. Skipping ticket creation.`);\n  }\n\n  const conversationId = payload.data.item.id;\n  const conversationUrl = buildConversationUrl(conversationId, payload.data.item.url, config.intercomAppId);\n\n  // Prepare Zendesk ticket payload\n  const zendeskPayload = {\n    ticket: {\n      subject: conversationUrl,\n      comment: {\n        body: `Intercom conversation ID: ${conversationId}`,\n      },\n    },\n  };\n\n  const zendeskUrl = `https://${config.zendeskSubdomain}.zendesk.com/api/v2/tickets.json`;\n  const authHeader = `Bearer ${config.zendeskAccessToken}`;\n\n  const response = await fetchImpl(zendeskUrl, {\n    method: 'POST',\n    headers: {\n      'Content-Type': 'application/json',\n      Authorization: authHeader,\n    },\n    body: JSON.stringify(zendeskPayload),\n  });\n\n  if (!response.ok) {\n    const errorText = await response.text().catch(() => '');\n    throw new Error(`Zendesk API error: ${response.status} ${response.statusText} for POST ${zendeskUrl}. Response: ${errorText}`);\n  }\n\n  const result = (await response.json()) as { ticket: { id: number; subject: string; description: string } };\n\n  return {\n    ticketId: result.ticket.id,\n    subject: result.ticket.subject,\n    description: result.ticket.description,\n  };\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi } from 'vitest';\nimport { handle, ConnectorConfig, IntercomWebhookPayload } from './connector';\nimport { SOURCE_EXAMPLE, contractFetch, fakeFetch, jsonResponse, TARGET_ENDPOINTS } from './fixtures';\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch();\n    const config: ConnectorConfig = {\n      zendeskSubdomain: 'testsubdomain',\n      zendeskAccessToken: 'test-token',\n      intercomAppId: 'test-app-id',\n      fetch,\n    };\n    const result = await handle(SOURCE_EXAMPLE as unknown as IntercomWebhookPayload, config);\n    expect(calls.length).toBeGreaterThan(0);\n    expect(result.ticketId).toBe(123);\n    expect(result.subject).toContain('intercom.com');\n    expect(result.description).toContain('12345');\n  });\n});\n\ndescribe('handle', () => {\n  it('creates a Zendesk ticket with correct field mapping on happy path', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.url.includes('zendesk.com/api/v2/tickets.json') && req.method === 'POST') {\n        return jsonResponse({\n          ticket: { id: 456, subject: 'https://app.intercom.com/conversation/12345', description: 'Intercom conversation ID: 12345', status: 'new' },\n        }, 201);\n      }\n      return jsonResponse({ error: 'not found' }, 404);\n    });\n\n    const payload: IntercomWebhookPayload = {\n      type: 'notification_event',\n      topic: 'conversation_part.tag.created',\n      data: {\n        item: { type: 'conversation', id: '12345', url: 'https://app.intercom.com/conversation/12345' },\n        tag: { name: 'refund' },\n      },\n    };\n\n    const config: ConnectorConfig = {\n      zendeskSubdomain: 'mysub',\n      zendeskAccessToken: 'secret-token',\n      fetch,\n    };\n\n    const result = await handle(payload, config);\n\n    expect(result.ticketId).toBe(456);\n    expect(calls).toHaveLength(1);\n    const call = calls[0];\n    expect(call.method).toBe('POST');\n    expect(call.url).toBe('https://mysub.zendesk.com/api/v2/tickets.json');\n    expect(call.headers.get('authorization')).toBe('Bearer secret-token');\n    expect(call.json).toEqual({\n      ticket: {\n        subject: 'https://app.intercom.com/conversation/12345',\n        comment: { body: 'Intercom conversation ID: 12345' },\n      },\n    });\n  });\n\n  it('constructs conversation URL from intercomAppId when payload URL has placeholder', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.url.includes('zendesk.com/api/v2/tickets.json') && req.method === 'POST') {\n        return jsonResponse({\n          ticket: { id: 789, subject: 'https://app.intercom.com/a/apps/my-app-id/inbox/shared/all/conversation/999', description: 'Intercom conversation ID: 999', status: 'new' },\n        }, 201);\n      }\n      return jsonResponse({ error: 'not found' }, 404);\n    });\n\n    const payload: IntercomWebhookPayload = {\n      type: 'notification_event',\n      topic: 'conversation_part.tag.created',\n      data: {\n        item: { type: 'conversation', id: '999', url: 'https://app.intercom.com/a/apps/<app_id>/inbox/shared/all/conversation/999' },\n        tag: { name: 'refund' },\n      },\n    };\n\n    const config: ConnectorConfig = {\n      zendeskSubdomain: 'mysub',\n      zendeskAccessToken: 'secret-token',\n      intercomAppId: 'my-app-id',\n      fetch,\n    };\n\n    const result = await handle(payload, config);\n\n    expect(result.ticketId).toBe(789);\n    expect(calls[0].json).toEqual({\n      ticket: {\n        subject: 'https://app.intercom.com/a/apps/my-app-id/inbox/shared/all/conversation/999',\n        comment: { body: 'Intercom conversation ID: 999' },\n      },\n    });\n  });\n\n  it('throws descriptive error when required field data.item.id is missing', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200));\n    const payload = {\n      type: 'notification_event',\n      topic: 'conversation_part.tag.created',\n      data: { item: { type: 'conversation' } },\n    } as unknown as IntercomWebhookPayload;\n\n    const config: ConnectorConfig = { zendeskSubdomain: 'sub', zendeskAccessToken: 'tok', fetch };\n\n    await expect(handle(payload, config)).rejects.toThrow('Missing required field: data.item.id');\n  });\n\n  it('throws descriptive error when required field data.item.type is missing', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200));\n    const payload = {\n      type: 'notification_event',\n      topic: 'conversation_part.tag.created',\n      data: { item: { id: '123' } },\n    } as unknown as IntercomWebhookPayload;\n\n    const config: ConnectorConfig = { zendeskSubdomain: 'sub', zendeskAccessToken: 'tok', fetch };\n\n    await expect(handle(payload, config)).rejects.toThrow('Missing required field: data.item.type');\n  });\n\n  it('throws error for unexpected webhook topic', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200));\n    const payload: IntercomWebhookPayload = {\n      type: 'notification_event',\n      topic: 'conversation.created',\n      data: { item: { type: 'conversation', id: '123' } },\n    };\n\n    const config: ConnectorConfig = { zendeskSubdomain: 'sub', zendeskAccessToken: 'tok', fetch };\n\n    await expect(handle(payload, config)).rejects.toThrow(\"Unexpected webhook topic: conversation.created. Expected 'conversation_part.tag.created'.\");\n  });\n\n  it('throws error when tag name does not match refund tag', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200));\n    const payload: IntercomWebhookPayload = {\n      type: 'notification_event',\n      topic: 'conversation_part.tag.created',\n      data: { item: { type: 'conversation', id: '123' }, tag: { name: 'spam' } },\n    };\n\n    const config: ConnectorConfig = { zendeskSubdomain: 'sub', zendeskAccessToken: 'tok', fetch };\n\n    await expect(handle(payload, config)).rejects.toThrow(\"Tag 'spam' does not match required tag 'refund'. Skipping ticket creation.\");\n  });\n\n  it('allows custom refund tag name via config', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.url.includes('zendesk.com/api/v2/tickets.json') && req.method === 'POST') {\n        return jsonResponse({ ticket: { id: 111, subject: 'x', description: 'x', status: 'new' } }, 201);\n      }\n      return jsonResponse({ error: 'not found' }, 404);\n    });\n\n    const payload: IntercomWebhookPayload = {\n      type: 'notification_event',\n      topic: 'conversation_part.tag.created',\n      data: { item: { type: 'conversation', id: '123' }, tag: { name: 'urgent-refund' } },\n    };\n\n    const config: ConnectorConfig = {\n      zendeskSubdomain: 'sub',\n      zendeskAccessToken: 'tok',\n      refundTagName: 'urgent-refund',\n      fetch,\n    };\n\n    const result = await handle(payload, config);\n    expect(result.ticketId).toBe(111);\n    expect(calls).toHaveLength(1);\n  });\n\n  it('throws error with status code and endpoint on non-2xx Zendesk response', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.url.includes('zendesk.com/api/v2/tickets.json') && req.method === 'POST') {\n        return jsonResponse({ error: 'Unauthorized' }, 401);\n      }\n      return jsonResponse({ error: 'not found' }, 404);\n    });\n\n    const payload: IntercomWebhookPayload = {\n      type: 'notification_event',\n      topic: 'conversation_part.tag.created',\n      data: { item: { type: 'conversation', id: '123' }, tag: { name: 'refund' } },\n    };\n\n    const config: ConnectorConfig = { zendeskSubdomain: 'sub', zendeskAccessToken: 'bad-token', fetch };\n\n    await expect(handle(payload, config)).rejects.toThrow('Zendesk API error: 401 Unauthorized for POST https://sub.zendesk.com/api/v2/tickets.json');\n    expect(calls).toHaveLength(1);\n  });\n\n  it('throws error with status code and endpoint on 5xx Zendesk response', async () => {\n    const { fetch } = fakeFetch((req) => {\n      if (req.url.includes('zendesk.com/api/v2/tickets.json') && req.method === 'POST') {\n        return jsonResponse({ error: 'Internal Server Error' }, 500);\n      }\n      return jsonResponse({ error: 'not found' }, 404);\n    });\n\n    const payload: IntercomWebhookPayload = {\n      type: 'notification_event',\n      topic: 'conversation_part.tag.created',\n      data: { item: { type: 'conversation', id: '123' }, tag: { name: 'refund' } },\n    };\n\n    const config: ConnectorConfig = { zendeskSubdomain: 'sub', zendeskAccessToken: 'tok', fetch };\n\n    await expect(handle(payload, config)).rejects.toThrow('Zendesk API error: 500 Internal Server Error for POST https://sub.zendesk.com/api/v2/tickets.json');\n  });\n});\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# Intercom Refund Tag → Zendesk Ticket Connector\n\nCreates a Zendesk ticket when an Intercom conversation receives the \"refund\" tag (or a custom tag name). The ticket includes a link to the Intercom conversation for easy reference.\n\n## What it does\n\n1. Receives an Intercom `conversation_part.tag.created` webhook payload\n2. Validates the tag name matches the configured refund tag (default: \"refund\")\n3. Extracts the conversation ID and URL from the payload\n4. Calls Zendesk Tickets API to create a ticket with:\n   - **Subject**: The Intercom conversation URL\n   - **Description** (via `comment.body`): \"Intercom conversation ID: {id}\"\n\n## Configuration\n\n| Config Property | Environment Variable | Required | Description |\n|-----------------|---------------------|----------|-------------|\n| `zendeskSubdomain` | `ZENDESK_SUBDOMAIN` | Yes | Your Zendesk subdomain (e.g., `mycompany` for `mycompany.zendesk.com`) |\n| `zendeskAccessToken` | `ZENDESK_ACCESS_TOKEN` | Yes | Zendesk API access token for Bearer authentication |\n| `intercomAppId` | `INTERCOM_APP_ID` | No | Intercom App ID used to construct conversation URL when webhook payload contains placeholder |\n| `refundTagName` | `REFUND_TAG_NAME` | No | Tag name that triggers ticket creation (default: `\"refund\"`) |\n\n## Usage Example\n\n```typescript\nimport { handle } from './connector';\n\nconst payload = {\n  type: 'notification_event',\n  topic: 'conversation_part.tag.created',\n  data: {\n    item: {\n      type: 'conversation',\n      id: '12345',\n      url: 'https://app.intercom.com/a/apps/my-app/inbox/shared/all/conversation/12345'\n    },\n    tag: { name: 'refund' }\n  }\n};\n\nconst config = {\n  zendeskSubdomain: process.env.ZENDESK_SUBDOMAIN!,\n  zendeskAccessToken: process.env.ZENDESK_ACCESS_TOKEN!,\n  intercomAppId: process.env.INTERCOM_APP_ID,\n  refundTagName: 'refund'\n};\n\nconst result = await handle(payload, config);\nconsole.log(`Created Zendesk ticket #${result.ticketId}`);\n```\n\n## Assumptions\n\n1. The Intercom webhook payload includes a `conversation` object with `id` and optionally `url` fields under `data.item`.\n2. The webhook topic is `conversation_part.tag.created` (Intercom does not have a dedicated \"conversation tagged\" webhook).\n3. The Zendesk Tickets API accepts ticket creation via `POST /api/v2/tickets.json` with `subject` and `comment.body` fields.\n4. Ticket description must be set via `comment.body` (the `description` property is ignored on create).\n5. No additional ticket fields (assignee, group, priority) are required for this trigger.\n6. If the webhook payload URL contains the `<app_id>` placeholder, the connector constructs the URL using `intercomAppId` from config.\n7. The connector filters for a specific tag name (default \"refund\") to avoid creating tickets for all tags.\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://developers.intercom.com/docs/references/2.1/webhooks/webhook-models\n// Source: https://developer.zendesk.com/api-reference/ticketing/tickets/tickets\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"type\": \"notification_event\",\n  \"topic\": \"conversation_part.tag.created\",\n  \"data\": {\n    \"item\": {\n      \"type\": \"conversation\",\n      \"id\": \"12345\",\n      \"url\": \"https://app.intercom.com/a/apps/<app_id>/inbox/shared/all/conversation/12345\"\n    }\n  }\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://{subdomain}.zendesk.com/api/v2/tickets.json\",\n    \"response\": {\n      \"ticket\": {\n        \"id\": 123,\n        \"subject\": \"https://app.intercom.com/a/apps/<app_id>/inbox/shared/all/conversation/12345\",\n        \"description\": \"Intercom conversation ID: 12345\",\n        \"status\": \"new\"\n      }\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ]
+    },
+    {
+      "type": "step",
+      "step": "generate",
+      "status": "done",
+      "detail": "src/connector.ts, src/connector.test.ts, README.md, src/fixtures.ts"
+    },
+    {
+      "type": "step",
+      "step": "verify",
+      "status": "start"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Checkpoint ready: 840bd380"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Forking checkpoint 840bd380 with 4 files, network off"
+    },
+    {
+      "type": "tests",
+      "attempt": 1,
+      "report": {
+        "typecheckOk": true,
+        "typecheckOutput": "",
+        "passed": 10,
+        "failed": 0,
+        "total": 10,
+        "failures": [],
+        "durationMs": 278.8115234375,
+        "ranOn": "nebius-sandbox:01a0fbc6-07e7-72e3-ae0b-ed90f692bf80",
+        "passedNames": [
+          "contract handles the documented example payload",
+          "handle creates a Zendesk ticket with correct field mapping on happy path",
+          "handle constructs conversation URL from intercomAppId when payload URL has placeholder",
+          "handle throws descriptive error when required field data.item.id is missing",
+          "handle throws descriptive error when required field data.item.type is missing",
+          "handle throws error for unexpected webhook topic",
+          "handle throws error when tag name does not match refund tag",
+          "handle allows custom refund tag name via config",
+          "handle throws error with status code and endpoint on non-2xx Zendesk response",
+          "handle throws error with status code and endpoint on 5xx Zendesk response"
+        ],
+        "contract": "passed"
+      }
+    },
+    {
+      "type": "step",
+      "step": "verify",
+      "status": "done",
+      "detail": "10/10 tests after 1 attempt"
+    },
+    {
+      "type": "step",
+      "step": "package",
+      "status": "start"
+    },
+    {
+      "type": "usage",
+      "usage": [
+        {
+          "model": "nvidia/Nemotron-3_5-Lightning",
+          "promptTokens": 420,
+          "completionTokens": 275,
+          "costUsd": 0.00009120000000000001
+        },
+        {
+          "model": "nvidia/nemotron-3-super-120b-a12b",
+          "promptTokens": 12973,
+          "completionTokens": 736,
+          "costUsd": 0.0045543
+        },
+        {
+          "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+          "promptTokens": 3338,
+          "completionTokens": 5153,
+          "costUsd": 0.018796999999999998
+        }
+      ]
+    },
+    {
+      "type": "result",
+      "ok": true,
+      "attempts": 1,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "export interface ConnectorConfig {\n  /** Zendesk subdomain (e.g., 'mycompany' for mycompany.zendesk.com) */\n  zendeskSubdomain: string;\n  /** Zendesk API access token (Bearer auth). Typically from ZENDESK_ACCESS_TOKEN env var. */\n  zendeskAccessToken: string;\n  /** Intercom App ID used to construct conversation URL if not provided in webhook payload. */\n  intercomAppId?: string;\n  /** Tag name that should trigger ticket creation. Defaults to 'refund'. */\n  refundTagName?: string;\n  /** Injected fetch for testing. */\n  fetch?: typeof fetch;\n}\n\nexport interface IntercomWebhookPayload {\n  type: string;\n  topic: string;\n  data: {\n    item: {\n      type: string;\n      id: string;\n      url?: string;\n    };\n    tag?: {\n      name: string;\n    };\n  };\n}\n\nexport interface HandleResult {\n  ticketId: number;\n  subject: string;\n  description: string;\n}\n\nconst DEFAULT_REFUND_TAG = 'refund';\nconst INTERCOM_URL_TEMPLATE = 'https://app.intercom.com/a/apps/{appId}/inbox/shared/all/conversation/{conversationId}';\n\nfunction getFetch(config: ConnectorConfig): typeof fetch {\n  return config.fetch ?? fetch;\n}\n\nfunction buildConversationUrl(conversationId: string, payloadUrl: string | undefined, intercomAppId: string | undefined): string {\n  if (payloadUrl && !payloadUrl.includes('<app_id>')) {\n    return payloadUrl;\n  }\n  if (intercomAppId) {\n    return INTERCOM_URL_TEMPLATE.replace('{appId}', intercomAppId).replace('{conversationId}', conversationId);\n  }\n  // Fallback: use payload URL even with placeholder, or construct minimal URL\n  return payloadUrl ?? `https://app.intercom.com/conversation/${conversationId}`;\n}\n\nexport async function handle(payload: IntercomWebhookPayload, config: ConnectorConfig): Promise<HandleResult> {\n  const fetchImpl = getFetch(config);\n\n  // Validate required fields\n  if (!payload.type) throw new Error('Missing required field: type');\n  if (!payload.topic) throw new Error('Missing required field: topic');\n  if (!payload.data?.item?.type) throw new Error('Missing required field: data.item.type');\n  if (!payload.data?.item?.id) throw new Error('Missing required field: data.item.id');\n\n  // Verify this is the expected webhook topic\n  if (payload.topic !== 'conversation_part.tag.created') {\n    throw new Error(`Unexpected webhook topic: ${payload.topic}. Expected 'conversation_part.tag.created'.`);\n  }\n\n  // Check tag name if present\n  const refundTagName = config.refundTagName ?? DEFAULT_REFUND_TAG;\n  const tagName = payload.data.tag?.name;\n  if (tagName && tagName !== refundTagName) {\n    throw new Error(`Tag '${tagName}' does not match required tag '${refundTagName}'. Skipping ticket creation.`);\n  }\n\n  const conversationId = payload.data.item.id;\n  const conversationUrl = buildConversationUrl(conversationId, payload.data.item.url, config.intercomAppId);\n\n  // Prepare Zendesk ticket payload\n  const zendeskPayload = {\n    ticket: {\n      subject: conversationUrl,\n      comment: {\n        body: `Intercom conversation ID: ${conversationId}`,\n      },\n    },\n  };\n\n  const zendeskUrl = `https://${config.zendeskSubdomain}.zendesk.com/api/v2/tickets.json`;\n  const authHeader = `Bearer ${config.zendeskAccessToken}`;\n\n  const response = await fetchImpl(zendeskUrl, {\n    method: 'POST',\n    headers: {\n      'Content-Type': 'application/json',\n      Authorization: authHeader,\n    },\n    body: JSON.stringify(zendeskPayload),\n  });\n\n  if (!response.ok) {\n    const errorText = await response.text().catch(() => '');\n    throw new Error(`Zendesk API error: ${response.status} ${response.statusText} for POST ${zendeskUrl}. Response: ${errorText}`);\n  }\n\n  const result = (await response.json()) as { ticket: { id: number; subject: string; description: string } };\n\n  return {\n    ticketId: result.ticket.id,\n    subject: result.ticket.subject,\n    description: result.ticket.description,\n  };\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi } from 'vitest';\nimport { handle, ConnectorConfig, IntercomWebhookPayload } from './connector';\nimport { SOURCE_EXAMPLE, contractFetch, fakeFetch, jsonResponse, TARGET_ENDPOINTS } from './fixtures';\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch();\n    const config: ConnectorConfig = {\n      zendeskSubdomain: 'testsubdomain',\n      zendeskAccessToken: 'test-token',\n      intercomAppId: 'test-app-id',\n      fetch,\n    };\n    const result = await handle(SOURCE_EXAMPLE as unknown as IntercomWebhookPayload, config);\n    expect(calls.length).toBeGreaterThan(0);\n    expect(result.ticketId).toBe(123);\n    expect(result.subject).toContain('intercom.com');\n    expect(result.description).toContain('12345');\n  });\n});\n\ndescribe('handle', () => {\n  it('creates a Zendesk ticket with correct field mapping on happy path', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.url.includes('zendesk.com/api/v2/tickets.json') && req.method === 'POST') {\n        return jsonResponse({\n          ticket: { id: 456, subject: 'https://app.intercom.com/conversation/12345', description: 'Intercom conversation ID: 12345', status: 'new' },\n        }, 201);\n      }\n      return jsonResponse({ error: 'not found' }, 404);\n    });\n\n    const payload: IntercomWebhookPayload = {\n      type: 'notification_event',\n      topic: 'conversation_part.tag.created',\n      data: {\n        item: { type: 'conversation', id: '12345', url: 'https://app.intercom.com/conversation/12345' },\n        tag: { name: 'refund' },\n      },\n    };\n\n    const config: ConnectorConfig = {\n      zendeskSubdomain: 'mysub',\n      zendeskAccessToken: 'secret-token',\n      fetch,\n    };\n\n    const result = await handle(payload, config);\n\n    expect(result.ticketId).toBe(456);\n    expect(calls).toHaveLength(1);\n    const call = calls[0];\n    expect(call.method).toBe('POST');\n    expect(call.url).toBe('https://mysub.zendesk.com/api/v2/tickets.json');\n    expect(call.headers.get('authorization')).toBe('Bearer secret-token');\n    expect(call.json).toEqual({\n      ticket: {\n        subject: 'https://app.intercom.com/conversation/12345',\n        comment: { body: 'Intercom conversation ID: 12345' },\n      },\n    });\n  });\n\n  it('constructs conversation URL from intercomAppId when payload URL has placeholder', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.url.includes('zendesk.com/api/v2/tickets.json') && req.method === 'POST') {\n        return jsonResponse({\n          ticket: { id: 789, subject: 'https://app.intercom.com/a/apps/my-app-id/inbox/shared/all/conversation/999', description: 'Intercom conversation ID: 999', status: 'new' },\n        }, 201);\n      }\n      return jsonResponse({ error: 'not found' }, 404);\n    });\n\n    const payload: IntercomWebhookPayload = {\n      type: 'notification_event',\n      topic: 'conversation_part.tag.created',\n      data: {\n        item: { type: 'conversation', id: '999', url: 'https://app.intercom.com/a/apps/<app_id>/inbox/shared/all/conversation/999' },\n        tag: { name: 'refund' },\n      },\n    };\n\n    const config: ConnectorConfig = {\n      zendeskSubdomain: 'mysub',\n      zendeskAccessToken: 'secret-token',\n      intercomAppId: 'my-app-id',\n      fetch,\n    };\n\n    const result = await handle(payload, config);\n\n    expect(result.ticketId).toBe(789);\n    expect(calls[0].json).toEqual({\n      ticket: {\n        subject: 'https://app.intercom.com/a/apps/my-app-id/inbox/shared/all/conversation/999',\n        comment: { body: 'Intercom conversation ID: 999' },\n      },\n    });\n  });\n\n  it('throws descriptive error when required field data.item.id is missing', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200));\n    const payload = {\n      type: 'notification_event',\n      topic: 'conversation_part.tag.created',\n      data: { item: { type: 'conversation' } },\n    } as unknown as IntercomWebhookPayload;\n\n    const config: ConnectorConfig = { zendeskSubdomain: 'sub', zendeskAccessToken: 'tok', fetch };\n\n    await expect(handle(payload, config)).rejects.toThrow('Missing required field: data.item.id');\n  });\n\n  it('throws descriptive error when required field data.item.type is missing', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200));\n    const payload = {\n      type: 'notification_event',\n      topic: 'conversation_part.tag.created',\n      data: { item: { id: '123' } },\n    } as unknown as IntercomWebhookPayload;\n\n    const config: ConnectorConfig = { zendeskSubdomain: 'sub', zendeskAccessToken: 'tok', fetch };\n\n    await expect(handle(payload, config)).rejects.toThrow('Missing required field: data.item.type');\n  });\n\n  it('throws error for unexpected webhook topic', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200));\n    const payload: IntercomWebhookPayload = {\n      type: 'notification_event',\n      topic: 'conversation.created',\n      data: { item: { type: 'conversation', id: '123' } },\n    };\n\n    const config: ConnectorConfig = { zendeskSubdomain: 'sub', zendeskAccessToken: 'tok', fetch };\n\n    await expect(handle(payload, config)).rejects.toThrow(\"Unexpected webhook topic: conversation.created. Expected 'conversation_part.tag.created'.\");\n  });\n\n  it('throws error when tag name does not match refund tag', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200));\n    const payload: IntercomWebhookPayload = {\n      type: 'notification_event',\n      topic: 'conversation_part.tag.created',\n      data: { item: { type: 'conversation', id: '123' }, tag: { name: 'spam' } },\n    };\n\n    const config: ConnectorConfig = { zendeskSubdomain: 'sub', zendeskAccessToken: 'tok', fetch };\n\n    await expect(handle(payload, config)).rejects.toThrow(\"Tag 'spam' does not match required tag 'refund'. Skipping ticket creation.\");\n  });\n\n  it('allows custom refund tag name via config', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.url.includes('zendesk.com/api/v2/tickets.json') && req.method === 'POST') {\n        return jsonResponse({ ticket: { id: 111, subject: 'x', description: 'x', status: 'new' } }, 201);\n      }\n      return jsonResponse({ error: 'not found' }, 404);\n    });\n\n    const payload: IntercomWebhookPayload = {\n      type: 'notification_event',\n      topic: 'conversation_part.tag.created',\n      data: { item: { type: 'conversation', id: '123' }, tag: { name: 'urgent-refund' } },\n    };\n\n    const config: ConnectorConfig = {\n      zendeskSubdomain: 'sub',\n      zendeskAccessToken: 'tok',\n      refundTagName: 'urgent-refund',\n      fetch,\n    };\n\n    const result = await handle(payload, config);\n    expect(result.ticketId).toBe(111);\n    expect(calls).toHaveLength(1);\n  });\n\n  it('throws error with status code and endpoint on non-2xx Zendesk response', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.url.includes('zendesk.com/api/v2/tickets.json') && req.method === 'POST') {\n        return jsonResponse({ error: 'Unauthorized' }, 401);\n      }\n      return jsonResponse({ error: 'not found' }, 404);\n    });\n\n    const payload: IntercomWebhookPayload = {\n      type: 'notification_event',\n      topic: 'conversation_part.tag.created',\n      data: { item: { type: 'conversation', id: '123' }, tag: { name: 'refund' } },\n    };\n\n    const config: ConnectorConfig = { zendeskSubdomain: 'sub', zendeskAccessToken: 'bad-token', fetch };\n\n    await expect(handle(payload, config)).rejects.toThrow('Zendesk API error: 401 Unauthorized for POST https://sub.zendesk.com/api/v2/tickets.json');\n    expect(calls).toHaveLength(1);\n  });\n\n  it('throws error with status code and endpoint on 5xx Zendesk response', async () => {\n    const { fetch } = fakeFetch((req) => {\n      if (req.url.includes('zendesk.com/api/v2/tickets.json') && req.method === 'POST') {\n        return jsonResponse({ error: 'Internal Server Error' }, 500);\n      }\n      return jsonResponse({ error: 'not found' }, 404);\n    });\n\n    const payload: IntercomWebhookPayload = {\n      type: 'notification_event',\n      topic: 'conversation_part.tag.created',\n      data: { item: { type: 'conversation', id: '123' }, tag: { name: 'refund' } },\n    };\n\n    const config: ConnectorConfig = { zendeskSubdomain: 'sub', zendeskAccessToken: 'tok', fetch };\n\n    await expect(handle(payload, config)).rejects.toThrow('Zendesk API error: 500 Internal Server Error for POST https://sub.zendesk.com/api/v2/tickets.json');\n  });\n});\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# Intercom Refund Tag → Zendesk Ticket Connector\n\nCreates a Zendesk ticket when an Intercom conversation receives the \"refund\" tag (or a custom tag name). The ticket includes a link to the Intercom conversation for easy reference.\n\n## What it does\n\n1. Receives an Intercom `conversation_part.tag.created` webhook payload\n2. Validates the tag name matches the configured refund tag (default: \"refund\")\n3. Extracts the conversation ID and URL from the payload\n4. Calls Zendesk Tickets API to create a ticket with:\n   - **Subject**: The Intercom conversation URL\n   - **Description** (via `comment.body`): \"Intercom conversation ID: {id}\"\n\n## Configuration\n\n| Config Property | Environment Variable | Required | Description |\n|-----------------|---------------------|----------|-------------|\n| `zendeskSubdomain` | `ZENDESK_SUBDOMAIN` | Yes | Your Zendesk subdomain (e.g., `mycompany` for `mycompany.zendesk.com`) |\n| `zendeskAccessToken` | `ZENDESK_ACCESS_TOKEN` | Yes | Zendesk API access token for Bearer authentication |\n| `intercomAppId` | `INTERCOM_APP_ID` | No | Intercom App ID used to construct conversation URL when webhook payload contains placeholder |\n| `refundTagName` | `REFUND_TAG_NAME` | No | Tag name that triggers ticket creation (default: `\"refund\"`) |\n\n## Usage Example\n\n```typescript\nimport { handle } from './connector';\n\nconst payload = {\n  type: 'notification_event',\n  topic: 'conversation_part.tag.created',\n  data: {\n    item: {\n      type: 'conversation',\n      id: '12345',\n      url: 'https://app.intercom.com/a/apps/my-app/inbox/shared/all/conversation/12345'\n    },\n    tag: { name: 'refund' }\n  }\n};\n\nconst config = {\n  zendeskSubdomain: process.env.ZENDESK_SUBDOMAIN!,\n  zendeskAccessToken: process.env.ZENDESK_ACCESS_TOKEN!,\n  intercomAppId: process.env.INTERCOM_APP_ID,\n  refundTagName: 'refund'\n};\n\nconst result = await handle(payload, config);\nconsole.log(`Created Zendesk ticket #${result.ticketId}`);\n```\n\n## Assumptions\n\n1. The Intercom webhook payload includes a `conversation` object with `id` and optionally `url` fields under `data.item`.\n2. The webhook topic is `conversation_part.tag.created` (Intercom does not have a dedicated \"conversation tagged\" webhook).\n3. The Zendesk Tickets API accepts ticket creation via `POST /api/v2/tickets.json` with `subject` and `comment.body` fields.\n4. Ticket description must be set via `comment.body` (the `description` property is ignored on create).\n5. No additional ticket fields (assignee, group, priority) are required for this trigger.\n6. If the webhook payload URL contains the `<app_id>` placeholder, the connector constructs the URL using `intercomAppId` from config.\n7. The connector filters for a specific tag name (default \"refund\") to avoid creating tickets for all tags.\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://developers.intercom.com/docs/references/2.1/webhooks/webhook-models\n// Source: https://developer.zendesk.com/api-reference/ticketing/tickets/tickets\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"type\": \"notification_event\",\n  \"topic\": \"conversation_part.tag.created\",\n  \"data\": {\n    \"item\": {\n      \"type\": \"conversation\",\n      \"id\": \"12345\",\n      \"url\": \"https://app.intercom.com/a/apps/<app_id>/inbox/shared/all/conversation/12345\"\n    }\n  }\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://{subdomain}.zendesk.com/api/v2/tickets.json\",\n    \"response\": {\n      \"ticket\": {\n        \"id\": 123,\n        \"subject\": \"https://app.intercom.com/a/apps/<app_id>/inbox/shared/all/conversation/12345\",\n        \"description\": \"Intercom conversation ID: 12345\",\n        \"status\": \"new\"\n      }\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ],
+      "report": {
+        "typecheckOk": true,
+        "typecheckOutput": "",
+        "passed": 10,
+        "failed": 0,
+        "total": 10,
+        "failures": [],
+        "durationMs": 278.8115234375,
+        "ranOn": "nebius-sandbox:01a0fbc6-07e7-72e3-ae0b-ed90f692bf80",
+        "passedNames": [
+          "contract handles the documented example payload",
+          "handle creates a Zendesk ticket with correct field mapping on happy path",
+          "handle constructs conversation URL from intercomAppId when payload URL has placeholder",
+          "handle throws descriptive error when required field data.item.id is missing",
+          "handle throws descriptive error when required field data.item.type is missing",
+          "handle throws error for unexpected webhook topic",
+          "handle throws error when tag name does not match refund tag",
+          "handle allows custom refund tag name via config",
+          "handle throws error with status code and endpoint on non-2xx Zendesk response",
+          "handle throws error with status code and endpoint on 5xx Zendesk response"
+        ],
+        "contract": "passed"
+      }
+    },
+    {
+      "type": "step",
+      "step": "package",
+      "status": "done"
+    }
+  ]
+}

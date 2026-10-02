@@ -1,0 +1,404 @@
+{
+  "prompt": "When a Stripe payment succeeds, add the customer to a Mailchimp audience with the plan as a tag.",
+  "events": [
+    {
+      "type": "mode",
+      "mode": "live"
+    },
+    {
+      "type": "step",
+      "step": "plan",
+      "status": "start"
+    },
+    {
+      "type": "plan",
+      "plan": {
+        "summary": "When a Stripe payment succeeds, add the customer to a Mailchimp audience with the plan as a tag.",
+        "source": {
+          "app": "Stripe",
+          "trigger": "checkout.session.completed webhook",
+          "docsQuery": "Stripe checkout.session.completed webhook payload customer email subscription plan"
+        },
+        "target": {
+          "app": "Mailchimp",
+          "action": "add subscriber to list",
+          "docsQuery": "Mailchimp API add subscriber to audience member tags"
+        },
+        "fieldMapping": [
+          {
+            "from": "customer.email",
+            "to": "email_address",
+            "note": "Stripe customer email field"
+          },
+          {
+            "from": "customer.id",
+            "to": "id",
+            "note": "Mailchimp uses the email address as the subscriber ID"
+          },
+          {
+            "from": "metadata.plan",
+            "to": "tags",
+            "note": "Extract plan name from Stripe metadata and map to Mailchimp tag"
+          }
+        ],
+        "assumptions": [
+          "The Stripe checkout session includes customer metadata with a 'plan' key.",
+          "The Mailchimp audience is configured to accept tags via the API add-subscriber endpoint.",
+          "The user has already set up the Mailchimp audience and has the necessary API key."
+        ]
+      }
+    },
+    {
+      "type": "step",
+      "step": "plan",
+      "status": "done",
+      "detail": "When a Stripe payment succeeds, add the customer to a Mailchimp audience with the plan as a tag."
+    },
+    {
+      "type": "step",
+      "step": "research",
+      "status": "start"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Installing typescript + vitest in a sandbox checkpoint"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Searched \"Mailchimp API add subscriber to audience member tags\": 2 of 2 picked from Mailchimp's own docs"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "No Stripe page in the results, searched stripe.com directly: 5 results"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Searched \"Stripe checkout.session.completed webhook payload customer email subscription plan\": 2 of 2 picked from Stripe's own docs"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Extracted 4 documentation pages"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Checkpoint ready: 134fa9a5"
+    },
+    {
+      "type": "sources",
+      "sources": [
+        {
+          "title": "Checkout Sessions | Stripe API Reference",
+          "url": "https://docs.stripe.com/api/checkout/sessions",
+          "official": true
+        },
+        {
+          "title": "Build a subscriptions integration with Checkout | Stripe Documentation",
+          "url": "https://docs.stripe.com/payments/checkout/build-subscriptions",
+          "official": true
+        },
+        {
+          "title": "Lists/Audiences > Member Tags | Mailchimp Marketing API Reference | Mailchimp Developer",
+          "url": "https://mailchimp.com/developer/marketing/api/list-member-tags",
+          "official": true
+        },
+        {
+          "title": "Add member to list | Mailchimp Marketing API Reference | Mailchimp Developer",
+          "url": "https://mailchimp.com/developer/marketing/api/list-members/add-member-to-list",
+          "official": true
+        }
+      ]
+    },
+    {
+      "type": "spec",
+      "spec": {
+        "source": {
+          "app": "Stripe",
+          "role": "source",
+          "method": "POST",
+          "url": "/v1/checkout/sessions",
+          "auth": {
+            "type": "bearer",
+            "name": "Authorization",
+            "envVar": "STRIPE_SECRET_KEY"
+          },
+          "example": {
+            "id": "cs_test_a1b2c3d4e5f6g7h8i9j0",
+            "customer": "cus_1234567890",
+            "customer_email": "customer@example.com",
+            "metadata": {
+              "plan": "premium"
+            },
+            "payment_status": "paid",
+            "mode": "subscription",
+            "status": "complete"
+          },
+          "docsUrl": "https://docs.stripe.com/api/checkout/sessions/object",
+          "notes": [
+            "The webhook payload is sent to your endpoint as a POST request with the event object in the body.",
+            "The relevant event type is 'checkout.session.completed'.",
+            "The customer email is available at 'data.object.customer_email' or via expanding the 'customer' field.",
+            "The plan must be passed in the session's metadata under the key 'plan'.",
+            "Ensure your webhook endpoint is configured to receive 'checkout.session.completed' events in the Stripe Dashboard."
+          ]
+        },
+        "target": [
+          {
+            "app": "Mailchimp",
+            "role": "target",
+            "method": "POST",
+            "url": "https://usX.api.mailchimp.com/3.0/lists/{list_id}/members",
+            "auth": {
+              "type": "bearer",
+              "name": "Authorization",
+              "envVar": "MAILCHIMP_API_KEY"
+            },
+            "example": {
+              "email_address": "customer@example.com",
+              "status_if_new": "subscribed",
+              "tags": [
+                "premium"
+              ]
+            },
+            "responseExample": {
+              "id": "abc123def456",
+              "email_address": "customer@example.com",
+              "status": "subscribed",
+              "tags": [
+                {
+                  "name": "premium",
+                  "status": "active"
+                }
+              ]
+            },
+            "docsUrl": "https://mailchimp.com/developer/marketing/api/list-members/add-member-to-list",
+            "notes": [
+              "The API key must be base64 encoded as 'apikey:{API_KEY}' in the Authorization header.",
+              "The audience/list ID must be known and substituted into the URL.",
+              "If the subscriber already exists, Mailchimp will update their tags unless 'status_if_new' is omitted.",
+              "Tags are added as an array of strings; existing tags are not replaced.",
+              "The 'status_if_new' field ensures new subscribers are marked as subscribed.",
+              "Use the hashed email (lowercase, MD5) as the subscriber ID for subsequent operations if needed."
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "step",
+      "step": "research",
+      "status": "done",
+      "detail": "2 endpoints from 4 pages"
+    },
+    {
+      "type": "step",
+      "step": "generate",
+      "status": "start"
+    },
+    {
+      "type": "files",
+      "attempt": 1,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "export interface ConnectorConfig {\n  /** Mailchimp API key (from MAILCHIMP_API_KEY env var) */\n  mailchimpApiKey: string\n  /** Mailchimp audience/list ID (from MAILCHIMP_LIST_ID env var) */\n  mailchimpListId: string\n  /** Mailchimp server prefix, e.g. \"us1\" (from MAILCHIMP_SERVER_PREFIX env var, default \"us1\") */\n  mailchimpServerPrefix?: string\n  /** Injected fetch for testing */\n  fetch?: typeof fetch\n}\n\nexport interface StripeCheckoutSessionCompleted {\n  id: string\n  customer: string\n  customer_email: string\n  metadata: {\n    plan: string\n    [key: string]: unknown\n  }\n  payment_status: string\n  mode: string\n  status: string\n  [key: string]: unknown\n}\n\nexport interface HandleResult {\n  mailchimpMemberId: string\n  email: string\n  tags: string[]\n}\n\nfunction base64Encode(str: string): string {\n  if (typeof btoa === 'function') return btoa(str)\n  return Buffer.from(str).toString('base64')\n}\n\nexport async function handle(\n  payload: StripeCheckoutSessionCompleted,\n  config: ConnectorConfig\n): Promise<HandleResult> {\n  const fetchImpl = config.fetch ?? fetch\n\n  // Validate required fields\n  if (!payload.customer_email) {\n    throw new Error('Missing required field: customer_email')\n  }\n  if (!payload.metadata?.plan) {\n    throw new Error('Missing required field: metadata.plan')\n  }\n\n  const email = payload.customer_email\n  const plan = payload.metadata.plan\n  const serverPrefix = config.mailchimpServerPrefix ?? 'us1'\n  const url = `https://${serverPrefix}.api.mailchimp.com/3.0/lists/${config.mailchimpListId}/members`\n\n  const authString = `apikey:${config.mailchimpApiKey}`\n  const authHeader = `Basic ${base64Encode(authString)}`\n\n  const body = {\n    email_address: email,\n    status_if_new: 'subscribed',\n    tags: [plan],\n  }\n\n  const response = await fetchImpl(url, {\n    method: 'POST',\n    headers: {\n      Authorization: authHeader,\n      'Content-Type': 'application/json',\n    },\n    body: JSON.stringify(body),\n  })\n\n  if (!response.ok) {\n    throw new Error(`Mailchimp API error: ${response.status} ${response.statusText} for POST ${url}`)\n  }\n\n  const result = (await response.json()) as {\n    id: string\n    email_address: string\n    tags: Array<{ name: string; status: string }>\n  }\n\n  return {\n    mailchimpMemberId: result.id,\n    email: result.email_address,\n    tags: result.tags.map((t) => t.name),\n  }\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi } from 'vitest'\nimport { handle, ConnectorConfig, StripeCheckoutSessionCompleted } from './connector'\nimport { SOURCE_EXAMPLE, contractFetch, fakeFetch, jsonResponse, TARGET_ENDPOINTS } from './fixtures'\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch()\n    const config: ConnectorConfig = {\n      mailchimpApiKey: 'test-api-key',\n      mailchimpListId: 'test-list-id',\n      mailchimpServerPrefix: 'us1',\n      fetch,\n    }\n    const result = await handle(SOURCE_EXAMPLE as unknown as StripeCheckoutSessionCompleted, config)\n    expect(calls.length).toBeGreaterThan(0)\n    expect(result.mailchimpMemberId).toBe('abc123def456')\n    expect(result.email).toBe('customer@example.com')\n    expect(result.tags).toContain('premium')\n  })\n})\n\ndescribe('handle', () => {\n  it('maps fields correctly and calls Mailchimp with expected body', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url.includes('/lists/test-list-id/members') ? jsonResponse({ id: 'member123', email_address: 'test@example.com', tags: [{ name: 'pro', status: 'active' }] }, 201) : jsonResponse({ error: 'not found' }, 404)\n    )\n\n    const payload: StripeCheckoutSessionCompleted = {\n      id: 'cs_test_123',\n      customer: 'cus_456',\n      customer_email: 'test@example.com',\n      metadata: { plan: 'pro' },\n      payment_status: 'paid',\n      mode: 'subscription',\n      status: 'complete',\n    }\n\n    const config: ConnectorConfig = {\n      mailchimpApiKey: 'test-key',\n      mailchimpListId: 'test-list-id',\n      mailchimpServerPrefix: 'us2',\n      fetch,\n    }\n\n    const result = await handle(payload, config)\n\n    expect(calls.length).toBe(1)\n    const call = calls[0]\n    expect(call.method).toBe('POST')\n    expect(call.url).toBe('https://us2.api.mailchimp.com/3.0/lists/test-list-id/members')\n    expect(call.headers.get('authorization')).toBe('Basic YXBpa2V5OnRlc3Qta2V5')\n    expect(call.json).toEqual({\n      email_address: 'test@example.com',\n      status_if_new: 'subscribed',\n      tags: ['pro'],\n    })\n    expect(result.mailchimpMemberId).toBe('member123')\n    expect(result.email).toBe('test@example.com')\n    expect(result.tags).toEqual(['pro'])\n  })\n\n  it('uses default server prefix when not provided', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url.includes('/lists/list-abc/members') ? jsonResponse({ id: 'mem1', email_address: 'a@b.com', tags: [] }, 200) : jsonResponse({}, 404)\n    )\n\n    const payload: StripeCheckoutSessionCompleted = {\n      id: 'cs_1',\n      customer: 'cus_1',\n      customer_email: 'a@b.com',\n      metadata: { plan: 'basic' },\n      payment_status: 'paid',\n      mode: 'subscription',\n      status: 'complete',\n    }\n\n    const config: ConnectorConfig = {\n      mailchimpApiKey: 'key',\n      mailchimpListId: 'list-abc',\n      fetch,\n    }\n\n    await handle(payload, config)\n\n    expect(calls[0].url).toBe('https://us1.api.mailchimp.com/3.0/lists/list-abc/members')\n  })\n\n  it('throws when customer_email is missing', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n    const payload = {\n      id: 'cs_1',\n      customer: 'cus_1',\n      metadata: { plan: 'basic' },\n      payment_status: 'paid',\n      mode: 'subscription',\n      status: 'complete',\n    } as unknown as StripeCheckoutSessionCompleted\n\n    const config: ConnectorConfig = {\n      mailchimpApiKey: 'key',\n      mailchimpListId: 'list-1',\n      fetch,\n    }\n\n    await expect(handle(payload, config)).rejects.toThrow('Missing required field: customer_email')\n  })\n\n  it('throws when metadata.plan is missing', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n    const payload: StripeCheckoutSessionCompleted = {\n      id: 'cs_1',\n      customer: 'cus_1',\n      customer_email: 'test@test.com',\n      metadata: {},\n      payment_status: 'paid',\n      mode: 'subscription',\n      status: 'complete',\n    }\n\n    const config: ConnectorConfig = {\n      mailchimpApiKey: 'key',\n      mailchimpListId: 'list-1',\n      fetch,\n    }\n\n    await expect(handle(payload, config)).rejects.toThrow('Missing required field: metadata.plan')\n  })\n\n  it('throws on non-2xx response from Mailchimp', async () => {\n    const { fetch, calls } = fakeFetch(() => jsonResponse({ detail: 'Invalid API key' }, 401))\n\n    const payload: StripeCheckoutSessionCompleted = {\n      id: 'cs_1',\n      customer: 'cus_1',\n      customer_email: 'test@test.com',\n      metadata: { plan: 'pro' },\n      payment_status: 'paid',\n      mode: 'subscription',\n      status: 'complete',\n    }\n\n    const config: ConnectorConfig = {\n      mailchimpApiKey: 'bad-key',\n      mailchimpListId: 'list-1',\n      fetch,\n    }\n\n    await expect(handle(payload, config)).rejects.toThrow('Mailchimp API error: 401 Unauthorized for POST')\n    expect(calls.length).toBe(1)\n  })\n\n  it('includes plan as tag in request', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url.includes('/members') ? jsonResponse({ id: 'm1', email_address: 'x@y.com', tags: [{ name: 'enterprise', status: 'active' }] }, 200) : jsonResponse({}, 404)\n    )\n\n    const payload: StripeCheckoutSessionCompleted = {\n      id: 'cs_1',\n      customer: 'cus_1',\n      customer_email: 'x@y.com',\n      metadata: { plan: 'enterprise' },\n      payment_status: 'paid',\n      mode: 'subscription',\n      status: 'complete',\n    }\n\n    const config: ConnectorConfig = {\n      mailchimpApiKey: 'key',\n      mailchimpListId: 'list-1',\n      fetch,\n    }\n\n    await handle(payload, config)\n    expect(calls[0].json).toEqual({\n      email_address: 'x@y.com',\n      status_if_new: 'subscribed',\n      tags: ['enterprise'],\n    })\n  })\n})\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# Stripe → Mailchimp Connector\n\nAdds a customer to a Mailchimp audience with their subscription plan as a tag when a Stripe checkout session completes.\n\n## What it does\n\nListens for Stripe `checkout.session.completed` webhook events. When a payment succeeds, extracts the customer email and plan from the session metadata, then calls the Mailchimp API to add or update the subscriber in the specified audience with the plan as a tag.\n\n## Configuration\n\n| Config property | Environment variable | Required | Description |\n|-----------------|---------------------|----------|-------------|\n| `mailchimpApiKey` | `MAILCHIMP_API_KEY` | Yes | Mailchimp API key (format: `apikey:xxx`) |\n| `mailchimpListId` | `MAILCHIMP_LIST_ID` | Yes | The audience/list ID to add subscribers to |\n| `mailchimpServerPrefix` | `MAILCHIMP_SERVER_PREFIX` | No | Mailchimp server prefix (e.g., `us1`, `us2`). Default: `us1` |\n| `fetch` | — | No | Injected fetch implementation for testing |\n\n## Usage example\n\n```typescript\nimport { handle, ConnectorConfig } from './connector'\n\nconst config: ConnectorConfig = {\n  mailchimpApiKey: process.env.MAILCHIMP_API_KEY!,\n  mailchimpListId: process.env.MAILCHIMP_LIST_ID!,\n  mailchimpServerPrefix: process.env.MAILCHIMP_SERVER_PREFIX,\n}\n\n// In your webhook handler:\nconst result = await handle(stripeWebhookPayload, config)\nconsole.log(`Added ${result.email} with tags: ${result.tags.join(', ')}`)\n```\n\n## Assumptions\n\n- The Stripe checkout session includes customer metadata with a `plan` key (e.g., `{ \"plan\": \"premium\" }`).\n- The Mailchimp audience is configured to accept tags via the API add-subscriber endpoint.\n- The user has already set up the Mailchimp audience and has the necessary API key.\n- The webhook payload is the `data.object` from the `checkout.session.completed` event (contains `customer_email` and `metadata.plan` directly).\n- Mailchimp API key is used as `apikey:{API_KEY}` in a Basic Auth header.\n- New subscribers are added with `status_if_new: \"subscribed\"`.\n- Tags are additive; existing tags on the subscriber are not replaced.\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://docs.stripe.com/api/checkout/sessions/object\n// Source: https://mailchimp.com/developer/marketing/api/list-members/add-member-to-list\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"id\": \"cs_test_a1b2c3d4e5f6g7h8i9j0\",\n  \"customer\": \"cus_1234567890\",\n  \"customer_email\": \"customer@example.com\",\n  \"metadata\": {\n    \"plan\": \"premium\"\n  },\n  \"payment_status\": \"paid\",\n  \"mode\": \"subscription\",\n  \"status\": \"complete\"\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://usX.api.mailchimp.com/3.0/lists/{list_id}/members\",\n    \"response\": {\n      \"id\": \"abc123def456\",\n      \"email_address\": \"customer@example.com\",\n      \"status\": \"subscribed\",\n      \"tags\": [\n        {\n          \"name\": \"premium\",\n          \"status\": \"active\"\n        }\n      ]\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ]
+    },
+    {
+      "type": "step",
+      "step": "generate",
+      "status": "done",
+      "detail": "src/connector.ts, src/connector.test.ts, README.md, src/fixtures.ts"
+    },
+    {
+      "type": "step",
+      "step": "verify",
+      "status": "start"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Forking checkpoint 134fa9a5 with 4 files, network off"
+    },
+    {
+      "type": "tests",
+      "attempt": 1,
+      "report": {
+        "typecheckOk": false,
+        "typecheckOutput": "src/connector.test.ts(114,7): error TS2741: Property 'plan' is missing in type '{}' but required in type '{ [key: string]: unknown; plan: string; }'.",
+        "passed": 7,
+        "failed": 0,
+        "total": 7,
+        "failures": [],
+        "durationMs": 282.41064453125,
+        "ranOn": "nebius-sandbox:01a0fbc2-3508-729c-a08d-dec4d20595dc",
+        "passedNames": [
+          "contract handles the documented example payload",
+          "handle maps fields correctly and calls Mailchimp with expected body",
+          "handle uses default server prefix when not provided",
+          "handle throws when customer_email is missing",
+          "handle throws when metadata.plan is missing",
+          "handle throws on non-2xx response from Mailchimp",
+          "handle includes plan as tag in request"
+        ],
+        "contract": "passed"
+      }
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Attempt 1 failed (0 tests, typecheck failed), repairing"
+    },
+    {
+      "type": "files",
+      "attempt": 2,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "export interface ConnectorConfig {\n  /** Mailchimp API key (from MAILCHIMP_API_KEY env var) */\n  mailchimpApiKey: string\n  /** Mailchimp audience/list ID (from MAILCHIMP_LIST_ID env var) */\n  mailchimpListId: string\n  /** Mailchimp server prefix, e.g. \"us1\" (from MAILCHIMP_SERVER_PREFIX env var, default \"us1\") */\n  mailchimpServerPrefix?: string\n  /** Injected fetch for testing */\n  fetch?: typeof fetch\n}\n\nexport interface StripeCheckoutSessionCompleted {\n  id: string\n  customer: string\n  customer_email: string\n  metadata: {\n    plan: string\n    [key: string]: unknown\n  }\n  payment_status: string\n  mode: string\n  status: string\n  [key: string]: unknown\n}\n\nexport interface HandleResult {\n  mailchimpMemberId: string\n  email: string\n  tags: string[]\n}\n\nfunction base64Encode(str: string): string {\n  if (typeof btoa === 'function') return btoa(str)\n  return Buffer.from(str).toString('base64')\n}\n\nexport async function handle(\n  payload: StripeCheckoutSessionCompleted,\n  config: ConnectorConfig\n): Promise<HandleResult> {\n  const fetchImpl = config.fetch ?? fetch\n\n  // Validate required fields\n  if (!payload.customer_email) {\n    throw new Error('Missing required field: customer_email')\n  }\n  if (!payload.metadata?.plan) {\n    throw new Error('Missing required field: metadata.plan')\n  }\n\n  const email = payload.customer_email\n  const plan = payload.metadata.plan\n  const serverPrefix = config.mailchimpServerPrefix ?? 'us1'\n  const url = `https://${serverPrefix}.api.mailchimp.com/3.0/lists/${config.mailchimpListId}/members`\n\n  const authString = `apikey:${config.mailchimpApiKey}`\n  const authHeader = `Basic ${base64Encode(authString)}`\n\n  const body = {\n    email_address: email,\n    status_if_new: 'subscribed',\n    tags: [plan],\n  }\n\n  const response = await fetchImpl(url, {\n    method: 'POST',\n    headers: {\n      Authorization: authHeader,\n      'Content-Type': 'application/json',\n    },\n    body: JSON.stringify(body),\n  })\n\n  if (!response.ok) {\n    throw new Error(`Mailchimp API error: ${response.status} ${response.statusText} for POST ${url}`)\n  }\n\n  const result = (await response.json()) as {\n    id: string\n    email_address: string\n    tags: Array<{ name: string; status: string }>\n  }\n\n  return {\n    mailchimpMemberId: result.id,\n    email: result.email_address,\n    tags: result.tags.map((t) => t.name),\n  }\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi } from 'vitest'\nimport { handle, ConnectorConfig, StripeCheckoutSessionCompleted } from './connector'\nimport { SOURCE_EXAMPLE, contractFetch, fakeFetch, jsonResponse, TARGET_ENDPOINTS } from './fixtures'\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch()\n    const config: ConnectorConfig = {\n      mailchimpApiKey: 'test-api-key',\n      mailchimpListId: 'test-list-id',\n      mailchimpServerPrefix: 'us1',\n      fetch,\n    }\n    const result = await handle(SOURCE_EXAMPLE as unknown as StripeCheckoutSessionCompleted, config)\n    expect(calls.length).toBeGreaterThan(0)\n    expect(result.mailchimpMemberId).toBe('abc123def456')\n    expect(result.email).toBe('customer@example.com')\n    expect(result.tags).toContain('premium')\n  })\n})\n\ndescribe('handle', () => {\n  it('maps fields correctly and calls Mailchimp with expected body', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url.includes('/lists/test-list-id/members') ? jsonResponse({ id: 'member123', email_address: 'test@example.com', tags: [{ name: 'pro', status: 'active' }] }, 201) : jsonResponse({ error: 'not found' }, 404)\n    )\n\n    const payload: StripeCheckoutSessionCompleted = {\n      id: 'cs_test_123',\n      customer: 'cus_456',\n      customer_email: 'test@example.com',\n      metadata: { plan: 'pro' },\n      payment_status: 'paid',\n      mode: 'subscription',\n      status: 'complete',\n    }\n\n    const config: ConnectorConfig = {\n      mailchimpApiKey: 'test-key',\n      mailchimpListId: 'test-list-id',\n      mailchimpServerPrefix: 'us2',\n      fetch,\n    }\n\n    const result = await handle(payload, config)\n\n    expect(calls.length).toBe(1)\n    const call = calls[0]\n    expect(call.method).toBe('POST')\n    expect(call.url).toBe('https://us2.api.mailchimp.com/3.0/lists/test-list-id/members')\n    expect(call.headers.get('authorization')).toBe('Basic YXBpa2V5OnRlc3Qta2V5')\n    expect(call.json).toEqual({\n      email_address: 'test@example.com',\n      status_if_new: 'subscribed',\n      tags: ['pro'],\n    })\n    expect(result.mailchimpMemberId).toBe('member123')\n    expect(result.email).toBe('test@example.com')\n    expect(result.tags).toEqual(['pro'])\n  })\n\n  it('uses default server prefix when not provided', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url.includes('/lists/list-abc/members') ? jsonResponse({ id: 'mem1', email_address: 'a@b.com', tags: [] }, 200) : jsonResponse({}, 404)\n    )\n\n    const payload: StripeCheckoutSessionCompleted = {\n      id: 'cs_1',\n      customer: 'cus_1',\n      customer_email: 'a@b.com',\n      metadata: { plan: 'basic' },\n      payment_status: 'paid',\n      mode: 'subscription',\n      status: 'complete',\n    }\n\n    const config: ConnectorConfig = {\n      mailchimpApiKey: 'key',\n      mailchimpListId: 'list-abc',\n      fetch,\n    }\n\n    await handle(payload, config)\n\n    expect(calls[0].url).toBe('https://us1.api.mailchimp.com/3.0/lists/list-abc/members')\n  })\n\n  it('throws when customer_email is missing', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n    const payload = {\n      id: 'cs_1',\n      customer: 'cus_1',\n      metadata: { plan: 'basic' },\n      payment_status: 'paid',\n      mode: 'subscription',\n      status: 'complete',\n    } as unknown as StripeCheckoutSessionCompleted\n\n    const config: ConnectorConfig = {\n      mailchimpApiKey: 'key',\n      mailchimpListId: 'list-1',\n      fetch,\n    }\n\n    await expect(handle(payload, config)).rejects.toThrow('Missing required field: customer_email')\n  })\n\n  it('throws when metadata.plan is missing', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n    const payload = {\n      id: 'cs_1',\n      customer: 'cus_1',\n      customer_email: 'test@test.com',\n      metadata: {},\n      payment_status: 'paid',\n      mode: 'subscription',\n      status: 'complete',\n    } as unknown as StripeCheckoutSessionCompleted\n\n    const config: ConnectorConfig = {\n      mailchimpApiKey: 'key',\n      mailchimpListId: 'list-1',\n      fetch,\n    }\n\n    await expect(handle(payload, config)).rejects.toThrow('Missing required field: metadata.plan')\n  })\n\n  it('throws on non-2xx response from Mailchimp', async () => {\n    const { fetch, calls } = fakeFetch(() => jsonResponse({ detail: 'Invalid API key' }, 401))\n\n    const payload: StripeCheckoutSessionCompleted = {\n      id: 'cs_1',\n      customer: 'cus_1',\n      customer_email: 'test@test.com',\n      metadata: { plan: 'pro' },\n      payment_status: 'paid',\n      mode: 'subscription',\n      status: 'complete',\n    }\n\n    const config: ConnectorConfig = {\n      mailchimpApiKey: 'bad-key',\n      mailchimpListId: 'list-1',\n      fetch,\n    }\n\n    await expect(handle(payload, config)).rejects.toThrow('Mailchimp API error: 401 Unauthorized for POST')\n    expect(calls.length).toBe(1)\n  })\n\n  it('includes plan as tag in request', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url.includes('/members') ? jsonResponse({ id: 'm1', email_address: 'x@y.com', tags: [{ name: 'enterprise', status: 'active' }] }, 200) : jsonResponse({}, 404)\n    )\n\n    const payload: StripeCheckoutSessionCompleted = {\n      id: 'cs_1',\n      customer: 'cus_1',\n      customer_email: 'x@y.com',\n      metadata: { plan: 'enterprise' },\n      payment_status: 'paid',\n      mode: 'subscription',\n      status: 'complete',\n    }\n\n    const config: ConnectorConfig = {\n      mailchimpApiKey: 'key',\n      mailchimpListId: 'list-1',\n      fetch,\n    }\n\n    await handle(payload, config)\n    expect(calls[0].json).toEqual({\n      email_address: 'x@y.com',\n      status_if_new: 'subscribed',\n      tags: ['enterprise'],\n    })\n  })\n})\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# Stripe → Mailchimp Connector\n\nAdds a customer to a Mailchimp audience with their subscription plan as a tag when a Stripe checkout session completes.\n\n## What it does\n\nListens for Stripe `checkout.session.completed` webhook events. When a payment succeeds, extracts the customer email and plan from the session metadata, then calls the Mailchimp API to add or update the subscriber in the specified audience with the plan as a tag.\n\n## Configuration\n\n| Config property | Environment variable | Required | Description |\n|-----------------|---------------------|----------|-------------|\n| `mailchimpApiKey` | `MAILCHIMP_API_KEY` | Yes | Mailchimp API key (format: `apikey:xxx`) |\n| `mailchimpListId` | `MAILCHIMP_LIST_ID` | Yes | The audience/list ID to add subscribers to |\n| `mailchimpServerPrefix` | `MAILCHIMP_SERVER_PREFIX` | No | Mailchimp server prefix (e.g., `us1`, `us2`). Default: `us1` |\n| `fetch` | — | No | Injected fetch implementation for testing |\n\n## Usage example\n\n```typescript\nimport { handle, ConnectorConfig } from './connector'\n\nconst config: ConnectorConfig = {\n  mailchimpApiKey: process.env.MAILCHIMP_API_KEY!,\n  mailchimpListId: process.env.MAILCHIMP_LIST_ID!,\n  mailchimpServerPrefix: process.env.MAILCHIMP_SERVER_PREFIX,\n}\n\n// In your webhook handler:\nconst result = await handle(stripeWebhookPayload, config)\nconsole.log(`Added ${result.email} with tags: ${result.tags.join(', ')}`)\n```\n\n## Assumptions\n\n- The Stripe checkout session includes customer metadata with a `plan` key (e.g., `{ \"plan\": \"premium\" }`).\n- The Mailchimp audience is configured to accept tags via the API add-subscriber endpoint.\n- The user has already set up the Mailchimp audience and has the necessary API key.\n- The webhook payload is the `data.object` from the `checkout.session.completed` event (contains `customer_email` and `metadata.plan` directly).\n- Mailchimp API key is used as `apikey:{API_KEY}` in a Basic Auth header.\n- New subscribers are added with `status_if_new: \"subscribed\"`.\n- Tags are additive; existing tags on the subscriber are not replaced.\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://docs.stripe.com/api/checkout/sessions/object\n// Source: https://mailchimp.com/developer/marketing/api/list-members/add-member-to-list\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"id\": \"cs_test_a1b2c3d4e5f6g7h8i9j0\",\n  \"customer\": \"cus_1234567890\",\n  \"customer_email\": \"customer@example.com\",\n  \"metadata\": {\n    \"plan\": \"premium\"\n  },\n  \"payment_status\": \"paid\",\n  \"mode\": \"subscription\",\n  \"status\": \"complete\"\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://usX.api.mailchimp.com/3.0/lists/{list_id}/members\",\n    \"response\": {\n      \"id\": \"abc123def456\",\n      \"email_address\": \"customer@example.com\",\n      \"status\": \"subscribed\",\n      \"tags\": [\n        {\n          \"name\": \"premium\",\n          \"status\": \"active\"\n        }\n      ]\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ]
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Forking checkpoint 134fa9a5 with 4 files, network off"
+    },
+    {
+      "type": "tests",
+      "attempt": 2,
+      "report": {
+        "typecheckOk": true,
+        "typecheckOutput": "",
+        "passed": 7,
+        "failed": 0,
+        "total": 7,
+        "failures": [],
+        "durationMs": 309.43017578125,
+        "ranOn": "nebius-sandbox:01a0fbc2-6aad-70be-bd41-5091d9a5ea7d",
+        "passedNames": [
+          "contract handles the documented example payload",
+          "handle maps fields correctly and calls Mailchimp with expected body",
+          "handle uses default server prefix when not provided",
+          "handle throws when customer_email is missing",
+          "handle throws when metadata.plan is missing",
+          "handle throws on non-2xx response from Mailchimp",
+          "handle includes plan as tag in request"
+        ],
+        "contract": "passed"
+      }
+    },
+    {
+      "type": "step",
+      "step": "verify",
+      "status": "done",
+      "detail": "7/7 tests after 2 attempts"
+    },
+    {
+      "type": "step",
+      "step": "package",
+      "status": "start"
+    },
+    {
+      "type": "usage",
+      "usage": [
+        {
+          "model": "nvidia/Nemotron-3_5-Lightning",
+          "promptTokens": 421,
+          "completionTokens": 290,
+          "costUsd": 0.00009486
+        },
+        {
+          "model": "nvidia/nemotron-3-super-120b-a12b",
+          "promptTokens": 14267,
+          "completionTokens": 658,
+          "costUsd": 0.0048723
+        },
+        {
+          "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+          "promptTokens": 8513,
+          "completionTokens": 6986,
+          "costUsd": 0.029471
+        }
+      ]
+    },
+    {
+      "type": "result",
+      "ok": true,
+      "attempts": 2,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "export interface ConnectorConfig {\n  /** Mailchimp API key (from MAILCHIMP_API_KEY env var) */\n  mailchimpApiKey: string\n  /** Mailchimp audience/list ID (from MAILCHIMP_LIST_ID env var) */\n  mailchimpListId: string\n  /** Mailchimp server prefix, e.g. \"us1\" (from MAILCHIMP_SERVER_PREFIX env var, default \"us1\") */\n  mailchimpServerPrefix?: string\n  /** Injected fetch for testing */\n  fetch?: typeof fetch\n}\n\nexport interface StripeCheckoutSessionCompleted {\n  id: string\n  customer: string\n  customer_email: string\n  metadata: {\n    plan: string\n    [key: string]: unknown\n  }\n  payment_status: string\n  mode: string\n  status: string\n  [key: string]: unknown\n}\n\nexport interface HandleResult {\n  mailchimpMemberId: string\n  email: string\n  tags: string[]\n}\n\nfunction base64Encode(str: string): string {\n  if (typeof btoa === 'function') return btoa(str)\n  return Buffer.from(str).toString('base64')\n}\n\nexport async function handle(\n  payload: StripeCheckoutSessionCompleted,\n  config: ConnectorConfig\n): Promise<HandleResult> {\n  const fetchImpl = config.fetch ?? fetch\n\n  // Validate required fields\n  if (!payload.customer_email) {\n    throw new Error('Missing required field: customer_email')\n  }\n  if (!payload.metadata?.plan) {\n    throw new Error('Missing required field: metadata.plan')\n  }\n\n  const email = payload.customer_email\n  const plan = payload.metadata.plan\n  const serverPrefix = config.mailchimpServerPrefix ?? 'us1'\n  const url = `https://${serverPrefix}.api.mailchimp.com/3.0/lists/${config.mailchimpListId}/members`\n\n  const authString = `apikey:${config.mailchimpApiKey}`\n  const authHeader = `Basic ${base64Encode(authString)}`\n\n  const body = {\n    email_address: email,\n    status_if_new: 'subscribed',\n    tags: [plan],\n  }\n\n  const response = await fetchImpl(url, {\n    method: 'POST',\n    headers: {\n      Authorization: authHeader,\n      'Content-Type': 'application/json',\n    },\n    body: JSON.stringify(body),\n  })\n\n  if (!response.ok) {\n    throw new Error(`Mailchimp API error: ${response.status} ${response.statusText} for POST ${url}`)\n  }\n\n  const result = (await response.json()) as {\n    id: string\n    email_address: string\n    tags: Array<{ name: string; status: string }>\n  }\n\n  return {\n    mailchimpMemberId: result.id,\n    email: result.email_address,\n    tags: result.tags.map((t) => t.name),\n  }\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi } from 'vitest'\nimport { handle, ConnectorConfig, StripeCheckoutSessionCompleted } from './connector'\nimport { SOURCE_EXAMPLE, contractFetch, fakeFetch, jsonResponse, TARGET_ENDPOINTS } from './fixtures'\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch()\n    const config: ConnectorConfig = {\n      mailchimpApiKey: 'test-api-key',\n      mailchimpListId: 'test-list-id',\n      mailchimpServerPrefix: 'us1',\n      fetch,\n    }\n    const result = await handle(SOURCE_EXAMPLE as unknown as StripeCheckoutSessionCompleted, config)\n    expect(calls.length).toBeGreaterThan(0)\n    expect(result.mailchimpMemberId).toBe('abc123def456')\n    expect(result.email).toBe('customer@example.com')\n    expect(result.tags).toContain('premium')\n  })\n})\n\ndescribe('handle', () => {\n  it('maps fields correctly and calls Mailchimp with expected body', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url.includes('/lists/test-list-id/members') ? jsonResponse({ id: 'member123', email_address: 'test@example.com', tags: [{ name: 'pro', status: 'active' }] }, 201) : jsonResponse({ error: 'not found' }, 404)\n    )\n\n    const payload: StripeCheckoutSessionCompleted = {\n      id: 'cs_test_123',\n      customer: 'cus_456',\n      customer_email: 'test@example.com',\n      metadata: { plan: 'pro' },\n      payment_status: 'paid',\n      mode: 'subscription',\n      status: 'complete',\n    }\n\n    const config: ConnectorConfig = {\n      mailchimpApiKey: 'test-key',\n      mailchimpListId: 'test-list-id',\n      mailchimpServerPrefix: 'us2',\n      fetch,\n    }\n\n    const result = await handle(payload, config)\n\n    expect(calls.length).toBe(1)\n    const call = calls[0]\n    expect(call.method).toBe('POST')\n    expect(call.url).toBe('https://us2.api.mailchimp.com/3.0/lists/test-list-id/members')\n    expect(call.headers.get('authorization')).toBe('Basic YXBpa2V5OnRlc3Qta2V5')\n    expect(call.json).toEqual({\n      email_address: 'test@example.com',\n      status_if_new: 'subscribed',\n      tags: ['pro'],\n    })\n    expect(result.mailchimpMemberId).toBe('member123')\n    expect(result.email).toBe('test@example.com')\n    expect(result.tags).toEqual(['pro'])\n  })\n\n  it('uses default server prefix when not provided', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url.includes('/lists/list-abc/members') ? jsonResponse({ id: 'mem1', email_address: 'a@b.com', tags: [] }, 200) : jsonResponse({}, 404)\n    )\n\n    const payload: StripeCheckoutSessionCompleted = {\n      id: 'cs_1',\n      customer: 'cus_1',\n      customer_email: 'a@b.com',\n      metadata: { plan: 'basic' },\n      payment_status: 'paid',\n      mode: 'subscription',\n      status: 'complete',\n    }\n\n    const config: ConnectorConfig = {\n      mailchimpApiKey: 'key',\n      mailchimpListId: 'list-abc',\n      fetch,\n    }\n\n    await handle(payload, config)\n\n    expect(calls[0].url).toBe('https://us1.api.mailchimp.com/3.0/lists/list-abc/members')\n  })\n\n  it('throws when customer_email is missing', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n    const payload = {\n      id: 'cs_1',\n      customer: 'cus_1',\n      metadata: { plan: 'basic' },\n      payment_status: 'paid',\n      mode: 'subscription',\n      status: 'complete',\n    } as unknown as StripeCheckoutSessionCompleted\n\n    const config: ConnectorConfig = {\n      mailchimpApiKey: 'key',\n      mailchimpListId: 'list-1',\n      fetch,\n    }\n\n    await expect(handle(payload, config)).rejects.toThrow('Missing required field: customer_email')\n  })\n\n  it('throws when metadata.plan is missing', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n    const payload = {\n      id: 'cs_1',\n      customer: 'cus_1',\n      customer_email: 'test@test.com',\n      metadata: {},\n      payment_status: 'paid',\n      mode: 'subscription',\n      status: 'complete',\n    } as unknown as StripeCheckoutSessionCompleted\n\n    const config: ConnectorConfig = {\n      mailchimpApiKey: 'key',\n      mailchimpListId: 'list-1',\n      fetch,\n    }\n\n    await expect(handle(payload, config)).rejects.toThrow('Missing required field: metadata.plan')\n  })\n\n  it('throws on non-2xx response from Mailchimp', async () => {\n    const { fetch, calls } = fakeFetch(() => jsonResponse({ detail: 'Invalid API key' }, 401))\n\n    const payload: StripeCheckoutSessionCompleted = {\n      id: 'cs_1',\n      customer: 'cus_1',\n      customer_email: 'test@test.com',\n      metadata: { plan: 'pro' },\n      payment_status: 'paid',\n      mode: 'subscription',\n      status: 'complete',\n    }\n\n    const config: ConnectorConfig = {\n      mailchimpApiKey: 'bad-key',\n      mailchimpListId: 'list-1',\n      fetch,\n    }\n\n    await expect(handle(payload, config)).rejects.toThrow('Mailchimp API error: 401 Unauthorized for POST')\n    expect(calls.length).toBe(1)\n  })\n\n  it('includes plan as tag in request', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url.includes('/members') ? jsonResponse({ id: 'm1', email_address: 'x@y.com', tags: [{ name: 'enterprise', status: 'active' }] }, 200) : jsonResponse({}, 404)\n    )\n\n    const payload: StripeCheckoutSessionCompleted = {\n      id: 'cs_1',\n      customer: 'cus_1',\n      customer_email: 'x@y.com',\n      metadata: { plan: 'enterprise' },\n      payment_status: 'paid',\n      mode: 'subscription',\n      status: 'complete',\n    }\n\n    const config: ConnectorConfig = {\n      mailchimpApiKey: 'key',\n      mailchimpListId: 'list-1',\n      fetch,\n    }\n\n    await handle(payload, config)\n    expect(calls[0].json).toEqual({\n      email_address: 'x@y.com',\n      status_if_new: 'subscribed',\n      tags: ['enterprise'],\n    })\n  })\n})\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# Stripe → Mailchimp Connector\n\nAdds a customer to a Mailchimp audience with their subscription plan as a tag when a Stripe checkout session completes.\n\n## What it does\n\nListens for Stripe `checkout.session.completed` webhook events. When a payment succeeds, extracts the customer email and plan from the session metadata, then calls the Mailchimp API to add or update the subscriber in the specified audience with the plan as a tag.\n\n## Configuration\n\n| Config property | Environment variable | Required | Description |\n|-----------------|---------------------|----------|-------------|\n| `mailchimpApiKey` | `MAILCHIMP_API_KEY` | Yes | Mailchimp API key (format: `apikey:xxx`) |\n| `mailchimpListId` | `MAILCHIMP_LIST_ID` | Yes | The audience/list ID to add subscribers to |\n| `mailchimpServerPrefix` | `MAILCHIMP_SERVER_PREFIX` | No | Mailchimp server prefix (e.g., `us1`, `us2`). Default: `us1` |\n| `fetch` | — | No | Injected fetch implementation for testing |\n\n## Usage example\n\n```typescript\nimport { handle, ConnectorConfig } from './connector'\n\nconst config: ConnectorConfig = {\n  mailchimpApiKey: process.env.MAILCHIMP_API_KEY!,\n  mailchimpListId: process.env.MAILCHIMP_LIST_ID!,\n  mailchimpServerPrefix: process.env.MAILCHIMP_SERVER_PREFIX,\n}\n\n// In your webhook handler:\nconst result = await handle(stripeWebhookPayload, config)\nconsole.log(`Added ${result.email} with tags: ${result.tags.join(', ')}`)\n```\n\n## Assumptions\n\n- The Stripe checkout session includes customer metadata with a `plan` key (e.g., `{ \"plan\": \"premium\" }`).\n- The Mailchimp audience is configured to accept tags via the API add-subscriber endpoint.\n- The user has already set up the Mailchimp audience and has the necessary API key.\n- The webhook payload is the `data.object` from the `checkout.session.completed` event (contains `customer_email` and `metadata.plan` directly).\n- Mailchimp API key is used as `apikey:{API_KEY}` in a Basic Auth header.\n- New subscribers are added with `status_if_new: \"subscribed\"`.\n- Tags are additive; existing tags on the subscriber are not replaced.\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://docs.stripe.com/api/checkout/sessions/object\n// Source: https://mailchimp.com/developer/marketing/api/list-members/add-member-to-list\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"id\": \"cs_test_a1b2c3d4e5f6g7h8i9j0\",\n  \"customer\": \"cus_1234567890\",\n  \"customer_email\": \"customer@example.com\",\n  \"metadata\": {\n    \"plan\": \"premium\"\n  },\n  \"payment_status\": \"paid\",\n  \"mode\": \"subscription\",\n  \"status\": \"complete\"\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://usX.api.mailchimp.com/3.0/lists/{list_id}/members\",\n    \"response\": {\n      \"id\": \"abc123def456\",\n      \"email_address\": \"customer@example.com\",\n      \"status\": \"subscribed\",\n      \"tags\": [\n        {\n          \"name\": \"premium\",\n          \"status\": \"active\"\n        }\n      ]\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ],
+      "report": {
+        "typecheckOk": true,
+        "typecheckOutput": "",
+        "passed": 7,
+        "failed": 0,
+        "total": 7,
+        "failures": [],
+        "durationMs": 309.43017578125,
+        "ranOn": "nebius-sandbox:01a0fbc2-6aad-70be-bd41-5091d9a5ea7d",
+        "passedNames": [
+          "contract handles the documented example payload",
+          "handle maps fields correctly and calls Mailchimp with expected body",
+          "handle uses default server prefix when not provided",
+          "handle throws when customer_email is missing",
+          "handle throws when metadata.plan is missing",
+          "handle throws on non-2xx response from Mailchimp",
+          "handle includes plan as tag in request"
+        ],
+        "contract": "passed"
+      }
+    },
+    {
+      "type": "step",
+      "step": "package",
+      "status": "done"
+    }
+  ]
+}

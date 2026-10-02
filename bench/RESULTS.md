@@ -1,16 +1,16 @@
 # patchbay benchmark
 
-2026-10-02 · runner: nebius · 10/10 green · 6/10 green on the first draft · $0.3376 total
+2026-10-02 · runner: nebius · 8/10 green · 3/10 green on the first draft · $0.5316 total
 
 | Integration | Result | Attempts | Tests | Docs contract | Official sources | Cost | Time |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| When someone submits our Typeform contact form, create the lead in Pipedrive as organization, person and deal. | ✅ | 1 | 4/4 | passed | 4/4 | $0.0335 | 34s |
-| When a Stripe payment succeeds, add the customer to a Mailchimp audience with the plan as a tag. | ✅ | 2 | 7/7 | passed | 4/4 | $0.0344 | 39s |
-| When a Calendly meeting is booked, post the invitee name, email and their answers to a Slack channel. | ✅ | 1 | 11/11 | passed | 3/4 | $0.0189 | 25s |
-| When a GitHub issue gets the label "bug", create an issue in Linear in the Triage team. | ✅ | 1 | 11/11 | passed | 2/4 | $0.0263 | 30s |
-| When a HubSpot contact becomes a customer, create a customer in Stripe with the same email and name. | ✅ | 2 | 12/12 | passed | 4/4 | $0.0674 | 58s |
-| When a Shopify order is paid, append the order number, customer email and total to an Airtable table. | ✅ | 1 | 7/7 | passed | 3/4 | $0.0165 | 23s |
-| When a new row is added to an Airtable base, send the row as a message to a Discord channel via webhook. | ✅ | 2 | 12/12 | passed | 4/4 | $0.0559 | 51s |
-| When a Jotform submission arrives, create a task in Asana with the answers in the description. | ✅ | 1 | 12/12 | passed | 4/4 | $0.0214 | 24s |
-| When an Intercom conversation is tagged "refund", create a ticket in Zendesk with the conversation link. | ✅ | 1 | 10/10 | passed | 4/4 | $0.0234 | 26s |
-| When a Typeform response comes in, add the respondent as a contact in Brevo and subscribe them to a list. | ✅ | 2 | 7/7 | passed | 3/4 | $0.0399 | 39s |
+| When a Pipedrive deal is moved to the Won stage, create a Notion page in the "Signed" database with the deal title, value, owner and close date. | ✅ | 2 | 9/9 | passed | 4/4 | $0.0513 | 49s |
+| When a Shopify order webhook arrives, verify the HMAC-SHA256 signature from the X-Shopify-Hmac-Sha256 header against the shared secret, then forward the order summary to a Slack channel. | ✅ | 1 | 9/9 | passed | 4/4 | $0.0269 | 63s |
+| When a Google Calendar event is created, add the first attendee as a checklist item on a Trello card in a configured list. | ✅ | 2 | 9/9 | passed | 2/4 | $0.0392 | 122s |
+| When a Mailchimp API call returns HTTP 429, retry up to three times with exponential backoff and respect the Retry-After header, then log the final outcome to a Datadog event. | ✅ | 2 | 9/9 | passed | 3/4 | $0.0337 | 95s |
+| When a Stripe checkout.session.completed webhook arrives, create or update a HubSpot contact with the customer email, using the Stripe session id as an Idempotency-Key. | ✅ | 3 | 8/8 | passed | 4/4 | $0.0518 | 143s |
+| When a Jotform submission arrives, update an Airtable record by looking it up with filterByFormula on the email field and PATCHing only the empty fields. | ✅ | 1 | 10/10 | passed | 4/4 | $0.0227 | 65s |
+| When a HubSpot deal is updated, search Salesforce for an Account by website domain; update it when a match is found, otherwise create a new Account. | ❌ | 3 | 0/2 | failed | 4/4 | $0.1083 | 327s |
+| When a Linear issue is closed, fetch all its comments using cursor pagination and post a single digest message to a Discord channel. | ❌ | 3 | 8/10 | failed | 3/4 | $0.1279 | 385s |
+| When a Zendesk ticket is created, open a matching GitHub issue in the configured repo and then post the GitHub issue URL back as a Zendesk ticket comment. | ✅ | 1 | 7/7 | passed | 4/4 | $0.0188 | 48s |
+| When a Twilio incoming SMS webhook arrives, route it to Slack #sales when the body matches /pricing|quote|demo/i, otherwise to Slack #support. | ✅ | 3 | 10/10 | passed | 4/4 | $0.0511 | 131s |
