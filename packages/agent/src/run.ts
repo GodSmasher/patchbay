@@ -69,6 +69,8 @@ export async function* runAgent(prompt: string, deps: AgentDeps): AsyncGenerator
     if (baseImage instanceof Error) throw baseImage
 
     let report: TestReport | null = null
+    let bestFiles = files
+    let bestReport: TestReport | null = null
     let attempt = 1
     let skipInitialTest = false
     for (;;) {
@@ -78,11 +80,13 @@ export async function* runAgent(prompt: string, deps: AgentDeps): AsyncGenerator
         yield { type: 'tests', attempt, report: report! }
       }
       skipInitialTest = false
-      if (isGreen(report!) || attempt >= config.maxAttempts) break
+      ;({ files, report, bestFiles, bestReport } = keepBest({ attempt, files, report: report!, bestFiles, bestReport, log: (m) => queue.push({ type: 'log', step: 'verify', message: m }) }))
+      yield* drain()
+      if (isGreen(report) || attempt >= config.maxAttempts) break
       attempt++
-      yield { type: 'log', step: 'verify', message: `Attempt ${attempt - 1} failed (${report!.failed} tests, typecheck ${report!.typecheckOk ? 'ok' : 'failed'}), repairing` }
+      yield { type: 'log', step: 'verify', message: `Attempt ${attempt - 1} failed (${report.failed} tests, typecheck ${report.typecheckOk ? 'ok' : 'failed'}), repairing` }
       if (config.parallelRepairs > 1) {
-        const r = await repairParallel(files, report!, {
+        const r = await repairParallel(files, report, {
           llm, sandbox, config, baseImage,
           withFixtures: (next) => withFixtures(next, fixtures),
         }, log('verify'))
@@ -93,10 +97,13 @@ export async function* runAgent(prompt: string, deps: AgentDeps): AsyncGenerator
         yield { type: 'tests', attempt, report, branches: r.branches }
         skipInitialTest = true
       } else {
-        files = withFixtures(await repair(files, report!, llm, config), fixtures)
+        files = withFixtures(await repair(files, report, llm, config), fixtures)
         yield { type: 'files', attempt, files }
       }
     }
+    // Hand the caller the best attempt, not necessarily the last one.
+    files = bestFiles
+    report = bestReport ?? report
     const ok = report !== null && isGreen(report)
     yield { type: 'step', step: 'verify', status: ok ? 'done' : 'error', detail: `${report!.passed}/${report!.total} tests after ${attempt} attempt${attempt > 1 ? 's' : ''}` }
 
@@ -162,6 +169,8 @@ export async function* verifyAgent(
 
     let current = files
     let report: TestReport | null = null
+    let bestFiles = current
+    let bestReport: TestReport | null = null
     let attempt = 1
     let skipInitialTest = false
     for (;;) {
@@ -171,11 +180,13 @@ export async function* verifyAgent(
         yield { type: 'tests', attempt, report: report! }
       }
       skipInitialTest = false
-      if (isGreen(report!) || attempt >= config.maxAttempts) break
+      ;({ files: current, report, bestFiles, bestReport } = keepBest({ attempt, files: current, report: report!, bestFiles, bestReport, log: (m) => queue.push({ type: 'log', step: 'verify', message: m }) }))
+      yield* drain()
+      if (isGreen(report) || attempt >= config.maxAttempts) break
       attempt++
-      yield { type: 'log', step: 'verify', message: `Attempt ${attempt - 1} failed (${report!.failed} tests, typecheck ${report!.typecheckOk ? 'ok' : 'failed'}), repairing` }
+      yield { type: 'log', step: 'verify', message: `Attempt ${attempt - 1} failed (${report.failed} tests, typecheck ${report.typecheckOk ? 'ok' : 'failed'}), repairing` }
       if (config.parallelRepairs > 1) {
-        const r = await repairParallel(current, report!, {
+        const r = await repairParallel(current, report, {
           llm, sandbox, config, baseImage,
           withFixtures: (next) => next,
         }, log)
@@ -186,10 +197,12 @@ export async function* verifyAgent(
         yield { type: 'tests', attempt, report, branches: r.branches }
         skipInitialTest = true
       } else {
-        current = await repair(current, report!, llm, config)
+        current = await repair(current, report, llm, config)
         yield { type: 'files', attempt, files: current }
       }
     }
+    current = bestFiles
+    report = bestReport ?? report
     const ok = report !== null && isGreen(report)
     yield { type: 'step', step: 'verify', status: ok ? 'done' : 'error', detail: `${report!.passed}/${report!.total} tests after ${attempt} attempt${attempt > 1 ? 's' : ''}` }
     yield { type: 'usage', usage: llm.usage() }
@@ -364,6 +377,44 @@ async function parseJsonOrAsk<T>(answer: string, llm: LlmClient, model: AgentCon
 
 function guessDomain(app: string): string {
   return `${app.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`
+}
+
+/**
+ * Monotonic repair: track the best attempt so far by (passed tests - failed tests), prefer
+ * a green report over anything else, and roll the current state back when the latest attempt
+ * regressed. Prevents the strong model from running away with a worse-than-previous rewrite
+ * (seen in bench: HubSpot->Salesforce a2 was 13/14, a3 regressed to a 0/2 syntax error).
+ */
+function keepBest(args: {
+  attempt: number
+  files: GeneratedFile[]
+  report: TestReport
+  bestFiles: GeneratedFile[]
+  bestReport: TestReport | null
+  log: (m: string) => void
+}): { files: GeneratedFile[]; report: TestReport; bestFiles: GeneratedFile[]; bestReport: TestReport } {
+  const { attempt, report, files, bestFiles, bestReport, log } = args
+  if (bestReport === null || isBetter(report, bestReport)) {
+    return { files, report, bestFiles: files, bestReport: report }
+  }
+  if (attempt > 1) {
+    log(`Attempt ${attempt} regressed (${report.passed}/${report.total} < ${bestReport.passed}/${bestReport.total}), rolling back for repair`)
+  }
+  return { files: bestFiles, report: bestReport, bestFiles, bestReport }
+}
+
+/**
+ * Ordering for keepBest: green always beats non-green, then more passed-minus-failed wins,
+ * then typecheck-ok wins the tie. Keeps a 13/13 contract-passed attempt from being discarded
+ * for a 15/16 attempt that still fails the contract test.
+ */
+function isBetter(a: TestReport, b: TestReport): boolean {
+  const greenA = isGreen(a), greenB = isGreen(b)
+  if (greenA !== greenB) return greenA
+  const diff = (a.passed - a.failed) - (b.passed - b.failed)
+  if (diff !== 0) return diff > 0
+  if (a.typecheckOk !== b.typecheckOk) return a.typecheckOk
+  return false
 }
 
 const messageOf = (error: unknown) => (error instanceof Error ? error.message : String(error))

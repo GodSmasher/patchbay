@@ -72,6 +72,11 @@ Hard rules:
     })
   Configure the connector in that test so the documented example is valid input. If the example lacks a field the
   connector needs, make the connector handle that case (skip, fallback or clear error) rather than editing the example.
+- Do NOT reject SOURCE_EXAMPLE based on wall-clock time. If the connector guards against
+  stale webhooks (timestamp age, signature expiry, nonce window), either freeze time in the
+  contract test with vi.useFakeTimers() + vi.setSystemTime(new Date(<a date compatible with
+  SOURCE_EXAMPLE's timestamps>)), or make the guard window large enough that the documented
+  example always validates. The contract test must never fail with "timestamp too old".
 - For every other test use fakeFetch and jsonResponse from './fixtures' instead of writing your own fetch mock:
     const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 2 }, 201) : jsonResponse({ error: 'x' }, 500))
   Each recorded call is { method, url, body (the string as sent), json (the parsed body), headers (a Headers object,

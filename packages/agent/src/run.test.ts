@@ -111,6 +111,32 @@ describe('contract enforcement', () => {
   })
 })
 
+describe('monotonic repair', () => {
+  it('returns the best attempt when a later repair regresses', async () => {
+    // 1st attempt: 2/6 passed, typecheck fails (not green).
+    // 2nd attempt: 5/6 passed, typecheck ok (still not green, contract-missing still blocks).
+    // 3rd attempt: 1/6 passed, typecheck fails (regression).
+    // The loop should return the 2nd attempt's files/report, not the 3rd.
+    const f = fakes([0, 0, 0]) // dummy, we override runTests below
+    const reports: TestReport[] = [
+      { typecheckOk: false, typecheckOutput: 'TS2322', passed: 2, failed: 4, total: 6, failures: [{ name: 't', message: 'x' }], durationMs: 1, ranOn: 'f', passedNames: ['contract ok'] },
+      { typecheckOk: true, typecheckOutput: '', passed: 5, failed: 1, total: 6, failures: [{ name: 'auth', message: 'x' }], durationMs: 1, ranOn: 'f', passedNames: ['contract ok'] },
+      { typecheckOk: false, typecheckOutput: 'TS2322', passed: 1, failed: 5, total: 6, failures: [{ name: 't', message: 'x' }], durationMs: 1, ranOn: 'f', passedNames: ['contract ok'] },
+    ]
+    let i = 0
+    f.sandbox.runTests = async () => reports[i++]!
+
+    const config = { ...loadConfig({}), maxAttempts: 3 }
+    const events = await collect(runAgent('x', { config, ...f }))
+
+    const result = events.find((e) => e.type === 'result')
+    expect(result?.type === 'result' && result.report?.passed).toBe(5)
+    expect(result?.type === 'result' && result.report?.typecheckOk).toBe(true)
+    const log = events.filter((e) => e.type === 'log').map((e) => e.type === 'log' ? e.message : '').join('\n')
+    expect(log).toMatch(/regressed/)
+  })
+})
+
 describe('replay fixture', () => {
   it('shows a failing first draft and a green repair', async () => {
     const events = await collect(replayRun(REPLAY_RUN, 0))
