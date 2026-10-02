@@ -1,6 +1,9 @@
 /**
- * npm run bench              runs every prompt below live and writes bench/results.json + bench/RESULTS.md
- * npm run bench -- 2 4 10    only these prompts (1-based); full event logs go to bench/runs/
+ * npm run bench                       runs every prompt once, writes bench/results.json + bench/RESULTS.md
+ * npm run bench -- 2 4 10             only these prompts (1-based); full event logs go to bench/runs/
+ * npm run bench -- --passes=3         repeats every prompt N times, writes a variance report to
+ *                                     bench/RESULTS-variance.md and bench/variance.json. Pass logs
+ *                                     land in bench/runs/pass-K/N.json.
  *
  * Needs live keys in .env.local. Uses PATCHBAY_RUNNER from the environment (local or nebius).
  */
@@ -52,58 +55,170 @@ async function main() {
   const config = loadConfig({ ...process.env, PATCHBAY_MOCK: 'false' })
   const missing = missingLiveKeys(config)
   if (missing.length) throw new Error(`Missing ${missing.join(', ')} in .env.local`)
-  const only = process.argv.slice(2).map(Number).filter((n) => n > 0)
-  const selected = only.length ? only.map((n) => PROMPTS[n - 1]!).filter(Boolean) : PROMPTS
-  const rows: Row[] = []
-  const runsDir = join(process.cwd(), 'bench', 'runs')
+  const argv = process.argv.slice(2)
+  const passesArg = argv.find((a) => a.startsWith('--passes='))
+  const passes = Math.max(1, Math.min(10, Number(passesArg?.split('=')[1] ?? 1)))
+  const only = argv.filter((a) => !a.startsWith('--')).map(Number).filter((n) => n > 0)
+  const selected = only.length ? only : PROMPTS.map((_, i) => i + 1)
+  const benchDir = join(process.cwd(), 'bench')
+  const runsDir = join(benchDir, 'runs')
   mkdirSync(runsDir, { recursive: true })
 
-  for (const prompt of selected) {
-    const started = Date.now()
-    const events: RunEvent[] = []
-    process.stdout.write(`\n▶ ${prompt}\n`)
-    for await (const event of startRun(prompt, config)) {
-      events.push(event)
-      if (event.type === 'tests') process.stdout.write(`   attempt ${event.attempt}: ${event.report.passed}/${event.report.total}, typecheck ${event.report.typecheckOk ? 'ok' : 'failed'}, contract ${event.report.contract}\n`)
+  // index-of-prompt -> array of per-pass rows
+  const perPrompt = new Map<number, Row[]>()
+
+  for (let pass = 1; pass <= passes; pass++) {
+    if (passes > 1) process.stdout.write(`\n=== Pass ${pass}/${passes} ===\n`)
+    for (const idx of selected) {
+      const prompt = PROMPTS[idx - 1]!
+      const started = Date.now()
+      const events: RunEvent[] = []
+      process.stdout.write(`\n▶ [#${idx}${passes > 1 ? `·p${pass}` : ''}] ${prompt.slice(0, 90)}${prompt.length > 90 ? '…' : ''}\n`)
+      for await (const event of startRun(prompt, config)) {
+        events.push(event)
+        if (event.type === 'tests') process.stdout.write(`   attempt ${event.attempt}: ${event.report.passed}/${event.report.total}, typecheck ${event.report.typecheckOk ? 'ok' : 'failed'}, contract ${event.report.contract}\n`)
+      }
+      const row = toRow(prompt, events, started)
+      const subdir = passes > 1 ? join(runsDir, `pass-${pass}`) : runsDir
+      mkdirSync(subdir, { recursive: true })
+      writeFileSync(join(subdir, `${idx}.json`), `${JSON.stringify({ prompt, events }, null, 2)}\n`)
+      ;(perPrompt.get(idx) ?? perPrompt.set(idx, []).get(idx)!).push(row)
+      process.stdout.write(`   → ${row.ok ? 'green' : 'not green'} after ${row.attempts} attempt(s), $${row.costUsd.toFixed(4)}\n`)
     }
-    writeFileSync(join(runsDir, `${PROMPTS.indexOf(prompt) + 1}.json`), `${JSON.stringify({ prompt, events }, null, 2)}
-`)
-    const reports = events.flatMap((e) => (e.type === 'tests' ? [e.report] : []))
-    const result = events.find((e) => e.type === 'result')
-    const error = events.find((e) => e.type === 'error')
-    const sources = events.find((e) => e.type === 'sources')
-    const usage = events.find((e) => e.type === 'usage')
-    const last = reports.at(-1)
-    const first = reports[0]
-    rows.push({
-      prompt,
-      ok: result?.type === 'result' && result.ok,
-      firstTryGreen: !!first && first.failed === 0 && first.typecheckOk && first.contract === 'passed',
-      attempts: result?.type === 'result' ? result.attempts : reports.length,
-      tests: last ? `${last.passed}/${last.total}` : '-',
-      contract: last?.contract ?? 'n/a',
-      officialSources: sources?.type === 'sources' ? `${sources.sources.filter((s) => s.official).length}/${sources.sources.length}` : '-',
-      costUsd: usage?.type === 'usage' ? usage.usage.reduce((sum, u) => sum + u.costUsd, 0) : 0,
-      seconds: Math.round((Date.now() - started) / 1000),
-      ...(error?.type === 'error' ? { error: error.message.slice(0, 200) } : {}),
-    })
-    process.stdout.write(`   → ${rows.at(-1)!.ok ? 'green' : 'not green'} after ${rows.at(-1)!.attempts} attempt(s), $${rows.at(-1)!.costUsd.toFixed(4)}\n`)
   }
 
-  const dir = join(process.cwd(), 'bench')
-  mkdirSync(dir, { recursive: true })
-  const summary = {
+  const summaryBase = {
     runner: config.runner,
     models: Object.fromEntries(Object.entries(config.models).map(([tier, m]) => [tier, m.id])),
     date: new Date().toISOString().slice(0, 10),
-    runs: rows.length,
-    green: rows.filter((r) => r.ok).length,
-    firstTryGreen: rows.filter((r) => r.firstTryGreen).length,
-    totalCostUsd: Number(rows.reduce((s, r) => s + r.costUsd, 0).toFixed(4)),
+    passes,
   }
-  writeFileSync(join(dir, 'results.json'), `${JSON.stringify({ summary, rows }, null, 2)}\n`)
-  writeFileSync(join(dir, 'RESULTS.md'), renderMarkdown(summary, rows))
-  console.log(`\n${summary.green}/${summary.runs} green, ${summary.firstTryGreen} on the first try, $${summary.totalCostUsd} total. Written to bench/.`)
+
+  if (passes === 1) {
+    const rows = Array.from(perPrompt.values()).flat()
+    const summary = {
+      ...summaryBase,
+      runs: rows.length,
+      green: rows.filter((r) => r.ok).length,
+      firstTryGreen: rows.filter((r) => r.firstTryGreen).length,
+      totalCostUsd: Number(rows.reduce((s, r) => s + r.costUsd, 0).toFixed(4)),
+    }
+    writeFileSync(join(benchDir, 'results.json'), `${JSON.stringify({ summary, rows }, null, 2)}\n`)
+    writeFileSync(join(benchDir, 'RESULTS.md'), renderMarkdown(summary, rows))
+    console.log(`\n${summary.green}/${summary.runs} green, ${summary.firstTryGreen} on the first try, $${summary.totalCostUsd} total. Written to bench/.`)
+    return
+  }
+
+  // Variance report: one aggregated row per prompt, N raw rows per prompt in the JSON.
+  const varianceRows: VarianceRow[] = []
+  for (const idx of selected) {
+    const runs = perPrompt.get(idx) ?? []
+    if (!runs.length) continue
+    const greenRuns = runs.filter((r) => r.ok).length
+    const firstTryRuns = runs.filter((r) => r.firstTryGreen).length
+    const costs = runs.map((r) => r.costUsd)
+    const times = runs.map((r) => r.seconds)
+    const attempts = runs.map((r) => r.attempts)
+    varianceRows.push({
+      index: idx,
+      prompt: runs[0]!.prompt,
+      passes: runs.length,
+      greenRate: greenRuns / runs.length,
+      firstTryRate: firstTryRuns / runs.length,
+      greenRuns,
+      firstTryRuns,
+      costMean: mean(costs),
+      costStd: std(costs),
+      timeMean: mean(times),
+      timeStd: std(times),
+      attemptsMean: mean(attempts),
+      runs,
+    })
+  }
+  const totalGreenRate = varianceRows.length ? mean(varianceRows.map((r) => r.greenRate)) : 0
+  const totalFirstTryRate = varianceRows.length ? mean(varianceRows.map((r) => r.firstTryRate)) : 0
+  const totalCost = varianceRows.reduce((s, r) => s + r.costMean, 0)
+  const totalCostStd = Math.sqrt(varianceRows.reduce((s, r) => s + r.costStd ** 2, 0))
+  const summary = {
+    ...summaryBase,
+    prompts: varianceRows.length,
+    greenRate: round(totalGreenRate, 3),
+    firstTryRate: round(totalFirstTryRate, 3),
+    costPerPassUsd: round(totalCost, 4),
+    costPerPassStdUsd: round(totalCostStd, 4),
+  }
+  writeFileSync(join(benchDir, 'variance.json'), `${JSON.stringify({ summary, prompts: varianceRows }, null, 2)}\n`)
+  writeFileSync(join(benchDir, 'RESULTS-variance.md'), renderVariance(summary, varianceRows))
+  console.log(
+    `\n${passes}-pass variance: ${(summary.greenRate * 100).toFixed(1)}% green · ${(summary.firstTryRate * 100).toFixed(1)}% first-try · $${summary.costPerPassUsd} per pass ± $${summary.costPerPassStdUsd}. Written to bench/RESULTS-variance.md.`,
+  )
+}
+
+function toRow(prompt: string, events: RunEvent[], started: number): Row {
+  const reports = events.flatMap((e) => (e.type === 'tests' ? [e.report] : []))
+  const result = events.find((e) => e.type === 'result')
+  const error = events.find((e) => e.type === 'error')
+  const sources = events.find((e) => e.type === 'sources')
+  const usage = events.find((e) => e.type === 'usage')
+  const last = reports.at(-1)
+  const first = reports[0]
+  return {
+    prompt,
+    ok: result?.type === 'result' && result.ok,
+    firstTryGreen: !!first && first.failed === 0 && first.typecheckOk && first.contract === 'passed',
+    attempts: result?.type === 'result' ? result.attempts : reports.length,
+    tests: last ? `${last.passed}/${last.total}` : '-',
+    contract: last?.contract ?? 'n/a',
+    officialSources: sources?.type === 'sources' ? `${sources.sources.filter((s) => s.official).length}/${sources.sources.length}` : '-',
+    costUsd: usage?.type === 'usage' ? usage.usage.reduce((sum, u) => sum + u.costUsd, 0) : 0,
+    seconds: Math.round((Date.now() - started) / 1000),
+    ...(error?.type === 'error' ? { error: error.message.slice(0, 200) } : {}),
+  }
+}
+
+interface VarianceRow {
+  index: number
+  prompt: string
+  passes: number
+  greenRate: number
+  firstTryRate: number
+  greenRuns: number
+  firstTryRuns: number
+  costMean: number
+  costStd: number
+  timeMean: number
+  timeStd: number
+  attemptsMean: number
+  runs: Row[]
+}
+
+const mean = (xs: number[]) => xs.reduce((s, x) => s + x, 0) / Math.max(1, xs.length)
+const std = (xs: number[]) => {
+  if (xs.length < 2) return 0
+  const m = mean(xs)
+  return Math.sqrt(xs.reduce((s, x) => s + (x - m) ** 2, 0) / (xs.length - 1))
+}
+const round = (n: number, d: number) => Number(n.toFixed(d))
+const pct = (x: number) => `${(x * 100).toFixed(0)}%`
+
+function renderVariance(summary: Record<string, unknown>, rows: VarianceRow[]): string {
+  const lines = [
+    '# patchbay benchmark — variance report',
+    '',
+    `${summary.date} · runner: ${summary.runner} · ${summary.passes} passes per prompt`,
+    '',
+    `Overall: **${pct(summary.greenRate as number)} green** · **${pct(summary.firstTryRate as number)} first-try green** · **$${summary.costPerPassUsd} per full pass** ± $${summary.costPerPassStdUsd}`,
+    '',
+    '| # | Integration | Green | First-try | Cost (mean ± σ) | Time (mean ± σ) | Avg attempts |',
+    '| --- | --- | --- | --- | --- | --- | --- |',
+    ...rows.map(
+      (r) => `| ${r.index} | ${r.prompt.slice(0, 90)}${r.prompt.length > 90 ? '…' : ''} | ${r.greenRuns}/${r.passes} | ${r.firstTryRuns}/${r.passes} | $${r.costMean.toFixed(4)} ± $${r.costStd.toFixed(4)} | ${r.timeMean.toFixed(0)}s ± ${r.timeStd.toFixed(0)}s | ${r.attemptsMean.toFixed(1)} |`,
+    ),
+    '',
+    'Green = full run finished with typecheck ok, 0 test failures, and the documentation-contract test passing. First-try = that was already true in attempt 1 (no repair needed).',
+    '',
+  ]
+  return lines.join('\n')
 }
 
 function renderMarkdown(summary: Record<string, unknown>, rows: Row[]): string {
