@@ -11,6 +11,7 @@ import { startRun } from '../packages/agent/src/index'
 import type { RunEvent, TestReport } from '../packages/agent/src/types'
 
 const PROMPTS = [
+  // Core 10 — single-call target, straightforward field mapping.
   'When someone submits our Typeform contact form, create the lead in Pipedrive as organization, person and deal.',
   'When a Stripe payment succeeds, add the customer to a Mailchimp audience with the plan as a tag.',
   'When a Calendly meeting is booked, post the invitee name, email and their answers to a Slack channel.',
@@ -21,6 +22,17 @@ const PROMPTS = [
   'When a Jotform submission arrives, create a task in Asana with the answers in the description.',
   'When an Intercom conversation is tagged "refund", create a ticket in Zendesk with the conversation link.',
   'When a Typeform response comes in, add the respondent as a contact in Brevo and subscribe them to a list.',
+  // Hard 10 — signature verification, retries, chained calls, pagination, branching.
+  'When a Pipedrive deal is moved to the Won stage, create a Notion page in the "Signed" database with the deal title, value, owner and close date.',
+  'When a Shopify order webhook arrives, verify the HMAC-SHA256 signature from the X-Shopify-Hmac-Sha256 header against the shared secret, then forward the order summary to a Slack channel.',
+  'When a Google Calendar event is created, add the first attendee as a checklist item on a Trello card in a configured list.',
+  'When a Mailchimp API call returns HTTP 429, retry up to three times with exponential backoff and respect the Retry-After header, then log the final outcome to a Datadog event.',
+  'When a Stripe checkout.session.completed webhook arrives, create or update a HubSpot contact with the customer email, using the Stripe session id as an Idempotency-Key.',
+  'When a Jotform submission arrives, update an Airtable record by looking it up with filterByFormula on the email field and PATCHing only the empty fields.',
+  'When a HubSpot deal is updated, search Salesforce for an Account by website domain; update it when a match is found, otherwise create a new Account.',
+  'When a Linear issue is closed, fetch all its comments using cursor pagination and post a single digest message to a Discord channel.',
+  'When a Zendesk ticket is created, open a matching GitHub issue in the configured repo and then post the GitHub issue URL back as a Zendesk ticket comment.',
+  'When a Twilio incoming SMS webhook arrives, route it to Slack #sales when the body matches /pricing|quote|demo/i, otherwise to Slack #support.',
 ]
 
 interface Row {
