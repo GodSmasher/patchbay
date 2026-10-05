@@ -1,5 +1,6 @@
 import type { AgentConfig } from './config'
 import { renderFixtures, withContract, withFixtures } from './contract'
+import { preflightSyntax } from './syntax-check'
 import type { LlmClient } from './llm'
 import { extractJson, parseFileBlocks, renderFileBlocks } from './parse'
 import {
@@ -75,7 +76,13 @@ export async function* runAgent(prompt: string, deps: AgentDeps): AsyncGenerator
     let skipInitialTest = false
     for (;;) {
       if (!skipInitialTest) {
-        report = withContract(await sandbox.runTests(baseImage, files, log('verify')), files)
+        const preflight = await preflightSyntax(files)
+        if (preflight) {
+          report = withContract(preflight, files)
+          queue.push({ type: 'log', step: 'verify', message: `Preflight parse failed (${preflight.failed} file${preflight.failed > 1 ? 's' : ''}), skipping sandbox` })
+        } else {
+          report = withContract(await sandbox.runTests(baseImage, files, log('verify')), files)
+        }
         yield* drain()
         yield { type: 'tests', attempt, report: report! }
       }
@@ -175,7 +182,13 @@ export async function* verifyAgent(
     let skipInitialTest = false
     for (;;) {
       if (!skipInitialTest) {
-        report = await sandbox.runTests(baseImage, current, log)
+        const preflight = await preflightSyntax(current)
+        if (preflight) {
+          report = preflight
+          queue.push({ type: 'log', step: 'verify', message: `Preflight parse failed (${preflight.failed} file${preflight.failed > 1 ? 's' : ''}), skipping sandbox` })
+        } else {
+          report = await sandbox.runTests(baseImage, current, log)
+        }
         yield* drain()
         yield { type: 'tests', attempt, report: report! }
       }
@@ -325,6 +338,11 @@ export async function repairParallel(
 
   const results = await Promise.all(
     candidates.map(async (c) => {
+      const preflight = await preflightSyntax(c.files)
+      if (preflight) {
+        log(`[branch ${c.branch}] preflight parse failed (${preflight.failed}), skipping sandbox`)
+        return { ...c, report: withContract(preflight, c.files) }
+      }
       const branchReport = withContract(
         await deps.sandbox.runTests(deps.baseImage, c.files, (m) => log(`[branch ${c.branch}] ${m}`)),
         c.files,
