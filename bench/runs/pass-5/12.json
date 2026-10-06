@@ -1,0 +1,355 @@
+{
+  "prompt": "When a Shopify order webhook arrives, verify the HMAC-SHA256 signature from the X-Shopify-Hmac-Sha256 header against the shared secret, then forward the order summary to a Slack channel.",
+  "events": [
+    {
+      "type": "mode",
+      "mode": "live"
+    },
+    {
+      "type": "step",
+      "step": "plan",
+      "status": "start"
+    },
+    {
+      "type": "plan",
+      "plan": {
+        "summary": "When a Shopify order webhook arrives, verify the HMAC-SHA256 signature from the X-Shopify-Hmac-Sha256 header against the shared secret, then forward the order summary to a Slack channel.",
+        "source": {
+          "app": "Shopify",
+          "trigger": "orders/paid webhook",
+          "docsQuery": "Shopify orders/paid webhook payload HMAC verification X-Shopify-Hmac-Sha256 header"
+        },
+        "target": {
+          "app": "Slack",
+          "action": "send message to channel",
+          "docsQuery": "Slack Web API chat.postMessage order summary payload fields"
+        },
+        "fieldMapping": [
+          {
+            "from": "id",
+            "to": "text",
+            "note": "Shopify order ID to include in the message text"
+          },
+          {
+            "from": "name",
+            "to": "text",
+            "note": "Shopify order name/number to include in the message text"
+          },
+          {
+            "from": "email",
+            "to": "text",
+            "note": "Customer email address from the order"
+          },
+          {
+            "from": "total_price",
+            "to": "text",
+            "note": "Order total price formatted for Slack message"
+          },
+          {
+            "from": "line_items",
+            "to": "text",
+            "note": "Summary of line items (product names and quantities) for the message"
+          }
+        ],
+        "assumptions": [
+          "The webhook payload includes the standard Shopify order fields: id, name, email, total_price, and line_items.",
+          "The shared secret for HMAC verification is available in the integration environment variables.",
+          "The Slack bot token has the chat:write scope to post messages to the target channel.",
+          "The target Slack channel ID or name is configured as a constant in the integration setup."
+        ]
+      }
+    },
+    {
+      "type": "step",
+      "step": "plan",
+      "status": "done",
+      "detail": "When a Shopify order webhook arrives, verify the HMAC-SHA256 signature from the X-Shopify-Hmac-Sha256 header against the shared secret, then forward the order summary to a Slack channel."
+    },
+    {
+      "type": "step",
+      "step": "research",
+      "status": "start"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Installing typescript + vitest in a sandbox checkpoint"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Searched \"Slack Web API chat.postMessage order summary payload fields\": 2 of 2 picked from Slack's own docs"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Searched \"Shopify orders/paid webhook payload HMAC verification X-Shopify-Hmac-Sha256 header\": 2 of 2 picked from Shopify's own docs"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Extracted 4 documentation pages"
+    },
+    {
+      "type": "sources",
+      "sources": [
+        {
+          "title": "Verify webhook deliveries",
+          "url": "https://shopify.dev/docs/apps/build/webhooks/verify-deliveries",
+          "official": true
+        },
+        {
+          "title": "Java HMAC authentication verification",
+          "url": "https://community.shopify.com/t/java-hmac-authentication-verification/2934",
+          "official": true
+        },
+        {
+          "title": "chat.postMessage method | Slack Developer Docs",
+          "url": "https://docs.slack.dev/reference/methods/chat.postMessage",
+          "official": true
+        },
+        {
+          "title": "Legacy interactive message field guide | Slack Developer Docs",
+          "url": "https://docs.slack.dev/legacy/legacy-messaging/legacy-interactive-message-field-guide",
+          "official": true
+        }
+      ]
+    },
+    {
+      "type": "spec",
+      "spec": {
+        "source": {
+          "app": "Shopify",
+          "role": "source",
+          "method": "POST",
+          "url": "",
+          "auth": {
+            "type": "none",
+            "name": null,
+            "envVar": null
+          },
+          "example": {
+            "id": 1234567890,
+            "name": "#1001",
+            "email": "customer@example.com",
+            "total_price": "129.99",
+            "line_items": [
+              {
+                "title": "T-Shirt",
+                "quantity": 2
+              },
+              {
+                "title": "Mug",
+                "quantity": 1
+              }
+            ]
+          },
+          "docsUrl": "https://shopify.dev/docs/apps/build/webhooks/verify-deliveries",
+          "notes": [
+            "Verify HMAC-SHA256 signature from X-Shopify-Hmac-Sha256 header using shared secret (client secret) and raw request body.",
+            "Respond with 200 OK quickly; Shopify has a 5-second timeout for the entire request.",
+            "Use X-Shopify-Webhook-Id header to deduplicate deliveries if needed.",
+            "Ensure raw body is captured before any body parsing middleware (e.g., express.json()).",
+            "HTTPS delivery only; HMAC verification does not apply to Google Cloud Pub/Sub or Amazon EventBridge."
+          ]
+        },
+        "target": [
+          {
+            "app": "Slack",
+            "role": "target",
+            "method": "POST",
+            "url": "https://slack.com/api/chat.postMessage",
+            "auth": {
+              "type": "bearer",
+              "name": "Authorization",
+              "envVar": "SLACK_BOT_TOKEN"
+            },
+            "example": {
+              "channel": "C1234567890",
+              "text": "New order #1001 from customer@example.com for $129.99: T-Shirt x2, Mug x1"
+            },
+            "responseExample": {
+              "ok": true,
+              "channel": "C1234567890",
+              "ts": "1234567890.123456",
+              "message": {
+                "text": "New order #1001 from customer@example.com for $129.99: T-Shirt x2, Mug x1",
+                "username": "shopify-bot",
+                "bot_id": "B12345678"
+              }
+            },
+            "docsUrl": "https://docs.slack.dev/reference/methods/chat.postMessage",
+            "notes": [
+              "Requires chat:write scope on the bot token.",
+              "Text field is optional if blocks or attachments are provided, but recommended for fallback.",
+              "Message formatting: by default, mrkdwn is enabled; set parse to 'full' to disable.",
+              "Rate limited: ~1 message per second to a specific channel, higher burst limits apply.",
+              "Channel can be specified by ID (e.g., C1234567890) or name (e.g., #general).",
+              "Unfurl links/media: set unfurl_links and unfurl_media to false to suppress."
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "step",
+      "step": "research",
+      "status": "done",
+      "detail": "2 endpoints from 4 pages"
+    },
+    {
+      "type": "step",
+      "step": "generate",
+      "status": "start"
+    },
+    {
+      "type": "files",
+      "attempt": 1,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "/// <reference types=\"node\" />\n\ndeclare const crypto: {\n  subtle: {\n    importKey: (format: string, keyData: any, algorithm: any, extractable: boolean, keyUsages: string[]) => Promise<any>\n    sign: (algorithm: string, key: any, data: any) => Promise<ArrayBuffer>\n  }\n}\n\nexport interface ConnectorConfig {\n  shopifySecret: string\n  slackBotToken: string\n  slackChannel: string\n  shopifyHmacHeader: string\n  rawBody: string\n  fetch?: typeof fetch\n}\n\nexport interface ShopifyOrderPayload {\n  id: number\n  name: string\n  email: string\n  total_price: string\n  line_items: Array<{ title: string; quantity: number }>\n}\n\nexport interface HandleResult {\n  slackMessageTs: string\n  slackChannel: string\n}\n\nasync function verifyHmac(secret: string, rawBody: string, hmacHeader: string): Promise<boolean> {\n  const encoder = new TextEncoder()\n  const keyData = encoder.encode(secret)\n  const messageData = encoder.encode(rawBody)\n\n  const cryptoKey = await crypto.subtle.importKey(\n    'raw',\n    keyData,\n    { name: 'HMAC', hash: 'SHA-256' },\n    false,\n    ['sign']\n  )\n\n  const signature = await crypto.subtle.sign('HMAC', cryptoKey, messageData)\n  const signatureBase64 = Buffer.from(signature).toString('base64')\n\n  return signatureBase64 === hmacHeader\n}\n\nfunction formatLineItems(lineItems: Array<{ title: string; quantity: number }>): string {\n  return lineItems.map((item) => `${item.title} x${item.quantity}`).join(', ')\n}\n\nfunction formatMessage(payload: ShopifyOrderPayload): string {\n  const lineItemsSummary = formatLineItems(payload.line_items)\n  return `New order ${payload.name} from ${payload.email} for $${payload.total_price}: ${lineItemsSummary}`\n}\n\nexport async function handle(payload: ShopifyOrderPayload, config: ConnectorConfig): Promise<HandleResult> {\n  if (payload.id === undefined || payload.id === null) throw new Error('Missing required field: id')\n  if (!payload.name) throw new Error('Missing required field: name')\n  if (!payload.email) throw new Error('Missing required field: email')\n  if (!payload.total_price) throw new Error('Missing required field: total_price')\n  if (!payload.line_items || !Array.isArray(payload.line_items)) throw new Error('Missing required field: line_items')\n\n  if (!config.shopifySecret) throw new Error('Missing config: shopifySecret')\n  if (!config.slackBotToken) throw new Error('Missing config: slackBotToken')\n  if (!config.slackChannel) throw new Error('Missing config: slackChannel')\n  if (!config.shopifyHmacHeader) throw new Error('Missing config: shopifyHmacHeader')\n  if (!config.rawBody) throw new Error('Missing config: rawBody')\n\n  const fetch = config.fetch ?? globalThis.fetch\n\n  const isValid = await verifyHmac(config.shopifySecret, config.rawBody, config.shopifyHmacHeader)\n  if (!isValid) {\n    throw new Error('Invalid HMAC signature')\n  }\n\n  const text = formatMessage(payload)\n\n  const response = await fetch('https://slack.com/api/chat.postMessage', {\n    method: 'POST',\n    headers: {\n      Authorization: `Bearer ${config.slackBotToken}`,\n      'Content-Type': 'application/json'\n    },\n    body: JSON.stringify({\n      channel: config.slackChannel,\n      text\n    })\n  })\n\n  if (!response.ok) {\n    throw new Error(`Slack API error: ${response.status} ${response.statusText} at POST https://slack.com/api/chat.postMessage`)\n  }\n\n  const result = (await response.json()) as { ok: boolean; channel: string; ts: string }\n\n  return {\n    slackMessageTs: result.ts,\n    slackChannel: result.channel\n  }\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi } from 'vitest'\nimport { handle, ConnectorConfig, ShopifyOrderPayload, HandleResult } from './connector'\nimport { SOURCE_EXAMPLE, contractFetch, fakeFetch, jsonResponse } from './fixtures'\n\nasync function computeHmac(secret: string, body: string): Promise<string> {\n  const encoder = new TextEncoder()\n  const keyData = encoder.encode(secret)\n  const messageData = encoder.encode(body)\n  const cryptoKey = await crypto.subtle.importKey('raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])\n  const signature = await crypto.subtle.sign('HMAC', cryptoKey, messageData)\n  return Buffer.from(signature).toString('base64')\n}\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch()\n    const secret = 'test-secret'\n    const rawBody = JSON.stringify(SOURCE_EXAMPLE)\n    const hmacHeader = await computeHmac(secret, rawBody)\n    const result = await handle(SOURCE_EXAMPLE as unknown as ShopifyOrderPayload, {\n      shopifySecret: secret,\n      slackBotToken: 'xoxb-test',\n      slackChannel: 'C1234567890',\n      shopifyHmacHeader: hmacHeader,\n      rawBody,\n      fetch\n    })\n    expect(calls.length).toBeGreaterThan(0)\n    expect(calls[0].json).toEqual({\n      channel: 'C1234567890',\n      text: 'New order #1001 from customer@example.com for $129.99: T-Shirt x2, Mug x1'\n    })\n    expect(result.slackChannel).toBe('C1234567890')\n    expect(result.slackMessageTs).toBe('1234567890.123456')\n  })\n})\n\ndescribe('handle', () => {\n  const baseConfig: ConnectorConfig = {\n    shopifySecret: 'test-secret',\n    slackBotToken: 'xoxb-test',\n    slackChannel: 'C1234567890',\n    shopifyHmacHeader: '',\n    rawBody: '',\n    fetch: globalThis.fetch\n  }\n\n  it('sends correct Slack message with mapped fields', async () => {\n    const payload: ShopifyOrderPayload = {\n      id: 1234567890,\n      name: '#1001',\n      email: 'customer@example.com',\n      total_price: '129.99',\n      line_items: [{ title: 'T-Shirt', quantity: 2 }, { title: 'Mug', quantity: 1 }]\n    }\n    const rawBody = JSON.stringify(payload)\n    const hmacHeader = await computeHmac(baseConfig.shopifySecret, rawBody)\n\n    const { fetch, calls } = fakeFetch((req) => {\n      expect(req.url).toBe('https://slack.com/api/chat.postMessage')\n      expect(req.method).toBe('POST')\n      expect(req.headers.get('authorization')).toBe('Bearer xoxb-test')\n      expect(req.json).toEqual({\n        channel: 'C1234567890',\n        text: 'New order #1001 from customer@example.com for $129.99: T-Shirt x2, Mug x1'\n      })\n      return jsonResponse({ ok: true, channel: 'C1234567890', ts: '1234567890.123456', message: {} })\n    })\n\n    const result = await handle(payload, { ...baseConfig, shopifyHmacHeader: hmacHeader, rawBody, fetch })\n    expect(result.slackChannel).toBe('C1234567890')\n    expect(result.slackMessageTs).toBe('1234567890.123456')\n    expect(calls.length).toBe(1)\n  })\n\n  it('throws on missing required payload field', async () => {\n    const payload = { ...SOURCE_EXAMPLE, email: undefined } as unknown as ShopifyOrderPayload\n    const rawBody = JSON.stringify(payload)\n    const hmacHeader = await computeHmac(baseConfig.shopifySecret, rawBody)\n\n    await expect(handle(payload, { ...baseConfig, shopifyHmacHeader: hmacHeader, rawBody, fetch: globalThis.fetch }))\n      .rejects.toThrow('Missing required field: email')\n  })\n\n  it('throws on missing config field', async () => {\n    const payload = SOURCE_EXAMPLE as unknown as ShopifyOrderPayload\n    const rawBody = JSON.stringify(payload)\n    const hmacHeader = await computeHmac(baseConfig.shopifySecret, rawBody)\n\n    await expect(handle(payload, { ...baseConfig, slackBotToken: '', shopifyHmacHeader: hmacHeader, rawBody, fetch: globalThis.fetch }))\n      .rejects.toThrow('Missing config: slackBotToken')\n  })\n\n  it('throws on invalid HMAC signature', async () => {\n    const payload = SOURCE_EXAMPLE as unknown as ShopifyOrderPayload\n    const rawBody = JSON.stringify(payload)\n    const hmacHeader = 'invalid-hmac'\n\n    await expect(handle(payload, { ...baseConfig, shopifyHmacHeader: hmacHeader, rawBody, fetch: globalThis.fetch }))\n      .rejects.toThrow('Invalid HMAC signature')\n  })\n\n  it('throws on non-2xx Slack response', async () => {\n    const payload = SOURCE_EXAMPLE as unknown as ShopifyOrderPayload\n    const rawBody = JSON.stringify(payload)\n    const hmacHeader = await computeHmac(baseConfig.shopifySecret, rawBody)\n\n    const { fetch } = fakeFetch(() => jsonResponse({ error: 'channel_not_found' }, 404))\n\n    await expect(handle(payload, { ...baseConfig, shopifyHmacHeader: hmacHeader, rawBody, fetch }))\n      .rejects.toThrow('Slack API error: 404 Not Found at POST https://slack.com/api/chat.postMessage')\n  })\n\n  it('uses injected fetch', async () => {\n    const payload = SOURCE_EXAMPLE as unknown as ShopifyOrderPayload\n    const rawBody = JSON.stringify(payload)\n    const hmacHeader = await computeHmac(baseConfig.shopifySecret, rawBody)\n\n    const { fetch, calls } = fakeFetch(() => jsonResponse({ ok: true, channel: 'C1234567890', ts: '1234567890.123456', message: {} }))\n\n    await handle(payload, { ...baseConfig, shopifyHmacHeader: hmacHeader, rawBody, fetch })\n    expect(calls.length).toBe(1)\n  })\n})\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# Shopify to Slack Order Notification Connector\n\nThis connector receives Shopify `orders/paid` webhook payloads, verifies the HMAC-SHA256 signature, and posts a formatted order summary to a Slack channel via `chat.postMessage`.\n\n## Configuration\n\nThe connector requires the following configuration values (typically sourced from environment variables):\n\n| Config Property | Environment Variable | Description |\n|-----------------|---------------------|-------------|\n| `shopifySecret` | `SHOPIFY_CLIENT_SECRET` | The shared secret (Client Secret from Shopify app) used to verify HMAC signatures. |\n| `slackBotToken` | `SLACK_BOT_TOKEN` | Slack bot token with `chat:write` scope. |\n| `slackChannel` | `SLACK_CHANNEL_ID` | Target Slack channel ID (e.g., `C1234567890`) or name (e.g., `#general`). |\n| `shopifyHmacHeader` | `X_SHOPIFY_HMAC_SHA256` | The `X-Shopify-Hmac-Sha256` header value from the incoming webhook request. |\n| `rawBody` | (request body) | The raw request body as a string, captured before JSON parsing. |\n\n## Usage Example\n\n```typescript\nimport { handle, ConnectorConfig, ShopifyOrderPayload } from './connector'\n\nconst config: ConnectorConfig = {\n  shopifySecret: process.env.SHOPIFY_CLIENT_SECRET!,\n  slackBotToken: process.env.SLACK_BOT_TOKEN!,\n  slackChannel: process.env.SLACK_CHANNEL_ID!,\n  shopifyHmacHeader: request.headers.get('X-Shopify-Hmac-Sha256')!,\n  rawBody: rawRequestBody, // string, e.g., from express.rawBody\n  fetch: globalThis.fetch\n}\n\nconst payload: ShopifyOrderPayload = await request.json()\nconst result = await handle(payload, config)\nconsole.log(`Posted to Slack: ${result.slackChannel} at ${result.slackMessageTs}`)\n```\n\n## Assumptions\n\n- The webhook payload includes standard Shopify order fields: `id`, `name`, `email`, `total_price`, and `line_items`.\n- The shared secret for HMAC verification is available in the integration environment variables.\n- The Slack bot token has the `chat:write` scope to post messages to the target channel.\n- The target Slack channel ID or name is configured as a constant in the integration setup.\n- The raw request body is captured before any body-parsing middleware (e.g., `express.json()`).\n- Shopify delivers via HTTPS; HMAC verification does not apply to Google Cloud Pub/Sub or Amazon EventBridge.\n- The connector responds with 200 OK quickly; Shopify has a 5-second timeout for the entire request.\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://shopify.dev/docs/apps/build/webhooks/verify-deliveries\n// Source: https://docs.slack.dev/reference/methods/chat.postMessage\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"id\": 1234567890,\n  \"name\": \"#1001\",\n  \"email\": \"customer@example.com\",\n  \"total_price\": \"129.99\",\n  \"line_items\": [\n    {\n      \"title\": \"T-Shirt\",\n      \"quantity\": 2\n    },\n    {\n      \"title\": \"Mug\",\n      \"quantity\": 1\n    }\n  ]\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://slack.com/api/chat.postMessage\",\n    \"response\": {\n      \"ok\": true,\n      \"channel\": \"C1234567890\",\n      \"ts\": \"1234567890.123456\",\n      \"message\": {\n        \"text\": \"New order #1001 from customer@example.com for $129.99: T-Shirt x2, Mug x1\",\n        \"username\": \"shopify-bot\",\n        \"bot_id\": \"B12345678\"\n      }\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ]
+    },
+    {
+      "type": "step",
+      "step": "generate",
+      "status": "done",
+      "detail": "src/connector.ts, src/connector.test.ts, README.md, src/fixtures.ts"
+    },
+    {
+      "type": "step",
+      "step": "verify",
+      "status": "start"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Checkpoint ready: 7b64886e"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Forking checkpoint 7b64886e with 4 files, network off"
+    },
+    {
+      "type": "tests",
+      "attempt": 1,
+      "report": {
+        "typecheckOk": true,
+        "typecheckOutput": "",
+        "passed": 7,
+        "failed": 0,
+        "total": 7,
+        "failures": [],
+        "durationMs": 288.58349609375,
+        "ranOn": "nebius-sandbox:01a10b40-9404-74b7-8bda-cf5c76847472",
+        "passedNames": [
+          "contract handles the documented example payload",
+          "handle sends correct Slack message with mapped fields",
+          "handle throws on missing required payload field",
+          "handle throws on missing config field",
+          "handle throws on invalid HMAC signature",
+          "handle throws on non-2xx Slack response",
+          "handle uses injected fetch"
+        ],
+        "contract": "passed"
+      }
+    },
+    {
+      "type": "step",
+      "step": "verify",
+      "status": "done",
+      "detail": "7/7 tests after 1 attempt"
+    },
+    {
+      "type": "step",
+      "step": "package",
+      "status": "start"
+    },
+    {
+      "type": "usage",
+      "usage": [
+        {
+          "model": "nvidia/Nemotron-3_5-Lightning",
+          "promptTokens": 447,
+          "completionTokens": 409,
+          "costUsd": 0.00012497999999999999
+        },
+        {
+          "model": "nvidia/nemotron-3-super-120b-a12b",
+          "promptTokens": 12813,
+          "completionTokens": 740,
+          "costUsd": 0.0045099
+        },
+        {
+          "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+          "promptTokens": 3636,
+          "completionTokens": 11382,
+          "costUsd": 0.037781999999999996
+        }
+      ]
+    },
+    {
+      "type": "result",
+      "ok": true,
+      "attempts": 1,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "/// <reference types=\"node\" />\n\ndeclare const crypto: {\n  subtle: {\n    importKey: (format: string, keyData: any, algorithm: any, extractable: boolean, keyUsages: string[]) => Promise<any>\n    sign: (algorithm: string, key: any, data: any) => Promise<ArrayBuffer>\n  }\n}\n\nexport interface ConnectorConfig {\n  shopifySecret: string\n  slackBotToken: string\n  slackChannel: string\n  shopifyHmacHeader: string\n  rawBody: string\n  fetch?: typeof fetch\n}\n\nexport interface ShopifyOrderPayload {\n  id: number\n  name: string\n  email: string\n  total_price: string\n  line_items: Array<{ title: string; quantity: number }>\n}\n\nexport interface HandleResult {\n  slackMessageTs: string\n  slackChannel: string\n}\n\nasync function verifyHmac(secret: string, rawBody: string, hmacHeader: string): Promise<boolean> {\n  const encoder = new TextEncoder()\n  const keyData = encoder.encode(secret)\n  const messageData = encoder.encode(rawBody)\n\n  const cryptoKey = await crypto.subtle.importKey(\n    'raw',\n    keyData,\n    { name: 'HMAC', hash: 'SHA-256' },\n    false,\n    ['sign']\n  )\n\n  const signature = await crypto.subtle.sign('HMAC', cryptoKey, messageData)\n  const signatureBase64 = Buffer.from(signature).toString('base64')\n\n  return signatureBase64 === hmacHeader\n}\n\nfunction formatLineItems(lineItems: Array<{ title: string; quantity: number }>): string {\n  return lineItems.map((item) => `${item.title} x${item.quantity}`).join(', ')\n}\n\nfunction formatMessage(payload: ShopifyOrderPayload): string {\n  const lineItemsSummary = formatLineItems(payload.line_items)\n  return `New order ${payload.name} from ${payload.email} for $${payload.total_price}: ${lineItemsSummary}`\n}\n\nexport async function handle(payload: ShopifyOrderPayload, config: ConnectorConfig): Promise<HandleResult> {\n  if (payload.id === undefined || payload.id === null) throw new Error('Missing required field: id')\n  if (!payload.name) throw new Error('Missing required field: name')\n  if (!payload.email) throw new Error('Missing required field: email')\n  if (!payload.total_price) throw new Error('Missing required field: total_price')\n  if (!payload.line_items || !Array.isArray(payload.line_items)) throw new Error('Missing required field: line_items')\n\n  if (!config.shopifySecret) throw new Error('Missing config: shopifySecret')\n  if (!config.slackBotToken) throw new Error('Missing config: slackBotToken')\n  if (!config.slackChannel) throw new Error('Missing config: slackChannel')\n  if (!config.shopifyHmacHeader) throw new Error('Missing config: shopifyHmacHeader')\n  if (!config.rawBody) throw new Error('Missing config: rawBody')\n\n  const fetch = config.fetch ?? globalThis.fetch\n\n  const isValid = await verifyHmac(config.shopifySecret, config.rawBody, config.shopifyHmacHeader)\n  if (!isValid) {\n    throw new Error('Invalid HMAC signature')\n  }\n\n  const text = formatMessage(payload)\n\n  const response = await fetch('https://slack.com/api/chat.postMessage', {\n    method: 'POST',\n    headers: {\n      Authorization: `Bearer ${config.slackBotToken}`,\n      'Content-Type': 'application/json'\n    },\n    body: JSON.stringify({\n      channel: config.slackChannel,\n      text\n    })\n  })\n\n  if (!response.ok) {\n    throw new Error(`Slack API error: ${response.status} ${response.statusText} at POST https://slack.com/api/chat.postMessage`)\n  }\n\n  const result = (await response.json()) as { ok: boolean; channel: string; ts: string }\n\n  return {\n    slackMessageTs: result.ts,\n    slackChannel: result.channel\n  }\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi } from 'vitest'\nimport { handle, ConnectorConfig, ShopifyOrderPayload, HandleResult } from './connector'\nimport { SOURCE_EXAMPLE, contractFetch, fakeFetch, jsonResponse } from './fixtures'\n\nasync function computeHmac(secret: string, body: string): Promise<string> {\n  const encoder = new TextEncoder()\n  const keyData = encoder.encode(secret)\n  const messageData = encoder.encode(body)\n  const cryptoKey = await crypto.subtle.importKey('raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])\n  const signature = await crypto.subtle.sign('HMAC', cryptoKey, messageData)\n  return Buffer.from(signature).toString('base64')\n}\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch()\n    const secret = 'test-secret'\n    const rawBody = JSON.stringify(SOURCE_EXAMPLE)\n    const hmacHeader = await computeHmac(secret, rawBody)\n    const result = await handle(SOURCE_EXAMPLE as unknown as ShopifyOrderPayload, {\n      shopifySecret: secret,\n      slackBotToken: 'xoxb-test',\n      slackChannel: 'C1234567890',\n      shopifyHmacHeader: hmacHeader,\n      rawBody,\n      fetch\n    })\n    expect(calls.length).toBeGreaterThan(0)\n    expect(calls[0].json).toEqual({\n      channel: 'C1234567890',\n      text: 'New order #1001 from customer@example.com for $129.99: T-Shirt x2, Mug x1'\n    })\n    expect(result.slackChannel).toBe('C1234567890')\n    expect(result.slackMessageTs).toBe('1234567890.123456')\n  })\n})\n\ndescribe('handle', () => {\n  const baseConfig: ConnectorConfig = {\n    shopifySecret: 'test-secret',\n    slackBotToken: 'xoxb-test',\n    slackChannel: 'C1234567890',\n    shopifyHmacHeader: '',\n    rawBody: '',\n    fetch: globalThis.fetch\n  }\n\n  it('sends correct Slack message with mapped fields', async () => {\n    const payload: ShopifyOrderPayload = {\n      id: 1234567890,\n      name: '#1001',\n      email: 'customer@example.com',\n      total_price: '129.99',\n      line_items: [{ title: 'T-Shirt', quantity: 2 }, { title: 'Mug', quantity: 1 }]\n    }\n    const rawBody = JSON.stringify(payload)\n    const hmacHeader = await computeHmac(baseConfig.shopifySecret, rawBody)\n\n    const { fetch, calls } = fakeFetch((req) => {\n      expect(req.url).toBe('https://slack.com/api/chat.postMessage')\n      expect(req.method).toBe('POST')\n      expect(req.headers.get('authorization')).toBe('Bearer xoxb-test')\n      expect(req.json).toEqual({\n        channel: 'C1234567890',\n        text: 'New order #1001 from customer@example.com for $129.99: T-Shirt x2, Mug x1'\n      })\n      return jsonResponse({ ok: true, channel: 'C1234567890', ts: '1234567890.123456', message: {} })\n    })\n\n    const result = await handle(payload, { ...baseConfig, shopifyHmacHeader: hmacHeader, rawBody, fetch })\n    expect(result.slackChannel).toBe('C1234567890')\n    expect(result.slackMessageTs).toBe('1234567890.123456')\n    expect(calls.length).toBe(1)\n  })\n\n  it('throws on missing required payload field', async () => {\n    const payload = { ...SOURCE_EXAMPLE, email: undefined } as unknown as ShopifyOrderPayload\n    const rawBody = JSON.stringify(payload)\n    const hmacHeader = await computeHmac(baseConfig.shopifySecret, rawBody)\n\n    await expect(handle(payload, { ...baseConfig, shopifyHmacHeader: hmacHeader, rawBody, fetch: globalThis.fetch }))\n      .rejects.toThrow('Missing required field: email')\n  })\n\n  it('throws on missing config field', async () => {\n    const payload = SOURCE_EXAMPLE as unknown as ShopifyOrderPayload\n    const rawBody = JSON.stringify(payload)\n    const hmacHeader = await computeHmac(baseConfig.shopifySecret, rawBody)\n\n    await expect(handle(payload, { ...baseConfig, slackBotToken: '', shopifyHmacHeader: hmacHeader, rawBody, fetch: globalThis.fetch }))\n      .rejects.toThrow('Missing config: slackBotToken')\n  })\n\n  it('throws on invalid HMAC signature', async () => {\n    const payload = SOURCE_EXAMPLE as unknown as ShopifyOrderPayload\n    const rawBody = JSON.stringify(payload)\n    const hmacHeader = 'invalid-hmac'\n\n    await expect(handle(payload, { ...baseConfig, shopifyHmacHeader: hmacHeader, rawBody, fetch: globalThis.fetch }))\n      .rejects.toThrow('Invalid HMAC signature')\n  })\n\n  it('throws on non-2xx Slack response', async () => {\n    const payload = SOURCE_EXAMPLE as unknown as ShopifyOrderPayload\n    const rawBody = JSON.stringify(payload)\n    const hmacHeader = await computeHmac(baseConfig.shopifySecret, rawBody)\n\n    const { fetch } = fakeFetch(() => jsonResponse({ error: 'channel_not_found' }, 404))\n\n    await expect(handle(payload, { ...baseConfig, shopifyHmacHeader: hmacHeader, rawBody, fetch }))\n      .rejects.toThrow('Slack API error: 404 Not Found at POST https://slack.com/api/chat.postMessage')\n  })\n\n  it('uses injected fetch', async () => {\n    const payload = SOURCE_EXAMPLE as unknown as ShopifyOrderPayload\n    const rawBody = JSON.stringify(payload)\n    const hmacHeader = await computeHmac(baseConfig.shopifySecret, rawBody)\n\n    const { fetch, calls } = fakeFetch(() => jsonResponse({ ok: true, channel: 'C1234567890', ts: '1234567890.123456', message: {} }))\n\n    await handle(payload, { ...baseConfig, shopifyHmacHeader: hmacHeader, rawBody, fetch })\n    expect(calls.length).toBe(1)\n  })\n})\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# Shopify to Slack Order Notification Connector\n\nThis connector receives Shopify `orders/paid` webhook payloads, verifies the HMAC-SHA256 signature, and posts a formatted order summary to a Slack channel via `chat.postMessage`.\n\n## Configuration\n\nThe connector requires the following configuration values (typically sourced from environment variables):\n\n| Config Property | Environment Variable | Description |\n|-----------------|---------------------|-------------|\n| `shopifySecret` | `SHOPIFY_CLIENT_SECRET` | The shared secret (Client Secret from Shopify app) used to verify HMAC signatures. |\n| `slackBotToken` | `SLACK_BOT_TOKEN` | Slack bot token with `chat:write` scope. |\n| `slackChannel` | `SLACK_CHANNEL_ID` | Target Slack channel ID (e.g., `C1234567890`) or name (e.g., `#general`). |\n| `shopifyHmacHeader` | `X_SHOPIFY_HMAC_SHA256` | The `X-Shopify-Hmac-Sha256` header value from the incoming webhook request. |\n| `rawBody` | (request body) | The raw request body as a string, captured before JSON parsing. |\n\n## Usage Example\n\n```typescript\nimport { handle, ConnectorConfig, ShopifyOrderPayload } from './connector'\n\nconst config: ConnectorConfig = {\n  shopifySecret: process.env.SHOPIFY_CLIENT_SECRET!,\n  slackBotToken: process.env.SLACK_BOT_TOKEN!,\n  slackChannel: process.env.SLACK_CHANNEL_ID!,\n  shopifyHmacHeader: request.headers.get('X-Shopify-Hmac-Sha256')!,\n  rawBody: rawRequestBody, // string, e.g., from express.rawBody\n  fetch: globalThis.fetch\n}\n\nconst payload: ShopifyOrderPayload = await request.json()\nconst result = await handle(payload, config)\nconsole.log(`Posted to Slack: ${result.slackChannel} at ${result.slackMessageTs}`)\n```\n\n## Assumptions\n\n- The webhook payload includes standard Shopify order fields: `id`, `name`, `email`, `total_price`, and `line_items`.\n- The shared secret for HMAC verification is available in the integration environment variables.\n- The Slack bot token has the `chat:write` scope to post messages to the target channel.\n- The target Slack channel ID or name is configured as a constant in the integration setup.\n- The raw request body is captured before any body-parsing middleware (e.g., `express.json()`).\n- Shopify delivers via HTTPS; HMAC verification does not apply to Google Cloud Pub/Sub or Amazon EventBridge.\n- The connector responds with 200 OK quickly; Shopify has a 5-second timeout for the entire request.\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://shopify.dev/docs/apps/build/webhooks/verify-deliveries\n// Source: https://docs.slack.dev/reference/methods/chat.postMessage\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"id\": 1234567890,\n  \"name\": \"#1001\",\n  \"email\": \"customer@example.com\",\n  \"total_price\": \"129.99\",\n  \"line_items\": [\n    {\n      \"title\": \"T-Shirt\",\n      \"quantity\": 2\n    },\n    {\n      \"title\": \"Mug\",\n      \"quantity\": 1\n    }\n  ]\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://slack.com/api/chat.postMessage\",\n    \"response\": {\n      \"ok\": true,\n      \"channel\": \"C1234567890\",\n      \"ts\": \"1234567890.123456\",\n      \"message\": {\n        \"text\": \"New order #1001 from customer@example.com for $129.99: T-Shirt x2, Mug x1\",\n        \"username\": \"shopify-bot\",\n        \"bot_id\": \"B12345678\"\n      }\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ],
+      "report": {
+        "typecheckOk": true,
+        "typecheckOutput": "",
+        "passed": 7,
+        "failed": 0,
+        "total": 7,
+        "failures": [],
+        "durationMs": 288.58349609375,
+        "ranOn": "nebius-sandbox:01a10b40-9404-74b7-8bda-cf5c76847472",
+        "passedNames": [
+          "contract handles the documented example payload",
+          "handle sends correct Slack message with mapped fields",
+          "handle throws on missing required payload field",
+          "handle throws on missing config field",
+          "handle throws on invalid HMAC signature",
+          "handle throws on non-2xx Slack response",
+          "handle uses injected fetch"
+        ],
+        "contract": "passed"
+      }
+    },
+    {
+      "type": "step",
+      "step": "package",
+      "status": "done"
+    }
+  ]
+}

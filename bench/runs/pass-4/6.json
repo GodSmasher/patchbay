@@ -1,0 +1,384 @@
+{
+  "prompt": "When a Shopify order is paid, append the order number, customer email and total to an Airtable table.",
+  "events": [
+    {
+      "type": "mode",
+      "mode": "live"
+    },
+    {
+      "type": "step",
+      "step": "plan",
+      "status": "start"
+    },
+    {
+      "type": "plan",
+      "plan": {
+        "summary": "When a Shopify order is paid, append the order number, customer email and total to an Airtable table.",
+        "source": {
+          "app": "Shopify",
+          "trigger": "orders/paid webhook",
+          "docsQuery": "Shopify orders/paid webhook payload order fields"
+        },
+        "target": {
+          "app": "Airtable",
+          "action": "create record",
+          "docsQuery": "Airtable Web API create records request body"
+        },
+        "fieldMapping": [
+          {
+            "from": "order_id",
+            "to": "fields['Order ID']",
+            "note": "Shopify order ID"
+          },
+          {
+            "from": "email",
+            "to": "fields['Customer Email']",
+            "note": "Customer email address"
+          },
+          {
+            "from": "total_price",
+            "to": "fields['Total']",
+            "note": "Order total as string"
+          }
+        ],
+        "assumptions": [
+          "The Airtable table already has columns named 'Order ID', 'Customer Email', and 'Total'.",
+          "The webhook payload contains the fields order_id, email, and total_price.",
+          "Airtable API key and base/table IDs are configured in the connector."
+        ]
+      }
+    },
+    {
+      "type": "step",
+      "step": "plan",
+      "status": "done",
+      "detail": "When a Shopify order is paid, append the order number, customer email and total to an Airtable table."
+    },
+    {
+      "type": "step",
+      "step": "research",
+      "status": "start"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Installing typescript + vitest in a sandbox checkpoint"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Searched \"Shopify orders/paid webhook payload order fields\": 2 of 2 picked from Shopify's own docs"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Searched \"Airtable Web API create records request body\": 1 of 2 picked from Airtable's own docs"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Extracted 4 documentation pages"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Checkpoint ready: 437cfa5d"
+    },
+    {
+      "type": "sources",
+      "sources": [
+        {
+          "title": "Webhook",
+          "url": "https://shopify.dev/docs/api/admin-rest/latest/resources/webhook",
+          "official": true
+        },
+        {
+          "title": "Order webhooks",
+          "url": "https://shopify.dev/docs/agents/orders/order-webhooks",
+          "official": true
+        },
+        {
+          "title": "Create record via api with key specified | Airtable Community",
+          "url": "https://community.airtable.com/development-apis-11/create-record-via-api-with-key-specified-5705",
+          "official": true
+        },
+        {
+          "title": "Airtable Records Api | APIs.io APIs",
+          "url": "https://apis.io/apis/airtable/airtable-records-api",
+          "official": false
+        }
+      ]
+    },
+    {
+      "type": "spec",
+      "spec": {
+        "source": {
+          "app": "Shopify",
+          "role": "source",
+          "method": "POST",
+          "url": "",
+          "auth": {
+            "type": "none",
+            "name": null,
+            "envVar": null
+          },
+          "example": {
+            "ucp": {
+              "version": "2026-04-08",
+              "capabilities": {
+                "dev.ucp.shopping.order": [
+                  {
+                    "version": "2026-04-08"
+                  }
+                ]
+              }
+            },
+            "id": "gid://shopify/Order/6252199051413",
+            "label": "#1042",
+            "currency": "USD",
+            "totals": [
+              {
+                "type": "subtotal",
+                "display_text": "subtotal",
+                "amount": 6298
+              },
+              {
+                "type": "fulfillment",
+                "display_text": "fulfillment",
+                "amount": 899
+              },
+              {
+                "type": "tax",
+                "display_text": "tax",
+                "amount": 780
+              },
+              {
+                "type": "fee",
+                "display_text": "fee",
+                "amount": 0
+              },
+              {
+                "type": "total",
+                "display_text": "total",
+                "amount": 7977
+              }
+            ],
+            "line_items": [],
+            "fulfillment": {}
+          },
+          "docsUrl": "https://shopify.dev/docs/agents/orders/order-webhooks",
+          "notes": [
+            "The webhook delivers the full current state of the order as a JSON payload matching the UCP order specification.",
+            "To extract order_id: parse the 'id' field (e.g., 'gid://shopify/Order/6252199051413') and take the numeric part after the last '/'.",
+            "To extract email: the payload does not contain customer email directly; it may be found in nested structures not shown in the example. The plan assumes 'email' is available, but the documentation does not confirm its presence in the webhook payload.",
+            "To extract total_price: use the 'amount' from the totals object where type is 'total' (e.g., 7977). This is in cents; divide by 100 for dollars or keep as integer cents based on Airtable field type.",
+            "Headers include X-Shopify-Hmac-SHA256 for verification; the connector must validate the webhook signature using the app's shared secret.",
+            "The webhook topic for paid orders is not explicitly documented in the provided pages, but the plan assumes 'orders/paid' triggers this webhook. Verify the correct topic with Shopify documentation.",
+            "Shopify retries failed deliveries up to 8 times over 4 hours with exponential backoff; respond with 2xx quickly."
+          ]
+        },
+        "target": [
+          {
+            "app": "Airtable",
+            "role": "target",
+            "method": "POST",
+            "url": "https://api.airtable.com/v0/{baseId}/{tableIdOrName}",
+            "auth": {
+              "type": "bearer",
+              "name": "Authorization",
+              "envVar": "AIRTABLE_API_KEY"
+            },
+            "example": {
+              "records": [
+                {
+                  "fields": {
+                    "Order ID": "6252199051413",
+                    "Customer Email": "customer@example.com",
+                    "Total": "79.77"
+                  }
+                }
+              ]
+            },
+            "responseExample": {
+              "records": [
+                {
+                  "id": "recABC123def456",
+                  "createdTime": "2023-01-01T12:00:00.000Z",
+                  "fields": {
+                    "Order ID": "6252199051413",
+                    "Customer Email": "customer@example.com",
+                    "Total": "79.77"
+                  }
+                }
+              ]
+            },
+            "docsUrl": "https://apis.io/apis/airtable/airtable-records-api",
+            "notes": [
+              "The API creates up to 10 records per request; this connector sends one record per webhook.",
+              "The 'fields' object maps Airtable field names to values. Field names must match exactly those in the table (e.g., 'Order ID', 'Customer Email', 'Total').",
+              "The 'Total' field is passed as a string ('79.77') as per the plan's assumption; ensure the Airtable column type accepts strings or numbers appropriately.",
+              "Authentication requires a Bearer token (personal access token or OAuth token) in the Authorization header.",
+              "No pagination is involved in record creation; this is a simple create operation.",
+              "If the request fails due to invalid field names or types, the API returns 422 with error details."
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "step",
+      "step": "research",
+      "status": "done",
+      "detail": "2 endpoints from 4 pages"
+    },
+    {
+      "type": "step",
+      "step": "generate",
+      "status": "start"
+    },
+    {
+      "type": "files",
+      "attempt": 1,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "export interface ConnectorConfig {\n  /** Airtable personal access token or OAuth token. Env: AIRTABLE_API_KEY */\n  airtableApiKey: string;\n  /** Airtable base ID (e.g., appXXXXXXXXXXXXXX). */\n  airtableBaseId: string;\n  /** Airtable table ID or name (e.g., tblXXXXXXXXXXXXXX or \"Orders\"). */\n  airtableTableIdOrName: string;\n  /** Optional fetch implementation for testing. */\n  fetch?: typeof fetch;\n}\n\nexport interface ShopifyOrderPaidPayload {\n  id: string;\n  totals: Array<{ type: string; amount: number }>;\n  email?: string;\n  // Other properties (ucp, label, currency, line_items, fulfillment) are ignored.\n}\n\nexport interface HandleResult {\n  recordIds: string[];\n}\n\nfunction extractOrderId(shopifyId: string): string {\n  const parts = shopifyId.split('/');\n  return parts[parts.length - 1];\n}\n\nfunction extractTotalPrice(totals: Array<{ type: string; amount: number }>): string {\n  const total = totals.find((t) => t.type === 'total');\n  if (!total) {\n    throw new Error('Missing total amount in payload totals');\n  }\n  // Amount is in cents; convert to dollars with two decimal places.\n  return (total.amount / 100).toFixed(2);\n}\n\nexport async function handle(\n  payload: ShopifyOrderPaidPayload,\n  config: ConnectorConfig\n): Promise<HandleResult> {\n  // Validate required fields\n  if (!payload.id) {\n    throw new Error('Missing required field: id');\n  }\n  if (!payload.totals || !Array.isArray(payload.totals)) {\n    throw new Error('Missing required field: totals');\n  }\n\n  const orderId = extractOrderId(payload.id);\n  const totalPrice = extractTotalPrice(payload.totals);\n  const customerEmail = payload.email ?? '';\n\n  const url = `https://api.airtable.com/v0/${config.airtableBaseId}/${config.airtableTableIdOrName}`;\n  const body = {\n    records: [\n      {\n        fields: {\n          'Order ID': orderId,\n          'Customer Email': customerEmail,\n          Total: totalPrice,\n        },\n      },\n    ],\n  };\n\n  const fetchImpl = config.fetch ?? fetch;\n  const response = await fetchImpl(url, {\n    method: 'POST',\n    headers: {\n      Authorization: `Bearer ${config.airtableApiKey}`,\n      'Content-Type': 'application/json',\n    },\n    body: JSON.stringify(body),\n  });\n\n  if (!response.ok) {\n    throw new Error(`Airtable API error: ${response.status} ${response.statusText} at ${url}`);\n  }\n\n  const data = (await response.json()) as { records: Array<{ id: string }> };\n  const recordIds = data.records.map((r) => r.id);\n  return { recordIds };\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi } from 'vitest';\nimport { handle, ConnectorConfig, ShopifyOrderPaidPayload } from './connector';\nimport {\n  SOURCE_EXAMPLE,\n  contractFetch,\n  fakeFetch,\n  jsonResponse,\n  RecordedCall,\n} from './fixtures';\n\n// Contract test - must be at top level with exact title 'contract'\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch();\n    const config: ConnectorConfig = {\n      airtableApiKey: 'test-key',\n      airtableBaseId: 'appTestBase',\n      airtableTableIdOrName: 'tblTestTable',\n      fetch,\n    };\n    const result = await handle(SOURCE_EXAMPLE as unknown as ShopifyOrderPaidPayload, config);\n    expect(calls.length).toBeGreaterThan(0);\n    expect(result.recordIds).toEqual(['recABC123def456']);\n  });\n});\n\ndescribe('handle', () => {\n  const baseConfig: ConnectorConfig = {\n    airtableApiKey: 'test-key',\n    airtableBaseId: 'appTestBase',\n    airtableTableIdOrName: 'tblTestTable',\n  };\n\n  it('happy path: creates record with correct field mapping and auth', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url === 'https://api.airtable.com/v0/appTestBase/tblTestTable' &&\n      req.method === 'POST'\n        ? jsonResponse({\n            records: [{ id: 'rec123', createdTime: '2023-01-01T00:00:00.000Z', fields: {} }],\n          })\n        : jsonResponse({ error: 'not found' }, 404)\n    );\n\n    const payload: ShopifyOrderPaidPayload = {\n      id: 'gid://shopify/Order/1234567890',\n      totals: [\n        { type: 'subtotal', amount: 1000 },\n        { type: 'total', amount: 1234 },\n      ],\n      email: 'customer@example.com',\n    };\n\n    const result = await handle(payload, { ...baseConfig, fetch });\n    expect(result.recordIds).toEqual(['rec123']);\n\n    expect(calls).toHaveLength(1);\n    const call = calls[0];\n    expect(call.method).toBe('POST');\n    expect(call.url).toBe('https://api.airtable.com/v0/appTestBase/tblTestTable');\n    expect(call.headers.get('authorization')).toBe('Bearer test-key');\n    expect(call.json).toEqual({\n      records: [\n        {\n          fields: {\n            'Order ID': '1234567890',\n            'Customer Email': 'customer@example.com',\n            Total: '12.34',\n          },\n        },\n      ],\n    });\n  });\n\n  it('uses empty string for email when not provided', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      jsonResponse({ records: [{ id: 'rec456' }] })\n    );\n\n    const payload: ShopifyOrderPaidPayload = {\n      id: 'gid://shopify/Order/999',\n      totals: [{ type: 'total', amount: 5000 }],\n    };\n\n    await handle(payload, { ...baseConfig, fetch });\n    expect(calls[0].json).toEqual({\n      records: [\n        {\n          fields: {\n            'Order ID': '999',\n            'Customer Email': '',\n            Total: '50.00',\n          },\n        },\n      ],\n    });\n  });\n\n  it('throws descriptive error when id is missing', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200));\n    const payload = { totals: [{ type: 'total', amount: 100 }] } as unknown as ShopifyOrderPaidPayload;\n    await expect(handle(payload, { ...baseConfig, fetch })).rejects.toThrow('Missing required field: id');\n  });\n\n  it('throws descriptive error when totals is missing', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200));\n    const payload = { id: 'gid://shopify/Order/1' } as unknown as ShopifyOrderPaidPayload;\n    await expect(handle(payload, { ...baseConfig, fetch })).rejects.toThrow('Missing required field: totals');\n  });\n\n  it('throws descriptive error when total type is not found in totals', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200));\n    const payload: ShopifyOrderPaidPayload = {\n      id: 'gid://shopify/Order/1',\n      totals: [{ type: 'subtotal', amount: 100 }],\n    };\n    await expect(handle(payload, { ...baseConfig, fetch })).rejects.toThrow('Missing total amount in payload totals');\n  });\n\n  it('throws error with status and endpoint on non-2xx response', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({ error: 'Invalid field' }, 422));\n    const payload: ShopifyOrderPaidPayload = {\n      id: 'gid://shopify/Order/1',\n      totals: [{ type: 'total', amount: 100 }],\n    };\n    await expect(handle(payload, { ...baseConfig, fetch })).rejects.toThrow(\n      'Airtable API error: 422 Unprocessable Entity at https://api.airtable.com/v0/appTestBase/tblTestTable'\n    );\n  });\n});\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# Shopify Paid Order to Airtable Connector\n\nThis connector listens for Shopify `orders/paid` webhooks and appends the order number, customer email, and order total to an Airtable table.\n\n## What it does\n\n1. Receives a Shopify order webhook payload (UCP order specification).\n2. Extracts:\n   - **Order ID**: numeric part from the `id` field (e.g., `gid://shopify/Order/6252199051413` → `6252199051413`).\n   - **Customer Email**: from the optional `email` field in the payload (defaults to empty string if absent).\n   - **Total**: from the `totals` array where `type === 'total'`, converting cents to a dollar string with two decimals (e.g., `7977` → `\"79.77\"`).\n3. Creates a single record in the configured Airtable table with fields `Order ID`, `Customer Email`, and `Total`.\n\n## Configuration\n\nThe connector requires the following environment variables (provided via the `ConnectorConfig` object):\n\n| Config Property          | Environment Variable | Description                              |\n|--------------------------|----------------------|------------------------------------------|\n| `airtableApiKey`         | `AIRTABLE_API_KEY`   | Airtable personal access token or OAuth token. |\n| `airtableBaseId`         | `AIRTABLE_BASE_ID`   | Airtable base ID (e.g., `appXXXXXXXXXXXXXX`). |\n| `airtableTableIdOrName`  | `AIRTABLE_TABLE_ID`  | Airtable table ID or name (e.g., `tblXXXXXXXXXXXXXX` or `\"Orders\"`). |\n\n**Note:** The Shopify webhook signature verification (using `X-Shopify-Hmac-SHA256` header) is expected to be performed by the platform before invoking this connector. The connector itself does not perform HMAC validation.\n\n## Usage Example\n\n```typescript\nimport { handle, ConnectorConfig } from './connector';\n\n// In your webhook handler (after signature verification):\nconst config: ConnectorConfig = {\n  airtableApiKey: process.env.AIRTABLE_API_KEY!,\n  airtableBaseId: process.env.AIRTABLE_BASE_ID!,\n  airtableTableIdOrName: process.env.AIRTABLE_TABLE_ID!,\n};\n\nconst result = await handle(shopifyPayload, config);\nconsole.log('Created Airtable record(s):', result.recordIds);\n```\n\n## Assumptions\n\n- The Airtable table already has columns named exactly `Order ID`, `Customer Email`, and `Total`.\n- The Shopify webhook payload contains at least the `id` and `totals` fields as per the UCP order specification.\n- The `email` field may be present in the payload; if not, an empty string is sent to Airtable.\n- The Airtable `Total` field is passed as a string (e.g., `\"79.77\"`). Ensure the Airtable column type accepts strings or numbers appropriately.\n- The connector sends one record per webhook invocation (Airtable allows up to 10 per request).\n- Network errors and non-2xx responses from Airtable are thrown as errors with status code and endpoint for observability.\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://shopify.dev/docs/agents/orders/order-webhooks\n// Source: https://apis.io/apis/airtable/airtable-records-api\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"ucp\": {\n    \"version\": \"2026-04-08\",\n    \"capabilities\": {\n      \"dev.ucp.shopping.order\": [\n        {\n          \"version\": \"2026-04-08\"\n        }\n      ]\n    }\n  },\n  \"id\": \"gid://shopify/Order/6252199051413\",\n  \"label\": \"#1042\",\n  \"currency\": \"USD\",\n  \"totals\": [\n    {\n      \"type\": \"subtotal\",\n      \"display_text\": \"subtotal\",\n      \"amount\": 6298\n    },\n    {\n      \"type\": \"fulfillment\",\n      \"display_text\": \"fulfillment\",\n      \"amount\": 899\n    },\n    {\n      \"type\": \"tax\",\n      \"display_text\": \"tax\",\n      \"amount\": 780\n    },\n    {\n      \"type\": \"fee\",\n      \"display_text\": \"fee\",\n      \"amount\": 0\n    },\n    {\n      \"type\": \"total\",\n      \"display_text\": \"total\",\n      \"amount\": 7977\n    }\n  ],\n  \"line_items\": [],\n  \"fulfillment\": {}\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://api.airtable.com/v0/{baseId}/{tableIdOrName}\",\n    \"response\": {\n      \"records\": [\n        {\n          \"id\": \"recABC123def456\",\n          \"createdTime\": \"2023-01-01T12:00:00.000Z\",\n          \"fields\": {\n            \"Order ID\": \"6252199051413\",\n            \"Customer Email\": \"customer@example.com\",\n            \"Total\": \"79.77\"\n          }\n        }\n      ]\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ]
+    },
+    {
+      "type": "step",
+      "step": "generate",
+      "status": "done",
+      "detail": "src/connector.ts, src/connector.test.ts, README.md, src/fixtures.ts"
+    },
+    {
+      "type": "step",
+      "step": "verify",
+      "status": "start"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Forking checkpoint 437cfa5d with 4 files, network off"
+    },
+    {
+      "type": "tests",
+      "attempt": 1,
+      "report": {
+        "typecheckOk": true,
+        "typecheckOutput": "",
+        "passed": 7,
+        "failed": 0,
+        "total": 7,
+        "failures": [],
+        "durationMs": 279.36279296875,
+        "ranOn": "nebius-sandbox:01a10b2d-7d01-74c5-b41f-408ba6b7ba11",
+        "passedNames": [
+          "contract handles the documented example payload",
+          "handle happy path: creates record with correct field mapping and auth",
+          "handle uses empty string for email when not provided",
+          "handle throws descriptive error when id is missing",
+          "handle throws descriptive error when totals is missing",
+          "handle throws descriptive error when total type is not found in totals",
+          "handle throws error with status and endpoint on non-2xx response"
+        ],
+        "contract": "passed"
+      }
+    },
+    {
+      "type": "step",
+      "step": "verify",
+      "status": "done",
+      "detail": "7/7 tests after 1 attempt"
+    },
+    {
+      "type": "step",
+      "step": "package",
+      "status": "start"
+    },
+    {
+      "type": "usage",
+      "usage": [
+        {
+          "model": "nvidia/Nemotron-3_5-Lightning",
+          "promptTokens": 421,
+          "completionTokens": 282,
+          "costUsd": 0.00009294
+        },
+        {
+          "model": "nvidia/nemotron-3-super-120b-a12b",
+          "promptTokens": 16367,
+          "completionTokens": 1089,
+          "costUsd": 0.0058902
+        },
+        {
+          "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+          "promptTokens": 4048,
+          "completionTokens": 5015,
+          "costUsd": 0.019093000000000002
+        }
+      ]
+    },
+    {
+      "type": "result",
+      "ok": true,
+      "attempts": 1,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "export interface ConnectorConfig {\n  /** Airtable personal access token or OAuth token. Env: AIRTABLE_API_KEY */\n  airtableApiKey: string;\n  /** Airtable base ID (e.g., appXXXXXXXXXXXXXX). */\n  airtableBaseId: string;\n  /** Airtable table ID or name (e.g., tblXXXXXXXXXXXXXX or \"Orders\"). */\n  airtableTableIdOrName: string;\n  /** Optional fetch implementation for testing. */\n  fetch?: typeof fetch;\n}\n\nexport interface ShopifyOrderPaidPayload {\n  id: string;\n  totals: Array<{ type: string; amount: number }>;\n  email?: string;\n  // Other properties (ucp, label, currency, line_items, fulfillment) are ignored.\n}\n\nexport interface HandleResult {\n  recordIds: string[];\n}\n\nfunction extractOrderId(shopifyId: string): string {\n  const parts = shopifyId.split('/');\n  return parts[parts.length - 1];\n}\n\nfunction extractTotalPrice(totals: Array<{ type: string; amount: number }>): string {\n  const total = totals.find((t) => t.type === 'total');\n  if (!total) {\n    throw new Error('Missing total amount in payload totals');\n  }\n  // Amount is in cents; convert to dollars with two decimal places.\n  return (total.amount / 100).toFixed(2);\n}\n\nexport async function handle(\n  payload: ShopifyOrderPaidPayload,\n  config: ConnectorConfig\n): Promise<HandleResult> {\n  // Validate required fields\n  if (!payload.id) {\n    throw new Error('Missing required field: id');\n  }\n  if (!payload.totals || !Array.isArray(payload.totals)) {\n    throw new Error('Missing required field: totals');\n  }\n\n  const orderId = extractOrderId(payload.id);\n  const totalPrice = extractTotalPrice(payload.totals);\n  const customerEmail = payload.email ?? '';\n\n  const url = `https://api.airtable.com/v0/${config.airtableBaseId}/${config.airtableTableIdOrName}`;\n  const body = {\n    records: [\n      {\n        fields: {\n          'Order ID': orderId,\n          'Customer Email': customerEmail,\n          Total: totalPrice,\n        },\n      },\n    ],\n  };\n\n  const fetchImpl = config.fetch ?? fetch;\n  const response = await fetchImpl(url, {\n    method: 'POST',\n    headers: {\n      Authorization: `Bearer ${config.airtableApiKey}`,\n      'Content-Type': 'application/json',\n    },\n    body: JSON.stringify(body),\n  });\n\n  if (!response.ok) {\n    throw new Error(`Airtable API error: ${response.status} ${response.statusText} at ${url}`);\n  }\n\n  const data = (await response.json()) as { records: Array<{ id: string }> };\n  const recordIds = data.records.map((r) => r.id);\n  return { recordIds };\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi } from 'vitest';\nimport { handle, ConnectorConfig, ShopifyOrderPaidPayload } from './connector';\nimport {\n  SOURCE_EXAMPLE,\n  contractFetch,\n  fakeFetch,\n  jsonResponse,\n  RecordedCall,\n} from './fixtures';\n\n// Contract test - must be at top level with exact title 'contract'\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch();\n    const config: ConnectorConfig = {\n      airtableApiKey: 'test-key',\n      airtableBaseId: 'appTestBase',\n      airtableTableIdOrName: 'tblTestTable',\n      fetch,\n    };\n    const result = await handle(SOURCE_EXAMPLE as unknown as ShopifyOrderPaidPayload, config);\n    expect(calls.length).toBeGreaterThan(0);\n    expect(result.recordIds).toEqual(['recABC123def456']);\n  });\n});\n\ndescribe('handle', () => {\n  const baseConfig: ConnectorConfig = {\n    airtableApiKey: 'test-key',\n    airtableBaseId: 'appTestBase',\n    airtableTableIdOrName: 'tblTestTable',\n  };\n\n  it('happy path: creates record with correct field mapping and auth', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      req.url === 'https://api.airtable.com/v0/appTestBase/tblTestTable' &&\n      req.method === 'POST'\n        ? jsonResponse({\n            records: [{ id: 'rec123', createdTime: '2023-01-01T00:00:00.000Z', fields: {} }],\n          })\n        : jsonResponse({ error: 'not found' }, 404)\n    );\n\n    const payload: ShopifyOrderPaidPayload = {\n      id: 'gid://shopify/Order/1234567890',\n      totals: [\n        { type: 'subtotal', amount: 1000 },\n        { type: 'total', amount: 1234 },\n      ],\n      email: 'customer@example.com',\n    };\n\n    const result = await handle(payload, { ...baseConfig, fetch });\n    expect(result.recordIds).toEqual(['rec123']);\n\n    expect(calls).toHaveLength(1);\n    const call = calls[0];\n    expect(call.method).toBe('POST');\n    expect(call.url).toBe('https://api.airtable.com/v0/appTestBase/tblTestTable');\n    expect(call.headers.get('authorization')).toBe('Bearer test-key');\n    expect(call.json).toEqual({\n      records: [\n        {\n          fields: {\n            'Order ID': '1234567890',\n            'Customer Email': 'customer@example.com',\n            Total: '12.34',\n          },\n        },\n      ],\n    });\n  });\n\n  it('uses empty string for email when not provided', async () => {\n    const { fetch, calls } = fakeFetch((req) =>\n      jsonResponse({ records: [{ id: 'rec456' }] })\n    );\n\n    const payload: ShopifyOrderPaidPayload = {\n      id: 'gid://shopify/Order/999',\n      totals: [{ type: 'total', amount: 5000 }],\n    };\n\n    await handle(payload, { ...baseConfig, fetch });\n    expect(calls[0].json).toEqual({\n      records: [\n        {\n          fields: {\n            'Order ID': '999',\n            'Customer Email': '',\n            Total: '50.00',\n          },\n        },\n      ],\n    });\n  });\n\n  it('throws descriptive error when id is missing', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200));\n    const payload = { totals: [{ type: 'total', amount: 100 }] } as unknown as ShopifyOrderPaidPayload;\n    await expect(handle(payload, { ...baseConfig, fetch })).rejects.toThrow('Missing required field: id');\n  });\n\n  it('throws descriptive error when totals is missing', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200));\n    const payload = { id: 'gid://shopify/Order/1' } as unknown as ShopifyOrderPaidPayload;\n    await expect(handle(payload, { ...baseConfig, fetch })).rejects.toThrow('Missing required field: totals');\n  });\n\n  it('throws descriptive error when total type is not found in totals', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200));\n    const payload: ShopifyOrderPaidPayload = {\n      id: 'gid://shopify/Order/1',\n      totals: [{ type: 'subtotal', amount: 100 }],\n    };\n    await expect(handle(payload, { ...baseConfig, fetch })).rejects.toThrow('Missing total amount in payload totals');\n  });\n\n  it('throws error with status and endpoint on non-2xx response', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({ error: 'Invalid field' }, 422));\n    const payload: ShopifyOrderPaidPayload = {\n      id: 'gid://shopify/Order/1',\n      totals: [{ type: 'total', amount: 100 }],\n    };\n    await expect(handle(payload, { ...baseConfig, fetch })).rejects.toThrow(\n      'Airtable API error: 422 Unprocessable Entity at https://api.airtable.com/v0/appTestBase/tblTestTable'\n    );\n  });\n});\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# Shopify Paid Order to Airtable Connector\n\nThis connector listens for Shopify `orders/paid` webhooks and appends the order number, customer email, and order total to an Airtable table.\n\n## What it does\n\n1. Receives a Shopify order webhook payload (UCP order specification).\n2. Extracts:\n   - **Order ID**: numeric part from the `id` field (e.g., `gid://shopify/Order/6252199051413` → `6252199051413`).\n   - **Customer Email**: from the optional `email` field in the payload (defaults to empty string if absent).\n   - **Total**: from the `totals` array where `type === 'total'`, converting cents to a dollar string with two decimals (e.g., `7977` → `\"79.77\"`).\n3. Creates a single record in the configured Airtable table with fields `Order ID`, `Customer Email`, and `Total`.\n\n## Configuration\n\nThe connector requires the following environment variables (provided via the `ConnectorConfig` object):\n\n| Config Property          | Environment Variable | Description                              |\n|--------------------------|----------------------|------------------------------------------|\n| `airtableApiKey`         | `AIRTABLE_API_KEY`   | Airtable personal access token or OAuth token. |\n| `airtableBaseId`         | `AIRTABLE_BASE_ID`   | Airtable base ID (e.g., `appXXXXXXXXXXXXXX`). |\n| `airtableTableIdOrName`  | `AIRTABLE_TABLE_ID`  | Airtable table ID or name (e.g., `tblXXXXXXXXXXXXXX` or `\"Orders\"`). |\n\n**Note:** The Shopify webhook signature verification (using `X-Shopify-Hmac-SHA256` header) is expected to be performed by the platform before invoking this connector. The connector itself does not perform HMAC validation.\n\n## Usage Example\n\n```typescript\nimport { handle, ConnectorConfig } from './connector';\n\n// In your webhook handler (after signature verification):\nconst config: ConnectorConfig = {\n  airtableApiKey: process.env.AIRTABLE_API_KEY!,\n  airtableBaseId: process.env.AIRTABLE_BASE_ID!,\n  airtableTableIdOrName: process.env.AIRTABLE_TABLE_ID!,\n};\n\nconst result = await handle(shopifyPayload, config);\nconsole.log('Created Airtable record(s):', result.recordIds);\n```\n\n## Assumptions\n\n- The Airtable table already has columns named exactly `Order ID`, `Customer Email`, and `Total`.\n- The Shopify webhook payload contains at least the `id` and `totals` fields as per the UCP order specification.\n- The `email` field may be present in the payload; if not, an empty string is sent to Airtable.\n- The Airtable `Total` field is passed as a string (e.g., `\"79.77\"`). Ensure the Airtable column type accepts strings or numbers appropriately.\n- The connector sends one record per webhook invocation (Airtable allows up to 10 per request).\n- Network errors and non-2xx responses from Airtable are thrown as errors with status code and endpoint for observability.\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://shopify.dev/docs/agents/orders/order-webhooks\n// Source: https://apis.io/apis/airtable/airtable-records-api\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"ucp\": {\n    \"version\": \"2026-04-08\",\n    \"capabilities\": {\n      \"dev.ucp.shopping.order\": [\n        {\n          \"version\": \"2026-04-08\"\n        }\n      ]\n    }\n  },\n  \"id\": \"gid://shopify/Order/6252199051413\",\n  \"label\": \"#1042\",\n  \"currency\": \"USD\",\n  \"totals\": [\n    {\n      \"type\": \"subtotal\",\n      \"display_text\": \"subtotal\",\n      \"amount\": 6298\n    },\n    {\n      \"type\": \"fulfillment\",\n      \"display_text\": \"fulfillment\",\n      \"amount\": 899\n    },\n    {\n      \"type\": \"tax\",\n      \"display_text\": \"tax\",\n      \"amount\": 780\n    },\n    {\n      \"type\": \"fee\",\n      \"display_text\": \"fee\",\n      \"amount\": 0\n    },\n    {\n      \"type\": \"total\",\n      \"display_text\": \"total\",\n      \"amount\": 7977\n    }\n  ],\n  \"line_items\": [],\n  \"fulfillment\": {}\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://api.airtable.com/v0/{baseId}/{tableIdOrName}\",\n    \"response\": {\n      \"records\": [\n        {\n          \"id\": \"recABC123def456\",\n          \"createdTime\": \"2023-01-01T12:00:00.000Z\",\n          \"fields\": {\n            \"Order ID\": \"6252199051413\",\n            \"Customer Email\": \"customer@example.com\",\n            \"Total\": \"79.77\"\n          }\n        }\n      ]\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ],
+      "report": {
+        "typecheckOk": true,
+        "typecheckOutput": "",
+        "passed": 7,
+        "failed": 0,
+        "total": 7,
+        "failures": [],
+        "durationMs": 279.36279296875,
+        "ranOn": "nebius-sandbox:01a10b2d-7d01-74c5-b41f-408ba6b7ba11",
+        "passedNames": [
+          "contract handles the documented example payload",
+          "handle happy path: creates record with correct field mapping and auth",
+          "handle uses empty string for email when not provided",
+          "handle throws descriptive error when id is missing",
+          "handle throws descriptive error when totals is missing",
+          "handle throws descriptive error when total type is not found in totals",
+          "handle throws error with status and endpoint on non-2xx response"
+        ],
+        "contract": "passed"
+      }
+    },
+    {
+      "type": "step",
+      "step": "package",
+      "status": "done"
+    }
+  ]
+}

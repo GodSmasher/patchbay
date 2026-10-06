@@ -168,7 +168,7 @@ export default function Home() {
           Verified in: <span className="text-ink-soft">Nebius Sandboxes</span>
         </span>
         <a href="https://github.com/GodSmasher/patchbay/blob/main/bench/RESULTS-variance.md" className="hover:text-ink">
-          Benchmark: 85% green over 60 runs · $0.05 per connector ↗
+          Benchmark: 90% green over 92 runs · 52% first-try · $0.07 per connector ↗
         </a>
       </footer>
     </main>

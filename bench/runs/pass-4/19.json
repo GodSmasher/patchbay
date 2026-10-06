@@ -1,0 +1,665 @@
+{
+  "prompt": "When a Zendesk ticket is created, open a matching GitHub issue in the configured repo and then post the GitHub issue URL back as a Zendesk ticket comment.",
+  "events": [
+    {
+      "type": "mode",
+      "mode": "live"
+    },
+    {
+      "type": "step",
+      "step": "plan",
+      "status": "start"
+    },
+    {
+      "type": "plan",
+      "plan": {
+        "summary": "When a Zendesk ticket is created, search GitHub for a matching issue by title, create one if missing, and post the resulting issue URL as a comment on the Zendesk ticket.",
+        "source": {
+          "app": "Zendesk",
+          "trigger": "ticket.created webhook",
+          "docsQuery": "Zendesk ticket created webhook payload fields subject description"
+        },
+        "target": {
+          "app": "GitHub",
+          "action": "create issue",
+          "docsQuery": "GitHub REST API create issue endpoint body fields title body"
+        },
+        "fieldMapping": [
+          {
+            "from": "subject",
+            "to": "title",
+            "note": "Zendesk ticket subject maps to GitHub issue title"
+          },
+          {
+            "from": "description",
+            "to": "body",
+            "note": "Zendesk ticket description maps to GitHub issue body"
+          },
+          {
+            "from": "id",
+            "to": "issue_number",
+            "note": "Used only for lookup/search; not passed to create"
+          }
+        ],
+        "assumptions": [
+          "The Zendesk ticket subject or description contains a unique identifier or keyword that can be used to search for an existing GitHub issue.",
+          "The GitHub repository is pre-configured (owner/repo) and the integration has write access to create issues and post comments.",
+          "The Zendesk webhook payload includes both \"subject\" and \"description\" fields.",
+          "A matching GitHub issue is determined by exact or fuzzy title match; if no match exists, a new issue is created.",
+          "The integration can parse the GitHub API response to extract the new issue number and construct the HTML URL (https://github.com/owner/repo/issues/{number})."
+        ]
+      }
+    },
+    {
+      "type": "step",
+      "step": "plan",
+      "status": "done",
+      "detail": "When a Zendesk ticket is created, search GitHub for a matching issue by title, create one if missing, and post the resulting issue URL as a comment on the Zendesk ticket."
+    },
+    {
+      "type": "step",
+      "step": "research",
+      "status": "start"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Installing typescript + vitest in a sandbox checkpoint"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Searched \"GitHub REST API create issue endpoint body fields title body\": 2 of 2 picked from GitHub's own docs"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Searched \"Zendesk ticket created webhook payload fields subject description\": 2 of 2 picked from Zendesk's own docs"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Extracted 4 documentation pages"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Checkpoint ready: 04b3a502"
+    },
+    {
+      "type": "sources",
+      "sources": [
+        {
+          "title": "Webhook event types | Zendesk Developer Docs",
+          "url": "https://developer.zendesk.com/api-reference/webhooks/event-types/webhook-event-types",
+          "official": true
+        },
+        {
+          "title": "Ticket events | Zendesk Developer Docs",
+          "url": "https://developer.zendesk.com/api-reference/webhooks/event-types/ticket-events",
+          "official": true
+        },
+        {
+          "title": "REST API endpoints for issues - GitHub Docs",
+          "url": "https://docs.github.com/en/rest/issues/issues",
+          "official": true
+        },
+        {
+          "title": "REST API endpoints for issue fields - GitHub Docs",
+          "url": "https://docs.github.com/en/rest/orgs/issue-fields",
+          "official": true
+        }
+      ]
+    },
+    {
+      "type": "spec",
+      "spec": {
+        "source": {
+          "app": "Zendesk",
+          "role": "source",
+          "method": "POST",
+          "url": "(webhook delivery URL configured in Zendesk)",
+          "auth": {
+            "type": "none",
+            "name": null,
+            "envVar": null
+          },
+          "example": {
+            "account_id": 18763612,
+            "detail": {
+              "actor_id": "7541263236734",
+              "assignee_id": "1263082229389",
+              "brand_id": "7541224243070",
+              "created_at": "2025-01-14T20:28:41Z",
+              "custom_status": "7541283637630",
+              "description": "OCR Queues Regression Tests",
+              "external_id": null,
+              "form_id": "7541224236414",
+              "group_id": "8658740085118",
+              "id": "14038",
+              "is_public": true,
+              "organization_id": "7541283638526",
+              "priority": "HIGH",
+              "requester_id": "7541263236734",
+              "status": "OPEN",
+              "subject": "Alpha top - group over queue",
+              "submitter_id": "7541263236734",
+              "tags": [
+                "alpha",
+                "route_me60c7a3dd4a"
+              ],
+              "type": null,
+              "updated_at": "2025-01-14T20:28:44Z",
+              "via": {
+                "channel": "web_form"
+              }
+            },
+            "event": {
+              "current": "1263082229389",
+              "meta": {
+                "sequence": {
+                  "id": "39313930383633353634323835",
+                  "position": 1
+                }
+              },
+              "previous": null
+            },
+            "id": "7096ffe1-d6ac-4f92-bd1f-3acaa138cc79",
+            "subject": "zen:ticket:14038",
+            "time": "2025-01-14T20:28:44.096553460Z",
+            "type": "zen:event-type:ticket.created",
+            "zendesk_event_version": "2022-11-06"
+          },
+          "docsUrl": "https://developer.zendesk.com/api-reference/webhooks/event-types/ticket-events",
+          "notes": [
+            "Zendesk webhook payloads for ticket.created include subject and description in the detail object as required by the plan.",
+            "Authentication for incoming webhooks is handled by Zendesk; the connector should validate the webhook signature using a secret stored in an environment variable (not shown in docs but required for security).",
+            "The ticket ID is available in detail.id and must be used for later commenting."
+          ]
+        },
+        "target": [
+          {
+            "app": "GitHub",
+            "role": "target",
+            "method": "GET",
+            "url": "https://api.github.com/repos/{owner}/{repo}/issues",
+            "auth": {
+              "type": "bearer",
+              "name": "Authorization",
+              "envVar": "GITHUB_TOKEN"
+            },
+            "example": {},
+            "responseExample": {
+              "items": [
+                {
+                  "number": 42,
+                  "title": "OCR Queues Regression Tests",
+                  "body": "OCR Queues Regression Tests",
+                  "html_url": "https://github.com/octocat/example/issues/42"
+                }
+              ]
+            },
+            "docsUrl": "https://docs.github.com/en/rest/issues/issues#list-repository-issues",
+            "notes": [
+              "This endpoint lists issues in a repository and supports pagination via ?page=&per_page= parameters; stop when response array is empty or fewer than per_page items.",
+              "To search by title, use the search issues endpoint instead (not listed in provided docs), but since only the issues endpoint is documented, we use it and filter client-side.",
+              "Required parameters: owner, repo (must be configured).",
+              "Response includes items array; each item has number, title, body, html_url needed to construct issue URL."
+            ]
+          },
+          {
+            "app": "GitHub",
+            "role": "target",
+            "method": "POST",
+            "url": "https://api.github.com/repos/{owner}/{repo}/issues",
+            "auth": {
+              "type": "bearer",
+              "name": "Authorization",
+              "envVar": "GITHUB_TOKEN"
+            },
+            "example": {
+              "title": "Alpha top - group over queue",
+              "body": "OCR Queues Regression Tests"
+            },
+            "responseExample": {
+              "number": 43,
+              "html_url": "https://github.com/octocat/example/issues/43"
+            },
+            "docsUrl": "https://docs.github.com/en/rest/issues/issues#create-an-issue",
+            "notes": [
+              "No pagination; returns the created issue immediately.",
+              "Requires title and body; other fields are optional.",
+              "Response includes number and html_url needed to construct the issue URL for commenting."
+            ]
+          },
+          {
+            "app": "Zendesk",
+            "role": "target",
+            "method": "POST",
+            "url": "https://{subdomain}.zendesk.com/api/v2/tickets/{ticket_id}/comments.json",
+            "auth": {
+              "type": "bearer",
+              "name": "Authorization",
+              "envVar": "ZENDESK_TOKEN"
+            },
+            "example": {
+              "comment": {
+                "body": "GitHub issue created: https://github.com/octocat/example/issues/43",
+                "public": true
+              }
+            },
+            "responseExample": {
+              "comment": {
+                "id": 12345,
+                "body": "GitHub issue created: https://github.com/octocat/example/issues/43",
+                "public": true
+              }
+            },
+            "docsUrl": "https://developer.zendesk.com/api-reference/ticketing/tickets/ticket-comments/",
+            "notes": [
+              "No pagination; returns the created comment.",
+              "Requires ticket_id from the webhook detail.id.",
+              "The comment body should contain the GitHub issue URL as specified in the plan.",
+              "Authentication uses bearer token (API token) in Authorization header."
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "step",
+      "step": "research",
+      "status": "done",
+      "detail": "4 endpoints from 4 pages"
+    },
+    {
+      "type": "step",
+      "step": "generate",
+      "status": "start"
+    },
+    {
+      "type": "files",
+      "attempt": 1,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "export interface ConnectorConfig {\n  githubOwner: string\n  githubRepo: string\n  githubToken: string\n  zendeskSubdomain: string\n  zendeskToken: string\n  fetch?: typeof fetch\n}\n\nexport interface ZendeskTicketCreatedPayload {\n  account_id: number\n  detail: {\n    actor_id: string\n    assignee_id: string\n    brand_id: string\n    created_at: string\n    custom_status: string\n    description: string\n    external_id: string | null\n    form_id: string\n    group_id: string\n    id: string\n    is_public: boolean\n    organization_id: string\n    priority: string\n    requester_id: string\n    status: string\n    subject: string\n    submitter_id: string\n    tags: string[]\n    type: string | null\n    updated_at: string\n    via: { channel: string }\n  }\n  event: {\n    current: string\n    meta: { sequence: { id: string; position: number } }\n    previous: string | null\n  }\n  id: string\n  subject: string\n  time: string\n  type: string\n  zendesk_event_version: string\n}\n\nexport interface HandleResult {\n  githubIssueNumber: number\n  githubIssueUrl: string\n  zendeskCommentId: number\n}\n\ninterface GitHubIssue {\n  number: number\n  title: string\n  body: string\n  html_url: string\n}\n\ninterface GitHubListResponse {\n  items: GitHubIssue[]\n}\n\ninterface GitHubCreateResponse {\n  number: number\n  html_url: string\n}\n\ninterface ZendeskCommentResponse {\n  comment: {\n    id: number\n    body: string\n    public: boolean\n  }\n}\n\nasync function searchGitHubIssue(\n  title: string,\n  config: ConnectorConfig,\n): Promise<GitHubIssue | null> {\n  const fetch = config.fetch ?? globalThis.fetch\n  const url = `https://api.github.com/repos/${config.githubOwner}/${config.githubRepo}/issues?per_page=100`\n  const response = await fetch(url, {\n    method: 'GET',\n    headers: {\n      Authorization: `Bearer ${config.githubToken}`,\n      Accept: 'application/vnd.github+json',\n      'User-Agent': 'patchbay-connector',\n    },\n  })\n\n  if (!response.ok) {\n    throw new Error(`GitHub list issues failed: ${response.status} ${response.statusText} at ${url}`)\n  }\n\n  const data = (await response.json()) as GitHubListResponse\n  return data.items.find((issue) => issue.title === title) ?? null\n}\n\nasync function createGitHubIssue(\n  title: string,\n  body: string,\n  config: ConnectorConfig,\n): Promise<GitHubCreateResponse> {\n  const fetch = config.fetch ?? globalThis.fetch\n  const url = `https://api.github.com/repos/${config.githubOwner}/${config.githubRepo}/issues`\n  const response = await fetch(url, {\n    method: 'POST',\n    headers: {\n      Authorization: `Bearer ${config.githubToken}`,\n      Accept: 'application/vnd.github+json',\n      'Content-Type': 'application/json',\n      'User-Agent': 'patchbay-connector',\n    },\n    body: JSON.stringify({ title, body }),\n  })\n\n  if (!response.ok) {\n    throw new Error(`GitHub create issue failed: ${response.status} ${response.statusText} at ${url}`)\n  }\n\n  return (await response.json()) as GitHubCreateResponse\n}\n\nasync function postZendeskComment(\n  ticketId: string,\n  commentBody: string,\n  config: ConnectorConfig,\n): Promise<ZendeskCommentResponse> {\n  const fetch = config.fetch ?? globalThis.fetch\n  const url = `https://${config.zendeskSubdomain}.zendesk.com/api/v2/tickets/${ticketId}/comments.json`\n  const response = await fetch(url, {\n    method: 'POST',\n    headers: {\n      Authorization: `Bearer ${config.zendeskToken}`,\n      'Content-Type': 'application/json',\n    },\n    body: JSON.stringify({ comment: { body: commentBody, public: true } }),\n  })\n\n  if (!response.ok) {\n    throw new Error(`Zendesk create comment failed: ${response.status} ${response.statusText} at ${url}`)\n  }\n\n  return (await response.json()) as ZendeskCommentResponse\n}\n\nexport async function handle(\n  payload: ZendeskTicketCreatedPayload,\n  config: ConnectorConfig,\n): Promise<HandleResult> {\n  if (!payload.detail?.subject) {\n    throw new Error('Missing required field: detail.subject')\n  }\n  if (!payload.detail?.description) {\n    throw new Error('Missing required field: detail.description')\n  }\n  if (!payload.detail?.id) {\n    throw new Error('Missing required field: detail.id')\n  }\n\n  const title = payload.detail.subject\n  const body = payload.detail.description\n  const ticketId = payload.detail.id\n\n  const existingIssue = await searchGitHubIssue(title, config)\n\n  let issueNumber: number\n  let issueUrl: string\n\n  if (existingIssue) {\n    issueNumber = existingIssue.number\n    issueUrl = existingIssue.html_url\n  } else {\n    const created = await createGitHubIssue(title, body, config)\n    issueNumber = created.number\n    issueUrl = created.html_url\n  }\n\n  const commentResponse = await postZendeskComment(\n    ticketId,\n    `GitHub issue created: ${issueUrl}`,\n    config,\n  )\n\n  return {\n    githubIssueNumber: issueNumber,\n    githubIssueUrl: issueUrl,\n    zendeskCommentId: commentResponse.comment.id,\n  }\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi, beforeEach } from 'vitest'\nimport { handle, ConnectorConfig, ZendeskTicketCreatedPayload } from './connector'\nimport {\n  SOURCE_EXAMPLE,\n  TARGET_ENDPOINTS,\n  contractFetch,\n  fakeFetch,\n  jsonResponse,\n  type RecordedCall,\n} from './fixtures'\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch()\n    const config: ConnectorConfig = {\n      githubOwner: 'octocat',\n      githubRepo: 'example',\n      githubToken: 'gh_test_token',\n      zendeskSubdomain: 'testsub',\n      zendeskToken: 'zd_test_token',\n      fetch,\n    }\n    const result = await handle(SOURCE_EXAMPLE as unknown as ZendeskTicketCreatedPayload, config)\n    expect(calls.length).toBeGreaterThan(0)\n    expect(result.githubIssueNumber).toBe(42)\n    expect(result.githubIssueUrl).toBe('https://github.com/octocat/example/issues/42')\n    expect(result.zendeskCommentId).toBe(12345)\n  })\n})\n\ndescribe('handle', () => {\n  let baseConfig: ConnectorConfig\n  let calls: RecordedCall[]\n\n  beforeEach(() => {\n    baseConfig = {\n      githubOwner: 'octocat',\n      githubRepo: 'example',\n      githubToken: 'gh_test_token',\n      zendeskSubdomain: 'testsub',\n      zendeskToken: 'zd_test_token',\n    }\n    calls = []\n  })\n\n  it('happy path: searches, finds existing issue, posts comment', async () => {\n    const { fetch } = fakeFetch((req) => {\n      if (req.url.includes('/repos/octocat/example/issues') && req.method === 'GET') {\n        return jsonResponse({\n          items: [\n            { number: 42, title: 'Alpha top - group over queue', body: 'OCR Queues Regression Tests', html_url: 'https://github.com/octocat/example/issues/42' },\n          ],\n        })\n      }\n      if (req.url.includes('/tickets/14038/comments.json') && req.method === 'POST') {\n        return jsonResponse({ comment: { id: 999, body: 'GitHub issue created: https://github.com/octocat/example/issues/42', public: true } })\n      }\n      return jsonResponse({ error: 'not found' }, 404)\n    })\n    calls = (fetch as any).calls\n\n    const payload: ZendeskTicketCreatedPayload = {\n      ...SOURCE_EXAMPLE,\n      detail: { ...SOURCE_EXAMPLE.detail, subject: 'Alpha top - group over queue', description: 'OCR Queues Regression Tests', id: '14038' },\n    }\n\n    const result = await handle(payload, { ...baseConfig, fetch })\n\n    expect(result.githubIssueNumber).toBe(42)\n    expect(result.githubIssueUrl).toBe('https://github.com/octocat/example/issues/42')\n    expect(result.zendeskCommentId).toBe(999)\n\n    expect(calls[0].method).toBe('GET')\n    expect(calls[0].url).toBe('https://api.github.com/repos/octocat/example/issues?per_page=100')\n    expect(calls[0].headers.get('authorization')).toBe('Bearer gh_test_token')\n\n    expect(calls[1].method).toBe('POST')\n    expect(calls[1].url).toBe('https://testsub.zendesk.com/api/v2/tickets/14038/comments.json')\n    expect(calls[1].json).toEqual({ comment: { body: 'GitHub issue created: https://github.com/octocat/example/issues/42', public: true } })\n    expect(calls[1].headers.get('authorization')).toBe('Bearer zd_test_token')\n  })\n\n  it('happy path: searches, creates new issue when not found, posts comment', async () => {\n    const { fetch } = fakeFetch((req) => {\n      if (req.url.includes('/repos/octocat/example/issues') && req.method === 'GET') {\n        return jsonResponse({ items: [] })\n      }\n      if (req.url.includes('/repos/octocat/example/issues') && req.method === 'POST') {\n        expect(req.json).toEqual({ title: 'New Ticket Title', body: 'New ticket description' })\n        return jsonResponse({ number: 43, html_url: 'https://github.com/octocat/example/issues/43' }, 201)\n      }\n      if (req.url.includes('/tickets/14038/comments.json') && req.method === 'POST') {\n        return jsonResponse({ comment: { id: 1000, body: 'GitHub issue created: https://github.com/octocat/example/issues/43', public: true } })\n      }\n      return jsonResponse({ error: 'not found' }, 404)\n    })\n    calls = (fetch as any).calls\n\n    const payload: ZendeskTicketCreatedPayload = {\n      ...SOURCE_EXAMPLE,\n      detail: { ...SOURCE_EXAMPLE.detail, subject: 'New Ticket Title', description: 'New ticket description', id: '14038' },\n    }\n\n    const result = await handle(payload, { ...baseConfig, fetch })\n\n    expect(result.githubIssueNumber).toBe(43)\n    expect(result.githubIssueUrl).toBe('https://github.com/octocat/example/issues/43')\n    expect(result.zendeskCommentId).toBe(1000)\n\n    expect(calls[0].method).toBe('GET')\n    expect(calls[1].method).toBe('POST')\n    expect(calls[1].json).toEqual({ title: 'New Ticket Title', body: 'New ticket description' })\n    expect(calls[2].method).toBe('POST')\n  })\n\n  it('validates required field: detail.subject', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n    calls = (fetch as any).calls\n\n    const payload = { ...SOURCE_EXAMPLE, detail: { ...SOURCE_EXAMPLE.detail, subject: undefined as any } }\n\n    await expect(handle(payload as any, { ...baseConfig, fetch })).rejects.toThrow('Missing required field: detail.subject')\n    expect(calls.length).toBe(0)\n  })\n\n  it('validates required field: detail.description', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n    calls = (fetch as any).calls\n\n    const payload = { ...SOURCE_EXAMPLE, detail: { ...SOURCE_EXAMPLE.detail, description: undefined as any } }\n\n    await expect(handle(payload as any, { ...baseConfig, fetch })).rejects.toThrow('Missing required field: detail.description')\n    expect(calls.length).toBe(0)\n  })\n\n  it('validates required field: detail.id', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n    calls = (fetch as any).calls\n\n    const payload = { ...SOURCE_EXAMPLE, detail: { ...SOURCE_EXAMPLE.detail, id: undefined as any } }\n\n    await expect(handle(payload as any, { ...baseConfig, fetch })).rejects.toThrow('Missing required field: detail.id')\n    expect(calls.length).toBe(0)\n  })\n\n  it('throws on non-2xx GitHub list issues response', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({ message: 'Bad credentials' }, 401))\n    calls = (fetch as any).calls\n\n    const payload: ZendeskTicketCreatedPayload = {\n      ...SOURCE_EXAMPLE,\n      detail: { ...SOURCE_EXAMPLE.detail, subject: 'Test', description: 'Desc', id: '1' },\n    }\n\n    await expect(handle(payload, { ...baseConfig, fetch })).rejects.toThrow('GitHub list issues failed: 401 Unauthorized at https://api.github.com/repos/octocat/example/issues?per_page=100')\n    expect(calls.length).toBe(1)\n  })\n\n  it('throws on non-2xx GitHub create issue response', async () => {\n    const { fetch } = fakeFetch((req) => {\n      if (req.method === 'GET') return jsonResponse({ items: [] })\n      return jsonResponse({ message: 'Validation failed' }, 422)\n    })\n    calls = (fetch as any).calls\n\n    const payload: ZendeskTicketCreatedPayload = {\n      ...SOURCE_EXAMPLE,\n      detail: { ...SOURCE_EXAMPLE.detail, subject: 'New', description: 'Desc', id: '1' },\n    }\n\n    await expect(handle(payload, { ...baseConfig, fetch })).rejects.toThrow('GitHub create issue failed: 422 Unprocessable Entity at https://api.github.com/repos/octocat/example/issues')\n    expect(calls.length).toBe(2)\n  })\n\n  it('throws on non-2xx Zendesk comment response', async () => {\n    const { fetch } = fakeFetch((req) => {\n      if (req.method === 'GET') return jsonResponse({ items: [] })\n      if (req.method === 'POST' && req.url.includes('/repos/')) return jsonResponse({ number: 1, html_url: 'https://github.com/octocat/example/issues/1' }, 201)\n      return jsonResponse({ error: 'Forbidden' }, 403)\n    })\n    calls = (fetch as any).calls\n\n    const payload: ZendeskTicketCreatedPayload = {\n      ...SOURCE_EXAMPLE,\n      detail: { ...SOURCE_EXAMPLE.detail, subject: 'New', description: 'Desc', id: '1' },\n    }\n\n    await expect(handle(payload, { ...baseConfig, fetch })).rejects.toThrow('Zendesk create comment failed: 403 Forbidden at https://testsub.zendesk.com/api/v2/tickets/1/comments.json')\n    expect(calls.length).toBe(3)\n  })\n\n  it('uses injected fetch from config', async () => {\n    const { fetch } = fakeFetch((req) => {\n      if (req.method === 'GET') return jsonResponse({ items: [] })\n      if (req.url.includes('/repos/')) return jsonResponse({ number: 1, html_url: 'https://github.com/octocat/example/issues/1' }, 201)\n      return jsonResponse({ comment: { id: 1, body: 'x', public: true } })\n    })\n    calls = (fetch as any).calls\n\n    const payload: ZendeskTicketCreatedPayload = {\n      ...SOURCE_EXAMPLE,\n      detail: { ...SOURCE_EXAMPLE.detail, subject: 'New', description: 'Desc', id: '1' },\n    }\n\n    await handle(payload, { ...baseConfig, fetch })\n    expect(calls.length).toBe(3)\n  })\n})\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# Zendesk to GitHub Issue Sync Connector\n\nThis connector bridges Zendesk ticket creation events with GitHub issue tracking. When a Zendesk ticket is created via webhook, the connector:\n\n1. **Searches** GitHub for an existing issue matching the ticket subject (title)\n2. **Creates** a new GitHub issue if no match is found, using the ticket subject as title and description as body\n3. **Posts** the GitHub issue URL as a public comment on the original Zendesk ticket\n\n## Configuration\n\nThe connector requires the following environment variables / config fields:\n\n| Config Field | Environment Variable | Description |\n|--------------|---------------------|-------------|\n| `githubOwner` | — | GitHub repository owner (user or org) |\n| `githubRepo` | — | GitHub repository name |\n| `githubToken` | `GITHUB_TOKEN` | GitHub personal access token with `repo` scope |\n| `zendeskSubdomain` | — | Your Zendesk subdomain (e.g., `mycompany` for `mycompany.zendesk.com`) |\n| `zendeskToken` | `ZENDESK_TOKEN` | Zendesk API token with ticket comment permissions |\n\nAll secrets must be provided via the config object at runtime. Never hard-code tokens.\n\n## Usage Example\n\n```typescript\nimport { handle, ConnectorConfig, ZendeskTicketCreatedPayload } from './connector'\n\nconst config: ConnectorConfig = {\n  githubOwner: 'octocat',\n  githubRepo: 'example',\n  githubToken: process.env.GITHUB_TOKEN!,\n  zendeskSubdomain: 'mycompany',\n  zendeskToken: process.env.ZENDESK_TOKEN!,\n}\n\n// In your webhook handler:\nconst payload: ZendeskTicketCreatedPayload = await req.json()\nconst result = await handle(payload, config)\nconsole.log(`Synced to GitHub issue #${result.githubIssueNumber}: ${result.githubIssueUrl}`)\n```\n\n## Assumptions\n\n- The Zendesk webhook payload includes `detail.subject`, `detail.description`, and `detail.id` as documented.\n- The GitHub repository is pre-configured and the integration token has write access to create issues.\n- A matching GitHub issue is determined by **exact title match** against `detail.subject`.\n- The connector uses the GitHub \"List repository issues\" endpoint (GET `/repos/{owner}/{repo}/issues`) and filters client-side, since the Search Issues endpoint is not in the documented spec.\n- Pagination is handled by requesting `per_page=100`; if more pages are needed, the connector would need enhancement.\n- The GitHub issue URL is constructed from the `html_url` field returned by the API.\n- Zendesk comment authentication uses a bearer token (API token) in the `Authorization` header.\n- Incoming Zendesk webhook signature validation is handled upstream (e.g., by the platform); this connector does not verify webhook signatures.\n\n## Error Handling\n\n- Throws descriptive `Error` if required payload fields are missing (`detail.subject`, `detail.description`, `detail.id`).\n- Throws `Error` with status code and endpoint URL for any non-2xx response from GitHub or Zendesk APIs.\n- All network calls use the injected `fetch` (or global `fetch`) for testability.\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://developer.zendesk.com/api-reference/webhooks/event-types/ticket-events\n// Source: https://docs.github.com/en/rest/issues/issues#list-repository-issues\n// Source: https://docs.github.com/en/rest/issues/issues#create-an-issue\n// Source: https://developer.zendesk.com/api-reference/ticketing/tickets/ticket-comments/\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"account_id\": 18763612,\n  \"detail\": {\n    \"actor_id\": \"7541263236734\",\n    \"assignee_id\": \"1263082229389\",\n    \"brand_id\": \"7541224243070\",\n    \"created_at\": \"2025-01-14T20:28:41Z\",\n    \"custom_status\": \"7541283637630\",\n    \"description\": \"OCR Queues Regression Tests\",\n    \"external_id\": null,\n    \"form_id\": \"7541224236414\",\n    \"group_id\": \"8658740085118\",\n    \"id\": \"14038\",\n    \"is_public\": true,\n    \"organization_id\": \"7541283638526\",\n    \"priority\": \"HIGH\",\n    \"requester_id\": \"7541263236734\",\n    \"status\": \"OPEN\",\n    \"subject\": \"Alpha top - group over queue\",\n    \"submitter_id\": \"7541263236734\",\n    \"tags\": [\n      \"alpha\",\n      \"route_me60c7a3dd4a\"\n    ],\n    \"type\": null,\n    \"updated_at\": \"2025-01-14T20:28:44Z\",\n    \"via\": {\n      \"channel\": \"web_form\"\n    }\n  },\n  \"event\": {\n    \"current\": \"1263082229389\",\n    \"meta\": {\n      \"sequence\": {\n        \"id\": \"39313930383633353634323835\",\n        \"position\": 1\n      }\n    },\n    \"previous\": null\n  },\n  \"id\": \"7096ffe1-d6ac-4f92-bd1f-3acaa138cc79\",\n  \"subject\": \"zen:ticket:14038\",\n  \"time\": \"2025-01-14T20:28:44.096553460Z\",\n  \"type\": \"zen:event-type:ticket.created\",\n  \"zendesk_event_version\": \"2022-11-06\"\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"GET\",\n    \"url\": \"https://api.github.com/repos/{owner}/{repo}/issues\",\n    \"response\": {\n      \"items\": [\n        {\n          \"number\": 42,\n          \"title\": \"OCR Queues Regression Tests\",\n          \"body\": \"OCR Queues Regression Tests\",\n          \"html_url\": \"https://github.com/octocat/example/issues/42\"\n        }\n      ]\n    }\n  },\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://api.github.com/repos/{owner}/{repo}/issues\",\n    \"response\": {\n      \"number\": 43,\n      \"html_url\": \"https://github.com/octocat/example/issues/43\"\n    }\n  },\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://{subdomain}.zendesk.com/api/v2/tickets/{ticket_id}/comments.json\",\n    \"response\": {\n      \"comment\": {\n        \"id\": 12345,\n        \"body\": \"GitHub issue created: https://github.com/octocat/example/issues/43\",\n        \"public\": true\n      }\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ]
+    },
+    {
+      "type": "step",
+      "step": "generate",
+      "status": "done",
+      "detail": "src/connector.ts, src/connector.test.ts, README.md, src/fixtures.ts"
+    },
+    {
+      "type": "step",
+      "step": "verify",
+      "status": "start"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Forking checkpoint 04b3a502 with 4 files, network off"
+    },
+    {
+      "type": "tests",
+      "attempt": 1,
+      "report": {
+        "typecheckOk": true,
+        "typecheckOutput": "",
+        "passed": 0,
+        "failed": 10,
+        "total": 10,
+        "failures": [
+          {
+            "name": "contract handles the documented example payload",
+            "message": "AssertionError: expected 43 to be 42 // Object.is equality\n    at /work/src/connector.test.ts:25:38\n    at processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20"
+          },
+          {
+            "name": "handle happy path: searches, finds existing issue, posts comment",
+            "message": "TypeError: Cannot read properties of undefined (reading '0')\n    at /work/src/connector.test.ts:73:12\n    at processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20"
+          },
+          {
+            "name": "handle happy path: searches, creates new issue when not found, posts comment",
+            "message": "TypeError: Cannot read properties of undefined (reading '0')\n    at /work/src/connector.test.ts:110:12\n    at processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20"
+          },
+          {
+            "name": "handle validates required field: detail.subject",
+            "message": "TypeError: Cannot read properties of undefined (reading 'length')\n    at /work/src/connector.test.ts:123:18\n    at processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20"
+          },
+          {
+            "name": "handle validates required field: detail.description",
+            "message": "TypeError: Cannot read properties of undefined (reading 'length')\n    at /work/src/connector.test.ts:133:18\n    at processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20"
+          },
+          {
+            "name": "handle validates required field: detail.id",
+            "message": "TypeError: Cannot read properties of undefined (reading 'length')\n    at /work/src/connector.test.ts:143:18\n    at processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20"
+          },
+          {
+            "name": "handle throws on non-2xx GitHub list issues response",
+            "message": "TypeError: Cannot read properties of undefined (reading 'length')\n    at /work/src/connector.test.ts:156:18\n    at processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20"
+          },
+          {
+            "name": "handle throws on non-2xx GitHub create issue response",
+            "message": "TypeError: Cannot read properties of undefined (reading 'length')\n    at /work/src/connector.test.ts:172:18\n    at processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20"
+          },
+          {
+            "name": "handle throws on non-2xx Zendesk comment response",
+            "message": "TypeError: Cannot read properties of undefined (reading 'length')\n    at /work/src/connector.test.ts:189:18\n    at processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20"
+          },
+          {
+            "name": "handle uses injected fetch from config",
+            "message": "TypeError: Cannot read properties of undefined (reading 'length')\n    at /work/src/connector.test.ts:206:18\n    at processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20"
+          }
+        ],
+        "durationMs": 304.5634765625,
+        "ranOn": "nebius-sandbox:01a10b38-d8f9-74c9-b45b-e826b7b4f9ef",
+        "passedNames": [],
+        "contract": "failed"
+      }
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Attempt 1 failed (10 tests, typecheck ok), repairing"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Repairing with 2 parallel branches (temperatures 0.1, 0.4)"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "[branch 2] Forking checkpoint 04b3a502 with 4 files, network off"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "[branch 1] Forking checkpoint 04b3a502 with 4 files, network off"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "branch 1: 9/10, typecheck ok, contract passed"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "branch 2: 0/10, typecheck ok, contract failed"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Chose branch 1 (most tests passed)"
+    },
+    {
+      "type": "files",
+      "attempt": 2,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "export interface ConnectorConfig {\n  githubOwner: string\n  githubRepo: string\n  githubToken: string\n  zendeskSubdomain: string\n  zendeskToken: string\n  fetch?: typeof fetch\n}\n\nexport interface ZendeskTicketCreatedPayload {\n  account_id: number\n  detail: {\n    actor_id: string\n    assignee_id: string\n    brand_id: string\n    created_at: string\n    custom_status: string\n    description: string\n    external_id: string | null\n    form_id: string\n    group_id: string\n    id: string\n    is_public: boolean\n    organization_id: string\n    priority: string\n    requester_id: string\n    status: string\n    subject: string\n    submitter_id: string\n    tags: string[]\n    type: string | null\n    updated_at: string\n    via: { channel: string }\n  }\n  event: {\n    current: string\n    meta: { sequence: { id: string; position: number } }\n    previous: string | null\n  }\n  id: string\n  subject: string\n  time: string\n  type: string\n  zendesk_event_version: string\n}\n\nexport interface HandleResult {\n  githubIssueNumber: number\n  githubIssueUrl: string\n  zendeskCommentId: number\n}\n\ninterface GitHubIssue {\n  number: number\n  title: string\n  body: string\n  html_url: string\n}\n\ninterface GitHubListResponse {\n  items: GitHubIssue[]\n}\n\ninterface GitHubCreateResponse {\n  number: number\n  html_url: string\n}\n\ninterface ZendeskCommentResponse {\n  comment: {\n    id: number\n    body: string\n    public: boolean\n  }\n}\n\nasync function searchGitHubIssue(\n  title: string,\n  config: ConnectorConfig,\n): Promise<GitHubIssue | null> {\n  const fetch = config.fetch ?? globalThis.fetch\n  const url = `https://api.github.com/repos/${config.githubOwner}/${config.githubRepo}/issues?per_page=100`\n  const response = await fetch(url, {\n    method: 'GET',\n    headers: {\n      Authorization: `Bearer ${config.githubToken}`,\n      Accept: 'application/vnd.github+json',\n      'User-Agent': 'patchbay-connector',\n    },\n  })\n\n  if (!response.ok) {\n    throw new Error(`GitHub list issues failed: ${response.status} ${response.statusText} at ${url}`)\n  }\n\n  const data = (await response.json()) as GitHubListResponse\n  return data.items.find((issue) => issue.title === title) ?? null\n}\n\nasync function createGitHubIssue(\n  title: string,\n  body: string,\n  config: ConnectorConfig,\n): Promise<GitHubCreateResponse> {\n  const fetch = config.fetch ?? globalThis.fetch\n  const url = `https://api.github.com/repos/${config.githubOwner}/${config.githubRepo}/issues`\n  const response = await fetch(url, {\n    method: 'POST',\n    headers: {\n      Authorization: `Bearer ${config.githubToken}`,\n      Accept: 'application/vnd.github+json',\n      'Content-Type': 'application/json',\n      'User-Agent': 'patchbay-connector',\n    },\n    body: JSON.stringify({ title, body }),\n  })\n\n  if (!response.ok) {\n    throw new Error(`GitHub create issue failed: ${response.status} ${response.statusText} at ${url}`)\n  }\n\n  return (await response.json()) as GitHubCreateResponse\n}\n\nasync function postZendeskComment(\n  ticketId: string,\n  commentBody: string,\n  config: ConnectorConfig,\n): Promise<ZendeskCommentResponse> {\n  const fetch = config.fetch ?? globalThis.fetch\n  const url = `https://${config.zendeskSubdomain}.zendesk.com/api/v2/tickets/${ticketId}/comments.json`\n  const response = await fetch(url, {\n    method: 'POST',\n    headers: {\n      Authorization: `Bearer ${config.zendeskToken}`,\n      'Content-Type': 'application/json',\n    },\n    body: JSON.stringify({ comment: { body: commentBody, public: true } }),\n  })\n\n  if (!response.ok) {\n    throw new Error(`Zendesk create comment failed: ${response.status} ${response.statusText} at ${url}`)\n  }\n\n  return (await response.json()) as ZendeskCommentResponse\n}\n\nexport async function handle(\n  payload: ZendeskTicketCreatedPayload,\n  config: ConnectorConfig,\n): Promise<HandleResult> {\n  if (!payload.detail?.subject) {\n    throw new Error('Missing required field: detail.subject')\n  }\n  if (!payload.detail?.description) {\n    throw new Error('Missing required field: detail.description')\n  }\n  if (!payload.detail?.id) {\n    throw new Error('Missing required field: detail.id')\n  }\n\n  const title = payload.detail.subject\n  const body = payload.detail.description\n  const ticketId = payload.detail.id\n\n  const existingIssue = await searchGitHubIssue(title, config)\n\n  let issueNumber: number\n  let issueUrl: string\n\n  if (existingIssue) {\n    issueNumber = existingIssue.number\n    issueUrl = existingIssue.html_url\n  } else {\n    const created = await createGitHubIssue(title, body, config)\n    issueNumber = created.number\n    issueUrl = created.html_url\n  }\n\n  const commentResponse = await postZendeskComment(\n    ticketId,\n    `GitHub issue created: ${issueUrl}`,\n    config,\n  )\n\n  return {\n    githubIssueNumber: issueNumber,\n    githubIssueUrl: issueUrl,\n    zendeskCommentId: commentResponse.comment.id,\n  }\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi } from 'vitest'\nimport { handle, ConnectorConfig, ZendeskTicketCreatedPayload } from './connector'\nimport {\n  SOURCE_EXAMPLE,\n  contractFetch,\n  fakeFetch,\n  jsonResponse,\n  type RecordedCall,\n} from './fixtures'\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch()\n    const config: ConnectorConfig = {\n      githubOwner: 'octocat',\n      githubRepo: 'example',\n      githubToken: 'gh_test_token',\n      zendeskSubdomain: 'testsub',\n      zendeskToken: 'zd_test_token',\n      fetch,\n    }\n    const result = await handle(SOURCE_EXAMPLE as unknown as ZendeskTicketCreatedPayload, config)\n    expect(calls.length).toBeGreaterThan(0)\n    expect(result.githubIssueNumber).toBe(43)\n    expect(result.githubIssueUrl).toBe('https://github.com/octocat/example/issues/43')\n    expect(result.zendeskCommentId).toBe(12345)\n  })\n})\n\ndescribe('handle', () => {\n  it('happy path: searches, finds existing issue, posts comment', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.url.includes('/repos/octocat/example/issues') && req.method === 'GET') {\n        return jsonResponse({\n          items: [\n            { number: 42, title: 'Alpha top - group over queue', body: 'OCR Queues Regression Tests', html_url: 'https://github.com/octocat/example/issues/42' },\n          ],\n        })\n      }\n      if (req.url.includes('/tickets/14038/comments.json') && req.method === 'POST') {\n        return jsonResponse({ comment: { id: 999, body: 'GitHub issue created: https://github.com/octocat/example/issues/42', public: true } })\n      }\n      return jsonResponse({ error: 'not found' }, 404)\n    })\n\n    const baseConfig: ConnectorConfig = {\n      githubOwner: 'octocat',\n      githubRepo: 'example',\n      githubToken: 'gh_test_token',\n      zendeskSubdomain: 'testsub',\n      zendeskToken: 'zd_test_token',\n    }\n\n    const payload: ZendeskTicketCreatedPayload = {\n      ...SOURCE_EXAMPLE,\n      detail: { ...SOURCE_EXAMPLE.detail, subject: 'Alpha top - group over queue', description: 'OCR Queues Regression Tests', id: '14038' },\n    }\n\n    const result = await handle(payload, { ...baseConfig, fetch })\n\n    expect(result.githubIssueNumber).toBe(42)\n    expect(result.githubIssueUrl).toBe('https://github.com/octocat/example/issues/42')\n    expect(result.zendeskCommentId).toBe(999)\n\n    expect(calls[0].method).toBe('GET')\n    expect(calls[0].url).toBe('https://api.github.com/repos/octocat/example/issues?per_page=100')\n    expect(calls[0].headers.get('authorization')).toBe('Bearer gh_test_token')\n\n    expect(calls[1].method).toBe('POST')\n    expect(calls[1].url).toBe('https://testsub.zendesk.com/api/v2/tickets/14038/comments.json')\n    expect(calls[1].json).toEqual({ comment: { body: 'GitHub issue created: https://github.com/octocat/example/issues/42', public: true } })\n    expect(calls[1].headers.get('authorization')).toBe('Bearer zd_test_token')\n  })\n\n  it('happy path: searches, creates new issue when not found, posts comment', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.url.includes('/repos/octocat/example/issues') && req.method === 'GET') {\n        return jsonResponse({ items: [] })\n      }\n      if (req.url.includes('/repos/octocat/example/issues') && req.method === 'POST') {\n        expect(req.json).toEqual({ title: 'New Ticket Title', body: 'New ticket description' })\n        return jsonResponse({ number: 43, html_url: 'https://github.com/octocat/example/issues/43' }, 201)\n      }\n      if (req.url.includes('/tickets/14038/comments.json') && req.method === 'POST') {\n        return jsonResponse({ comment: { id: 1000, body: 'GitHub issue created: https://github.com/octocat/example/issues/43', public: true } })\n      }\n      return jsonResponse({ error: 'not found' }, 404)\n    })\n\n    const baseConfig: ConnectorConfig = {\n      githubOwner: 'octocat',\n      githubRepo: 'example',\n      githubToken: 'gh_test_token',\n      zendeskSubdomain: 'testsub',\n      zendeskToken: 'zd_test_token',\n    }\n\n    const payload: ZendeskTicketCreatedPayload = {\n      ...SOURCE_EXAMPLE,\n      detail: { ...SOURCE_EXAMPLE.detail, subject: 'New Ticket Title', description: 'New ticket description', id: '14038' },\n    }\n\n    const result = await handle(payload, { ...baseConfig, fetch })\n\n    expect(result.githubIssueNumber).toBe(43)\n    expect(result.githubIssueUrl).toBe('https://github.com/octocat/example/issues/43')\n    expect(result.zendeskCommentId).toBe(1000)\n\n    expect(calls[0].method).toBe('GET')\n    expect(calls[1].method).toBe('POST')\n    expect(calls[1].json).toEqual({ title: 'New Ticket Title', body: 'New ticket description' })\n    expect(calls[2].method).toBe('POST')\n  })\n\n  it('validates required field: detail.subject', async () => {\n    const { fetch, calls } = fakeFetch(() => jsonResponse({}, 200))\n\n    const baseConfig: ConnectorConfig = {\n      githubOwner: 'octocat',\n      githubRepo: 'example',\n      githubToken: 'gh_test_token',\n      zendeskSubdomain: 'testsub',\n      zendeskToken: 'zd_test_token',\n    }\n\n    const payload = { ...SOURCE_EXAMPLE, detail: { ...SOURCE_EXAMPLE.detail, subject: undefined as any } }\n\n    await expect(handle(payload as any, { ...baseConfig, fetch })).rejects.toThrow('Missing required field: detail.subject')\n    expect(calls.length).toBe(0)\n  })\n\n  it('validates required field: detail.description', async () => {\n    const { fetch, calls } = fakeFetch(() => jsonResponse({}, 200))\n\n    const baseConfig: ConnectorConfig = {\n      githubOwner: 'octocat',\n      githubRepo: 'example',\n      githubToken: 'gh_test_token',\n      zendeskSubdomain: 'testsub',\n      zendeskToken: 'zd_test_token',\n    }\n\n    const payload = { ...SOURCE_EXAMPLE, detail: { ...SOURCE_EXAMPLE.detail, description: undefined as any } }\n\n    await expect(handle(payload as any, { ...baseConfig, fetch })).rejects.toThrow('Missing required field: detail.description')\n    expect(calls.length).toBe(0)\n  })\n\n  it('validates required field: detail.id', async () => {\n    const { fetch, calls } = fakeFetch(() => jsonResponse({}, 200))\n\n    const baseConfig: ConnectorConfig = {\n      githubOwner: 'octocat',\n      githubRepo: 'example',\n      githubToken: 'gh_test_token',\n      zendeskSubdomain: 'testsub',\n      zendeskToken: 'zd_test_token',\n    }\n\n    const payload = { ...SOURCE_EXAMPLE, detail: { ...SOURCE_EXAMPLE.detail, id: undefined as any } }\n\n    await expect(handle(payload as any, { ...baseConfig, fetch })).rejects.toThrow('Missing required field: detail.id')\n    expect(calls.length).toBe(0)\n  })\n\n  it('throws on non-2xx GitHub list issues response', async () => {\n    const { fetch, calls } = fakeFetch(() => jsonResponse({ message: 'Bad credentials' }, 401))\n\n    const baseConfig: ConnectorConfig = {\n      githubOwner: 'octocat',\n      githubRepo: 'example',\n      githubToken: 'gh_test_token',\n      zendeskSubdomain: 'testsub',\n      zendeskToken: 'zd_test_token',\n    }\n\n    const payload: ZendeskTicketCreatedPayload = {\n      ...SOURCE_EXAMPLE,\n      detail: { ...SOURCE_EXAMPLE.detail, subject: 'Test', description: 'Desc', id: '1' },\n    }\n\n    await expect(handle(payload, { ...baseConfig, fetch })).rejects.toThrow('GitHub list issues failed: 401 Unauthorized at https://api.github.com/repos/octocat/example/issues?per_page=100')\n    expect(calls.length).toBe(1)\n  })\n\n  it('throws on non-2xx GitHub create issue response', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.method === 'GET') return jsonResponse({ items: [] })\n      return jsonResponse({ message: 'Validation failed' }, 422)\n    })\n\n    const baseConfig: ConnectorConfig = {\n      githubOwner: 'octocat',\n      githubRepo: 'example',\n      githubToken: 'gh_test_token',\n      zendeskSubdomain: 'testsub',\n      zendeskToken: 'zd_test_token',\n    }\n\n    const payload: ZendeskTicketCreatedPayload = {\n      ...SOURCE_EXAMPLE,\n      detail: { ...SOURCE_EXAMPLE.detail, subject: 'New', description: 'Desc', id: '1' },\n    }\n\n    await expect(handle(payload, { ...baseConfig, fetch })).rejects.toThrow('GitHub create issue failed: 422  at https://api.github.com/repos/octocat/example/issues')\n    expect(calls.length).toBe(2)\n  })\n\n  it('throws on non-2xx Zendesk comment response', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.method === 'GET') return jsonResponse({ items: [] })\n      if (req.method === 'POST' && req.url.includes('/repos/')) return jsonResponse({ number: 1, html_url: 'https://github.com/octocat/example/issues/1' }, 201)\n      return jsonResponse({ error: 'Forbidden' }, 403)\n    })\n\n    const baseConfig: ConnectorConfig = {\n      githubOwner: 'octocat',\n      githubRepo: 'example',\n      githubToken: 'gh_test_token',\n      zendeskSubdomain: 'testsub',\n      zendeskToken: 'zd_test_token',\n    }\n\n    const payload: ZendeskTicketCreatedPayload = {\n      ...SOURCE_EXAMPLE,\n      detail: { ...SOURCE_EXAMPLE.detail, subject: 'New', description: 'Desc', id: '1' },\n    }\n\n    await expect(handle(payload, { ...baseConfig, fetch })).rejects.toThrow('Zendesk create comment failed: 403 Forbidden at https://testsub.zendesk.com/api/v2/tickets/1/comments.json')\n    expect(calls.length).toBe(3)\n  })\n\n  it('uses injected fetch from config', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.method === 'GET') return jsonResponse({ items: [] })\n      if (req.url.includes('/repos/')) return jsonResponse({ number: 1, html_url: 'https://github.com/octocat/example/issues/1' }, 201)\n      return jsonResponse({ comment: { id: 1, body: 'x', public: true } })\n    })\n\n    const baseConfig: ConnectorConfig = {\n      githubOwner: 'octocat',\n      githubRepo: 'example',\n      githubToken: 'gh_test_token',\n      zendeskSubdomain: 'testsub',\n      zendeskToken: 'zd_test_token',\n    }\n\n    const payload: ZendeskTicketCreatedPayload = {\n      ...SOURCE_EXAMPLE,\n      detail: { ...SOURCE_EXAMPLE.detail, subject: 'New', description: 'Desc', id: '1' },\n    }\n\n    await handle(payload, { ...baseConfig, fetch })\n    expect(calls.length).toBe(3)\n  })\n})\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# Zendesk to GitHub Issue Sync Connector\n\nThis connector bridges Zendesk ticket creation events with GitHub issue tracking. When a Zendesk ticket is created via webhook, the connector:\n\n1. **Searches** GitHub for an existing issue matching the ticket subject (title)\n2. **Creates** a new GitHub issue if no match is found, using the ticket subject as title and description as body\n3. **Posts** the GitHub issue URL as a public comment on the original Zendesk ticket\n\n## Configuration\n\nThe connector requires the following environment variables / config fields:\n\n| Config Field | Environment Variable | Description |\n|--------------|---------------------|-------------|\n| `githubOwner` | — | GitHub repository owner (user or org) |\n| `githubRepo` | — | GitHub repository name |\n| `githubToken` | `GITHUB_TOKEN` | GitHub personal access token with `repo` scope |\n| `zendeskSubdomain` | — | Your Zendesk subdomain (e.g., `mycompany` for `mycompany.zendesk.com`) |\n| `zendeskToken` | `ZENDESK_TOKEN` | Zendesk API token with ticket comment permissions |\n\nAll secrets must be provided via the config object at runtime. Never hard-code tokens.\n\n## Usage Example\n\n```typescript\nimport { handle, ConnectorConfig, ZendeskTicketCreatedPayload } from './connector'\n\nconst config: ConnectorConfig = {\n  githubOwner: 'octocat',\n  githubRepo: 'example',\n  githubToken: process.env.GITHUB_TOKEN!,\n  zendeskSubdomain: 'mycompany',\n  zendeskToken: process.env.ZENDESK_TOKEN!,\n}\n\n// In your webhook handler:\nconst payload: ZendeskTicketCreatedPayload = await req.json()\nconst result = await handle(payload, config)\nconsole.log(`Synced to GitHub issue #${result.githubIssueNumber}: ${result.githubIssueUrl}`)\n```\n\n## Assumptions\n\n- The Zendesk webhook payload includes `detail.subject`, `detail.description`, and `detail.id` as documented.\n- The GitHub repository is pre-configured and the integration token has write access to create issues.\n- A matching GitHub issue is determined by **exact title match** against `detail.subject`.\n- The connector uses the GitHub \"List repository issues\" endpoint (GET `/repos/{owner}/{repo}/issues`) and filters client-side, since the Search Issues endpoint is not in the documented spec.\n- Pagination is handled by requesting `per_page=100`; if more pages are needed, the connector would need enhancement.\n- The GitHub issue URL is constructed from the `html_url` field returned by the API.\n- Zendesk comment authentication uses a bearer token (API token) in the `Authorization` header.\n- Incoming Zendesk webhook signature validation is handled upstream (e.g., by the platform); this connector does not verify webhook signatures.\n\n## Error Handling\n\n- Throws descriptive `Error` if required payload fields are missing (`detail.subject`, `detail.description`, `detail.id`).\n- Throws `Error` with status code and endpoint URL for any non-2xx response from GitHub or Zendesk APIs.\n- All network calls use the injected `fetch` (or global `fetch`) for testability.\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://developer.zendesk.com/api-reference/webhooks/event-types/ticket-events\n// Source: https://docs.github.com/en/rest/issues/issues#list-repository-issues\n// Source: https://docs.github.com/en/rest/issues/issues#create-an-issue\n// Source: https://developer.zendesk.com/api-reference/ticketing/tickets/ticket-comments/\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"account_id\": 18763612,\n  \"detail\": {\n    \"actor_id\": \"7541263236734\",\n    \"assignee_id\": \"1263082229389\",\n    \"brand_id\": \"7541224243070\",\n    \"created_at\": \"2025-01-14T20:28:41Z\",\n    \"custom_status\": \"7541283637630\",\n    \"description\": \"OCR Queues Regression Tests\",\n    \"external_id\": null,\n    \"form_id\": \"7541224236414\",\n    \"group_id\": \"8658740085118\",\n    \"id\": \"14038\",\n    \"is_public\": true,\n    \"organization_id\": \"7541283638526\",\n    \"priority\": \"HIGH\",\n    \"requester_id\": \"7541263236734\",\n    \"status\": \"OPEN\",\n    \"subject\": \"Alpha top - group over queue\",\n    \"submitter_id\": \"7541263236734\",\n    \"tags\": [\n      \"alpha\",\n      \"route_me60c7a3dd4a\"\n    ],\n    \"type\": null,\n    \"updated_at\": \"2025-01-14T20:28:44Z\",\n    \"via\": {\n      \"channel\": \"web_form\"\n    }\n  },\n  \"event\": {\n    \"current\": \"1263082229389\",\n    \"meta\": {\n      \"sequence\": {\n        \"id\": \"39313930383633353634323835\",\n        \"position\": 1\n      }\n    },\n    \"previous\": null\n  },\n  \"id\": \"7096ffe1-d6ac-4f92-bd1f-3acaa138cc79\",\n  \"subject\": \"zen:ticket:14038\",\n  \"time\": \"2025-01-14T20:28:44.096553460Z\",\n  \"type\": \"zen:event-type:ticket.created\",\n  \"zendesk_event_version\": \"2022-11-06\"\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"GET\",\n    \"url\": \"https://api.github.com/repos/{owner}/{repo}/issues\",\n    \"response\": {\n      \"items\": [\n        {\n          \"number\": 42,\n          \"title\": \"OCR Queues Regression Tests\",\n          \"body\": \"OCR Queues Regression Tests\",\n          \"html_url\": \"https://github.com/octocat/example/issues/42\"\n        }\n      ]\n    }\n  },\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://api.github.com/repos/{owner}/{repo}/issues\",\n    \"response\": {\n      \"number\": 43,\n      \"html_url\": \"https://github.com/octocat/example/issues/43\"\n    }\n  },\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://{subdomain}.zendesk.com/api/v2/tickets/{ticket_id}/comments.json\",\n    \"response\": {\n      \"comment\": {\n        \"id\": 12345,\n        \"body\": \"GitHub issue created: https://github.com/octocat/example/issues/43\",\n        \"public\": true\n      }\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ]
+    },
+    {
+      "type": "tests",
+      "attempt": 2,
+      "report": {
+        "typecheckOk": true,
+        "typecheckOutput": "",
+        "passed": 9,
+        "failed": 1,
+        "total": 10,
+        "failures": [
+          {
+            "name": "handle throws on non-2xx GitHub create issue response",
+            "message": "AssertionError: expected [Function] to throw error including 'GitHub create issue failed: 422  at h…' but got 'GitHub create issue failed: 422 Unpro…'\n    at _Assertion.<anonymous> (file:///work/node_modules/@vitest/expect/dist/index.js:1420:16)\n    at _Assertion.<anonymous> (file:///work/node_modules/@vitest/expect/dist/index.js:1029:14)\n    at _Assertion.methodWrapper (file:///work/node_modules/chai/index.js:1686:25)\n    at file:///work/node_modules/@vitest/expect/dist/index.js:1639:20\n    at processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at /work/src/connector.test.ts:205:5\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20"
+          }
+        ],
+        "durationMs": 334.505126953125,
+        "ranOn": "nebius-sandbox:01a10b39-77ab-71b2-a7f1-7a004311601a",
+        "passedNames": [
+          "contract handles the documented example payload",
+          "handle happy path: searches, finds existing issue, posts comment",
+          "handle happy path: searches, creates new issue when not found, posts comment",
+          "handle validates required field: detail.subject",
+          "handle validates required field: detail.description",
+          "handle validates required field: detail.id",
+          "handle throws on non-2xx GitHub list issues response",
+          "handle throws on non-2xx Zendesk comment response",
+          "handle uses injected fetch from config"
+        ],
+        "contract": "passed"
+      },
+      "branches": [
+        {
+          "branch": 1,
+          "passed": 9,
+          "total": 10,
+          "typecheckOk": true,
+          "green": false
+        },
+        {
+          "branch": 2,
+          "passed": 0,
+          "total": 10,
+          "typecheckOk": true,
+          "green": false
+        }
+      ]
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Attempt 2 failed (1 tests, typecheck ok), repairing"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Repairing with 2 parallel branches (temperatures 0.1, 0.4)"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "[branch 2] Forking checkpoint 04b3a502 with 4 files, network off"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "[branch 1] Forking checkpoint 04b3a502 with 4 files, network off"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "branch 1: 0/2, typecheck failed, contract failed"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "branch 2: 10/10, typecheck ok, contract passed"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Chose branch 2 (first green)"
+    },
+    {
+      "type": "files",
+      "attempt": 3,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "export interface ConnectorConfig {\n  githubOwner: string\n  githubRepo: string\n  githubToken: string\n  zendeskSubdomain: string\n  zendeskToken: string\n  fetch?: typeof fetch\n}\n\nexport interface ZendeskTicketCreatedPayload {\n  account_id: number\n  detail: {\n    actor_id: string\n    assignee_id: string\n    brand_id: string\n    created_at: string\n    custom_status: string\n    description: string\n    external_id: string | null\n    form_id: string\n    group_id: string\n    id: string\n    is_public: boolean\n    organization_id: string\n    priority: string\n    requester_id: string\n    status: string\n    subject: string\n    submitter_id: string\n    tags: string[]\n    type: string | null\n    updated_at: string\n    via: { channel: string }\n  }\n  event: {\n    current: string\n    meta: { sequence: { id: string; position: number } }\n    previous: string | null\n  }\n  id: string\n  subject: string\n  time: string\n  type: string\n  zendesk_event_version: string\n}\n\nexport interface HandleResult {\n  githubIssueNumber: number\n  githubIssueUrl: string\n  zendeskCommentId: number\n}\n\ninterface GitHubIssue {\n  number: number\n  title: string\n  body: string\n  html_url: string\n}\n\ninterface GitHubListResponse {\n  items: GitHubIssue[]\n}\n\ninterface GitHubCreateResponse {\n  number: number\n  html_url: string\n}\n\ninterface ZendeskCommentResponse {\n  comment: {\n    id: number\n    body: string\n    public: boolean\n  }\n}\n\nasync function searchGitHubIssue(\n  title: string,\n  config: ConnectorConfig,\n): Promise<GitHubIssue | null> {\n  const fetch = config.fetch ?? globalThis.fetch\n  const url = `https://api.github.com/repos/${config.githubOwner}/${config.githubRepo}/issues?per_page=100`\n  const response = await fetch(url, {\n    method: 'GET',\n    headers: {\n      Authorization: `Bearer ${config.githubToken}`,\n      Accept: 'application/vnd.github+json',\n      'User-Agent': 'patchbay-connector',\n    },\n  })\n\n  if (!response.ok) {\n    throw new Error(`GitHub list issues failed: ${response.status} ${response.statusText} at ${url}`)\n  }\n\n  const data = (await response.json()) as GitHubListResponse\n  return data.items.find((issue) => issue.title === title) ?? null\n}\n\nasync function createGitHubIssue(\n  title: string,\n  body: string,\n  config: ConnectorConfig,\n): Promise<GitHubCreateResponse> {\n  const fetch = config.fetch ?? globalThis.fetch\n  const url = `https://api.github.com/repos/${config.githubOwner}/${config.githubRepo}/issues`\n  const response = await fetch(url, {\n    method: 'POST',\n    headers: {\n      Authorization: `Bearer ${config.githubToken}`,\n      Accept: 'application/vnd.github+json',\n      'Content-Type': 'application/json',\n      'User-Agent': 'patchbay-connector',\n    },\n    body: JSON.stringify({ title, body }),\n  })\n\n  if (!response.ok) {\n    throw new Error(`GitHub create issue failed: ${response.status} ${response.statusText} at ${url}`)\n  }\n\n  return (await response.json()) as GitHubCreateResponse\n}\n\nasync function postZendeskComment(\n  ticketId: string,\n  commentBody: string,\n  config: ConnectorConfig,\n): Promise<ZendeskCommentResponse> {\n  const fetch = config.fetch ?? globalThis.fetch\n  const url = `https://${config.zendeskSubdomain}.zendesk.com/api/v2/tickets/${ticketId}/comments.json`\n  const response = await fetch(url, {\n    method: 'POST',\n    headers: {\n      Authorization: `Bearer ${config.zendeskToken}`,\n      'Content-Type': 'application/json',\n    },\n    body: JSON.stringify({ comment: { body: commentBody, public: true } }),\n  })\n\n  if (!response.ok) {\n    throw new Error(`Zendesk create comment failed: ${response.status} ${response.statusText} at ${url}`)\n  }\n\n  return (await response.json()) as ZendeskCommentResponse\n}\n\nexport async function handle(\n  payload: ZendeskTicketCreatedPayload,\n  config: ConnectorConfig,\n): Promise<HandleResult> {\n  if (!payload.detail?.subject) {\n    throw new Error('Missing required field: detail.subject')\n  }\n  if (!payload.detail?.description) {\n    throw new Error('Missing required field: detail.description')\n  }\n  if (!payload.detail?.id) {\n    throw new Error('Missing required field: detail.id')\n  }\n\n  const title = payload.detail.subject\n  const body = payload.detail.description\n  const ticketId = payload.detail.id\n\n  const existingIssue = await searchGitHubIssue(title, config)\n\n  let issueNumber: number\n  let issueUrl: string\n\n  if (existingIssue) {\n    issueNumber = existingIssue.number\n    issueUrl = existingIssue.html_url\n  } else {\n    const created = await createGitHubIssue(title, body, config)\n    issueNumber = created.number\n    issueUrl = created.html_url\n  }\n\n  const commentResponse = await postZendeskComment(\n    ticketId,\n    `GitHub issue created: ${issueUrl}`,\n    config,\n  )\n\n  return {\n    githubIssueNumber: issueNumber,\n    githubIssueUrl: issueUrl,\n    zendeskCommentId: commentResponse.comment.id,\n  }\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi } from 'vitest'\nimport { handle, ConnectorConfig, ZendeskTicketCreatedPayload } from './connector'\nimport {\n  SOURCE_EXAMPLE,\n  contractFetch,\n  fakeFetch,\n  jsonResponse,\n  type RecordedCall,\n} from './fixtures'\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch()\n    const config: ConnectorConfig = {\n      githubOwner: 'octocat',\n      githubRepo: 'example',\n      githubToken: 'gh_test_token',\n      zendeskSubdomain: 'testsub',\n      zendeskToken: 'zd_test_token',\n      fetch,\n    }\n    const result = await handle(SOURCE_EXAMPLE as unknown as ZendeskTicketCreatedPayload, config)\n    expect(calls.length).toBeGreaterThan(0)\n    expect(result.githubIssueNumber).toBe(43)\n    expect(result.githubIssueUrl).toBe('https://github.com/octocat/example/issues/43')\n    expect(result.zendeskCommentId).toBe(12345)\n  })\n})\n\ndescribe('handle', () => {\n  it('happy path: searches, finds existing issue, posts comment', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.url.includes('/repos/octocat/example/issues') && req.method === 'GET') {\n        return jsonResponse({\n          items: [\n            { number: 42, title: 'Alpha top - group over queue', body: 'OCR Queues Regression Tests', html_url: 'https://github.com/octocat/example/issues/42' },\n          ],\n        })\n      }\n      if (req.url.includes('/tickets/14038/comments.json') && req.method === 'POST') {\n        return jsonResponse({ comment: { id: 999, body: 'GitHub issue created: https://github.com/octocat/example/issues/42', public: true } })\n      }\n      return jsonResponse({ error: 'not found' }, 404)\n    })\n\n    const baseConfig: ConnectorConfig = {\n      githubOwner: 'octocat',\n      githubRepo: 'example',\n      githubToken: 'gh_test_token',\n      zendeskSubdomain: 'testsub',\n      zendeskToken: 'zd_test_token',\n    }\n\n    const payload: ZendeskTicketCreatedPayload = {\n      ...SOURCE_EXAMPLE,\n      detail: { ...SOURCE_EXAMPLE.detail, subject: 'Alpha top - group over queue', description: 'OCR Queues Regression Tests', id: '14038' },\n    }\n\n    const result = await handle(payload, { ...baseConfig, fetch })\n\n    expect(result.githubIssueNumber).toBe(42)\n    expect(result.githubIssueUrl).toBe('https://github.com/octocat/example/issues/42')\n    expect(result.zendeskCommentId).toBe(999)\n\n    expect(calls[0].method).toBe('GET')\n    expect(calls[0].url).toBe('https://api.github.com/repos/octocat/example/issues?per_page=100')\n    expect(calls[0].headers.get('authorization')).toBe('Bearer gh_test_token')\n\n    expect(calls[1].method).toBe('POST')\n    expect(calls[1].url).toBe('https://testsub.zendesk.com/api/v2/tickets/14038/comments.json')\n    expect(calls[1].json).toEqual({ comment: { body: 'GitHub issue created: https://github.com/octocat/example/issues/42', public: true } })\n    expect(calls[1].headers.get('authorization')).toBe('Bearer zd_test_token')\n  })\n\n  it('happy path: searches, creates new issue when not found, posts comment', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.url.includes('/repos/octocat/example/issues') && req.method === 'GET') {\n        return jsonResponse({ items: [] })\n      }\n      if (req.url.includes('/repos/octocat/example/issues') && req.method === 'POST') {\n        expect(req.json).toEqual({ title: 'New Ticket Title', body: 'New ticket description' })\n        return jsonResponse({ number: 43, html_url: 'https://github.com/octocat/example/issues/43' }, 201)\n      }\n      if (req.url.includes('/tickets/14038/comments.json') && req.method === 'POST') {\n        return jsonResponse({ comment: { id: 1000, body: 'GitHub issue created: https://github.com/octocat/example/issues/43', public: true } })\n      }\n      return jsonResponse({ error: 'not found' }, 404)\n    })\n\n    const baseConfig: ConnectorConfig = {\n      githubOwner: 'octocat',\n      githubRepo: 'example',\n      githubToken: 'gh_test_token',\n      zendeskSubdomain: 'testsub',\n      zendeskToken: 'zd_test_token',\n    }\n\n    const payload: ZendeskTicketCreatedPayload = {\n      ...SOURCE_EXAMPLE,\n      detail: { ...SOURCE_EXAMPLE.detail, subject: 'New Ticket Title', description: 'New ticket description', id: '14038' },\n    }\n\n    const result = await handle(payload, { ...baseConfig, fetch })\n\n    expect(result.githubIssueNumber).toBe(43)\n    expect(result.githubIssueUrl).toBe('https://github.com/octocat/example/issues/43')\n    expect(result.zendeskCommentId).toBe(1000)\n\n    expect(calls[0].method).toBe('GET')\n    expect(calls[1].method).toBe('POST')\n    expect(calls[1].json).toEqual({ title: 'New Ticket Title', body: 'New ticket description' })\n    expect(calls[2].method).toBe('POST')\n  })\n\n  it('validates required field: detail.subject', async () => {\n    const { fetch, calls } = fakeFetch(() => jsonResponse({}, 200))\n\n    const baseConfig: ConnectorConfig = {\n      githubOwner: 'octocat',\n      githubRepo: 'example',\n      githubToken: 'gh_test_token',\n      zendeskSubdomain: 'testsub',\n      zendeskToken: 'zd_test_token',\n    }\n\n    const payload = { ...SOURCE_EXAMPLE, detail: { ...SOURCE_EXAMPLE.detail, subject: undefined as any } }\n\n    await expect(handle(payload as any, { ...baseConfig, fetch })).rejects.toThrow('Missing required field: detail.subject')\n    expect(calls.length).toBe(0)\n  })\n\n  it('validates required field: detail.description', async () => {\n    const { fetch, calls } = fakeFetch(() => jsonResponse({}, 200))\n\n    const baseConfig: ConnectorConfig = {\n      githubOwner: 'octocat',\n      githubRepo: 'example',\n      githubToken: 'gh_test_token',\n      zendeskSubdomain: 'testsub',\n      zendeskToken: 'zd_test_token',\n    }\n\n    const payload = { ...SOURCE_EXAMPLE, detail: { ...SOURCE_EXAMPLE.detail, description: undefined as any } }\n\n    await expect(handle(payload as any, { ...baseConfig, fetch })).rejects.toThrow('Missing required field: detail.description')\n    expect(calls.length).toBe(0)\n  })\n\n  it('validates required field: detail.id', async () => {\n    const { fetch, calls } = fakeFetch(() => jsonResponse({}, 200))\n\n    const baseConfig: ConnectorConfig = {\n      githubOwner: 'octocat',\n      githubRepo: 'example',\n      githubToken: 'gh_test_token',\n      zendeskSubdomain: 'testsub',\n      zendeskToken: 'zd_test_token',\n    }\n\n    const payload = { ...SOURCE_EXAMPLE, detail: { ...SOURCE_EXAMPLE.detail, id: undefined as any } }\n\n    await expect(handle(payload as any, { ...baseConfig, fetch })).rejects.toThrow('Missing required field: detail.id')\n    expect(calls.length).toBe(0)\n  })\n\n  it('throws on non-2xx GitHub list issues response', async () => {\n    const { fetch, calls } = fakeFetch(() => jsonResponse({ message: 'Bad credentials' }, 401))\n\n    const baseConfig: ConnectorConfig = {\n      githubOwner: 'octocat',\n      githubRepo: 'example',\n      githubToken: 'gh_test_token',\n      zendeskSubdomain: 'testsub',\n      zendeskToken: 'zd_test_token',\n    }\n\n    const payload: ZendeskTicketCreatedPayload = {\n      ...SOURCE_EXAMPLE,\n      detail: { ...SOURCE_EXAMPLE.detail, subject: 'Test', description: 'Desc', id: '1' },\n    }\n\n    await expect(handle(payload, { ...baseConfig, fetch })).rejects.toThrow('GitHub list issues failed: 401 Unauthorized at https://api.github.com/repos/octocat/example/issues?per_page=100')\n    expect(calls.length).toBe(1)\n  })\n\n  it('throws on non-2xx GitHub create issue response', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.method === 'GET') return jsonResponse({ items: [] })\n      return jsonResponse({ message: 'Validation failed' }, 422)\n    })\n\n    const baseConfig: ConnectorConfig = {\n      githubOwner: 'octocat',\n      githubRepo: 'example',\n      githubToken: 'gh_test_token',\n      zendeskSubdomain: 'testsub',\n      zendeskToken: 'zd_test_token',\n    }\n\n    const payload: ZendeskTicketCreatedPayload = {\n      ...SOURCE_EXAMPLE,\n      detail: { ...SOURCE_EXAMPLE.detail, subject: 'New', description: 'Desc', id: '1' },\n    }\n\n    await expect(handle(payload, { ...baseConfig, fetch })).rejects.toThrow('GitHub create issue failed: 422 Unprocessable Entity at https://api.github.com/repos/octocat/example/issues')\n    expect(calls.length).toBe(2)\n  })\n\n  it('throws on non-2xx Zendesk comment response', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.method === 'GET') return jsonResponse({ items: [] })\n      if (req.method === 'POST' && req.url.includes('/repos/')) return jsonResponse({ number: 1, html_url: 'https://github.com/octocat/example/issues/1' }, 201)\n      return jsonResponse({ error: 'Forbidden' }, 403)\n    })\n\n    const baseConfig: ConnectorConfig = {\n      githubOwner: 'octocat',\n      githubRepo: 'example',\n      githubToken: 'gh_test_token',\n      zendeskSubdomain: 'testsub',\n      zendeskToken: 'zd_test_token',\n    }\n\n    const payload: ZendeskTicketCreatedPayload = {\n      ...SOURCE_EXAMPLE,\n      detail: { ...SOURCE_EXAMPLE.detail, subject: 'New', description: 'Desc', id: '1' },\n    }\n\n    await expect(handle(payload, { ...baseConfig, fetch })).rejects.toThrow('Zendesk create comment failed: 403 Forbidden at https://testsub.zendesk.com/api/v2/tickets/1/comments.json')\n    expect(calls.length).toBe(3)\n  })\n\n  it('uses injected fetch from config', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.method === 'GET') return jsonResponse({ items: [] })\n      if (req.url.includes('/repos/')) return jsonResponse({ number: 1, html_url: 'https://github.com/octocat/example/issues/1' }, 201)\n      return jsonResponse({ comment: { id: 1, body: 'x', public: true } })\n    })\n\n    const baseConfig: ConnectorConfig = {\n      githubOwner: 'octocat',\n      githubRepo: 'example',\n      githubToken: 'gh_test_token',\n      zendeskSubdomain: 'testsub',\n      zendeskToken: 'zd_test_token',\n    }\n\n    const payload: ZendeskTicketCreatedPayload = {\n      ...SOURCE_EXAMPLE,\n      detail: { ...SOURCE_EXAMPLE.detail, subject: 'New', description: 'Desc', id: '1' },\n    }\n\n    await handle(payload, { ...baseConfig, fetch })\n    expect(calls.length).toBe(3)\n  })\n})\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# Zendesk to GitHub Issue Sync Connector\n\nThis connector bridges Zendesk ticket creation events with GitHub issue tracking. When a Zendesk ticket is created via webhook, the connector:\n\n1. **Searches** GitHub for an existing issue matching the ticket subject (title)\n2. **Creates** a new GitHub issue if no match is found, using the ticket subject as title and description as body\n3. **Posts** the GitHub issue URL as a public comment on the original Zendesk ticket\n\n## Configuration\n\nThe connector requires the following environment variables / config fields:\n\n| Config Field | Environment Variable | Description |\n|--------------|---------------------|-------------|\n| `githubOwner` | — | GitHub repository owner (user or org) |\n| `githubRepo` | — | GitHub repository name |\n| `githubToken` | `GITHUB_TOKEN` | GitHub personal access token with `repo` scope |\n| `zendeskSubdomain` | — | Your Zendesk subdomain (e.g., `mycompany` for `mycompany.zendesk.com`) |\n| `zendeskToken` | `ZENDESK_TOKEN` | Zendesk API token with ticket comment permissions |\n\nAll secrets must be provided via the config object at runtime. Never hard-code tokens.\n\n## Usage Example\n\n```typescript\nimport { handle, ConnectorConfig, ZendeskTicketCreatedPayload } from './connector'\n\nconst config: ConnectorConfig = {\n  githubOwner: 'octocat',\n  githubRepo: 'example',\n  githubToken: process.env.GITHUB_TOKEN!,\n  zendeskSubdomain: 'mycompany',\n  zendeskToken: process.env.ZENDESK_TOKEN!,\n}\n\n// In your webhook handler:\nconst payload: ZendeskTicketCreatedPayload = await req.json()\nconst result = await handle(payload, config)\nconsole.log(`Synced to GitHub issue #${result.githubIssueNumber}: ${result.githubIssueUrl}`)\n```\n\n## Assumptions\n\n- The Zendesk webhook payload includes `detail.subject`, `detail.description`, and `detail.id` as documented.\n- The GitHub repository is pre-configured and the integration token has write access to create issues.\n- A matching GitHub issue is determined by **exact title match** against `detail.subject`.\n- The connector uses the GitHub \"List repository issues\" endpoint (GET `/repos/{owner}/{repo}/issues`) and filters client-side, since the Search Issues endpoint is not in the documented spec.\n- Pagination is handled by requesting `per_page=100`; if more pages are needed, the connector would need enhancement.\n- The GitHub issue URL is constructed from the `html_url` field returned by the API.\n- Zendesk comment authentication uses a bearer token (API token) in the `Authorization` header.\n- Incoming Zendesk webhook signature validation is handled upstream (e.g., by the platform); this connector does not verify webhook signatures.\n\n## Error Handling\n\n- Throws descriptive `Error` if required payload fields are missing (`detail.subject`, `detail.description`, `detail.id`).\n- Throws `Error` with status code and endpoint URL for any non-2xx response from GitHub or Zendesk APIs.\n- All network calls use the injected `fetch` (or global `fetch`) for testability.\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://developer.zendesk.com/api-reference/webhooks/event-types/ticket-events\n// Source: https://docs.github.com/en/rest/issues/issues#list-repository-issues\n// Source: https://docs.github.com/en/rest/issues/issues#create-an-issue\n// Source: https://developer.zendesk.com/api-reference/ticketing/tickets/ticket-comments/\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"account_id\": 18763612,\n  \"detail\": {\n    \"actor_id\": \"7541263236734\",\n    \"assignee_id\": \"1263082229389\",\n    \"brand_id\": \"7541224243070\",\n    \"created_at\": \"2025-01-14T20:28:41Z\",\n    \"custom_status\": \"7541283637630\",\n    \"description\": \"OCR Queues Regression Tests\",\n    \"external_id\": null,\n    \"form_id\": \"7541224236414\",\n    \"group_id\": \"8658740085118\",\n    \"id\": \"14038\",\n    \"is_public\": true,\n    \"organization_id\": \"7541283638526\",\n    \"priority\": \"HIGH\",\n    \"requester_id\": \"7541263236734\",\n    \"status\": \"OPEN\",\n    \"subject\": \"Alpha top - group over queue\",\n    \"submitter_id\": \"7541263236734\",\n    \"tags\": [\n      \"alpha\",\n      \"route_me60c7a3dd4a\"\n    ],\n    \"type\": null,\n    \"updated_at\": \"2025-01-14T20:28:44Z\",\n    \"via\": {\n      \"channel\": \"web_form\"\n    }\n  },\n  \"event\": {\n    \"current\": \"1263082229389\",\n    \"meta\": {\n      \"sequence\": {\n        \"id\": \"39313930383633353634323835\",\n        \"position\": 1\n      }\n    },\n    \"previous\": null\n  },\n  \"id\": \"7096ffe1-d6ac-4f92-bd1f-3acaa138cc79\",\n  \"subject\": \"zen:ticket:14038\",\n  \"time\": \"2025-01-14T20:28:44.096553460Z\",\n  \"type\": \"zen:event-type:ticket.created\",\n  \"zendesk_event_version\": \"2022-11-06\"\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"GET\",\n    \"url\": \"https://api.github.com/repos/{owner}/{repo}/issues\",\n    \"response\": {\n      \"items\": [\n        {\n          \"number\": 42,\n          \"title\": \"OCR Queues Regression Tests\",\n          \"body\": \"OCR Queues Regression Tests\",\n          \"html_url\": \"https://github.com/octocat/example/issues/42\"\n        }\n      ]\n    }\n  },\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://api.github.com/repos/{owner}/{repo}/issues\",\n    \"response\": {\n      \"number\": 43,\n      \"html_url\": \"https://github.com/octocat/example/issues/43\"\n    }\n  },\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://{subdomain}.zendesk.com/api/v2/tickets/{ticket_id}/comments.json\",\n    \"response\": {\n      \"comment\": {\n        \"id\": 12345,\n        \"body\": \"GitHub issue created: https://github.com/octocat/example/issues/43\",\n        \"public\": true\n      }\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ]
+    },
+    {
+      "type": "tests",
+      "attempt": 3,
+      "report": {
+        "typecheckOk": true,
+        "typecheckOutput": "",
+        "passed": 10,
+        "failed": 0,
+        "total": 10,
+        "failures": [],
+        "durationMs": 285.478759765625,
+        "ranOn": "nebius-sandbox:01a10b39-cd67-7577-b3cf-a0729a72fedf",
+        "passedNames": [
+          "contract handles the documented example payload",
+          "handle happy path: searches, finds existing issue, posts comment",
+          "handle happy path: searches, creates new issue when not found, posts comment",
+          "handle validates required field: detail.subject",
+          "handle validates required field: detail.description",
+          "handle validates required field: detail.id",
+          "handle throws on non-2xx GitHub list issues response",
+          "handle throws on non-2xx GitHub create issue response",
+          "handle throws on non-2xx Zendesk comment response",
+          "handle uses injected fetch from config"
+        ],
+        "contract": "passed"
+      },
+      "branches": [
+        {
+          "branch": 1,
+          "passed": 0,
+          "total": 2,
+          "typecheckOk": false,
+          "green": false
+        },
+        {
+          "branch": 2,
+          "passed": 10,
+          "total": 10,
+          "typecheckOk": true,
+          "green": true
+        }
+      ]
+    },
+    {
+      "type": "step",
+      "step": "verify",
+      "status": "done",
+      "detail": "10/10 tests after 3 attempts"
+    },
+    {
+      "type": "step",
+      "step": "package",
+      "status": "start"
+    },
+    {
+      "type": "usage",
+      "usage": [
+        {
+          "model": "nvidia/Nemotron-3_5-Lightning",
+          "promptTokens": 432,
+          "completionTokens": 380,
+          "costUsd": 0.00011712
+        },
+        {
+          "model": "nvidia/nemotron-3-super-120b-a12b",
+          "promptTokens": 15726,
+          "completionTokens": 1546,
+          "costUsd": 0.0061092
+        },
+        {
+          "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+          "promptTokens": 38295,
+          "completionTokens": 38154,
+          "costUsd": 0.152757
+        }
+      ]
+    },
+    {
+      "type": "result",
+      "ok": true,
+      "attempts": 3,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "export interface ConnectorConfig {\n  githubOwner: string\n  githubRepo: string\n  githubToken: string\n  zendeskSubdomain: string\n  zendeskToken: string\n  fetch?: typeof fetch\n}\n\nexport interface ZendeskTicketCreatedPayload {\n  account_id: number\n  detail: {\n    actor_id: string\n    assignee_id: string\n    brand_id: string\n    created_at: string\n    custom_status: string\n    description: string\n    external_id: string | null\n    form_id: string\n    group_id: string\n    id: string\n    is_public: boolean\n    organization_id: string\n    priority: string\n    requester_id: string\n    status: string\n    subject: string\n    submitter_id: string\n    tags: string[]\n    type: string | null\n    updated_at: string\n    via: { channel: string }\n  }\n  event: {\n    current: string\n    meta: { sequence: { id: string; position: number } }\n    previous: string | null\n  }\n  id: string\n  subject: string\n  time: string\n  type: string\n  zendesk_event_version: string\n}\n\nexport interface HandleResult {\n  githubIssueNumber: number\n  githubIssueUrl: string\n  zendeskCommentId: number\n}\n\ninterface GitHubIssue {\n  number: number\n  title: string\n  body: string\n  html_url: string\n}\n\ninterface GitHubListResponse {\n  items: GitHubIssue[]\n}\n\ninterface GitHubCreateResponse {\n  number: number\n  html_url: string\n}\n\ninterface ZendeskCommentResponse {\n  comment: {\n    id: number\n    body: string\n    public: boolean\n  }\n}\n\nasync function searchGitHubIssue(\n  title: string,\n  config: ConnectorConfig,\n): Promise<GitHubIssue | null> {\n  const fetch = config.fetch ?? globalThis.fetch\n  const url = `https://api.github.com/repos/${config.githubOwner}/${config.githubRepo}/issues?per_page=100`\n  const response = await fetch(url, {\n    method: 'GET',\n    headers: {\n      Authorization: `Bearer ${config.githubToken}`,\n      Accept: 'application/vnd.github+json',\n      'User-Agent': 'patchbay-connector',\n    },\n  })\n\n  if (!response.ok) {\n    throw new Error(`GitHub list issues failed: ${response.status} ${response.statusText} at ${url}`)\n  }\n\n  const data = (await response.json()) as GitHubListResponse\n  return data.items.find((issue) => issue.title === title) ?? null\n}\n\nasync function createGitHubIssue(\n  title: string,\n  body: string,\n  config: ConnectorConfig,\n): Promise<GitHubCreateResponse> {\n  const fetch = config.fetch ?? globalThis.fetch\n  const url = `https://api.github.com/repos/${config.githubOwner}/${config.githubRepo}/issues`\n  const response = await fetch(url, {\n    method: 'POST',\n    headers: {\n      Authorization: `Bearer ${config.githubToken}`,\n      Accept: 'application/vnd.github+json',\n      'Content-Type': 'application/json',\n      'User-Agent': 'patchbay-connector',\n    },\n    body: JSON.stringify({ title, body }),\n  })\n\n  if (!response.ok) {\n    throw new Error(`GitHub create issue failed: ${response.status} ${response.statusText} at ${url}`)\n  }\n\n  return (await response.json()) as GitHubCreateResponse\n}\n\nasync function postZendeskComment(\n  ticketId: string,\n  commentBody: string,\n  config: ConnectorConfig,\n): Promise<ZendeskCommentResponse> {\n  const fetch = config.fetch ?? globalThis.fetch\n  const url = `https://${config.zendeskSubdomain}.zendesk.com/api/v2/tickets/${ticketId}/comments.json`\n  const response = await fetch(url, {\n    method: 'POST',\n    headers: {\n      Authorization: `Bearer ${config.zendeskToken}`,\n      'Content-Type': 'application/json',\n    },\n    body: JSON.stringify({ comment: { body: commentBody, public: true } }),\n  })\n\n  if (!response.ok) {\n    throw new Error(`Zendesk create comment failed: ${response.status} ${response.statusText} at ${url}`)\n  }\n\n  return (await response.json()) as ZendeskCommentResponse\n}\n\nexport async function handle(\n  payload: ZendeskTicketCreatedPayload,\n  config: ConnectorConfig,\n): Promise<HandleResult> {\n  if (!payload.detail?.subject) {\n    throw new Error('Missing required field: detail.subject')\n  }\n  if (!payload.detail?.description) {\n    throw new Error('Missing required field: detail.description')\n  }\n  if (!payload.detail?.id) {\n    throw new Error('Missing required field: detail.id')\n  }\n\n  const title = payload.detail.subject\n  const body = payload.detail.description\n  const ticketId = payload.detail.id\n\n  const existingIssue = await searchGitHubIssue(title, config)\n\n  let issueNumber: number\n  let issueUrl: string\n\n  if (existingIssue) {\n    issueNumber = existingIssue.number\n    issueUrl = existingIssue.html_url\n  } else {\n    const created = await createGitHubIssue(title, body, config)\n    issueNumber = created.number\n    issueUrl = created.html_url\n  }\n\n  const commentResponse = await postZendeskComment(\n    ticketId,\n    `GitHub issue created: ${issueUrl}`,\n    config,\n  )\n\n  return {\n    githubIssueNumber: issueNumber,\n    githubIssueUrl: issueUrl,\n    zendeskCommentId: commentResponse.comment.id,\n  }\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi } from 'vitest'\nimport { handle, ConnectorConfig, ZendeskTicketCreatedPayload } from './connector'\nimport {\n  SOURCE_EXAMPLE,\n  contractFetch,\n  fakeFetch,\n  jsonResponse,\n  type RecordedCall,\n} from './fixtures'\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch()\n    const config: ConnectorConfig = {\n      githubOwner: 'octocat',\n      githubRepo: 'example',\n      githubToken: 'gh_test_token',\n      zendeskSubdomain: 'testsub',\n      zendeskToken: 'zd_test_token',\n      fetch,\n    }\n    const result = await handle(SOURCE_EXAMPLE as unknown as ZendeskTicketCreatedPayload, config)\n    expect(calls.length).toBeGreaterThan(0)\n    expect(result.githubIssueNumber).toBe(43)\n    expect(result.githubIssueUrl).toBe('https://github.com/octocat/example/issues/43')\n    expect(result.zendeskCommentId).toBe(12345)\n  })\n})\n\ndescribe('handle', () => {\n  it('happy path: searches, finds existing issue, posts comment', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.url.includes('/repos/octocat/example/issues') && req.method === 'GET') {\n        return jsonResponse({\n          items: [\n            { number: 42, title: 'Alpha top - group over queue', body: 'OCR Queues Regression Tests', html_url: 'https://github.com/octocat/example/issues/42' },\n          ],\n        })\n      }\n      if (req.url.includes('/tickets/14038/comments.json') && req.method === 'POST') {\n        return jsonResponse({ comment: { id: 999, body: 'GitHub issue created: https://github.com/octocat/example/issues/42', public: true } })\n      }\n      return jsonResponse({ error: 'not found' }, 404)\n    })\n\n    const baseConfig: ConnectorConfig = {\n      githubOwner: 'octocat',\n      githubRepo: 'example',\n      githubToken: 'gh_test_token',\n      zendeskSubdomain: 'testsub',\n      zendeskToken: 'zd_test_token',\n    }\n\n    const payload: ZendeskTicketCreatedPayload = {\n      ...SOURCE_EXAMPLE,\n      detail: { ...SOURCE_EXAMPLE.detail, subject: 'Alpha top - group over queue', description: 'OCR Queues Regression Tests', id: '14038' },\n    }\n\n    const result = await handle(payload, { ...baseConfig, fetch })\n\n    expect(result.githubIssueNumber).toBe(42)\n    expect(result.githubIssueUrl).toBe('https://github.com/octocat/example/issues/42')\n    expect(result.zendeskCommentId).toBe(999)\n\n    expect(calls[0].method).toBe('GET')\n    expect(calls[0].url).toBe('https://api.github.com/repos/octocat/example/issues?per_page=100')\n    expect(calls[0].headers.get('authorization')).toBe('Bearer gh_test_token')\n\n    expect(calls[1].method).toBe('POST')\n    expect(calls[1].url).toBe('https://testsub.zendesk.com/api/v2/tickets/14038/comments.json')\n    expect(calls[1].json).toEqual({ comment: { body: 'GitHub issue created: https://github.com/octocat/example/issues/42', public: true } })\n    expect(calls[1].headers.get('authorization')).toBe('Bearer zd_test_token')\n  })\n\n  it('happy path: searches, creates new issue when not found, posts comment', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.url.includes('/repos/octocat/example/issues') && req.method === 'GET') {\n        return jsonResponse({ items: [] })\n      }\n      if (req.url.includes('/repos/octocat/example/issues') && req.method === 'POST') {\n        expect(req.json).toEqual({ title: 'New Ticket Title', body: 'New ticket description' })\n        return jsonResponse({ number: 43, html_url: 'https://github.com/octocat/example/issues/43' }, 201)\n      }\n      if (req.url.includes('/tickets/14038/comments.json') && req.method === 'POST') {\n        return jsonResponse({ comment: { id: 1000, body: 'GitHub issue created: https://github.com/octocat/example/issues/43', public: true } })\n      }\n      return jsonResponse({ error: 'not found' }, 404)\n    })\n\n    const baseConfig: ConnectorConfig = {\n      githubOwner: 'octocat',\n      githubRepo: 'example',\n      githubToken: 'gh_test_token',\n      zendeskSubdomain: 'testsub',\n      zendeskToken: 'zd_test_token',\n    }\n\n    const payload: ZendeskTicketCreatedPayload = {\n      ...SOURCE_EXAMPLE,\n      detail: { ...SOURCE_EXAMPLE.detail, subject: 'New Ticket Title', description: 'New ticket description', id: '14038' },\n    }\n\n    const result = await handle(payload, { ...baseConfig, fetch })\n\n    expect(result.githubIssueNumber).toBe(43)\n    expect(result.githubIssueUrl).toBe('https://github.com/octocat/example/issues/43')\n    expect(result.zendeskCommentId).toBe(1000)\n\n    expect(calls[0].method).toBe('GET')\n    expect(calls[1].method).toBe('POST')\n    expect(calls[1].json).toEqual({ title: 'New Ticket Title', body: 'New ticket description' })\n    expect(calls[2].method).toBe('POST')\n  })\n\n  it('validates required field: detail.subject', async () => {\n    const { fetch, calls } = fakeFetch(() => jsonResponse({}, 200))\n\n    const baseConfig: ConnectorConfig = {\n      githubOwner: 'octocat',\n      githubRepo: 'example',\n      githubToken: 'gh_test_token',\n      zendeskSubdomain: 'testsub',\n      zendeskToken: 'zd_test_token',\n    }\n\n    const payload = { ...SOURCE_EXAMPLE, detail: { ...SOURCE_EXAMPLE.detail, subject: undefined as any } }\n\n    await expect(handle(payload as any, { ...baseConfig, fetch })).rejects.toThrow('Missing required field: detail.subject')\n    expect(calls.length).toBe(0)\n  })\n\n  it('validates required field: detail.description', async () => {\n    const { fetch, calls } = fakeFetch(() => jsonResponse({}, 200))\n\n    const baseConfig: ConnectorConfig = {\n      githubOwner: 'octocat',\n      githubRepo: 'example',\n      githubToken: 'gh_test_token',\n      zendeskSubdomain: 'testsub',\n      zendeskToken: 'zd_test_token',\n    }\n\n    const payload = { ...SOURCE_EXAMPLE, detail: { ...SOURCE_EXAMPLE.detail, description: undefined as any } }\n\n    await expect(handle(payload as any, { ...baseConfig, fetch })).rejects.toThrow('Missing required field: detail.description')\n    expect(calls.length).toBe(0)\n  })\n\n  it('validates required field: detail.id', async () => {\n    const { fetch, calls } = fakeFetch(() => jsonResponse({}, 200))\n\n    const baseConfig: ConnectorConfig = {\n      githubOwner: 'octocat',\n      githubRepo: 'example',\n      githubToken: 'gh_test_token',\n      zendeskSubdomain: 'testsub',\n      zendeskToken: 'zd_test_token',\n    }\n\n    const payload = { ...SOURCE_EXAMPLE, detail: { ...SOURCE_EXAMPLE.detail, id: undefined as any } }\n\n    await expect(handle(payload as any, { ...baseConfig, fetch })).rejects.toThrow('Missing required field: detail.id')\n    expect(calls.length).toBe(0)\n  })\n\n  it('throws on non-2xx GitHub list issues response', async () => {\n    const { fetch, calls } = fakeFetch(() => jsonResponse({ message: 'Bad credentials' }, 401))\n\n    const baseConfig: ConnectorConfig = {\n      githubOwner: 'octocat',\n      githubRepo: 'example',\n      githubToken: 'gh_test_token',\n      zendeskSubdomain: 'testsub',\n      zendeskToken: 'zd_test_token',\n    }\n\n    const payload: ZendeskTicketCreatedPayload = {\n      ...SOURCE_EXAMPLE,\n      detail: { ...SOURCE_EXAMPLE.detail, subject: 'Test', description: 'Desc', id: '1' },\n    }\n\n    await expect(handle(payload, { ...baseConfig, fetch })).rejects.toThrow('GitHub list issues failed: 401 Unauthorized at https://api.github.com/repos/octocat/example/issues?per_page=100')\n    expect(calls.length).toBe(1)\n  })\n\n  it('throws on non-2xx GitHub create issue response', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.method === 'GET') return jsonResponse({ items: [] })\n      return jsonResponse({ message: 'Validation failed' }, 422)\n    })\n\n    const baseConfig: ConnectorConfig = {\n      githubOwner: 'octocat',\n      githubRepo: 'example',\n      githubToken: 'gh_test_token',\n      zendeskSubdomain: 'testsub',\n      zendeskToken: 'zd_test_token',\n    }\n\n    const payload: ZendeskTicketCreatedPayload = {\n      ...SOURCE_EXAMPLE,\n      detail: { ...SOURCE_EXAMPLE.detail, subject: 'New', description: 'Desc', id: '1' },\n    }\n\n    await expect(handle(payload, { ...baseConfig, fetch })).rejects.toThrow('GitHub create issue failed: 422 Unprocessable Entity at https://api.github.com/repos/octocat/example/issues')\n    expect(calls.length).toBe(2)\n  })\n\n  it('throws on non-2xx Zendesk comment response', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.method === 'GET') return jsonResponse({ items: [] })\n      if (req.method === 'POST' && req.url.includes('/repos/')) return jsonResponse({ number: 1, html_url: 'https://github.com/octocat/example/issues/1' }, 201)\n      return jsonResponse({ error: 'Forbidden' }, 403)\n    })\n\n    const baseConfig: ConnectorConfig = {\n      githubOwner: 'octocat',\n      githubRepo: 'example',\n      githubToken: 'gh_test_token',\n      zendeskSubdomain: 'testsub',\n      zendeskToken: 'zd_test_token',\n    }\n\n    const payload: ZendeskTicketCreatedPayload = {\n      ...SOURCE_EXAMPLE,\n      detail: { ...SOURCE_EXAMPLE.detail, subject: 'New', description: 'Desc', id: '1' },\n    }\n\n    await expect(handle(payload, { ...baseConfig, fetch })).rejects.toThrow('Zendesk create comment failed: 403 Forbidden at https://testsub.zendesk.com/api/v2/tickets/1/comments.json')\n    expect(calls.length).toBe(3)\n  })\n\n  it('uses injected fetch from config', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.method === 'GET') return jsonResponse({ items: [] })\n      if (req.url.includes('/repos/')) return jsonResponse({ number: 1, html_url: 'https://github.com/octocat/example/issues/1' }, 201)\n      return jsonResponse({ comment: { id: 1, body: 'x', public: true } })\n    })\n\n    const baseConfig: ConnectorConfig = {\n      githubOwner: 'octocat',\n      githubRepo: 'example',\n      githubToken: 'gh_test_token',\n      zendeskSubdomain: 'testsub',\n      zendeskToken: 'zd_test_token',\n    }\n\n    const payload: ZendeskTicketCreatedPayload = {\n      ...SOURCE_EXAMPLE,\n      detail: { ...SOURCE_EXAMPLE.detail, subject: 'New', description: 'Desc', id: '1' },\n    }\n\n    await handle(payload, { ...baseConfig, fetch })\n    expect(calls.length).toBe(3)\n  })\n})\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# Zendesk to GitHub Issue Sync Connector\n\nThis connector bridges Zendesk ticket creation events with GitHub issue tracking. When a Zendesk ticket is created via webhook, the connector:\n\n1. **Searches** GitHub for an existing issue matching the ticket subject (title)\n2. **Creates** a new GitHub issue if no match is found, using the ticket subject as title and description as body\n3. **Posts** the GitHub issue URL as a public comment on the original Zendesk ticket\n\n## Configuration\n\nThe connector requires the following environment variables / config fields:\n\n| Config Field | Environment Variable | Description |\n|--------------|---------------------|-------------|\n| `githubOwner` | — | GitHub repository owner (user or org) |\n| `githubRepo` | — | GitHub repository name |\n| `githubToken` | `GITHUB_TOKEN` | GitHub personal access token with `repo` scope |\n| `zendeskSubdomain` | — | Your Zendesk subdomain (e.g., `mycompany` for `mycompany.zendesk.com`) |\n| `zendeskToken` | `ZENDESK_TOKEN` | Zendesk API token with ticket comment permissions |\n\nAll secrets must be provided via the config object at runtime. Never hard-code tokens.\n\n## Usage Example\n\n```typescript\nimport { handle, ConnectorConfig, ZendeskTicketCreatedPayload } from './connector'\n\nconst config: ConnectorConfig = {\n  githubOwner: 'octocat',\n  githubRepo: 'example',\n  githubToken: process.env.GITHUB_TOKEN!,\n  zendeskSubdomain: 'mycompany',\n  zendeskToken: process.env.ZENDESK_TOKEN!,\n}\n\n// In your webhook handler:\nconst payload: ZendeskTicketCreatedPayload = await req.json()\nconst result = await handle(payload, config)\nconsole.log(`Synced to GitHub issue #${result.githubIssueNumber}: ${result.githubIssueUrl}`)\n```\n\n## Assumptions\n\n- The Zendesk webhook payload includes `detail.subject`, `detail.description`, and `detail.id` as documented.\n- The GitHub repository is pre-configured and the integration token has write access to create issues.\n- A matching GitHub issue is determined by **exact title match** against `detail.subject`.\n- The connector uses the GitHub \"List repository issues\" endpoint (GET `/repos/{owner}/{repo}/issues`) and filters client-side, since the Search Issues endpoint is not in the documented spec.\n- Pagination is handled by requesting `per_page=100`; if more pages are needed, the connector would need enhancement.\n- The GitHub issue URL is constructed from the `html_url` field returned by the API.\n- Zendesk comment authentication uses a bearer token (API token) in the `Authorization` header.\n- Incoming Zendesk webhook signature validation is handled upstream (e.g., by the platform); this connector does not verify webhook signatures.\n\n## Error Handling\n\n- Throws descriptive `Error` if required payload fields are missing (`detail.subject`, `detail.description`, `detail.id`).\n- Throws `Error` with status code and endpoint URL for any non-2xx response from GitHub or Zendesk APIs.\n- All network calls use the injected `fetch` (or global `fetch`) for testability.\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://developer.zendesk.com/api-reference/webhooks/event-types/ticket-events\n// Source: https://docs.github.com/en/rest/issues/issues#list-repository-issues\n// Source: https://docs.github.com/en/rest/issues/issues#create-an-issue\n// Source: https://developer.zendesk.com/api-reference/ticketing/tickets/ticket-comments/\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"account_id\": 18763612,\n  \"detail\": {\n    \"actor_id\": \"7541263236734\",\n    \"assignee_id\": \"1263082229389\",\n    \"brand_id\": \"7541224243070\",\n    \"created_at\": \"2025-01-14T20:28:41Z\",\n    \"custom_status\": \"7541283637630\",\n    \"description\": \"OCR Queues Regression Tests\",\n    \"external_id\": null,\n    \"form_id\": \"7541224236414\",\n    \"group_id\": \"8658740085118\",\n    \"id\": \"14038\",\n    \"is_public\": true,\n    \"organization_id\": \"7541283638526\",\n    \"priority\": \"HIGH\",\n    \"requester_id\": \"7541263236734\",\n    \"status\": \"OPEN\",\n    \"subject\": \"Alpha top - group over queue\",\n    \"submitter_id\": \"7541263236734\",\n    \"tags\": [\n      \"alpha\",\n      \"route_me60c7a3dd4a\"\n    ],\n    \"type\": null,\n    \"updated_at\": \"2025-01-14T20:28:44Z\",\n    \"via\": {\n      \"channel\": \"web_form\"\n    }\n  },\n  \"event\": {\n    \"current\": \"1263082229389\",\n    \"meta\": {\n      \"sequence\": {\n        \"id\": \"39313930383633353634323835\",\n        \"position\": 1\n      }\n    },\n    \"previous\": null\n  },\n  \"id\": \"7096ffe1-d6ac-4f92-bd1f-3acaa138cc79\",\n  \"subject\": \"zen:ticket:14038\",\n  \"time\": \"2025-01-14T20:28:44.096553460Z\",\n  \"type\": \"zen:event-type:ticket.created\",\n  \"zendesk_event_version\": \"2022-11-06\"\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"GET\",\n    \"url\": \"https://api.github.com/repos/{owner}/{repo}/issues\",\n    \"response\": {\n      \"items\": [\n        {\n          \"number\": 42,\n          \"title\": \"OCR Queues Regression Tests\",\n          \"body\": \"OCR Queues Regression Tests\",\n          \"html_url\": \"https://github.com/octocat/example/issues/42\"\n        }\n      ]\n    }\n  },\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://api.github.com/repos/{owner}/{repo}/issues\",\n    \"response\": {\n      \"number\": 43,\n      \"html_url\": \"https://github.com/octocat/example/issues/43\"\n    }\n  },\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://{subdomain}.zendesk.com/api/v2/tickets/{ticket_id}/comments.json\",\n    \"response\": {\n      \"comment\": {\n        \"id\": 12345,\n        \"body\": \"GitHub issue created: https://github.com/octocat/example/issues/43\",\n        \"public\": true\n      }\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ],
+      "report": {
+        "typecheckOk": true,
+        "typecheckOutput": "",
+        "passed": 10,
+        "failed": 0,
+        "total": 10,
+        "failures": [],
+        "durationMs": 285.478759765625,
+        "ranOn": "nebius-sandbox:01a10b39-cd67-7577-b3cf-a0729a72fedf",
+        "passedNames": [
+          "contract handles the documented example payload",
+          "handle happy path: searches, finds existing issue, posts comment",
+          "handle happy path: searches, creates new issue when not found, posts comment",
+          "handle validates required field: detail.subject",
+          "handle validates required field: detail.description",
+          "handle validates required field: detail.id",
+          "handle throws on non-2xx GitHub list issues response",
+          "handle throws on non-2xx GitHub create issue response",
+          "handle throws on non-2xx Zendesk comment response",
+          "handle uses injected fetch from config"
+        ],
+        "contract": "passed"
+      }
+    },
+    {
+      "type": "step",
+      "step": "package",
+      "status": "done"
+    }
+  ]
+}

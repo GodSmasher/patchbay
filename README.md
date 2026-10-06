@@ -1,7 +1,7 @@
 # patchbay
 
 [![ci](https://github.com/GodSmasher/patchbay/actions/workflows/ci.yml/badge.svg)](https://github.com/GodSmasher/patchbay/actions/workflows/ci.yml)
-[![benchmark](https://img.shields.io/badge/benchmark-85%25%20green%20over%2060%20runs-brightgreen)](bench/RESULTS-variance.md)
+[![benchmark](https://img.shields.io/badge/benchmark-90%25%20green%20over%2092%20runs-brightgreen)](bench/RESULTS-variance.md)
 [![mcp](https://img.shields.io/badge/MCP-stdio-6938EF)](docs/mcp-setup.md)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![nebius](https://img.shields.io/badge/powered%20by-Nebius%20Token%20Factory-0F172A)](https://tokenfactory.nebius.com)
@@ -40,7 +40,7 @@ Three tools (`build_connector`, `research_api`, `verify_code`) with live progres
 
 ## Status
 
-Live benchmark (2026-10-02, Nebius sandbox): **85% green over 60 runs** (3 passes × 20 integrations), **33% first-try**, **$1.04 ± $0.13 per 20-prompt pass** (≈ $0.05 per connector). 13 of 20 prompts finished 3/3 green across all passes; one case (Linear → Discord cursor pagination) finished 1/3. The hard half of the benchmark covers HMAC verification, 429 retry with Retry-After, Idempotency-Key, cursor pagination, chained search-or-create and signature-driven routing. Full breakdown: [bench/RESULTS-variance.md](bench/RESULTS-variance.md).
+Live benchmark (2026-10-06, Nebius sandbox): **90.2% green over 92 runs** (up to 5 passes × 20 integrations), **52.2% first-try**, **$1.39 ± $0.29 per 20-prompt pass** (≈ $0.07 per connector). Eight integrations finished 5/5 green across all passes, three of those first-try every time (Typeform→Pipedrive, Shopify→Airtable, Jotform→Asana). The hard half of the benchmark covers HMAC verification, 429 retry with Retry-After, Idempotency-Key, cursor pagination, chained search-or-create and signature-driven routing. The pre-sandbox esbuild parse check plus parallel repair branches (temperatures 0.1 / 0.4) nearly doubled the first-try rate vs. the 2026-10-02 baseline (33% → 52%). Full breakdown: [bench/RESULTS-variance.md](bench/RESULTS-variance.md).
 
 ## Dev
 

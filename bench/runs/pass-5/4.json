@@ -1,0 +1,497 @@
+{
+  "prompt": "When a GitHub issue gets the label \"bug\", create an issue in Linear in the Triage team.",
+  "events": [
+    {
+      "type": "mode",
+      "mode": "live"
+    },
+    {
+      "type": "step",
+      "step": "plan",
+      "status": "start"
+    },
+    {
+      "type": "plan",
+      "plan": {
+        "summary": "When a GitHub issue receives the label 'bug', create a corresponding issue in the Linear Triage team.",
+        "source": {
+          "app": "GitHub",
+          "trigger": "issues",
+          "docsQuery": "GitHub issues webhook label event payload fields"
+        },
+        "target": {
+          "app": "Linear",
+          "action": "create issue",
+          "docsQuery": "Linear API create issue endpoint fields"
+        },
+        "fieldMapping": [
+          {
+            "from": "issue.title",
+            "to": "title",
+            "note": "Title of the GitHub issue"
+          },
+          {
+            "from": "issue.body",
+            "to": "description",
+            "note": "Body/text of the GitHub issue"
+          },
+          {
+            "from": "issue.labels",
+            "to": "labels",
+            "note": "Extract the 'bug' label or pass all labels; Linear expects an array"
+          },
+          {
+            "from": "issue.user.login",
+            "to": "author",
+            "note": "GitHub username of the issue author"
+          },
+          {
+            "from": "issue.html_url",
+            "to": "url",
+            "note": "Permanent link to the GitHub issue"
+          }
+        ],
+        "assumptions": [
+          "The GitHub webhook payload includes the issue object with title, body, labels array, user object, and html_url.",
+          "The Linear API expects a title (string), description (string?), labels (array of strings), and author (string or user ID).",
+          "The Linear team ID for 'Triage' is known or can be resolved from the user's Linear workspace.",
+          "The integration will map the GitHub issue labels array to Linear labels; at minimum the 'bug' label should be present."
+        ]
+      }
+    },
+    {
+      "type": "step",
+      "step": "plan",
+      "status": "done",
+      "detail": "When a GitHub issue receives the label 'bug', create a corresponding issue in the Linear Triage team."
+    },
+    {
+      "type": "step",
+      "step": "research",
+      "status": "start"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Installing typescript + vitest in a sandbox checkpoint"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Searched \"Linear API create issue endpoint fields\": 1 of 2 picked from Linear's own docs"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Searched \"GitHub issues webhook label event payload fields\": 1 of 2 picked from GitHub's own docs"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Extracted 4 documentation pages"
+    },
+    {
+      "type": "sources",
+      "sources": [
+        {
+          "title": "`IssueCommentWebhookEventPayload` Missing Fields · Issue #810 · XAMPPRocky/octocrab · GitHub",
+          "url": "https://github.com/XAMPPRocky/octocrab/issues/810",
+          "official": true
+        },
+        {
+          "title": "GitHub Webhooks: Complete Guide with Event Examples",
+          "url": "https://www.magicbell.com/blog/github-webhooks-guide",
+          "official": false
+        },
+        {
+          "title": "Create issues – Linear Docs",
+          "url": "https://linear.app/docs/creating-issues",
+          "official": true
+        },
+        {
+          "title": "Linear | Appsmith",
+          "url": "https://docs.appsmith.com/connect-data/reference/linear",
+          "official": false
+        }
+      ]
+    },
+    {
+      "type": "spec",
+      "spec": {
+        "source": {
+          "app": "GitHub",
+          "role": "source",
+          "method": "POST",
+          "url": "(webhook delivery URL configured by user)",
+          "auth": {
+            "type": "header",
+            "name": "X-Hub-Signature-256",
+            "envVar": "GITHUB_WEBHOOK_SECRET"
+          },
+          "example": {
+            "action": "labeled",
+            "issue": {
+              "title": "Fix login button alignment",
+              "body": "The login button is misaligned on mobile screens. Needs CSS fix.",
+              "labels": [
+                {
+                  "name": "bug",
+                  "color": "d73a4a"
+                },
+                {
+                  "name": "frontend",
+                  "color": "fbca04"
+                }
+              ],
+              "user": {
+                "login": "alice-dev"
+              },
+              "html_url": "https://github.com/org/repo/issues/123"
+            },
+            "repository": {
+              "full_name": "org/repo"
+            },
+            "sender": {
+              "login": "alice-dev"
+            }
+          },
+          "docsUrl": "https://www.magicbell.com/blog/github-webhooks-guide",
+          "notes": [
+            "The webhook must be subscribed to the 'issues' event.",
+            "The payload includes 'action' field; for label events, action will be 'labeled' or 'unlabeled'.",
+            "The 'labels' array contains objects with 'name', 'color', etc.; extract label names via mapping.",
+            "Verify signature using X-Hub-Signature-256 header with HMAC-SHA256.",
+            "Respond with 2xx status within 10 seconds.",
+            "Use X-GitHub-Delivery header as idempotency key to avoid duplicate processing."
+          ]
+        },
+        "target": [
+          {
+            "app": "Linear",
+            "role": "target",
+            "method": "POST",
+            "url": "https://api.linear.app/graphql",
+            "auth": {
+              "type": "bearer",
+              "envVar": "LINEAR_API_KEY"
+            },
+            "example": {
+              "query": "mutation IssueCreate($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { id identifier title description url } } }",
+              "variables": {
+                "input": {
+                  "title": "Fix login button alignment",
+                  "description": "The login button is misaligned on mobile screens. Needs CSS fix.",
+                  "teamId": "abc-123-team-uuid",
+                  "labelIds": [
+                    "label-uuid-for-bug"
+                  ],
+                  "authorId": "user-uuid-for-alice-dev"
+                }
+              }
+            },
+            "responseExample": {
+              "data": {
+                "issueCreate": {
+                  "success": true,
+                  "issue": {
+                    "id": "issue-uuid-123",
+                    "identifier": "TRI-456",
+                    "title": "Fix login button alignment",
+                    "description": "The login button is misaligned on mobile screens. Needs CSS fix.",
+                    "url": "https://linear.app/tri/issue/TRI-456/"
+                  }
+                }
+              }
+            },
+            "docsUrl": "https://docs.appsmith.com/connect-data/reference/linear",
+            "notes": [
+              "Linear API is GraphQL; requires POST to /graphql with query and variables.",
+              "Team ID (UUID) is required; must be obtained from Linear team settings or API.",
+              "Labels must be provided as labelIds array (UUIDs); need to map label names to UUIDs via separate lookup.",
+              "Author can be specified via authorId (UUID) or assigneeId; requires resolving GitHub username to Linear user ID.",
+              "Description field supports Markdown.",
+              "No pagination involved in issue creation.",
+              "Authentication via Bearer token using LINEAR_API_KEY environment variable."
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "step",
+      "step": "research",
+      "status": "done",
+      "detail": "2 endpoints from 4 pages"
+    },
+    {
+      "type": "step",
+      "step": "generate",
+      "status": "start"
+    },
+    {
+      "type": "files",
+      "attempt": 1,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "export interface ConnectorConfig {\n  /** Secret used to verify the X-Hub-Signature-256 header (HMAC-SHA256). */\n  githubWebhookSecret: string\n  /** Linear API Bearer token. */\n  linearApiKey: string\n  /** UUID of the Linear team that receives triage issues (e.g. \"Triage\"). */\n  linearTeamId: string\n  /** Mapping from GitHub label name to Linear label UUID. Must contain at least \"bug\". */\n  linearLabelIdMap: Record<string, string>\n  /** Mapping from GitHub username (issue.user.login) to Linear user UUID. */\n  linearAuthorIdMap: Record<string, string>\n  /** Fallback Linear user UUID when the GitHub username is not in linearAuthorIdMap. */\n  defaultAuthorId?: string\n  /** Injected fetch for testing; defaults to global fetch. */\n  fetch?: typeof fetch\n}\n\nexport interface GitHubIssuePayload {\n  action: string\n  issue: {\n    title: string\n    body: string | null\n    labels: Array<{ name: string; color: string }>\n    user: { login: string }\n    html_url: string\n  }\n  repository: { full_name: string }\n  sender: { login: string }\n}\n\nexport interface HandleResult {\n  linearIssueId: string\n  linearIssueIdentifier: string\n  linearIssueUrl: string\n}\n\nconst LINEAR_GRAPHQL_ENDPOINT = 'https://api.linear.app/graphql'\n\nconst ISSUE_CREATE_MUTATION = `\nmutation IssueCreate($input: IssueCreateInput!) {\n  issueCreate(input: $input) {\n    success\n    issue {\n      id\n      identifier\n      title\n      description\n      url\n    }\n  }\n}\n`\n\nfunction validatePayload(payload: GitHubIssuePayload): void {\n  if (!payload.action) throw new Error('Missing required field: action')\n  if (payload.action !== 'labeled') {\n    throw new Error(`Unsupported action \"${payload.action}\": only \"labeled\" is handled`)\n  }\n  if (!payload.issue) throw new Error('Missing required field: issue')\n  if (!payload.issue.title) throw new Error('Missing required field: issue.title')\n  if (!Array.isArray(payload.issue.labels) || payload.issue.labels.length === 0) {\n    throw new Error('Missing required field: issue.labels (must be a non-empty array)')\n  }\n  const hasBugLabel = payload.issue.labels.some((l) => l.name === 'bug')\n  if (!hasBugLabel) throw new Error('Issue does not have the \"bug\" label')\n  if (!payload.issue.user?.login) throw new Error('Missing required field: issue.user.login')\n  if (!payload.issue.html_url) throw new Error('Missing required field: issue.html_url')\n}\n\nfunction buildLinearVariables(payload: GitHubIssuePayload, config: ConnectorConfig): Record<string, unknown> {\n  const labelNames = payload.issue.labels.map((l) => l.name)\n  const labelIds = labelNames\n    .map((name) => config.linearLabelIdMap[name])\n    .filter((id): id is string => Boolean(id))\n\n  if (labelIds.length === 0) {\n    throw new Error('None of the issue labels could be mapped to Linear label IDs')\n  }\n\n  const authorId = config.linearAuthorIdMap[payload.issue.user.login] ?? config.defaultAuthorId\n  if (!authorId) {\n    throw new Error(\n      `No Linear author ID found for GitHub user \"${payload.issue.user.login}\" and no defaultAuthorId configured`\n    )\n  }\n\n  return {\n    input: {\n      title: payload.issue.title,\n      description: payload.issue.body ?? '',\n      teamId: config.linearTeamId,\n      labelIds,\n      authorId,\n    },\n  }\n}\n\nexport async function handle(payload: GitHubIssuePayload, config: ConnectorConfig): Promise<HandleResult> {\n  validatePayload(payload)\n\n  const fetchImpl = config.fetch ?? fetch\n  const variables = buildLinearVariables(payload, config)\n\n  const response = await fetchImpl(LINEAR_GRAPHQL_ENDPOINT, {\n    method: 'POST',\n    headers: {\n      'Content-Type': 'application/json',\n      Authorization: `Bearer ${config.linearApiKey}`,\n    },\n    body: JSON.stringify({ query: ISSUE_CREATE_MUTATION, variables }),\n  })\n\n  if (!response.ok) {\n    throw new Error(`Linear API error: ${response.status} ${response.statusText} at ${LINEAR_GRAPHQL_ENDPOINT}`)\n  }\n\n  const data = (await response.json()) as {\n    data?: { issueCreate?: { success?: boolean; issue?: { id: string; identifier: string; url: string } } }\n    errors?: Array<{ message: string }>\n  }\n\n  if (data.errors?.length) {\n    throw new Error(`Linear GraphQL errors: ${data.errors.map((e) => e.message).join(', ')}`)\n  }\n\n  const issue = data.data?.issueCreate?.issue\n  if (!issue || data.data?.issueCreate?.success !== true) {\n    throw new Error('Linear API returned unexpected response shape')\n  }\n\n  return {\n    linearIssueId: issue.id,\n    linearIssueIdentifier: issue.identifier,\n    linearIssueUrl: issue.url,\n  }\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi } from 'vitest'\nimport { handle, ConnectorConfig, GitHubIssuePayload, HandleResult } from './connector'\nimport {\n  SOURCE_EXAMPLE,\n  contractFetch,\n  fakeFetch,\n  jsonResponse,\n  TARGET_ENDPOINTS,\n} from './fixtures'\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch()\n    const config: ConnectorConfig = {\n      githubWebhookSecret: 'test-secret',\n      linearApiKey: 'test-linear-key',\n      linearTeamId: 'abc-123-team-uuid',\n      linearLabelIdMap: { bug: 'label-uuid-for-bug', frontend: 'label-uuid-for-frontend' },\n      linearAuthorIdMap: { 'alice-dev': 'user-uuid-for-alice-dev' },\n      fetch,\n    }\n    const result = await handle(SOURCE_EXAMPLE as unknown as GitHubIssuePayload, config)\n    expect(calls.length).toBeGreaterThan(0)\n    expect(result.linearIssueId).toBe('issue-uuid-123')\n    expect(result.linearIssueIdentifier).toBe('TRI-456')\n    expect(result.linearIssueUrl).toBe('https://linear.app/tri/issue/TRI-456/')\n  })\n})\n\ndescribe('handle', () => {\n  const baseConfig: ConnectorConfig = {\n    githubWebhookSecret: 'test-secret',\n    linearApiKey: 'test-linear-key',\n    linearTeamId: 'abc-123-team-uuid',\n    linearLabelIdMap: { bug: 'label-uuid-for-bug', frontend: 'label-uuid-for-frontend' },\n    linearAuthorIdMap: { 'alice-dev': 'user-uuid-for-alice-dev' },\n  }\n\n  it('maps fields correctly and calls Linear GraphQL endpoint', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      expect(req.method).toBe('POST')\n      expect(req.url).toBe('https://api.linear.app/graphql')\n      expect(req.headers.get('authorization')).toBe('Bearer test-linear-key')\n      const body = req.json as { query: string; variables: { input: Record<string, unknown> } }\n      expect(body.query).toContain('mutation IssueCreate')\n      expect(body.variables.input.title).toBe('Fix login button alignment')\n      expect(body.variables.input.description).toBe('The login button is misaligned on mobile screens. Needs CSS fix.')\n      expect(body.variables.input.teamId).toBe('abc-123-team-uuid')\n      expect(body.variables.input.labelIds).toEqual(['label-uuid-for-bug', 'label-uuid-for-frontend'])\n      expect(body.variables.input.authorId).toBe('user-uuid-for-alice-dev')\n      return jsonResponse(TARGET_ENDPOINTS[0].response)\n    })\n\n    const result = await handle(SOURCE_EXAMPLE as unknown as GitHubIssuePayload, { ...baseConfig, fetch })\n    expect(result.linearIssueId).toBe('issue-uuid-123')\n    expect(calls.length).toBe(1)\n  })\n\n  it('uses defaultAuthorId when GitHub user not in map', async () => {\n    const payload = { ...SOURCE_EXAMPLE, issue: { ...SOURCE_EXAMPLE.issue, user: { login: 'unknown-user' } } }\n    const { fetch, calls } = fakeFetch((req) => {\n      const body = req.json as { variables: { input: { authorId: string } } }\n      expect(body.variables.input.authorId).toBe('default-user-uuid')\n      return jsonResponse(TARGET_ENDPOINTS[0].response)\n    })\n\n    const config = { ...baseConfig, defaultAuthorId: 'default-user-uuid', fetch }\n    const result = await handle(payload as unknown as GitHubIssuePayload, config)\n    expect(result.linearIssueId).toBe('issue-uuid-123')\n    expect(calls.length).toBe(1)\n  })\n\n  it('throws when action is not labeled', async () => {\n    const payload = { ...SOURCE_EXAMPLE, action: 'unlabeled' }\n    await expect(handle(payload as unknown as GitHubIssuePayload, baseConfig)).rejects.toThrow(\n      'Unsupported action \"unlabeled\"'\n    )\n  })\n\n  it('throws when bug label is missing', async () => {\n    const payload = {\n      ...SOURCE_EXAMPLE,\n      issue: { ...SOURCE_EXAMPLE.issue, labels: [{ name: 'frontend', color: 'fbca04' }] },\n    }\n    await expect(handle(payload as unknown as GitHubIssuePayload, baseConfig)).rejects.toThrow(\n      'Issue does not have the \"bug\" label'\n    )\n  })\n\n  it('throws when required field issue.title is missing', async () => {\n    const payload = { ...SOURCE_EXAMPLE, issue: { ...SOURCE_EXAMPLE.issue, title: '' } }\n    await expect(handle(payload as unknown as GitHubIssuePayload, baseConfig)).rejects.toThrow(\n      'Missing required field: issue.title'\n    )\n  })\n\n  it('throws when required field issue.user.login is missing', async () => {\n    const payload = { ...SOURCE_EXAMPLE, issue: { ...SOURCE_EXAMPLE.issue, user: { login: '' } } }\n    await expect(handle(payload as unknown as GitHubIssuePayload, baseConfig)).rejects.toThrow(\n      'Missing required field: issue.user.login'\n    )\n  })\n\n  it('throws when no labels can be mapped to Linear label IDs', async () => {\n    const payload = {\n      ...SOURCE_EXAMPLE,\n      issue: { ...SOURCE_EXAMPLE.issue, labels: [{ name: 'unknown-label', color: '000000' }] },\n    }\n    await expect(handle(payload as unknown as GitHubIssuePayload, baseConfig)).rejects.toThrow(\n      'None of the issue labels could be mapped to Linear label IDs'\n    )\n  })\n\n  it('throws when author cannot be resolved and no defaultAuthorId', async () => {\n    const payload = { ...SOURCE_EXAMPLE, issue: { ...SOURCE_EXAMPLE.issue, user: { login: 'ghost' } } }\n    await expect(handle(payload as unknown as GitHubIssuePayload, baseConfig)).rejects.toThrow(\n      'No Linear author ID found for GitHub user \"ghost\"'\n    )\n  })\n\n  it('throws on non-2xx response from Linear API', async () => {\n    const { fetch, calls } = fakeFetch(() => jsonResponse({ error: 'Unauthorized' }, 401))\n    await expect(handle(SOURCE_EXAMPLE as unknown as GitHubIssuePayload, { ...baseConfig, fetch })).rejects.toThrow(\n      'Linear API error: 401 Unauthorized at https://api.linear.app/graphql'\n    )\n    expect(calls.length).toBe(1)\n  })\n\n  it('throws on GraphQL errors in response', async () => {\n    const { fetch, calls } = fakeFetch(() =>\n      jsonResponse({ errors: [{ message: 'Team not found' }] }, 200)\n    )\n    await expect(handle(SOURCE_EXAMPLE as unknown as GitHubIssuePayload, { ...baseConfig, fetch })).rejects.toThrow(\n      'Linear GraphQL errors: Team not found'\n    )\n    expect(calls.length).toBe(1)\n  })\n\n  it('throws on unexpected response shape', async () => {\n    const { fetch, calls } = fakeFetch(() => jsonResponse({ data: { issueCreate: { success: false } } }, 200))\n    await expect(handle(SOURCE_EXAMPLE as unknown as GitHubIssuePayload, { ...baseConfig, fetch })).rejects.toThrow(\n      'Linear API returned unexpected response shape'\n    )\n    expect(calls.length).toBe(1)\n  })\n})\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# GitHub → Linear Bug Triage Connector\n\nCreates a Linear issue in the Triage team when a GitHub issue receives the `bug` label.\n\n## What it does\n\n1. Receives a GitHub `issues` webhook payload (action: `labeled`).\n2. Validates that the issue has the `bug` label.\n3. Maps GitHub issue fields to Linear's GraphQL `IssueCreate` mutation.\n4. Calls the Linear API to create the issue.\n5. Returns the created Linear issue's ID, identifier, and URL.\n\n## Configuration\n\nAll secrets and IDs are provided via the `ConnectorConfig` object (typically sourced from environment variables).\n\n| Config property | Environment variable | Description |\n|-----------------|----------------------|-------------|\n| `githubWebhookSecret` | `GITHUB_WEBHOOK_SECRET` | Secret for verifying `X-Hub-Signature-256` (HMAC-SHA256). Verification is expected to be performed by the webhook receiver before calling `handle`. |\n| `linearApiKey` | `LINEAR_API_KEY` | Bearer token for Linear API authentication. |\n| `linearTeamId` | `LINEAR_TRIAGE_TEAM_ID` | UUID of the Linear team that receives triage issues (e.g. \"Triage\"). |\n| `linearLabelIdMap` | — | Object mapping GitHub label names to Linear label UUIDs. Must include at least `\"bug\"`. |\n| `linearAuthorIdMap` | — | Object mapping GitHub usernames (`issue.user.login`) to Linear user UUIDs. |\n| `defaultAuthorId` | `LINEAR_DEFAULT_AUTHOR_ID` | (Optional) Fallback Linear user UUID when a GitHub user is not in `linearAuthorIdMap`. |\n\n## Usage example\n\n```typescript\nimport { handle, ConnectorConfig, GitHubIssuePayload } from './connector'\n\nconst config: ConnectorConfig = {\n  githubWebhookSecret: process.env.GITHUB_WEBHOOK_SECRET!,\n  linearApiKey: process.env.LINEAR_API_KEY!,\n  linearTeamId: process.env.LINEAR_TRIAGE_TEAM_ID!,\n  linearLabelIdMap: {\n    bug: process.env.LINEAR_LABEL_BUG_ID!,\n    frontend: process.env.LINEAR_LABEL_FRONTEND_ID!,\n    // ...other labels\n  },\n  linearAuthorIdMap: {\n    'alice-dev': process.env.LINEAR_USER_ALICE_ID!,\n    'bob-dev': process.env.LINEAR_USER_BOB_ID!,\n  },\n  defaultAuthorId: process.env.LINEAR_DEFAULT_AUTHOR_ID,\n}\n\n// In your webhook handler (after signature verification):\nconst payload = req.body as GitHubIssuePayload\nconst result = await handle(payload, config)\nconsole.log(`Created Linear issue ${result.linearIssueIdentifier}: ${result.linearIssueUrl}`)\n```\n\n## Assumptions\n\n- The GitHub webhook is subscribed to the `issues` event and delivers `action: \"labeled\"` payloads.\n- The payload includes `issue.title`, `issue.body`, `issue.labels[]`, `issue.user.login`, and `issue.html_url`.\n- The Linear team ID for \"Triage\" is known and configured as `linearTeamId`.\n- Linear label UUIDs for GitHub label names are known and provided in `linearLabelIdMap` (at minimum `bug`).\n- Linear user UUIDs for GitHub usernames are known and provided in `linearAuthorIdMap`, with an optional `defaultAuthorId` fallback.\n- Signature verification (`X-Hub-Signature-256`) is handled by the webhook receiver before invoking `handle`; the connector does not re-verify.\n- The Linear GraphQL endpoint `https://api.linear.app/graphql` accepts the `IssueCreate` mutation as documented.\n- Description supports Markdown; the GitHub issue body is passed through directly.\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://www.magicbell.com/blog/github-webhooks-guide\n// Source: https://docs.appsmith.com/connect-data/reference/linear\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"action\": \"labeled\",\n  \"issue\": {\n    \"title\": \"Fix login button alignment\",\n    \"body\": \"The login button is misaligned on mobile screens. Needs CSS fix.\",\n    \"labels\": [\n      {\n        \"name\": \"bug\",\n        \"color\": \"d73a4a\"\n      },\n      {\n        \"name\": \"frontend\",\n        \"color\": \"fbca04\"\n      }\n    ],\n    \"user\": {\n      \"login\": \"alice-dev\"\n    },\n    \"html_url\": \"https://github.com/org/repo/issues/123\"\n  },\n  \"repository\": {\n    \"full_name\": \"org/repo\"\n  },\n  \"sender\": {\n    \"login\": \"alice-dev\"\n  }\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://api.linear.app/graphql\",\n    \"response\": {\n      \"data\": {\n        \"issueCreate\": {\n          \"success\": true,\n          \"issue\": {\n            \"id\": \"issue-uuid-123\",\n            \"identifier\": \"TRI-456\",\n            \"title\": \"Fix login button alignment\",\n            \"description\": \"The login button is misaligned on mobile screens. Needs CSS fix.\",\n            \"url\": \"https://linear.app/tri/issue/TRI-456/\"\n          }\n        }\n      }\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ]
+    },
+    {
+      "type": "step",
+      "step": "generate",
+      "status": "done",
+      "detail": "src/connector.ts, src/connector.test.ts, README.md, src/fixtures.ts"
+    },
+    {
+      "type": "step",
+      "step": "verify",
+      "status": "start"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Checkpoint ready: b5c85c00"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Forking checkpoint b5c85c00 with 4 files, network off"
+    },
+    {
+      "type": "tests",
+      "attempt": 1,
+      "report": {
+        "typecheckOk": true,
+        "typecheckOutput": "",
+        "passed": 11,
+        "failed": 1,
+        "total": 12,
+        "failures": [
+          {
+            "name": "handle throws when no labels can be mapped to Linear label IDs",
+            "message": "AssertionError: expected [Function] to throw error including 'None of the issue labels could be map…' but got 'Issue does not have the \"bug\" label'\n    at _Assertion.<anonymous> (file:///work/node_modules/@vitest/expect/dist/index.js:1420:16)\n    at _Assertion.<anonymous> (file:///work/node_modules/@vitest/expect/dist/index.js:1029:14)\n    at _Assertion.methodWrapper (file:///work/node_modules/chai/index.js:1686:25)\n    at file:///work/node_modules/@vitest/expect/dist/index.js:1639:20\n    at processTicksAndRejections (node:internal/process/task_queues:103:5)"
+          }
+        ],
+        "durationMs": 319.507080078125,
+        "ranOn": "nebius-sandbox:01a10b3c-1677-74ce-ad74-3c08cdb92243",
+        "passedNames": [
+          "contract handles the documented example payload",
+          "handle maps fields correctly and calls Linear GraphQL endpoint",
+          "handle uses defaultAuthorId when GitHub user not in map",
+          "handle throws when action is not labeled",
+          "handle throws when bug label is missing",
+          "handle throws when required field issue.title is missing",
+          "handle throws when required field issue.user.login is missing",
+          "handle throws when author cannot be resolved and no defaultAuthorId",
+          "handle throws on non-2xx response from Linear API",
+          "handle throws on GraphQL errors in response",
+          "handle throws on unexpected response shape"
+        ],
+        "contract": "passed"
+      }
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Attempt 1 failed (1 tests, typecheck ok), repairing"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Repairing with 2 parallel branches (temperatures 0.1, 0.4)"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "[branch 2] Forking checkpoint b5c85c00 with 4 files, network off"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "[branch 1] Forking checkpoint b5c85c00 with 4 files, network off"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "branch 1: 12/12, typecheck ok, contract passed"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "branch 2: 0/2, typecheck failed, contract failed"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Chose branch 1 (first green)"
+    },
+    {
+      "type": "files",
+      "attempt": 2,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "export interface ConnectorConfig {\n  /** Secret used to verify the X-Hub-Signature-256 header (HMAC-SHA256). */\n  githubWebhookSecret: string\n  /** Linear API Bearer token. */\n  linearApiKey: string\n  /** UUID of the Linear team that receives triage issues (e.g. \"Triage\"). */\n  linearTeamId: string\n  /** Mapping from GitHub label name to Linear label UUID. Must contain at least \"bug\". */\n  linearLabelIdMap: Record<string, string>\n  /** Mapping from GitHub username (issue.user.login) to Linear user UUID. */\n  linearAuthorIdMap: Record<string, string>\n  /** Fallback Linear user UUID when the GitHub username is not in linearAuthorIdMap. */\n  defaultAuthorId?: string\n  /** Injected fetch for testing; defaults to global fetch. */\n  fetch?: typeof fetch\n}\n\nexport interface GitHubIssuePayload {\n  action: string\n  issue: {\n    title: string\n    body: string | null\n    labels: Array<{ name: string; color: string }>\n    user: { login: string }\n    html_url: string\n  }\n  repository: { full_name: string }\n  sender: { login: string }\n}\n\nexport interface HandleResult {\n  linearIssueId: string\n  linearIssueIdentifier: string\n  linearIssueUrl: string\n}\n\nconst LINEAR_GRAPHQL_ENDPOINT = 'https://api.linear.app/graphql'\n\nconst ISSUE_CREATE_MUTATION = `\nmutation IssueCreate($input: IssueCreateInput!) {\n  issueCreate(input: $input) {\n    success\n    issue {\n      id\n      identifier\n      title\n      description\n      url\n    }\n  }\n}\n`\n\nfunction validatePayload(payload: GitHubIssuePayload): void {\n  if (!payload.action) throw new Error('Missing required field: action')\n  if (payload.action !== 'labeled') {\n    throw new Error(`Unsupported action \"${payload.action}\": only \"labeled\" is handled`)\n  }\n  if (!payload.issue) throw new Error('Missing required field: issue')\n  if (!payload.issue.title) throw new Error('Missing required field: issue.title')\n  if (!Array.isArray(payload.issue.labels) || payload.issue.labels.length === 0) {\n    throw new Error('Missing required field: issue.labels (must be a non-empty array)')\n  }\n  const hasBugLabel = payload.issue.labels.some((l) => l.name === 'bug')\n  if (!hasBugLabel) throw new Error('Issue does not have the \"bug\" label')\n  if (!payload.issue.user?.login) throw new Error('Missing required field: issue.user.login')\n  if (!payload.issue.html_url) throw new Error('Missing required field: issue.html_url')\n}\n\nfunction buildLinearVariables(payload: GitHubIssuePayload, config: ConnectorConfig): Record<string, unknown> {\n  const labelNames = payload.issue.labels.map((l) => l.name)\n  const labelIds = labelNames\n    .map((name) => config.linearLabelIdMap[name])\n    .filter((id): id is string => Boolean(id))\n\n  if (labelIds.length === 0) {\n    throw new Error('None of the issue labels could be mapped to Linear label IDs')\n  }\n\n  const authorId = config.linearAuthorIdMap[payload.issue.user.login] ?? config.defaultAuthorId\n  if (!authorId) {\n    throw new Error(\n      `No Linear author ID found for GitHub user \"${payload.issue.user.login}\" and no defaultAuthorId configured`\n    )\n  }\n\n  return {\n    input: {\n      title: payload.issue.title,\n      description: payload.issue.body ?? '',\n      teamId: config.linearTeamId,\n      labelIds,\n      authorId,\n    },\n  }\n}\n\nexport async function handle(payload: GitHubIssuePayload, config: ConnectorConfig): Promise<HandleResult> {\n  validatePayload(payload)\n\n  const fetchImpl = config.fetch ?? fetch\n  const variables = buildLinearVariables(payload, config)\n\n  const response = await fetchImpl(LINEAR_GRAPHQL_ENDPOINT, {\n    method: 'POST',\n    headers: {\n      'Content-Type': 'application/json',\n      Authorization: `Bearer ${config.linearApiKey}`,\n    },\n    body: JSON.stringify({ query: ISSUE_CREATE_MUTATION, variables }),\n  })\n\n  if (!response.ok) {\n    throw new Error(`Linear API error: ${response.status} ${response.statusText} at ${LINEAR_GRAPHQL_ENDPOINT}`)\n  }\n\n  const data = (await response.json()) as {\n    data?: { issueCreate?: { success?: boolean; issue?: { id: string; identifier: string; url: string } } }\n    errors?: Array<{ message: string }>\n  }\n\n  if (data.errors?.length) {\n    throw new Error(`Linear GraphQL errors: ${data.errors.map((e) => e.message).join(', ')}`)\n  }\n\n  const issue = data.data?.issueCreate?.issue\n  if (!issue || data.data?.issueCreate?.success !== true) {\n    throw new Error('Linear API returned unexpected response shape')\n  }\n\n  return {\n    linearIssueId: issue.id,\n    linearIssueIdentifier: issue.identifier,\n    linearIssueUrl: issue.url,\n  }\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi } from 'vitest'\nimport { handle, ConnectorConfig, GitHubIssuePayload, HandleResult } from './connector'\nimport {\n  SOURCE_EXAMPLE,\n  contractFetch,\n  fakeFetch,\n  jsonResponse,\n  TARGET_ENDPOINTS,\n} from './fixtures'\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch()\n    const config: ConnectorConfig = {\n      githubWebhookSecret: 'test-secret',\n      linearApiKey: 'test-linear-key',\n      linearTeamId: 'abc-123-team-uuid',\n      linearLabelIdMap: { bug: 'label-uuid-for-bug', frontend: 'label-uuid-for-frontend' },\n      linearAuthorIdMap: { 'alice-dev': 'user-uuid-for-alice-dev' },\n      fetch,\n    }\n    const result = await handle(SOURCE_EXAMPLE as unknown as GitHubIssuePayload, config)\n    expect(calls.length).toBeGreaterThan(0)\n    expect(result.linearIssueId).toBe('issue-uuid-123')\n    expect(result.linearIssueIdentifier).toBe('TRI-456')\n    expect(result.linearIssueUrl).toBe('https://linear.app/tri/issue/TRI-456/')\n  })\n})\n\ndescribe('handle', () => {\n  const baseConfig: ConnectorConfig = {\n    githubWebhookSecret: 'test-secret',\n    linearApiKey: 'test-linear-key',\n    linearTeamId: 'abc-123-team-uuid',\n    linearLabelIdMap: { bug: 'label-uuid-for-bug', frontend: 'label-uuid-for-frontend' },\n    linearAuthorIdMap: { 'alice-dev': 'user-uuid-for-alice-dev' },\n  }\n\n  it('maps fields correctly and calls Linear GraphQL endpoint', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      expect(req.method).toBe('POST')\n      expect(req.url).toBe('https://api.linear.app/graphql')\n      expect(req.headers.get('authorization')).toBe('Bearer test-linear-key')\n      const body = req.json as { query: string; variables: { input: Record<string, unknown> } }\n      expect(body.query).toContain('mutation IssueCreate')\n      expect(body.variables.input.title).toBe('Fix login button alignment')\n      expect(body.variables.input.description).toBe('The login button is misaligned on mobile screens. Needs CSS fix.')\n      expect(body.variables.input.teamId).toBe('abc-123-team-uuid')\n      expect(body.variables.input.labelIds).toEqual(['label-uuid-for-bug', 'label-uuid-for-frontend'])\n      expect(body.variables.input.authorId).toBe('user-uuid-for-alice-dev')\n      return jsonResponse(TARGET_ENDPOINTS[0].response)\n    })\n\n    const result = await handle(SOURCE_EXAMPLE as unknown as GitHubIssuePayload, { ...baseConfig, fetch })\n    expect(result.linearIssueId).toBe('issue-uuid-123')\n    expect(calls.length).toBe(1)\n  })\n\n  it('uses defaultAuthorId when GitHub user not in map', async () => {\n    const payload = { ...SOURCE_EXAMPLE, issue: { ...SOURCE_EXAMPLE.issue, user: { login: 'unknown-user' } } }\n    const { fetch, calls } = fakeFetch((req) => {\n      const body = req.json as { variables: { input: { authorId: string } } }\n      expect(body.variables.input.authorId).toBe('default-user-uuid')\n      return jsonResponse(TARGET_ENDPOINTS[0].response)\n    })\n\n    const config = { ...baseConfig, defaultAuthorId: 'default-user-uuid', fetch }\n    const result = await handle(payload as unknown as GitHubIssuePayload, config)\n    expect(result.linearIssueId).toBe('issue-uuid-123')\n    expect(calls.length).toBe(1)\n  })\n\n  it('throws when action is not labeled', async () => {\n    const payload = { ...SOURCE_EXAMPLE, action: 'unlabeled' }\n    await expect(handle(payload as unknown as GitHubIssuePayload, baseConfig)).rejects.toThrow(\n      'Unsupported action \"unlabeled\"'\n    )\n  })\n\n  it('throws when bug label is missing', async () => {\n    const payload = {\n      ...SOURCE_EXAMPLE,\n      issue: { ...SOURCE_EXAMPLE.issue, labels: [{ name: 'frontend', color: 'fbca04' }] },\n    }\n    await expect(handle(payload as unknown as GitHubIssuePayload, baseConfig)).rejects.toThrow(\n      'Issue does not have the \"bug\" label'\n    )\n  })\n\n  it('throws when required field issue.title is missing', async () => {\n    const payload = { ...SOURCE_EXAMPLE, issue: { ...SOURCE_EXAMPLE.issue, title: '' } }\n    await expect(handle(payload as unknown as GitHubIssuePayload, baseConfig)).rejects.toThrow(\n      'Missing required field: issue.title'\n    )\n  })\n\n  it('throws when required field issue.user.login is missing', async () => {\n    const payload = { ...SOURCE_EXAMPLE, issue: { ...SOURCE_EXAMPLE.issue, user: { login: '' } } }\n    await expect(handle(payload as unknown as GitHubIssuePayload, baseConfig)).rejects.toThrow(\n      'Missing required field: issue.user.login'\n    )\n  })\n\n  it('throws when no labels can be mapped to Linear label IDs', async () => {\n    const payload = {\n      ...SOURCE_EXAMPLE,\n      issue: { ...SOURCE_EXAMPLE.issue, labels: [{ name: 'bug', color: 'd73a4a' }] },\n    }\n    const config = { ...baseConfig, linearLabelIdMap: { frontend: 'label-uuid-for-frontend' } }\n    await expect(handle(payload as unknown as GitHubIssuePayload, config)).rejects.toThrow(\n      'None of the issue labels could be mapped to Linear label IDs'\n    )\n  })\n\n  it('throws when author cannot be resolved and no defaultAuthorId', async () => {\n    const payload = { ...SOURCE_EXAMPLE, issue: { ...SOURCE_EXAMPLE.issue, user: { login: 'ghost' } } }\n    await expect(handle(payload as unknown as GitHubIssuePayload, baseConfig)).rejects.toThrow(\n      'No Linear author ID found for GitHub user \"ghost\"'\n    )\n  })\n\n  it('throws on non-2xx response from Linear API', async () => {\n    const { fetch, calls } = fakeFetch(() => jsonResponse({ error: 'Unauthorized' }, 401))\n    await expect(handle(SOURCE_EXAMPLE as unknown as GitHubIssuePayload, { ...baseConfig, fetch })).rejects.toThrow(\n      'Linear API error: 401 Unauthorized at https://api.linear.app/graphql'\n    )\n    expect(calls.length).toBe(1)\n  })\n\n  it('throws on GraphQL errors in response', async () => {\n    const { fetch, calls } = fakeFetch(() =>\n      jsonResponse({ errors: [{ message: 'Team not found' }] }, 200)\n    )\n    await expect(handle(SOURCE_EXAMPLE as unknown as GitHubIssuePayload, { ...baseConfig, fetch })).rejects.toThrow(\n      'Linear GraphQL errors: Team not found'\n    )\n    expect(calls.length).toBe(1)\n  })\n\n  it('throws on unexpected response shape', async () => {\n    const { fetch, calls } = fakeFetch(() => jsonResponse({ data: { issueCreate: { success: false } } }, 200))\n    await expect(handle(SOURCE_EXAMPLE as unknown as GitHubIssuePayload, { ...baseConfig, fetch })).rejects.toThrow(\n      'Linear API returned unexpected response shape'\n    )\n    expect(calls.length).toBe(1)\n  })\n})\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# GitHub → Linear Bug Triage Connector\n\nCreates a Linear issue in the Triage team when a GitHub issue receives the `bug` label.\n\n## What it does\n\n1. Receives a GitHub `issues` webhook payload (action: `labeled`).\n2. Validates that the issue has the `bug` label.\n3. Maps GitHub issue fields to Linear's GraphQL `IssueCreate` mutation.\n4. Calls the Linear API to create the issue.\n5. Returns the created Linear issue's ID, identifier, and URL.\n\n## Configuration\n\nAll secrets and IDs are provided via the `ConnectorConfig` object (typically sourced from environment variables).\n\n| Config property | Environment variable | Description |\n|-----------------|----------------------|-------------|\n| `githubWebhookSecret` | `GITHUB_WEBHOOK_SECRET` | Secret for verifying `X-Hub-Signature-256` (HMAC-SHA256). Verification is expected to be performed by the webhook receiver before calling `handle`. |\n| `linearApiKey` | `LINEAR_API_KEY` | Bearer token for Linear API authentication. |\n| `linearTeamId` | `LINEAR_TRIAGE_TEAM_ID` | UUID of the Linear team that receives triage issues (e.g. \"Triage\"). |\n| `linearLabelIdMap` | — | Object mapping GitHub label names to Linear label UUIDs. Must include at least `\"bug\"`. |\n| `linearAuthorIdMap` | — | Object mapping GitHub usernames (`issue.user.login`) to Linear user UUIDs. |\n| `defaultAuthorId` | `LINEAR_DEFAULT_AUTHOR_ID` | (Optional) Fallback Linear user UUID when a GitHub user is not in `linearAuthorIdMap`. |\n\n## Usage example\n\n```typescript\nimport { handle, ConnectorConfig, GitHubIssuePayload } from './connector'\n\nconst config: ConnectorConfig = {\n  githubWebhookSecret: process.env.GITHUB_WEBHOOK_SECRET!,\n  linearApiKey: process.env.LINEAR_API_KEY!,\n  linearTeamId: process.env.LINEAR_TRIAGE_TEAM_ID!,\n  linearLabelIdMap: {\n    bug: process.env.LINEAR_LABEL_BUG_ID!,\n    frontend: process.env.LINEAR_LABEL_FRONTEND_ID!,\n    // ...other labels\n  },\n  linearAuthorIdMap: {\n    'alice-dev': process.env.LINEAR_USER_ALICE_ID!,\n    'bob-dev': process.env.LINEAR_USER_BOB_ID!,\n  },\n  defaultAuthorId: process.env.LINEAR_DEFAULT_AUTHOR_ID,\n}\n\n// In your webhook handler (after signature verification):\nconst payload = req.body as GitHubIssuePayload\nconst result = await handle(payload, config)\nconsole.log(`Created Linear issue ${result.linearIssueIdentifier}: ${result.linearIssueUrl}`)\n```\n\n## Assumptions\n\n- The GitHub webhook is subscribed to the `issues` event and delivers `action: \"labeled\"` payloads.\n- The payload includes `issue.title`, `issue.body`, `issue.labels[]`, `issue.user.login`, and `issue.html_url`.\n- The Linear team ID for \"Triage\" is known and configured as `linearTeamId`.\n- Linear label UUIDs for GitHub label names are known and provided in `linearLabelIdMap` (at minimum `bug`).\n- Linear user UUIDs for GitHub usernames are known and provided in `linearAuthorIdMap`, with an optional `defaultAuthorId` fallback.\n- Signature verification (`X-Hub-Signature-256`) is handled by the webhook receiver before invoking `handle`; the connector does not re-verify.\n- The Linear GraphQL endpoint `https://api.linear.app/graphql` accepts the `IssueCreate` mutation as documented.\n- Description supports Markdown; the GitHub issue body is passed through directly.\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://www.magicbell.com/blog/github-webhooks-guide\n// Source: https://docs.appsmith.com/connect-data/reference/linear\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"action\": \"labeled\",\n  \"issue\": {\n    \"title\": \"Fix login button alignment\",\n    \"body\": \"The login button is misaligned on mobile screens. Needs CSS fix.\",\n    \"labels\": [\n      {\n        \"name\": \"bug\",\n        \"color\": \"d73a4a\"\n      },\n      {\n        \"name\": \"frontend\",\n        \"color\": \"fbca04\"\n      }\n    ],\n    \"user\": {\n      \"login\": \"alice-dev\"\n    },\n    \"html_url\": \"https://github.com/org/repo/issues/123\"\n  },\n  \"repository\": {\n    \"full_name\": \"org/repo\"\n  },\n  \"sender\": {\n    \"login\": \"alice-dev\"\n  }\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://api.linear.app/graphql\",\n    \"response\": {\n      \"data\": {\n        \"issueCreate\": {\n          \"success\": true,\n          \"issue\": {\n            \"id\": \"issue-uuid-123\",\n            \"identifier\": \"TRI-456\",\n            \"title\": \"Fix login button alignment\",\n            \"description\": \"The login button is misaligned on mobile screens. Needs CSS fix.\",\n            \"url\": \"https://linear.app/tri/issue/TRI-456/\"\n          }\n        }\n      }\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ]
+    },
+    {
+      "type": "tests",
+      "attempt": 2,
+      "report": {
+        "typecheckOk": true,
+        "typecheckOutput": "",
+        "passed": 12,
+        "failed": 0,
+        "total": 12,
+        "failures": [],
+        "durationMs": 296.557861328125,
+        "ranOn": "nebius-sandbox:01a10b3c-6902-76dc-a9b6-9f0dfc65d65f",
+        "passedNames": [
+          "contract handles the documented example payload",
+          "handle maps fields correctly and calls Linear GraphQL endpoint",
+          "handle uses defaultAuthorId when GitHub user not in map",
+          "handle throws when action is not labeled",
+          "handle throws when bug label is missing",
+          "handle throws when required field issue.title is missing",
+          "handle throws when required field issue.user.login is missing",
+          "handle throws when no labels can be mapped to Linear label IDs",
+          "handle throws when author cannot be resolved and no defaultAuthorId",
+          "handle throws on non-2xx response from Linear API",
+          "handle throws on GraphQL errors in response",
+          "handle throws on unexpected response shape"
+        ],
+        "contract": "passed"
+      },
+      "branches": [
+        {
+          "branch": 1,
+          "passed": 12,
+          "total": 12,
+          "typecheckOk": true,
+          "green": true
+        },
+        {
+          "branch": 2,
+          "passed": 0,
+          "total": 2,
+          "typecheckOk": false,
+          "green": false
+        }
+      ]
+    },
+    {
+      "type": "step",
+      "step": "verify",
+      "status": "done",
+      "detail": "12/12 tests after 2 attempts"
+    },
+    {
+      "type": "step",
+      "step": "package",
+      "status": "start"
+    },
+    {
+      "type": "usage",
+      "usage": [
+        {
+          "model": "nvidia/Nemotron-3_5-Lightning",
+          "promptTokens": 420,
+          "completionTokens": 380,
+          "costUsd": 0.00011640000000000001
+        },
+        {
+          "model": "nvidia/nemotron-3-super-120b-a12b",
+          "promptTokens": 10858,
+          "completionTokens": 862,
+          "costUsd": 0.0040332
+        },
+        {
+          "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+          "promptTokens": 16812,
+          "completionTokens": 13399,
+          "costUsd": 0.057009
+        }
+      ]
+    },
+    {
+      "type": "result",
+      "ok": true,
+      "attempts": 2,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "export interface ConnectorConfig {\n  /** Secret used to verify the X-Hub-Signature-256 header (HMAC-SHA256). */\n  githubWebhookSecret: string\n  /** Linear API Bearer token. */\n  linearApiKey: string\n  /** UUID of the Linear team that receives triage issues (e.g. \"Triage\"). */\n  linearTeamId: string\n  /** Mapping from GitHub label name to Linear label UUID. Must contain at least \"bug\". */\n  linearLabelIdMap: Record<string, string>\n  /** Mapping from GitHub username (issue.user.login) to Linear user UUID. */\n  linearAuthorIdMap: Record<string, string>\n  /** Fallback Linear user UUID when the GitHub username is not in linearAuthorIdMap. */\n  defaultAuthorId?: string\n  /** Injected fetch for testing; defaults to global fetch. */\n  fetch?: typeof fetch\n}\n\nexport interface GitHubIssuePayload {\n  action: string\n  issue: {\n    title: string\n    body: string | null\n    labels: Array<{ name: string; color: string }>\n    user: { login: string }\n    html_url: string\n  }\n  repository: { full_name: string }\n  sender: { login: string }\n}\n\nexport interface HandleResult {\n  linearIssueId: string\n  linearIssueIdentifier: string\n  linearIssueUrl: string\n}\n\nconst LINEAR_GRAPHQL_ENDPOINT = 'https://api.linear.app/graphql'\n\nconst ISSUE_CREATE_MUTATION = `\nmutation IssueCreate($input: IssueCreateInput!) {\n  issueCreate(input: $input) {\n    success\n    issue {\n      id\n      identifier\n      title\n      description\n      url\n    }\n  }\n}\n`\n\nfunction validatePayload(payload: GitHubIssuePayload): void {\n  if (!payload.action) throw new Error('Missing required field: action')\n  if (payload.action !== 'labeled') {\n    throw new Error(`Unsupported action \"${payload.action}\": only \"labeled\" is handled`)\n  }\n  if (!payload.issue) throw new Error('Missing required field: issue')\n  if (!payload.issue.title) throw new Error('Missing required field: issue.title')\n  if (!Array.isArray(payload.issue.labels) || payload.issue.labels.length === 0) {\n    throw new Error('Missing required field: issue.labels (must be a non-empty array)')\n  }\n  const hasBugLabel = payload.issue.labels.some((l) => l.name === 'bug')\n  if (!hasBugLabel) throw new Error('Issue does not have the \"bug\" label')\n  if (!payload.issue.user?.login) throw new Error('Missing required field: issue.user.login')\n  if (!payload.issue.html_url) throw new Error('Missing required field: issue.html_url')\n}\n\nfunction buildLinearVariables(payload: GitHubIssuePayload, config: ConnectorConfig): Record<string, unknown> {\n  const labelNames = payload.issue.labels.map((l) => l.name)\n  const labelIds = labelNames\n    .map((name) => config.linearLabelIdMap[name])\n    .filter((id): id is string => Boolean(id))\n\n  if (labelIds.length === 0) {\n    throw new Error('None of the issue labels could be mapped to Linear label IDs')\n  }\n\n  const authorId = config.linearAuthorIdMap[payload.issue.user.login] ?? config.defaultAuthorId\n  if (!authorId) {\n    throw new Error(\n      `No Linear author ID found for GitHub user \"${payload.issue.user.login}\" and no defaultAuthorId configured`\n    )\n  }\n\n  return {\n    input: {\n      title: payload.issue.title,\n      description: payload.issue.body ?? '',\n      teamId: config.linearTeamId,\n      labelIds,\n      authorId,\n    },\n  }\n}\n\nexport async function handle(payload: GitHubIssuePayload, config: ConnectorConfig): Promise<HandleResult> {\n  validatePayload(payload)\n\n  const fetchImpl = config.fetch ?? fetch\n  const variables = buildLinearVariables(payload, config)\n\n  const response = await fetchImpl(LINEAR_GRAPHQL_ENDPOINT, {\n    method: 'POST',\n    headers: {\n      'Content-Type': 'application/json',\n      Authorization: `Bearer ${config.linearApiKey}`,\n    },\n    body: JSON.stringify({ query: ISSUE_CREATE_MUTATION, variables }),\n  })\n\n  if (!response.ok) {\n    throw new Error(`Linear API error: ${response.status} ${response.statusText} at ${LINEAR_GRAPHQL_ENDPOINT}`)\n  }\n\n  const data = (await response.json()) as {\n    data?: { issueCreate?: { success?: boolean; issue?: { id: string; identifier: string; url: string } } }\n    errors?: Array<{ message: string }>\n  }\n\n  if (data.errors?.length) {\n    throw new Error(`Linear GraphQL errors: ${data.errors.map((e) => e.message).join(', ')}`)\n  }\n\n  const issue = data.data?.issueCreate?.issue\n  if (!issue || data.data?.issueCreate?.success !== true) {\n    throw new Error('Linear API returned unexpected response shape')\n  }\n\n  return {\n    linearIssueId: issue.id,\n    linearIssueIdentifier: issue.identifier,\n    linearIssueUrl: issue.url,\n  }\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi } from 'vitest'\nimport { handle, ConnectorConfig, GitHubIssuePayload, HandleResult } from './connector'\nimport {\n  SOURCE_EXAMPLE,\n  contractFetch,\n  fakeFetch,\n  jsonResponse,\n  TARGET_ENDPOINTS,\n} from './fixtures'\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch()\n    const config: ConnectorConfig = {\n      githubWebhookSecret: 'test-secret',\n      linearApiKey: 'test-linear-key',\n      linearTeamId: 'abc-123-team-uuid',\n      linearLabelIdMap: { bug: 'label-uuid-for-bug', frontend: 'label-uuid-for-frontend' },\n      linearAuthorIdMap: { 'alice-dev': 'user-uuid-for-alice-dev' },\n      fetch,\n    }\n    const result = await handle(SOURCE_EXAMPLE as unknown as GitHubIssuePayload, config)\n    expect(calls.length).toBeGreaterThan(0)\n    expect(result.linearIssueId).toBe('issue-uuid-123')\n    expect(result.linearIssueIdentifier).toBe('TRI-456')\n    expect(result.linearIssueUrl).toBe('https://linear.app/tri/issue/TRI-456/')\n  })\n})\n\ndescribe('handle', () => {\n  const baseConfig: ConnectorConfig = {\n    githubWebhookSecret: 'test-secret',\n    linearApiKey: 'test-linear-key',\n    linearTeamId: 'abc-123-team-uuid',\n    linearLabelIdMap: { bug: 'label-uuid-for-bug', frontend: 'label-uuid-for-frontend' },\n    linearAuthorIdMap: { 'alice-dev': 'user-uuid-for-alice-dev' },\n  }\n\n  it('maps fields correctly and calls Linear GraphQL endpoint', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      expect(req.method).toBe('POST')\n      expect(req.url).toBe('https://api.linear.app/graphql')\n      expect(req.headers.get('authorization')).toBe('Bearer test-linear-key')\n      const body = req.json as { query: string; variables: { input: Record<string, unknown> } }\n      expect(body.query).toContain('mutation IssueCreate')\n      expect(body.variables.input.title).toBe('Fix login button alignment')\n      expect(body.variables.input.description).toBe('The login button is misaligned on mobile screens. Needs CSS fix.')\n      expect(body.variables.input.teamId).toBe('abc-123-team-uuid')\n      expect(body.variables.input.labelIds).toEqual(['label-uuid-for-bug', 'label-uuid-for-frontend'])\n      expect(body.variables.input.authorId).toBe('user-uuid-for-alice-dev')\n      return jsonResponse(TARGET_ENDPOINTS[0].response)\n    })\n\n    const result = await handle(SOURCE_EXAMPLE as unknown as GitHubIssuePayload, { ...baseConfig, fetch })\n    expect(result.linearIssueId).toBe('issue-uuid-123')\n    expect(calls.length).toBe(1)\n  })\n\n  it('uses defaultAuthorId when GitHub user not in map', async () => {\n    const payload = { ...SOURCE_EXAMPLE, issue: { ...SOURCE_EXAMPLE.issue, user: { login: 'unknown-user' } } }\n    const { fetch, calls } = fakeFetch((req) => {\n      const body = req.json as { variables: { input: { authorId: string } } }\n      expect(body.variables.input.authorId).toBe('default-user-uuid')\n      return jsonResponse(TARGET_ENDPOINTS[0].response)\n    })\n\n    const config = { ...baseConfig, defaultAuthorId: 'default-user-uuid', fetch }\n    const result = await handle(payload as unknown as GitHubIssuePayload, config)\n    expect(result.linearIssueId).toBe('issue-uuid-123')\n    expect(calls.length).toBe(1)\n  })\n\n  it('throws when action is not labeled', async () => {\n    const payload = { ...SOURCE_EXAMPLE, action: 'unlabeled' }\n    await expect(handle(payload as unknown as GitHubIssuePayload, baseConfig)).rejects.toThrow(\n      'Unsupported action \"unlabeled\"'\n    )\n  })\n\n  it('throws when bug label is missing', async () => {\n    const payload = {\n      ...SOURCE_EXAMPLE,\n      issue: { ...SOURCE_EXAMPLE.issue, labels: [{ name: 'frontend', color: 'fbca04' }] },\n    }\n    await expect(handle(payload as unknown as GitHubIssuePayload, baseConfig)).rejects.toThrow(\n      'Issue does not have the \"bug\" label'\n    )\n  })\n\n  it('throws when required field issue.title is missing', async () => {\n    const payload = { ...SOURCE_EXAMPLE, issue: { ...SOURCE_EXAMPLE.issue, title: '' } }\n    await expect(handle(payload as unknown as GitHubIssuePayload, baseConfig)).rejects.toThrow(\n      'Missing required field: issue.title'\n    )\n  })\n\n  it('throws when required field issue.user.login is missing', async () => {\n    const payload = { ...SOURCE_EXAMPLE, issue: { ...SOURCE_EXAMPLE.issue, user: { login: '' } } }\n    await expect(handle(payload as unknown as GitHubIssuePayload, baseConfig)).rejects.toThrow(\n      'Missing required field: issue.user.login'\n    )\n  })\n\n  it('throws when no labels can be mapped to Linear label IDs', async () => {\n    const payload = {\n      ...SOURCE_EXAMPLE,\n      issue: { ...SOURCE_EXAMPLE.issue, labels: [{ name: 'bug', color: 'd73a4a' }] },\n    }\n    const config = { ...baseConfig, linearLabelIdMap: { frontend: 'label-uuid-for-frontend' } }\n    await expect(handle(payload as unknown as GitHubIssuePayload, config)).rejects.toThrow(\n      'None of the issue labels could be mapped to Linear label IDs'\n    )\n  })\n\n  it('throws when author cannot be resolved and no defaultAuthorId', async () => {\n    const payload = { ...SOURCE_EXAMPLE, issue: { ...SOURCE_EXAMPLE.issue, user: { login: 'ghost' } } }\n    await expect(handle(payload as unknown as GitHubIssuePayload, baseConfig)).rejects.toThrow(\n      'No Linear author ID found for GitHub user \"ghost\"'\n    )\n  })\n\n  it('throws on non-2xx response from Linear API', async () => {\n    const { fetch, calls } = fakeFetch(() => jsonResponse({ error: 'Unauthorized' }, 401))\n    await expect(handle(SOURCE_EXAMPLE as unknown as GitHubIssuePayload, { ...baseConfig, fetch })).rejects.toThrow(\n      'Linear API error: 401 Unauthorized at https://api.linear.app/graphql'\n    )\n    expect(calls.length).toBe(1)\n  })\n\n  it('throws on GraphQL errors in response', async () => {\n    const { fetch, calls } = fakeFetch(() =>\n      jsonResponse({ errors: [{ message: 'Team not found' }] }, 200)\n    )\n    await expect(handle(SOURCE_EXAMPLE as unknown as GitHubIssuePayload, { ...baseConfig, fetch })).rejects.toThrow(\n      'Linear GraphQL errors: Team not found'\n    )\n    expect(calls.length).toBe(1)\n  })\n\n  it('throws on unexpected response shape', async () => {\n    const { fetch, calls } = fakeFetch(() => jsonResponse({ data: { issueCreate: { success: false } } }, 200))\n    await expect(handle(SOURCE_EXAMPLE as unknown as GitHubIssuePayload, { ...baseConfig, fetch })).rejects.toThrow(\n      'Linear API returned unexpected response shape'\n    )\n    expect(calls.length).toBe(1)\n  })\n})\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# GitHub → Linear Bug Triage Connector\n\nCreates a Linear issue in the Triage team when a GitHub issue receives the `bug` label.\n\n## What it does\n\n1. Receives a GitHub `issues` webhook payload (action: `labeled`).\n2. Validates that the issue has the `bug` label.\n3. Maps GitHub issue fields to Linear's GraphQL `IssueCreate` mutation.\n4. Calls the Linear API to create the issue.\n5. Returns the created Linear issue's ID, identifier, and URL.\n\n## Configuration\n\nAll secrets and IDs are provided via the `ConnectorConfig` object (typically sourced from environment variables).\n\n| Config property | Environment variable | Description |\n|-----------------|----------------------|-------------|\n| `githubWebhookSecret` | `GITHUB_WEBHOOK_SECRET` | Secret for verifying `X-Hub-Signature-256` (HMAC-SHA256). Verification is expected to be performed by the webhook receiver before calling `handle`. |\n| `linearApiKey` | `LINEAR_API_KEY` | Bearer token for Linear API authentication. |\n| `linearTeamId` | `LINEAR_TRIAGE_TEAM_ID` | UUID of the Linear team that receives triage issues (e.g. \"Triage\"). |\n| `linearLabelIdMap` | — | Object mapping GitHub label names to Linear label UUIDs. Must include at least `\"bug\"`. |\n| `linearAuthorIdMap` | — | Object mapping GitHub usernames (`issue.user.login`) to Linear user UUIDs. |\n| `defaultAuthorId` | `LINEAR_DEFAULT_AUTHOR_ID` | (Optional) Fallback Linear user UUID when a GitHub user is not in `linearAuthorIdMap`. |\n\n## Usage example\n\n```typescript\nimport { handle, ConnectorConfig, GitHubIssuePayload } from './connector'\n\nconst config: ConnectorConfig = {\n  githubWebhookSecret: process.env.GITHUB_WEBHOOK_SECRET!,\n  linearApiKey: process.env.LINEAR_API_KEY!,\n  linearTeamId: process.env.LINEAR_TRIAGE_TEAM_ID!,\n  linearLabelIdMap: {\n    bug: process.env.LINEAR_LABEL_BUG_ID!,\n    frontend: process.env.LINEAR_LABEL_FRONTEND_ID!,\n    // ...other labels\n  },\n  linearAuthorIdMap: {\n    'alice-dev': process.env.LINEAR_USER_ALICE_ID!,\n    'bob-dev': process.env.LINEAR_USER_BOB_ID!,\n  },\n  defaultAuthorId: process.env.LINEAR_DEFAULT_AUTHOR_ID,\n}\n\n// In your webhook handler (after signature verification):\nconst payload = req.body as GitHubIssuePayload\nconst result = await handle(payload, config)\nconsole.log(`Created Linear issue ${result.linearIssueIdentifier}: ${result.linearIssueUrl}`)\n```\n\n## Assumptions\n\n- The GitHub webhook is subscribed to the `issues` event and delivers `action: \"labeled\"` payloads.\n- The payload includes `issue.title`, `issue.body`, `issue.labels[]`, `issue.user.login`, and `issue.html_url`.\n- The Linear team ID for \"Triage\" is known and configured as `linearTeamId`.\n- Linear label UUIDs for GitHub label names are known and provided in `linearLabelIdMap` (at minimum `bug`).\n- Linear user UUIDs for GitHub usernames are known and provided in `linearAuthorIdMap`, with an optional `defaultAuthorId` fallback.\n- Signature verification (`X-Hub-Signature-256`) is handled by the webhook receiver before invoking `handle`; the connector does not re-verify.\n- The Linear GraphQL endpoint `https://api.linear.app/graphql` accepts the `IssueCreate` mutation as documented.\n- Description supports Markdown; the GitHub issue body is passed through directly.\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://www.magicbell.com/blog/github-webhooks-guide\n// Source: https://docs.appsmith.com/connect-data/reference/linear\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"action\": \"labeled\",\n  \"issue\": {\n    \"title\": \"Fix login button alignment\",\n    \"body\": \"The login button is misaligned on mobile screens. Needs CSS fix.\",\n    \"labels\": [\n      {\n        \"name\": \"bug\",\n        \"color\": \"d73a4a\"\n      },\n      {\n        \"name\": \"frontend\",\n        \"color\": \"fbca04\"\n      }\n    ],\n    \"user\": {\n      \"login\": \"alice-dev\"\n    },\n    \"html_url\": \"https://github.com/org/repo/issues/123\"\n  },\n  \"repository\": {\n    \"full_name\": \"org/repo\"\n  },\n  \"sender\": {\n    \"login\": \"alice-dev\"\n  }\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://api.linear.app/graphql\",\n    \"response\": {\n      \"data\": {\n        \"issueCreate\": {\n          \"success\": true,\n          \"issue\": {\n            \"id\": \"issue-uuid-123\",\n            \"identifier\": \"TRI-456\",\n            \"title\": \"Fix login button alignment\",\n            \"description\": \"The login button is misaligned on mobile screens. Needs CSS fix.\",\n            \"url\": \"https://linear.app/tri/issue/TRI-456/\"\n          }\n        }\n      }\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ],
+      "report": {
+        "typecheckOk": true,
+        "typecheckOutput": "",
+        "passed": 12,
+        "failed": 0,
+        "total": 12,
+        "failures": [],
+        "durationMs": 296.557861328125,
+        "ranOn": "nebius-sandbox:01a10b3c-6902-76dc-a9b6-9f0dfc65d65f",
+        "passedNames": [
+          "contract handles the documented example payload",
+          "handle maps fields correctly and calls Linear GraphQL endpoint",
+          "handle uses defaultAuthorId when GitHub user not in map",
+          "handle throws when action is not labeled",
+          "handle throws when bug label is missing",
+          "handle throws when required field issue.title is missing",
+          "handle throws when required field issue.user.login is missing",
+          "handle throws when no labels can be mapped to Linear label IDs",
+          "handle throws when author cannot be resolved and no defaultAuthorId",
+          "handle throws on non-2xx response from Linear API",
+          "handle throws on GraphQL errors in response",
+          "handle throws on unexpected response shape"
+        ],
+        "contract": "passed"
+      }
+    },
+    {
+      "type": "step",
+      "step": "package",
+      "status": "done"
+    }
+  ]
+}
