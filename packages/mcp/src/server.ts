@@ -11,20 +11,48 @@
  * notifications and, when a client passes a progressToken, as progress updates,
  * so the client can render a live spinner while the agent works.
  */
+import { existsSync, readFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import type { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/protocol.js'
 import type { ServerNotification, ServerRequest } from '@modelcontextprotocol/sdk/types.js'
 import { z } from 'zod'
-import {
-  loadConfig,
-  missingLiveKeys,
-  startResearch,
-  startRun,
-  startVerify,
-  type GeneratedFile,
-  type RunEvent,
-} from '@patchbay/agent'
+
+// Load .env.local from the repo root (two levels up from packages/mcp/src/).
+// Lets Claude Code / Codex / Cursor launch the server with no explicit env
+// wiring; the credentials just need to live in the checkout like for the CLI.
+loadRepoEnv()
+
+const { loadConfig, missingLiveKeys, startResearch, startRun, startVerify } = await import('@patchbay/agent')
+type GeneratedFile = import('@patchbay/agent').GeneratedFile
+type RunEvent = import('@patchbay/agent').RunEvent
+
+function loadRepoEnv(): void {
+  const here = dirname(fileURLToPath(import.meta.url))
+  const candidates = [
+    resolve(here, '..', '..', '..', '.env.local'),       // packages/mcp/src/.. -> repo root
+    resolve(here, '..', '..', '..', '..', '.env.local'), // packages/mcp/dist/src -> repo root (built layout)
+    resolve(process.cwd(), '.env.local'),                 // fallback: wherever the host launched us
+  ]
+  for (const path of candidates) {
+    if (!existsSync(path)) continue
+    for (const line of readFileSync(path, 'utf8').split(/\r?\n/)) {
+      const match = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/)
+      if (!match) continue
+      const key = match[1]!
+      if (process.env[key] !== undefined) continue // host env wins
+      let value = match[2] ?? ''
+      if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.slice(1, -1)
+      }
+      process.env[key] = value
+    }
+    process.stderr.write(`patchbay MCP: loaded env from ${path}\n`)
+    return
+  }
+}
 
 const VERSION = '0.1.0'
 

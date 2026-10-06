@@ -40,8 +40,11 @@ is up. `stdout` is reserved for JSON-RPC; never write to it manually.
 
 ## Claude Code
 
+The server reads `.env.local` from the repo root on startup, so a single line
+is enough — no secrets inside your Claude Code config.
+
 ```
-claude mcp add patchbay -- npx -y tsx C:/Users/vogel/Desktop/patchbay/packages/mcp/src/server.ts
+claude mcp add patchbay -- npx -y tsx <absolute-path-to-patchbay>/packages/mcp/src/server.ts
 ```
 
 Or edit `~/.claude.json` (user scope) / `.mcp.json` (project scope) and add:
@@ -51,19 +54,15 @@ Or edit `~/.claude.json` (user scope) / `.mcp.json` (project scope) and add:
   "mcpServers": {
     "patchbay": {
       "command": "npx",
-      "args": ["-y", "tsx", "C:/Users/vogel/Desktop/patchbay/packages/mcp/src/server.ts"],
-      "env": {
-        "NEBIUS_API_KEY": "...",
-        "NEBIUS_AI_PROJECT": "aiproject-...",
-        "TAVILY_API_KEY": "...",
-        "PATCHBAY_MOCK": "false"
-      }
+      "args": ["-y", "tsx", "<absolute-path>/packages/mcp/src/server.ts"]
     }
   }
 }
 ```
 
-Restart Claude Code, then `/mcp` should show `patchbay` connected. In a chat:
+Pass `env` only to override something — anything already in your project's
+`.env.local` wins over a missing key but loses to one you set here. Restart
+Claude Code, then `/mcp` should show `patchbay` connected. In a chat:
 
 > Use patchbay to build a connector: "When a Stripe payment succeeds, add the
 > customer to a Mailchimp audience"
@@ -77,13 +76,8 @@ Add to `~/.codex/config.toml`:
 ```toml
 [mcp_servers.patchbay]
 command = "npx"
-args = ["-y", "tsx", "C:/Users/vogel/Desktop/patchbay/packages/mcp/src/server.ts"]
-
-[mcp_servers.patchbay.env]
-NEBIUS_API_KEY = "..."
-NEBIUS_AI_PROJECT = "aiproject-..."
-TAVILY_API_KEY = "..."
-PATCHBAY_MOCK = "false"
+args = ["-y", "tsx", "<absolute-path>/packages/mcp/src/server.ts"]
+# env is optional; the server reads .env.local from the repo root on startup.
 ```
 
 Then start a Codex session – `patchbay` shows up under `/mcp list`.
@@ -98,13 +92,7 @@ project. Same shape as Claude Code:
   "mcpServers": {
     "patchbay": {
       "command": "npx",
-      "args": ["-y", "tsx", "C:/Users/vogel/Desktop/patchbay/packages/mcp/src/server.ts"],
-      "env": {
-        "NEBIUS_API_KEY": "...",
-        "NEBIUS_AI_PROJECT": "aiproject-...",
-        "TAVILY_API_KEY": "...",
-        "PATCHBAY_MOCK": "false"
-      }
+      "args": ["-y", "tsx", "<absolute-path>/packages/mcp/src/server.ts"]
     }
   }
 }

@@ -8,7 +8,7 @@ import { createInterface } from 'node:readline'
 
 const child = spawn('npx', ['tsx', 'packages/mcp/src/server.ts'], {
   stdio: ['pipe', 'pipe', 'inherit'],
-  env: { ...process.env, PATCHBAY_MOCK: 'true' },
+  env: { ...process.env },  // let the server pick up .env.local itself
   shell: process.platform === 'win32',
 })
 
@@ -65,7 +65,7 @@ async function main() {
   console.log('→ tools/call build_connector')
   const call = await send('tools/call', {
     name: 'build_connector',
-    arguments: { prompt: 'When a Typeform is submitted, create a Pipedrive deal' },
+    arguments: { prompt: 'When a Typeform is submitted, create a Pipedrive deal.' },
     _meta: { progressToken: 'smoke-1' },
   })
   const result = (call as { result: { content: { text: string }[]; isError?: boolean } }).result
