@@ -9,6 +9,11 @@ if (existsSync(rootEnv)) process.loadEnvFile(rootEnv)
 const nextConfig = {
   transpilePackages: ['@patchbay/agent'],
   poweredByHeader: false,
+  // esbuild is a Node-only binary dependency used by the preflight syntax check.
+  // Keep it as a runtime require instead of bundling it with webpack.
+  experimental: {
+    serverComponentsExternalPackages: ['esbuild'],
+  },
 }
 
 export default nextConfig
