@@ -38,6 +38,8 @@ Three tools (`build_connector`, `research_api`, `verify_code`) with live progres
 
 **Web app** – `apps/web`, Next.js 14 on port 3400. Live demo at **https://patchbay-nebius.vercel.app**. The same UI streams a live Nebius run or, past the 6/hour per-IP rate limit, the recorded replay.
 
+**Slack** – `/patchbay <one-sentence integration>` as a slash command. Setup in [docs/slack-setup.md](docs/slack-setup.md); the endpoint lives at `apps/web/app/api/slack/command/route.ts` on the same Vercel deploy.
+
 ## Status
 
 Live benchmark (2026-10-06, Nebius sandbox): **90.2% green over 92 runs** (up to 5 passes × 20 integrations), **52.2% first-try**, **$1.39 ± $0.29 per 20-prompt pass** (≈ $0.07 per connector). Eight integrations finished 5/5 green across all passes, three of those first-try every time (Typeform→Pipedrive, Shopify→Airtable, Jotform→Asana). The hard half of the benchmark covers HMAC verification, 429 retry with Retry-After, Idempotency-Key, cursor pagination, chained search-or-create and signature-driven routing. The pre-sandbox esbuild parse check plus parallel repair branches (temperatures 0.1 / 0.4) nearly doubled the first-try rate vs. the 2026-10-02 baseline (33% → 52%). Full breakdown: [bench/RESULTS-variance.md](bench/RESULTS-variance.md).
