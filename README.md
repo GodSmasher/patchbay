@@ -36,7 +36,7 @@ patchbay verify  <directory>
 
 Three tools (`build_connector`, `research_api`, `verify_code`) with live progress and logging notifications. Setup for Claude Code, Codex and Cursor in [docs/mcp-setup.md](docs/mcp-setup.md).
 
-**Web app** – `apps/web`, Next.js 14 on port 3400. Replay-safe demo; a bundled recorded run (`Typeform → Pipedrive`) streams through the same UI as a live run.
+**Web app** – `apps/web`, Next.js 14 on port 3400. Live demo at **https://patchbay-nebius.vercel.app**. The same UI streams a live Nebius run or, past the 6/hour per-IP rate limit, the recorded replay.
 
 ## Status
 
