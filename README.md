@@ -1,5 +1,8 @@
 # patchbay
 
+![patchbay — one sentence in, tested TypeScript connector out](docs/screenshots/patchbay-01-hero-calendly-slack.gif)
+
+
 [![ci](https://github.com/GodSmasher/patchbay/actions/workflows/ci.yml/badge.svg)](https://github.com/GodSmasher/patchbay/actions/workflows/ci.yml)
 [![benchmark](https://img.shields.io/badge/benchmark-90%25%20green%20over%2092%20runs-brightgreen)](bench/RESULTS-variance.md)
 [![mcp](https://img.shields.io/badge/MCP-stdio-6938EF)](docs/mcp-setup.md)

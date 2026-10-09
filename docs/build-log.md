@@ -5,7 +5,7 @@ the agent that turns one sentence into a tested TypeScript connector.
 Entries are organised by what broke and what fixed it, so the shippable
 version of each decision is one scroll away.
 
-![patchbay hero — the live web demo](screenshots/01-hero.jpg)
+![patchbay first-try green — Calendly → Slack in 25 seconds, 10/10 tests](screenshots/patchbay-01-hero-calendly-slack.gif)
 
 ## Where it runs
 
@@ -217,6 +217,20 @@ into semantically meaningful repair instead of waiting on the sandbox.
 
 The pre-sandbox check is also visible to users in the live demo. Any time
 the parallel-repair branches run, one of them might short-circuit:
+
+![Shopify HMAC → Slack: attempt 1 fails, two parallel repair branches at temperatures 0.1 and 0.4, branch 1 lands 8/8 first green](screenshots/patchbay-02-shopify-hmac-parallel-branches.gif)
+
+The log in that GIF, line by line:
+
+> `Attempt 1 failed (0 tests, typecheck failed), repairing`
+> `Repairing with 2 parallel branches (temperatures 0.1, 0.4)`
+> `[branch 2] Forking checkpoint e79af563 with 4 files, network off`
+> `[branch 1] Forking checkpoint e79af563 with 4 files, network off`
+> `branch 1: 8/8, typecheck ok, contract passed`
+> `branch 2: 8/8, typecheck failed, contract passed`
+> `Chose branch 1 (first green)`
+
+And earlier in the week a different Shopify run showed the preflight pay off:
 
 ![Parallel repair branches with preflight parse rejection in the Verify log](screenshots/05-parallel-branches-and-preflight.jpg)
 
