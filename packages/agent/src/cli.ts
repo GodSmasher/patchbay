@@ -2,6 +2,7 @@
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, watch, writeFileSync } from 'node:fs'
 import { basename, dirname, join, relative, resolve } from 'node:path'
 import { loadConfig, missingLiveKeys } from './config'
+import { pushToGitHub } from './github-push'
 import { startResearch, startRun, startVerify } from './index'
 import type { GeneratedFile, RunEvent } from './types'
 
@@ -12,6 +13,7 @@ Usage:
   patchbay research           "<one-sentence integration>"
   patchbay verify  [--watch] <directory>
   patchbay add     <run-dir> [--target=<dir>]
+  patchbay push    <run-dir> --repo=owner/name [--path=connectors/<name>] [--branch=<branch>] [--dry-run]
   patchbay help
 
 Commands:
@@ -19,12 +21,17 @@ Commands:
   research  Plan + API research only. Prints the spec, no code.
   verify    Type-check and vitest an existing connector folder (needs src/connector.ts + tests).
   add       Drop a recorded run's connector files into another project.
+  push      Open a pull request on a GitHub repo with the generated files.
   help      Show this message.
 
 Flags:
   --record  build only. Writes runs/<timestamp>/ with generated files and the event log.
   --watch   verify only. Re-runs the sandbox verify whenever a .ts file in <directory> changes.
   --target  add only. Where to drop the files, defaults to ./connectors/<run-name>.
+  --repo    push only. owner/name of the target GitHub repo.
+  --path    push only. Where to drop the files inside the repo, defaults to connectors/<run-name>.
+  --branch  push only. Branch name to create, defaults to patchbay/<run-name>.
+  --dry-run push only. Print the plan without hitting the GitHub API.
 
 Environment:
   NEBIUS_API_KEY, NEBIUS_AI_PROJECT, TAVILY_API_KEY  – required for live runs.
@@ -48,6 +55,7 @@ async function main() {
   const rest = known.has(first) ? argv.slice(1) : argv
 
   if (first === 'add') return add(argv.slice(1))
+  if (first === 'push') return push(argv.slice(1))
 
   switch (cmd) {
     case 'build':
@@ -185,6 +193,41 @@ async function verify(args: string[]) {
     if (filename && (filename.endsWith('.ts') || filename.endsWith('.json'))) trigger()
   })
   await new Promise(() => {}) // keep the process alive
+}
+
+async function push(args: string[]) {
+  const positional = args.filter((a) => !a.startsWith('--'))
+  const runDir = positional[0] ? resolve(positional[0]) : ''
+  if (!runDir) return usageError('push needs a run directory')
+  const repo = flagValue(args, '--repo')
+  if (!repo) return usageError('push needs --repo=owner/name')
+  const target = flagValue(args, '--path') ?? `connectors/${basename(runDir)}`
+  const branch = flagValue(args, '--branch')
+  const dryRun = args.includes('--dry-run')
+  const token = process.env.GH_TOKEN || process.env.GITHUB_TOKEN
+  if (!token && !dryRun) {
+    return usageError('push needs GH_TOKEN (or GITHUB_TOKEN) in the environment, with repo scope on the target.')
+  }
+  try {
+    const result = await pushToGitHub({
+      runDir, repo, token: token ?? '', targetPath: target,
+      ...(branch ? { branch } : {}),
+      dryRun,
+    })
+    console.log(dryRun ? '✔ Dry run:' : '✔ Opened pull request:')
+    console.log(`  URL:    ${result.prUrl}`)
+    console.log(`  branch: ${result.branch} (base: ${result.base})`)
+    console.log(`  files:  ${result.files.length} under ${target}/`)
+    for (const path of result.files) console.log(`    ${path}`)
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error))
+    process.exit(1)
+  }
+}
+
+function flagValue(args: string[], flag: string): string | undefined {
+  const match = args.find((a) => a.startsWith(`${flag}=`))
+  return match?.slice(flag.length + 1)
 }
 
 function collectFiles(root: string): GeneratedFile[] {
