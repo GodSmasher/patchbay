@@ -54,6 +54,18 @@ Full setup for Claude Code, Codex and Cursor in [docs/mcp-setup.md](docs/mcp-set
 
 **GitHub PR** – comment `/patchbay build "<integration>"` on any PR and the workflow in `.github/workflows/patchbay-pr.yml` runs the full pipeline, attaches the generated connector as an artifact and replies with the test score. Needs the three Nebius / Tavily secrets configured in the repo.
 
+## Selfhost
+
+```bash
+git clone https://github.com/GodSmasher/patchbay
+cd patchbay
+cp .env.example .env.local            # fill in NEBIUS + TAVILY keys
+docker compose up --build
+# open http://localhost:3400
+```
+
+The Dockerfile is a three-stage build (deps → build → runtime) producing a ~90 MB image around Next.js's standalone server. docker-compose.yml wires the env vars through from `.env.local`; without live keys the web app streams the recorded replay instead.
+
 ## Build in public
 
 What broke this week and how it got fixed is in [docs/build-log.md](docs/build-log.md). Short version: nested-contract regex (+2 benchmark points), parallel-repair fiasco (reverted), monotonic repair (never regress past the best attempt), timestamp prompt (don't reject the documented example), esbuild preflight (first-try rate 33% → 52%), Vercel monorepo pain (three fixes, one deploy).

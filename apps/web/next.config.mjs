@@ -11,8 +11,12 @@ const nextConfig = {
   // longer necessary. Keeping it would pull esbuild (a runtime dep of the preflight
   // syntax check) through webpack's loaders and crash the build.
   poweredByHeader: false,
+  // "standalone" produces a self-contained server + minimal node_modules in .next/standalone,
+  // which the Docker image copies as its only runtime payload. ~90 MB instead of ~500 MB.
+  output: 'standalone',
   experimental: {
     serverComponentsExternalPackages: ['esbuild', '@patchbay/agent'],
+    outputFileTracingRoot: fileURLToPath(new URL('../../', import.meta.url)),
   },
   webpack: (config, { isServer }) => {
     // esbuild is a Node binary dep of @patchbay/agent; webpack must leave it as a
