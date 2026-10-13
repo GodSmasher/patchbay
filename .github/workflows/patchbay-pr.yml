@@ -1,0 +1,107 @@
+name: patchbay on PR
+
+# Lets a reviewer trigger a connector build straight from a PR comment:
+#
+#   /patchbay build When someone submits our Typeform contact form, create the lead in Pipedrive
+#
+# The job runs patchbay against that prompt, uploads the generated files as a build
+# artifact, and posts a reply on the same PR with the test score and the download link.
+#
+# Secrets expected (Settings → Secrets and variables → Actions):
+#   NEBIUS_API_KEY, NEBIUS_AI_PROJECT, TAVILY_API_KEY
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  build:
+    if: ${{ github.event.issue.pull_request && startsWith(github.event.comment.body, '/patchbay build') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Acknowledge the comment with a reaction
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          comment-id: ${{ github.event.comment.id }}
+          reactions: eyes
+
+      - name: Extract the prompt from the comment body
+        id: prompt
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body }}
+        run: |
+          # Everything after "/patchbay build", trimmed, max 400 chars.
+          raw="$COMMENT_BODY"
+          prompt="${raw#*/patchbay build}"
+          prompt="${prompt#[[:space:]]}"
+          prompt="${prompt:0:400}"
+          echo "value<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$prompt" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+        shell: bash
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Build the connector with patchbay
+        id: build
+        env:
+          NEBIUS_API_KEY: ${{ secrets.NEBIUS_API_KEY }}
+          NEBIUS_AI_PROJECT: ${{ secrets.NEBIUS_AI_PROJECT }}
+          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+          PATCHBAY_MOCK: 'false'
+          PROMPT: ${{ steps.prompt.outputs.value }}
+        run: |
+          npm run patchbay -- build --record "$PROMPT" | tee patchbay-output.log
+          # The --record flag drops a runs/<timestamp>/ folder — grab the latest one.
+          latest=$(ls -1t runs | head -n 1)
+          echo "run_dir=runs/$latest" >> "$GITHUB_OUTPUT"
+          # Summary line for the PR comment.
+          grep -E "✔ verify|✖ verify" patchbay-output.log | tail -n 1 > patchbay-summary.txt || echo "pipeline finished" > patchbay-summary.txt
+
+      - name: Upload the generated connector as an artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: patchbay-connector
+          path: ${{ steps.build.outputs.run_dir }}
+          if-no-files-found: ignore
+
+      - name: Build the reply body
+        if: always()
+        id: reply
+        env:
+          PROMPT: ${{ steps.prompt.outputs.value }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          summary=$(cat patchbay-summary.txt 2>/dev/null || echo "pipeline finished")
+          {
+            echo "body<<EOF"
+            echo "**patchbay** — build for \`$PROMPT\`"
+            echo
+            echo '```'
+            echo "$summary"
+            echo '```'
+            echo
+            echo "Generated files are attached as the \`patchbay-connector\` artifact on the [workflow run](https://github.com/$REPO/actions/runs/$RUN_ID)."
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Reply to the PR comment with the result
+        if: always()
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.issue.number }}
+          body: ${{ steps.reply.outputs.body }}
