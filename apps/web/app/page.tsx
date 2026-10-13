@@ -21,10 +21,25 @@ const EXAMPLES: { label: string; prompt: string }[] = [
 ]
 
 export default function Home() {
-  const { state, start } = useRun()
+  const { state, start, share } = useRun()
   const [prompt, setPrompt] = useState(RECORDED_PROMPT)
   const [live, setLive] = useState<boolean | null>(null)
   const [showMcp, setShowMcp] = useState(false)
+  const [shareUrl, setShareUrl] = useState<string | null>(null)
+  const [sharing, setSharing] = useState(false)
+
+  async function onShare() {
+    setSharing(true)
+    try {
+      const url = await share(prompt)
+      setShareUrl(url)
+      await navigator.clipboard.writeText(url).catch(() => undefined)
+    } catch (error) {
+      setShareUrl(`error: ${error instanceof Error ? error.message : String(error)}`)
+    } finally {
+      setSharing(false)
+    }
+  }
 
   useEffect(() => {
     fetch('/api/run')
@@ -138,6 +153,25 @@ export default function Home() {
           <div className="min-w-0 space-y-5">
             {state.error && (
               <div className="rounded-xl border border-warn/30 bg-warn-soft px-4 py-3 text-sm text-warn">{state.error}</div>
+            )}
+            {state.result && !state.running && (
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-paper-line bg-paper-card px-4 py-2 text-xs">
+                <span className="text-ink-soft">Share this run so someone else can see what the model did.</span>
+                <div className="flex items-center gap-2">
+                  {shareUrl && !shareUrl.startsWith('error') && (
+                    <code className="code max-w-[280px] truncate rounded bg-paper px-2 py-1 text-[11px]">{shareUrl}</code>
+                  )}
+                  {shareUrl?.startsWith('error') && <span className="text-warn">{shareUrl}</span>}
+                  <button
+                    type="button"
+                    onClick={onShare}
+                    disabled={sharing}
+                    className="rounded-md bg-ink px-3 py-1 text-xs text-white disabled:opacity-40"
+                  >
+                    {sharing ? 'Sharing…' : shareUrl ? 'Copy again' : 'Share run'}
+                  </button>
+                </div>
+              </div>
             )}
             {state.drafts.length > 0 && <CodePanel drafts={state.drafts} finalOk={state.result?.ok ?? null} />}
             {state.plan && <PlanCard plan={state.plan} spec={state.spec} sources={state.sources} />}

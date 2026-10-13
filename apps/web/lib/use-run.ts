@@ -73,11 +73,13 @@ function reducer(state: RunState, action: Action): RunState {
 export function useRun() {
   const [state, dispatch] = useReducer(reducer, initial)
   const abort = useRef<AbortController | null>(null)
+  const events = useRef<RunEvent[]>([])
 
   const start = useCallback(async (prompt: string, replay = false) => {
     abort.current?.abort()
     const controller = new AbortController()
     abort.current = controller
+    events.current = []
     dispatch({ type: 'reset' })
     try {
       const res = await fetch('/api/run', {
@@ -103,7 +105,11 @@ export function useRun() {
           const chunk = buffer.slice(0, boundary)
           buffer = buffer.slice(boundary + 2)
           const data = chunk.split('\n').filter((l) => l.startsWith('data: ')).map((l) => l.slice(6)).join('')
-          if (data) dispatch({ type: 'event', event: JSON.parse(data) })
+          if (data) {
+            const parsed = JSON.parse(data) as RunEvent | { type: 'notice'; message: string }
+            if (parsed.type !== 'notice') events.current.push(parsed as RunEvent)
+            dispatch({ type: 'event', event: parsed })
+          }
           boundary = buffer.indexOf('\n\n')
         }
       }
@@ -116,5 +122,19 @@ export function useRun() {
     }
   }, [])
 
-  return { state, start }
+  const share = useCallback(async (prompt: string): Promise<string> => {
+    const res = await fetch('/api/share', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, events: events.current }),
+    })
+    if (!res.ok) {
+      const data = (await res.json().catch(() => ({}))) as { error?: string }
+      throw new Error(data.error ?? `share failed (${res.status})`)
+    }
+    const data = (await res.json()) as { url: string }
+    return new URL(data.url, window.location.origin).toString()
+  }, [])
+
+  return { state, start, share }
 }
