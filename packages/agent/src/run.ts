@@ -256,7 +256,9 @@ export async function research(
   config: AgentConfig,
   log: (m: string) => void,
 ): Promise<{ spec: ApiSpec; sources: Source[] }> {
-  const sides = [plan.source, plan.target]
+  // Source + primary target + any additional target services (chained flows).
+  // Each gets its own search so research covers every API the connector will call.
+  const sides = [plan.source, plan.target, ...(plan.additionalTargets ?? [])]
   const hits = await Promise.all(
     sides.map(async (side) => {
       let list = await search.search(side.docsQuery, { maxResults: 8 })

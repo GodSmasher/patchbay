@@ -4,6 +4,13 @@ export interface Plan {
   summary: string
   source: { app: string; trigger: string; docsQuery: string }
   target: { app: string; action: string; docsQuery: string }
+  /**
+   * Extra target apps the connector must also call, in the order it will call them.
+   * Lets a single run cover chained flows like "Zendesk → GitHub → Zendesk comment"
+   * or "HubSpot → Google OAuth refresh → Google Sheets" where more than one external
+   * service is reached. Each entry is researched and gets its own endpoints in the spec.
+   */
+  additionalTargets?: { app: string; action: string; docsQuery: string }[]
   fieldMapping: { from: string; to: string; note?: string }[]
   assumptions: string[]
 }

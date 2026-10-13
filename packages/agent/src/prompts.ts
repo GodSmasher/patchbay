@@ -6,10 +6,17 @@ Turn the user's request into a precise integration plan. Answer with a single JS
   "summary": string,          // one sentence describing this specific integration
   "source": { "app": string, "trigger": string, "docsQuery": string },
   "target": { "app": string, "action": string, "docsQuery": string },
+  "additionalTargets"?: [ { "app": string, "action": string, "docsQuery": string } ],
   "fieldMapping": [ { "from": string, "to": string, "note"?: string } ],
   "assumptions": [ string ]   // concrete assumptions you made about this request
 }
-The source is where data comes from (usually a webhook payload), the target is the API the connector calls.
+The source is where data comes from (usually a webhook payload), the "target" is the PRIMARY API the connector calls.
+Use "additionalTargets" when the request calls two or more distinct external services in sequence — for example
+"refresh an OAuth token at Google then write to Google Sheets" (additionalTargets: Google OAuth), or
+"open a GitHub issue then post a comment back on the Zendesk ticket" (additionalTargets: Zendesk comment),
+or "find a HubSpot engagement, delete it, log to Google Sheets" (additionalTargets: Google Sheets). List them
+in the order they are called. Do NOT split one app into multiple entries — a single app with several endpoints
+stays under its primary target or additionalTarget entry and the endpoints come out of research.
 docsQuery values are web search queries that find the official API reference for exactly that endpoint.
 List every field the user's request implies in fieldMapping, using the real field names of both APIs.
 
@@ -18,10 +25,23 @@ Example of the shape (for a different request, do not copy its content):
  "source":{"app":"Shopify","trigger":"orders/paid webhook","docsQuery":"Shopify orders/paid webhook payload order fields"},
  "target":{"app":"Airtable","action":"create record","docsQuery":"Airtable Web API create records request body personal access token"},
  "fieldMapping":[{"from":"name","to":"fields['Order']"},{"from":"email","to":"fields['Email']"},{"from":"total_price","to":"fields['Total']","note":"string in the payload, number in Airtable"}],
- "assumptions":["The Airtable table already has the columns Order, Email and Total."]}`
+ "assumptions":["The Airtable table already has the columns Order, Email and Total."]}
+
+Chained-flow example (two distinct target services):
+{"summary":"When a Zendesk ticket is created, open a GitHub issue and post the issue URL back as a Zendesk ticket comment.",
+ "source":{"app":"Zendesk","trigger":"ticket.created webhook","docsQuery":"Zendesk ticket webhook payload fields"},
+ "target":{"app":"GitHub","action":"create issue","docsQuery":"GitHub REST API create an issue repo owner title body"},
+ "additionalTargets":[{"app":"Zendesk","action":"add ticket comment","docsQuery":"Zendesk API add comment to ticket request body"}],
+ "fieldMapping":[{"from":"ticket.subject","to":"issue.title"},{"from":"ticket.description","to":"issue.body"},{"from":"issue.html_url","to":"comment.body","note":"after the GitHub issue is created, write its URL into a Zendesk ticket comment"}],
+ "assumptions":["The Zendesk account has a webhook configured for ticket.created."]}`
 
 export const SPEC_SYSTEM = `You are the research step of patchbay. You receive a plan and raw text of API documentation pages.
 Extract the concrete endpoint facts the connector needs. Only state what the docs support; if something is not in the docs, add a note instead of guessing.
+When plan.additionalTargets is set, the connector talks to MORE THAN ONE target service in sequence —
+list every call in spec.target[] in call order (primary target first, then additionalTargets in the order
+given), each with its own "app" field. The contract test runs the connector against the SOURCE_EXAMPLE and
+every documented endpoint must either be called or clearly optional, so do not include an endpoint the
+connector will not actually hit.
 Answer with a single JSON object:
 {
   "source": {
