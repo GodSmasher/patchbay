@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
-import { dirname, join, relative, resolve } from 'node:path'
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, watch, writeFileSync } from 'node:fs'
+import { basename, dirname, join, relative, resolve } from 'node:path'
 import { loadConfig, missingLiveKeys } from './config'
 import { startResearch, startRun, startVerify } from './index'
 import type { GeneratedFile, RunEvent } from './types'
@@ -10,17 +10,21 @@ const HELP = `patchbay – describe an integration, get a tested TypeScript conn
 Usage:
   patchbay build   [--record] "<one-sentence integration>"
   patchbay research           "<one-sentence integration>"
-  patchbay verify  <directory>
+  patchbay verify  [--watch] <directory>
+  patchbay add     <run-dir> [--target=<dir>]
   patchbay help
 
 Commands:
   build     Full pipeline: plan → research → generate → verify (with repair). Default if you pass a prompt.
   research  Plan + API research only. Prints the spec, no code.
   verify    Type-check and vitest an existing connector folder (needs src/connector.ts + tests).
+  add       Drop a recorded run's connector files into another project.
   help      Show this message.
 
 Flags:
   --record  build only. Writes runs/<timestamp>/ with generated files and the event log.
+  --watch   verify only. Re-runs the sandbox verify whenever a .ts file in <directory> changes.
+  --target  add only. Where to drop the files, defaults to ./connectors/<run-name>.
 
 Environment:
   NEBIUS_API_KEY, NEBIUS_AI_PROJECT, TAVILY_API_KEY  – required for live runs.
@@ -43,6 +47,8 @@ async function main() {
   const cmd = known.has(first) ? first : 'build'
   const rest = known.has(first) ? argv.slice(1) : argv
 
+  if (first === 'add') return add(argv.slice(1))
+
   switch (cmd) {
     case 'build':
       return build(rest)
@@ -51,6 +57,39 @@ async function main() {
     case 'verify':
       return verify(rest)
   }
+}
+
+/**
+ * Copy the files from a recorded run (`runs/<timestamp>/`) into a target
+ * project. Default target is ./connectors/<run-basename>, so repeated adds
+ * don't overwrite each other.
+ */
+async function add(args: string[]) {
+  const positional = args.filter((a) => !a.startsWith('--'))
+  const flag = args.find((a) => a.startsWith('--target='))
+  const runDir = positional[0] ? resolve(positional[0]) : ''
+  if (!runDir) return usageError('add needs a run directory (e.g. runs/<timestamp>)')
+  if (!existsSync(runDir)) return usageError(`No such directory: ${runDir}`)
+  const srcDir = join(runDir, 'src')
+  if (!existsSync(join(srcDir, 'connector.ts'))) {
+    return usageError(`${runDir} does not look like a patchbay run (no src/connector.ts)`)
+  }
+  const target = flag ? resolve(flag.slice('--target='.length)) : resolve(process.cwd(), 'connectors', basename(runDir))
+  if (existsSync(target)) {
+    console.error(`Refusing to overwrite ${target}. Pass --target=<fresh-dir> or move the existing folder out of the way.`)
+    process.exit(1)
+  }
+  mkdirSync(target, { recursive: true })
+  // src/ is self-contained (connector.ts + connector.test.ts + fixtures.ts).
+  cpSync(srcDir, join(target, 'src'), { recursive: true })
+  const readme = join(runDir, 'README.md')
+  if (existsSync(readme)) cpSync(readme, join(target, 'README.md'))
+  const copied = readdirSync(join(target, 'src'))
+  console.log(`✔ Copied ${copied.length + (existsSync(readme) ? 1 : 0)} files to ${target}`)
+  console.log('  src/' + copied.join('\n  src/'))
+  if (existsSync(readme)) console.log('  README.md')
+  console.log(`\nTests should already pass unchanged — the connector is self-contained and uses an injected fetch.`)
+  console.log(`Add vitest and typescript as dev deps where you'll run them, or wire this into your existing suite.`)
 }
 
 async function build(args: string[]) {
@@ -101,10 +140,11 @@ async function research(args: string[]) {
 }
 
 async function verify(args: string[]) {
-  const dir = args[0] ? resolve(args[0]) : ''
+  const watchMode = args.includes('--watch')
+  const positional = args.filter((a) => !a.startsWith('--'))
+  const dir = positional[0] ? resolve(positional[0]) : ''
   if (!dir) return usageError('verify needs a directory')
-  const files = collectFiles(dir)
-  if (!files.some((f) => f.path === 'src/connector.ts')) {
+  if (!collectFiles(dir).some((f) => f.path === 'src/connector.ts')) {
     return usageError(`No src/connector.ts under ${dir}`)
   }
   const config = loadConfig()
@@ -113,8 +153,38 @@ async function verify(args: string[]) {
     console.error(`verify needs live keys. Set PATCHBAY_MOCK=false and provide ${missing.join(', ') || 'the missing env vars'}.`)
     process.exit(1)
   }
-  console.log(`Verifying ${files.length} files from ${dir}`)
-  for await (const event of startVerify(files, config)) printEvent(event)
+
+  const runOnce = async () => {
+    const files = collectFiles(dir)
+    console.log(`\nVerifying ${files.length} files from ${dir}`)
+    for await (const event of startVerify(files, config)) printEvent(event)
+  }
+
+  await runOnce()
+  if (!watchMode) return
+
+  console.log(`\nWatching ${dir} for .ts changes. Ctrl+C to exit.`)
+  let running = false
+  let rerun = false
+  // Native fs.watch is good enough: debounced to avoid thrashing when an editor
+  // saves multiple files in quick succession.
+  let pending: NodeJS.Timeout | null = null
+  const trigger = () => {
+    if (pending) clearTimeout(pending)
+    pending = setTimeout(async () => {
+      pending = null
+      if (running) { rerun = true; return }
+      running = true
+      try { await runOnce() } finally {
+        running = false
+        if (rerun) { rerun = false; trigger() }
+      }
+    }, 400)
+  }
+  watch(dir, { recursive: true }, (_, filename) => {
+    if (filename && (filename.endsWith('.ts') || filename.endsWith('.json'))) trigger()
+  })
+  await new Promise(() => {}) // keep the process alive
 }
 
 function collectFiles(root: string): GeneratedFile[] {

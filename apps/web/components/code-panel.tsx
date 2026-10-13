@@ -49,6 +49,7 @@ export function CodePanel({ drafts, finalOk }: { drafts: Draft[]; finalOk: boole
 
   return (
     <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-paper-line bg-paper-card">
+      {drafts.length > 1 && <Trajectory drafts={drafts} activeAttempt={draft.attempt} onPick={setAttempt} />}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-paper-line px-3 py-2">
         <div className="flex gap-1">
           {drafts.map((d) => (
@@ -95,6 +96,49 @@ export function CodePanel({ drafts, finalOk }: { drafts: Draft[]; finalOk: boole
 
       {draft.report && <Report report={draft.report} />}
     </section>
+  )
+}
+
+/**
+ * Compact strip across the top of the Code panel that shows how the connector
+ * evolved from draft 1 to the current one. Each pill is clickable (jumps the
+ * code viewer to that draft), hover shows the first failing test so the viewer
+ * sees *why* the model took another swing without expanding anything.
+ */
+function Trajectory({ drafts, activeAttempt, onPick }: { drafts: Draft[]; activeAttempt: number; onPick: (n: number) => void }) {
+  return (
+    <div className="flex items-center gap-2 border-b border-paper-line bg-paper px-3 py-2 text-[11px]">
+      <span className="text-ink-mute">Repair trajectory</span>
+      <div className="flex flex-wrap items-center gap-1">
+        {drafts.map((d, i) => {
+          const r = d.report
+          const green = r?.typecheckOk && r.failed === 0 && (r.contract === undefined || r.contract === 'passed')
+          const label = r ? `${r.passed}/${r.total}` : '…'
+          const why = r?.failures[0]
+            ? `attempt ${d.attempt}: ${r.passed}/${r.total}, ${r.typecheckOk ? 'typecheck ok' : 'typecheck failed'}, ${r.contract ?? 'no contract'}\nfirst failure: ${r.failures[0].name}`
+            : `attempt ${d.attempt}`
+          return (
+            <span key={d.attempt} className="flex items-center gap-1">
+              {i > 0 && <span className="text-ink-mute">→</span>}
+              <button
+                onClick={() => onPick(d.attempt)}
+                title={why}
+                className={`rounded-full border px-2 py-0.5 font-medium transition ${
+                  d.attempt === activeAttempt
+                    ? 'border-ink text-ink'
+                    : green
+                    ? 'border-signal/40 text-signal hover:border-signal'
+                    : 'border-warn/40 text-warn hover:border-warn'
+                }`}
+              >
+                {label}
+                <span className="ml-1 text-ink-mute">{green ? '✓' : '✖'}</span>
+              </button>
+            </span>
+          )
+        })}
+      </div>
+    </div>
   )
 }
 
