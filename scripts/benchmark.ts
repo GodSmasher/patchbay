@@ -36,6 +36,17 @@ const PROMPTS = [
   'When a Linear issue is closed, fetch all its comments using cursor pagination and post a single digest message to a Discord channel.',
   'When a Zendesk ticket is created, open a matching GitHub issue in the configured repo and then post the GitHub issue URL back as a Zendesk ticket comment.',
   'When a Twilio incoming SMS webhook arrives, route it to Slack #sales when the body matches /pricing|quote|demo/i, otherwise to Slack #support.',
+  // Brutal 10 — chained calls, dedup, OAuth refresh, GraphQL, nested arrays, upserts, idempotency, S3, WebSockets, structured output.
+  'When a Stripe invoice is finalized, create a line item in QuickBooks for every invoice line and attach the Stripe invoice URL to the QuickBooks invoice.',
+  'When a HubSpot deal is updated, refresh the Google OAuth access token using the stored refresh token if expired, then write the deal stage to a Google Sheets row.',
+  'When a Linear comment is created, use the Linear GraphQL API with a nested mutation to add a reaction and mirror the comment body into a Slack thread.',
+  'When a Shopify order is paid, deduplicate against prior webhook deliveries by order id + hmac, then enqueue an Airtable upsert that key-matches on Order Number.',
+  'When a Stripe charge.refunded webhook arrives, send an idempotent POST to Mailchimp add-tag using the charge id as Idempotency-Key, and skip when the tag already exists.',
+  'When a Typeform submission arrives, upload the first file answer to S3 using a presigned URL request, then store the public URL in an Airtable attachment field.',
+  'When a Zendesk ticket is updated, open a WebSocket to Pusher Channels and push the status change to channel presence-ticket-<id> as event ticket.updated.',
+  'When a GitHub pull_request is opened, call OpenAI with a structured output schema requesting {summary, risks[], suggestedReviewers[]} and post the summary as a PR comment.',
+  'When an Intercom conversation ends, fetch its full transcript via pagination, redact emails and phone numbers with regex, then store the cleaned transcript in Notion with rich-text formatting.',
+  'When a Calendly meeting is cancelled, find the matching HubSpot engagement by invitee email + start time, delete it, and log the cancellation reason to a Google Sheets audit log.',
 ]
 
 interface Row {
