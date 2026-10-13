@@ -27,17 +27,26 @@ Every endpoint in the spec comes with an example payload taken from the document
 
 ## Three ways to call it
 
-**CLI** – `packages/agent/src/cli.ts`
+**CLI** – [`@patchbay/agent`](https://www.npmjs.com/package/@patchbay/agent) on npm
 
 ```
+npx -y @patchbay/agent build "When a Stripe payment succeeds, add the customer to a Mailchimp audience"
+# or
+npm install -g @patchbay/agent
 patchbay build   [--record] "<one-sentence integration>"
 patchbay research           "<one-sentence integration>"
 patchbay verify  <directory>
 ```
 
-**MCP server** – `packages/mcp/src/server.ts`, stdio transport.
+**MCP server** – [`@patchbay/mcp`](https://www.npmjs.com/package/@patchbay/mcp) on npm, stdio transport.
 
-Three tools (`build_connector`, `research_api`, `verify_code`) with live progress and logging notifications. Setup for Claude Code, Codex and Cursor in [docs/mcp-setup.md](docs/mcp-setup.md).
+Three tools (`build_connector`, `research_api`, `verify_code`) with live progress and logging notifications.
+
+```
+claude mcp add patchbay -- npx -y @patchbay/mcp
+```
+
+Full setup for Claude Code, Codex and Cursor in [docs/mcp-setup.md](docs/mcp-setup.md).
 
 **Web app** – `apps/web`, Next.js 14 on port 3400. Live demo at **https://patchbay-nebius.vercel.app**. The same UI streams a live Nebius run or, past the 6/hour per-IP rate limit, the recorded replay.
 
