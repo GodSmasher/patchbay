@@ -58,12 +58,22 @@ const VERSION = '0.1.0'
 
 const server = new McpServer({ name: 'patchbay', version: VERSION })
 
+// MCP SDK's registerTool inference blows past TS's instantiation depth once more than
+// one tool with a zod schema is registered. The three tool definitions below are
+// correct and typecheck in isolation; we erase the generic entry point here to keep
+// `tsc --noEmit` under the 100-step budget without changing runtime behaviour.
+const registerTool = server.registerTool.bind(server) as (
+  name: string,
+  config: Record<string, unknown>,
+  handler: (args: Record<string, unknown>, extra: ToolExtra) => Promise<unknown>,
+) => void
+
 const fileSchema = z.object({
   path: z.string().describe('Relative path inside the connector (e.g. src/connector.ts)'),
   content: z.string().describe('File contents as UTF-8 text'),
 })
 
-server.registerTool(
+registerTool(
   'build_connector',
   {
     title: 'Build a connector',
@@ -77,14 +87,15 @@ server.registerTool(
       maxAttempts: z.number().int().min(1).max(5).optional().describe('Repair attempts, default from PATCHBAY_MAX_ATTEMPTS'),
     },
   },
-  async ({ prompt, maxAttempts }, extra) => {
+  async (args, extra) => {
+    const { prompt, maxAttempts } = args as { prompt: string; maxAttempts?: number }
     const config = loadConfig()
     if (maxAttempts) config.maxAttempts = maxAttempts
     return runToolStream(extra, startRun(prompt, config), { includeFiles: true })
   },
 )
 
-server.registerTool(
+registerTool(
   'research_api',
   {
     title: 'Research an integration',
@@ -96,12 +107,13 @@ server.registerTool(
       prompt: z.string().min(4).describe('One-sentence integration description'),
     },
   },
-  async ({ prompt }, extra) => {
+  async (args, extra) => {
+    const { prompt } = args as { prompt: string }
     return runToolStream(extra, startResearch(prompt, loadConfig()), { includeSpec: true })
   },
 )
 
-server.registerTool(
+registerTool(
   'verify_code',
   {
     title: 'Verify a connector',
@@ -115,7 +127,8 @@ server.registerTool(
       maxAttempts: z.number().int().min(1).max(5).optional().describe('Repair attempts, default from PATCHBAY_MAX_ATTEMPTS'),
     },
   },
-  async ({ files, maxAttempts }, extra) => {
+  async (args, extra) => {
+    const { files, maxAttempts } = args as { files: GeneratedFile[]; maxAttempts?: number }
     const config = loadConfig()
     if (maxAttempts) config.maxAttempts = maxAttempts
     const missing = missingLiveKeys(config)
@@ -125,7 +138,7 @@ server.registerTool(
           'Set them in the MCP server env (see docs/mcp-setup.md).',
       )
     }
-    return runToolStream(extra, startVerify(files as GeneratedFile[], config), { includeFiles: true })
+    return runToolStream(extra, startVerify(files, config), { includeFiles: true })
   },
 )
 
