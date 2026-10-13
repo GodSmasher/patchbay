@@ -7,12 +7,22 @@ if (existsSync(rootEnv)) process.loadEnvFile(rootEnv)
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  transpilePackages: ['@patchbay/agent'],
+  // @patchbay/agent now ships compiled ESM in dist/, so transpilePackages is no
+  // longer necessary. Keeping it would pull esbuild (a runtime dep of the preflight
+  // syntax check) through webpack's loaders and crash the build.
   poweredByHeader: false,
-  // esbuild is a Node-only binary dependency used by the preflight syntax check.
-  // Keep it as a runtime require instead of bundling it with webpack.
   experimental: {
-    serverComponentsExternalPackages: ['esbuild'],
+    serverComponentsExternalPackages: ['esbuild', '@patchbay/agent'],
+  },
+  webpack: (config, { isServer }) => {
+    // esbuild is a Node binary dep of @patchbay/agent; webpack must leave it as a
+    // runtime import or it tries to bundle the native platform fallbacks.
+    if (isServer) {
+      const externals = Array.isArray(config.externals) ? config.externals : [config.externals].filter(Boolean)
+      externals.push({ esbuild: 'commonjs esbuild' })
+      config.externals = externals
+    }
+    return config
   },
 }
 
