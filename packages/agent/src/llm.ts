@@ -29,15 +29,23 @@ interface NebiusChatResponse {
   error?: { message?: string }
 }
 
-/** OpenAI-compatible client for Nebius Token Factory. */
+/**
+ * OpenAI-compatible chat client. Default endpoint is Nebius Token Factory, but any
+ * OpenAI-compatible base URL works (OpenAI itself, Groq, Together, Fireworks, OpenRouter,
+ * a self-hosted vLLM, …). `supportsNemotronThinking` controls whether the Nemotron-specific
+ * `chat_template_kwargs: { enable_thinking: false }` flag is sent for structured steps —
+ * leave it on for Nebius, off for everything else (OpenAI rejects unknown fields).
+ */
 export function createNebiusClient(opts: {
   apiKey: string
   baseUrl: string
   fetch?: typeof fetch
   retries?: number
+  supportsNemotronThinking?: boolean
 }): LlmClient {
   const doFetch = opts.fetch ?? fetch
   const retries = opts.retries ?? 2
+  const nemotron = opts.supportsNemotronThinking ?? true
   const ledger = new Map<string, Usage>()
 
   async function chat(model: ModelTier, messages: ChatMessage[], options: ChatOptions = {}): Promise<string> {
@@ -46,7 +54,7 @@ export function createNebiusClient(opts: {
       messages,
       temperature: options.temperature ?? 0.2,
       max_tokens: options.maxTokens ?? 4096,
-      ...(options.thinking === false ? { chat_template_kwargs: { enable_thinking: false } } : {}),
+      ...(nemotron && options.thinking === false ? { chat_template_kwargs: { enable_thinking: false } } : {}),
     }
 
     let lastError: unknown

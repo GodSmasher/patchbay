@@ -18,7 +18,7 @@ export function startRun(prompt: string, config: AgentConfig = loadConfig()): As
   if (config.mock || missingLiveKeys(config).length > 0) return replayRun()
   return runAgent(prompt, {
     config,
-    llm: createNebiusClient({ apiKey: config.nebiusApiKey, baseUrl: config.nebiusBaseUrl }),
+    llm: createNebiusClient({ apiKey: config.nebiusApiKey, baseUrl: config.nebiusBaseUrl, supportsNemotronThinking: config.llmProvider === 'nebius' }),
     search: createTavilyClient({ apiKey: config.tavilyApiKey }),
     sandbox:
       config.runner === 'local'
@@ -37,7 +37,7 @@ export function startResearch(prompt: string, config: AgentConfig = loadConfig()
   if (config.mock || missingLiveKeys(config).length > 0) return truncateAt(replayRun(), 'spec')
   return researchAgent(prompt, {
     config,
-    llm: createNebiusClient({ apiKey: config.nebiusApiKey, baseUrl: config.nebiusBaseUrl }),
+    llm: createNebiusClient({ apiKey: config.nebiusApiKey, baseUrl: config.nebiusBaseUrl, supportsNemotronThinking: config.llmProvider === 'nebius' }),
     search: createTavilyClient({ apiKey: config.tavilyApiKey }),
   })
 }
@@ -49,7 +49,7 @@ export function startVerify(files: GeneratedFile[], config: AgentConfig = loadCo
   }
   return verifyAgent(files, {
     config,
-    llm: createNebiusClient({ apiKey: config.nebiusApiKey, baseUrl: config.nebiusBaseUrl }),
+    llm: createNebiusClient({ apiKey: config.nebiusApiKey, baseUrl: config.nebiusBaseUrl, supportsNemotronThinking: config.llmProvider === 'nebius' }),
     sandbox:
       config.runner === 'local'
         ? createLocalRunner()

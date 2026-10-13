@@ -18,29 +18,54 @@ export interface AgentConfig {
   maxAttempts: number
   /** How many repair variants to try in parallel per attempt. 1 = classic sequential repair. */
   parallelRepairs: number
+  /**
+   * LLM provider identity, chosen by setting PATCHBAY_LLM_PROVIDER. Default `nebius` keeps
+   * the Nemotron-specific `chat_template_kwargs: { enable_thinking: false }` field in requests;
+   * `openai` / `generic` strip it so any other OpenAI-compatible endpoint (OpenAI, Groq,
+   * Together, Fireworks, OpenRouter, self-hosted vLLM) stops rejecting it.
+   */
+  llmProvider: 'nebius' | 'openai' | 'generic'
   models: { fast: ModelTier; mid: ModelTier; strong: ModelTier }
 }
 
 type Env = Record<string, string | undefined>
 
 export function loadConfig(env: Env = process.env): AgentConfig {
+  const provider = parseProvider(env.PATCHBAY_LLM_PROVIDER)
+  // When pointing at OpenAI (or any other provider) directly, reuse the Nebius env vars so
+  // existing deployments don't have to re-wire everything — just override LLM_BASE_URL / etc.
+  const apiKey = env.PATCHBAY_LLM_API_KEY || env.NEBIUS_API_KEY || env.OPENAI_API_KEY || ''
+  const baseUrl =
+    env.PATCHBAY_LLM_BASE_URL ||
+    env.NEBIUS_BASE_URL ||
+    (provider === 'openai' ? 'https://api.openai.com/v1' : 'https://api.tokenfactory.nebius.com/v1')
+  const defaultModels =
+    provider === 'openai'
+      ? { fast: 'gpt-4o-mini', mid: 'gpt-4o-mini', strong: 'gpt-4o' }
+      : { fast: 'nvidia/Nemotron-3_5-Lightning', mid: 'nvidia/nemotron-3-super-120b-a12b', strong: 'nvidia/Nemotron-3-Ultra-550b-a55b' }
   return {
     mock: env.PATCHBAY_MOCK !== 'false',
     runner: env.PATCHBAY_RUNNER === 'local' ? 'local' : 'nebius',
-    nebiusApiKey: env.NEBIUS_API_KEY ?? '',
+    nebiusApiKey: apiKey,
     nebiusProject: env.NEBIUS_AI_PROJECT ?? '',
-    nebiusBaseUrl: env.NEBIUS_BASE_URL || 'https://api.tokenfactory.nebius.com/v1',
+    nebiusBaseUrl: baseUrl,
     sandboxUrl: env.NEBIUS_SANDBOX_URL || 'https://api.tokenfactory.nebius.com/sandboxes/v1',
     tavilyApiKey: env.TAVILY_API_KEY ?? '',
     baseImage: env.PATCHBAY_BASE_IMAGE || undefined,
     maxAttempts: Number(env.PATCHBAY_MAX_ATTEMPTS || 4),
     parallelRepairs: clamp(Number(env.PATCHBAY_PARALLEL_REPAIRS || 2), 1, 4),
+    llmProvider: provider,
     models: {
-      fast: { id: env.PATCHBAY_MODEL_FAST || 'nvidia/Nemotron-3_5-Lightning', inputPrice: 0.06, outputPrice: 0.24 },
-      mid: { id: env.PATCHBAY_MODEL_MID || 'nvidia/nemotron-3-super-120b-a12b', inputPrice: 0.3, outputPrice: 0.9 },
-      strong: { id: env.PATCHBAY_MODEL_STRONG || 'nvidia/Nemotron-3-Ultra-550b-a55b', inputPrice: 1, outputPrice: 3 },
+      fast: { id: env.PATCHBAY_MODEL_FAST || defaultModels.fast, inputPrice: 0.06, outputPrice: 0.24 },
+      mid: { id: env.PATCHBAY_MODEL_MID || defaultModels.mid, inputPrice: 0.3, outputPrice: 0.9 },
+      strong: { id: env.PATCHBAY_MODEL_STRONG || defaultModels.strong, inputPrice: 1, outputPrice: 3 },
     },
   }
+}
+
+function parseProvider(raw: string | undefined): AgentConfig['llmProvider'] {
+  if (raw === 'openai' || raw === 'generic') return raw
+  return 'nebius'
 }
 
 function clamp(n: number, min: number, max: number): number {
