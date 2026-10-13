@@ -11,6 +11,7 @@ import {
   planUser,
   repairUser,
   specUser,
+  type RepairContext,
 } from './prompts'
 import { isGreen } from './report'
 import type { SandboxRunner } from './sandbox'
@@ -74,6 +75,7 @@ export async function* runAgent(prompt: string, deps: AgentDeps): AsyncGenerator
     let bestReport: TestReport | null = null
     let attempt = 1
     let skipInitialTest = false
+    const history: Array<{ attempt: number; summary: string }> = []
     for (;;) {
       if (!skipInitialTest) {
         const preflight = await preflightSyntax(files)
@@ -90,12 +92,15 @@ export async function* runAgent(prompt: string, deps: AgentDeps): AsyncGenerator
       ;({ files, report, bestFiles, bestReport } = keepBest({ attempt, files, report: report!, bestFiles, bestReport, log: (m) => queue.push({ type: 'log', step: 'verify', message: m }) }))
       yield* drain()
       if (isGreen(report) || attempt >= config.maxAttempts) break
+      history.push({ attempt, summary: summariseReport(report) })
       attempt++
       yield { type: 'log', step: 'verify', message: `Attempt ${attempt - 1} failed (${report.failed} tests, typecheck ${report.typecheckOk ? 'ok' : 'failed'}), repairing` }
+      const repairCtx: RepairContext = { attempt, maxAttempts: config.maxAttempts, previousAttempts: history.slice() }
       if (config.parallelRepairs > 1) {
         const r = await repairParallel(files, report, {
           llm, sandbox, config, baseImage,
           withFixtures: (next) => withFixtures(next, fixtures),
+          context: repairCtx,
         }, log('verify'))
         yield* drain()
         files = r.files
@@ -104,7 +109,7 @@ export async function* runAgent(prompt: string, deps: AgentDeps): AsyncGenerator
         yield { type: 'tests', attempt, report, branches: r.branches }
         skipInitialTest = true
       } else {
-        files = withFixtures(await repair(files, report, llm, config), fixtures)
+        files = withFixtures(await repair(files, report, llm, config, { context: repairCtx }), fixtures)
         yield { type: 'files', attempt, files }
       }
     }
@@ -180,6 +185,7 @@ export async function* verifyAgent(
     let bestReport: TestReport | null = null
     let attempt = 1
     let skipInitialTest = false
+    const history: Array<{ attempt: number; summary: string }> = []
     for (;;) {
       if (!skipInitialTest) {
         const preflight = await preflightSyntax(current)
@@ -196,12 +202,15 @@ export async function* verifyAgent(
       ;({ files: current, report, bestFiles, bestReport } = keepBest({ attempt, files: current, report: report!, bestFiles, bestReport, log: (m) => queue.push({ type: 'log', step: 'verify', message: m }) }))
       yield* drain()
       if (isGreen(report) || attempt >= config.maxAttempts) break
+      history.push({ attempt, summary: summariseReport(report) })
       attempt++
       yield { type: 'log', step: 'verify', message: `Attempt ${attempt - 1} failed (${report.failed} tests, typecheck ${report.typecheckOk ? 'ok' : 'failed'}), repairing` }
+      const repairCtx: RepairContext = { attempt, maxAttempts: config.maxAttempts, previousAttempts: history.slice() }
       if (config.parallelRepairs > 1) {
         const r = await repairParallel(current, report, {
           llm, sandbox, config, baseImage,
           withFixtures: (next) => next,
+          context: repairCtx,
         }, log)
         yield* drain()
         current = r.files
@@ -210,7 +219,7 @@ export async function* verifyAgent(
         yield { type: 'tests', attempt, report, branches: r.branches }
         skipInitialTest = true
       } else {
-        current = await repair(current, report, llm, config)
+        current = await repair(current, report, llm, config, { context: repairCtx })
         yield { type: 'files', attempt, files: current }
       }
     }
@@ -293,11 +302,11 @@ export async function repair(
   report: TestReport,
   llm: LlmClient,
   config: AgentConfig,
-  options: { temperature?: number } = {},
+  options: { temperature?: number; context?: RepairContext } = {},
 ): Promise<GeneratedFile[]> {
   const answer = await llm.chat(config.models.strong, [
     { role: 'system', content: GENERATE_SYSTEM },
-    { role: 'user', content: repairUser(renderFileBlocks(files), report) },
+    { role: 'user', content: repairUser(renderFileBlocks(files), report, options.context) },
   ], { maxTokens: 32_000, temperature: options.temperature ?? 0.1 })
   const repaired = parseFileBlocks(answer)
   const merged = new Map(files.map((f) => [f.path, f]))
@@ -322,6 +331,7 @@ export async function repairParallel(
     config: AgentConfig
     baseImage: string
     withFixtures: (files: GeneratedFile[]) => GeneratedFile[]
+    context?: RepairContext
   },
   log: (m: string) => void,
 ): Promise<{ files: GeneratedFile[]; report: TestReport; branches: Array<{ branch: number; passed: number; total: number; typecheckOk: boolean; green: boolean }> }> {
@@ -331,7 +341,7 @@ export async function repairParallel(
 
   const candidates = await Promise.all(
     temperatures.map(async (temperature, i) => {
-      const generated = await repair(files, report, deps.llm, deps.config, { temperature })
+      const generated = await repair(files, report, deps.llm, deps.config, { temperature, context: deps.context })
       return { branch: i + 1, files: deps.withFixtures(generated) }
     }),
   )
@@ -436,3 +446,14 @@ function isBetter(a: TestReport, b: TestReport): boolean {
 }
 
 const messageOf = (error: unknown) => (error instanceof Error ? error.message : String(error))
+
+/** One-line summary of an attempt, used so repair prompts know what the previous passes already tried. */
+function summariseReport(report: TestReport): string {
+  const bits: string[] = []
+  bits.push(`${report.passed}/${report.total} tests`)
+  bits.push(report.typecheckOk ? 'typecheck ok' : 'typecheck failed')
+  if (report.contract) bits.push(`contract ${report.contract}`)
+  const firstFailure = report.failures[0]
+  if (firstFailure) bits.push(`e.g. "${firstFailure.name}: ${firstFailure.message.slice(0, 160).replace(/\s+/g, ' ')}"`)
+  return bits.join(', ')
+}

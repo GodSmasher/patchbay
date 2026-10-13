@@ -38,10 +38,29 @@ Answer with a single JSON object:
   ]
 }
 List target endpoints in the order the connector must call them.
+
 When any endpoint is documented as paginated (cursor, offset, page, has_more, next_url,
 next_page_token, "endCursor"), capture the pagination mechanism in notes[] on that endpoint
 so the connector follows it correctly, e.g. "paginate with ?after=cursor; stop when
-response.pagination.next is null".`
+response.pagination.next is null".
+
+URL path templates: when the docs describe the endpoint with placeholders — numeric ids,
+UUIDs, slugs, external-id upserts, composite keys — write the full documented template as
+the "url" value, keeping the placeholder syntax from the docs. Examples:
+
+  "https://api.hubspot.com/crm/v3/objects/contacts/{contactId}"
+  "https://na1.salesforce.com/services/data/v60.0/sobjects/Account/Website__c/{website}"
+  "https://api.notion.com/v1/pages/{page_id}"
+  "https://api.linear.app/graphql"   (single POST, variables carry the id)
+
+Do NOT substitute a sample value into the url (so no acme.com in the Salesforce example,
+no abc123 in the HubSpot example). The connector constructs the final URL from the input
+payload at runtime; the spec URL stays the template so the contract check accepts both
+the documented endpoint and the generated call.
+
+For upsert / idempotent-create endpoints (Salesforce external-id upsert via PATCH,
+Stripe Idempotency-Key, HubSpot updateOrCreate), add a note describing which header or
+URL segment carries the idempotency token so the connector sends it correctly.`
 
 export const GENERATE_SYSTEM = `You are the code-generation step of patchbay. Write a production-quality TypeScript connector and its tests.
 
@@ -104,16 +123,31 @@ export function generateUser(plan: Plan, spec: ApiSpec, fixtures: string): strin
   return `Plan:\n${JSON.stringify(plan, null, 2)}\n\nAPI spec:\n${JSON.stringify(spec, null, 2)}\n\nsrc/fixtures.ts (provided by patchbay, read-only):\n${fixtures}\n\nWrite the three files now.`
 }
 
-export function repairUser(filesBlock: string, report: TestReport): string {
+export interface RepairContext {
+  /** 1-based: the attempt we are producing the fix FOR (so the repair output will be verified as this attempt). */
+  attempt: number
+  /** The absolute cap; the agent gives up after this many attempts. */
+  maxAttempts: number
+  /** Short lines describing what previous attempts tried and still failed on. Chronological. */
+  previousAttempts?: Array<{ attempt: number; summary: string }>
+}
+
+export function repairUser(filesBlock: string, report: TestReport, context?: RepairContext): string {
   const tsc = report.typecheckOk ? 'Typecheck passed.' : `Typecheck failed:\n${report.typecheckOutput.slice(0, 4000)}`
   const failures = report.failures.map((f) => `- ${f.name}\n${f.message}`).join('\n\n')
+  const header = context
+    ? `This is repair attempt ${context.attempt} of ${context.maxAttempts}. Produce something materially different from the earlier attempts${context.previousAttempts?.length ? ' listed below' : ''}.`
+    : ''
+  const history = context?.previousAttempts?.length
+    ? `\nPrevious attempts:\n${context.previousAttempts.map((a) => `  attempt ${a.attempt}: ${a.summary}`).join('\n')}\n`
+    : ''
   return `These files were run in an isolated sandbox (tsc --noEmit, then vitest).
-
+${header ? `\n${header}\n` : ''}
 ${tsc}
 
 Tests: ${report.passed} passed, ${report.failed} failed of ${report.total}.
 ${failures ? `Failures:\n${failures}` : ''}
-
+${history}
 Current files:
 ${filesBlock}
 
