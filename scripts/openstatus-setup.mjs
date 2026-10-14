@@ -44,6 +44,27 @@ const MONITORS = [
     headers: [{ key: 'content-type', value: 'application/x-www-form-urlencoded' }],
     assertions: [{ type: 'status', compare: 'gte', target: 200 }, { type: 'status', compare: 'lte', target: 599 }],
   },
+  {
+    // Upstream probe: no key, so the server answers 401 ("missing credentials"). That still means
+    // the Nebius Token Factory is up — if the whole service were down we'd see a timeout or 5xx.
+    // Asserting 401 is more honest than asserting 200 because 200 would need our live key.
+    name: 'upstream · nebius token factory',
+    description: 'Pings the Nebius OpenAI-compatible endpoint without a key. 401 means the API is answering, which is all we need to know for upstream health.',
+    url: 'https://api.tokenfactory.nebius.com/v1/models',
+    method: 'GET',
+    periodicity: '5m',
+    assertions: [{ type: 'status', compare: 'eq', target: 401 }],
+  },
+  {
+    // Second upstream — Tavily is the research step's dependency. Its root responds 200 for a
+    // GET with no key, so a vanilla probe is enough.
+    name: 'upstream · tavily',
+    description: 'Pings the Tavily root. 200 means the search API is answering so the research step can proceed.',
+    url: 'https://api.tavily.com/',
+    method: 'GET',
+    periodicity: '10m',
+    assertions: [{ type: 'status', compare: 'gte', target: 200 }, { type: 'status', compare: 'lte', target: 499 }],
+  },
 ]
 
 async function main() {
