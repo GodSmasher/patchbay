@@ -4,6 +4,7 @@
 
 
 [![ci](https://github.com/GodSmasher/patchbay/actions/workflows/ci.yml/badge.svg)](https://github.com/GodSmasher/patchbay/actions/workflows/ci.yml)
+[![status](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fpatchbay.openstatus.dev%2Fapi%2Fstatus%2Fcurrent.json&query=%24.status.description&label=status&color=brightgreen)](https://patchbay.openstatus.dev)
 [![benchmark](https://img.shields.io/badge/benchmark-90%25%20green%20over%2092%20runs-brightgreen)](bench/RESULTS-variance.md)
 [![mcp](https://img.shields.io/badge/MCP-stdio-6938EF)](docs/mcp-setup.md)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -48,7 +49,7 @@ claude mcp add patchbay -- npx -y @patchbay/mcp
 
 Full setup for Claude Code, Codex and Cursor in [docs/mcp-setup.md](docs/mcp-setup.md).
 
-**Web app** – `apps/web`, Next.js 14 on port 3400. Live demo at **https://patchbay-nebius.vercel.app**. The same UI streams a live Nebius run or, past the 6/hour per-IP rate limit, the recorded replay.
+**Web app** – `apps/web`, Next.js 14 on port 3400. Live demo at **https://patchbay-nebius.vercel.app**. The same UI streams a live Nebius run or, past the 6/hour per-IP rate limit, the recorded replay. Public uptime at **https://patchbay.openstatus.dev**.
 
 **Slack** – `/patchbay <one-sentence integration>` as a slash command. Setup in [docs/slack-setup.md](docs/slack-setup.md); the endpoint lives at `apps/web/app/api/slack/command/route.ts` on the same Vercel deploy.
 
