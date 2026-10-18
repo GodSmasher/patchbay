@@ -24,6 +24,35 @@ export async function GET() {
       })
       return { status: res.status, ok: res.ok, body: (await res.text()).slice(0, 300) }
     }),
+    tavilyAdvanced: await probe('tavilyAdvanced', async () => {
+      const key = process.env.TAVILY_API_KEY!
+      const res = await fetch('https://api.tavily.com/search', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: 'Typeform webhook payload fields', search_depth: 'advanced', max_results: 8, include_answer: false }),
+      })
+      return { status: res.status, ok: res.ok, body: (await res.text()).slice(0, 200) }
+    }),
+    tavilyParallel: await probe('tavilyParallel', async () => {
+      const key = process.env.TAVILY_API_KEY!
+      const body = (q: string) => JSON.stringify({ query: q, search_depth: 'advanced', max_results: 8, include_answer: false })
+      const call = (q: string) => fetch('https://api.tavily.com/search', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+        body: body(q),
+      }).then(async (r) => ({ q, status: r.status, ok: r.ok, snippet: (await r.text()).slice(0, 80) }))
+      const results = await Promise.all([call('Typeform webhook payload'), call('Pipedrive API create deal')])
+      return results
+    }),
+    tavilyExtract: await probe('tavilyExtract', async () => {
+      const key = process.env.TAVILY_API_KEY!
+      const res = await fetch('https://api.tavily.com/extract', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ urls: ['https://developer.typeform.com/webhooks/'], extract_depth: 'advanced' }),
+      })
+      return { status: res.status, ok: res.ok, body: (await res.text()).slice(0, 200) }
+    }),
     nebius: await probe('nebius', async () => {
       const res = await fetch('https://api.tokenfactory.nebius.com/v1/models', { method: 'GET' })
       return { status: res.status, ok: res.ok }
