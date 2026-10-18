@@ -370,8 +370,11 @@ export async function repairParallel(
   }
 
   const green = results.find((r) => isGreen(r.report))
-  const winner = green ?? results.reduce((best, r) => (r.report.passed > best.report.passed ? r : best))
-  log(`Chose branch ${winner.branch}${green ? ' (first green)' : ' (most tests passed)'}`)
+  // Tie-breaker when two branches are both not-green: prefer the one whose typecheck passed,
+  // then the one with more net-passed. Prevents a 10/12 (tc=false) branch beating a 10/12
+  // (tc=true) branch purely because they appeared in that order.
+  const winner = green ?? results.reduce((best, r) => (isBetter(r.report, best.report) ? r : best))
+  log(`Chose branch ${winner.branch}${green ? ' (first green)' : ' (best overall)'}`)
 
   return {
     files: winner.files,
@@ -428,7 +431,9 @@ function keepBest(args: {
     return { files, report, bestFiles: files, bestReport: report }
   }
   if (attempt > 1) {
-    log(`Attempt ${attempt} regressed (${report.passed}/${report.total} < ${bestReport.passed}/${bestReport.total}), rolling back for repair`)
+    const strictlyWorse = (report.passed - report.failed) < (bestReport.passed - bestReport.failed)
+    const verb = strictlyWorse ? 'regressed' : 'did not improve'
+    log(`Attempt ${attempt} ${verb} (${report.passed}/${report.total} vs best ${bestReport.passed}/${bestReport.total}), rolling back for repair`)
   }
   return { files: bestFiles, report: bestReport, bestFiles, bestReport }
 }
@@ -447,7 +452,16 @@ function isBetter(a: TestReport, b: TestReport): boolean {
   return false
 }
 
-const messageOf = (error: unknown) => (error instanceof Error ? error.message : String(error))
+const messageOf = (error: unknown): string => {
+  if (!(error instanceof Error)) return String(error)
+  const cause = (error as Error & { cause?: unknown }).cause
+  if (cause instanceof Error) return `${error.message} — cause: ${cause.name}${cause.message ? `: ${cause.message}` : ''}${(cause as Error & { code?: string }).code ? ` (${(cause as Error & { code?: string }).code})` : ''}`
+  if (cause && typeof cause === 'object') {
+    const c = cause as { code?: string; message?: string }
+    return `${error.message} — cause: ${c.code ?? ''}${c.message ? ` ${c.message}` : ''}`.trim()
+  }
+  return error.message
+}
 
 /** One-line summary of an attempt, used so repair prompts know what the previous passes already tried. */
 function summariseReport(report: TestReport): string {
