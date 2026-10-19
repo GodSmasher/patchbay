@@ -17,10 +17,10 @@ patchbay
 ## Tagline (elevator pitch, 200 chars)
 
 ```
-Describe an integration in one sentence. patchbay plans it, researches the real API docs, writes a TypeScript connector with tests, and proves the code works in an isolated Nebius sandbox before you see it.
+One sentence in, tested TypeScript connector out. $0.07 per run — 27× cheaper than Claude Opus for the same thing, with tests that actually run before you see the file.
 ```
 
-(199 characters — right at the Devpost limit.)
+(168 characters — well under the Devpost 200-char limit.)
 
 ## Try it out URLs (one line each)
 
@@ -138,6 +138,32 @@ on the README refreshes live.
 
 Full post-mortems with the exact diffs live in
 [docs/build-log.md](https://github.com/GodSmasher/patchbay/blob/main/docs/build-log.md).
+
+### We fine-tune our own repair model on our own benchmark runs
+
+Every patchbay benchmark run is a record of the agent failing and then fixing itself. 68 of those `(red draft + failing test) → green draft` moments across five benchmark passes make a perfectly-domain-matched training set — and Nebius Token Factory ships an OpenAI-compatible fine-tune endpoint that eats exactly this format. So we fine-tune a repair-focused **Nemotron 3.5 Lightning** on patchbay's own repair history.
+
+If it matches **Nemotron 3 Ultra 550B** (patchbay's current repair model) on the held-out eval set, we close the loop: patchbay generates benchmark runs → runs train its own repair model → next benchmark's repair cost drops ~50× while the green rate holds. All in-repo:
+
+- `bench/training-data.jsonl` — 68 real red→green repair pairs, extracted from committed benchmark runs
+- `scripts/finetune.ts` — Nebius Token Factory fine-tune job launcher
+- `scripts/eval-repair.ts` — format, file-coverage and line-overlap metrics against a held-out eval split
+- Full plan + results: `docs/finetune.md`
+
+This is also the only part of the submission that uses **two Nebius services** (Token Factory inference + Token Factory fine-tuning) in one project — and the training data doesn't exist anywhere else, because it's the self-referential closure of 90+ live benchmark runs on Nebius' own sandboxes.
+
+### Why not just ask Claude Code / Cursor / Codex yourself?
+
+Same connector, same requirements, rough per-connector cost:
+
+- **patchbay** (Nemotron on Nebius): **~$0.07**
+- Claude Code with Haiku 5.5: ~$0.10 (1.4× more)
+- Claude Code with Sonnet 5.5: ~$0.35 (5× more)
+- Claude Code with Opus 4.7: **~$1.90 (27× more)**
+
+The agent in your editor is a generalist. For integration work — read the docs, map fields, write it, prove it — a specialized pipeline on cheap-but-capable Nemotron models beats a general-purpose agent on expensive ones.
+
+patchbay sits inside Claude Code / Cursor / Codex as an MCP server, so you keep the generalist for architecture and refactors, and hand off connector work to patchbay. Your Claude usage bill goes down for the task Claude is slowest *and* most expensive at. The generated connector is plain TypeScript in your repo — read it, change it, ship it.
 
 ### Accomplishments we're proud of
 

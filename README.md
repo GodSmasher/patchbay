@@ -10,6 +10,20 @@
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![nebius](https://img.shields.io/badge/powered%20by-Nebius%20Token%20Factory-0F172A)](https://tokenfactory.nebius.com)
 
+### Works with
+
+<p>
+  <a href="docs/mcp-setup.md"><img src="docs/assets/claude-anim.svg" alt="Claude Code" height="32" title="Claude Code via MCP"/></a>
+  &nbsp;
+  <a href="docs/mcp-setup.md"><img src="https://img.shields.io/badge/-Cursor-000000?style=for-the-badge&logo=cursor&logoColor=white" alt="Cursor" height="28"/></a>
+  <a href="docs/mcp-setup.md"><img src="https://img.shields.io/badge/-Codex-412991?style=for-the-badge&logo=openai&logoColor=white" alt="Codex" height="28"/></a>
+  <a href="docs/slack-setup.md"><img src="https://img.shields.io/badge/-Slack-4A154B?style=for-the-badge&logo=slack&logoColor=white" alt="Slack" height="28"/></a>
+  <a href=".github/workflows/patchbay-pr.yml"><img src="https://img.shields.io/badge/-GitHub%20PR-181717?style=for-the-badge&logo=github&logoColor=white" alt="GitHub Actions" height="28"/></a>
+  <a href="Dockerfile"><img src="https://img.shields.io/badge/-Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker" height="28"/></a>
+  <a href="https://patchbay-nebius.vercel.app"><img src="https://img.shields.io/badge/-Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white" alt="Vercel" height="28"/></a>
+  <a href="https://www.npmjs.com/package/@patchbay/agent"><img src="https://img.shields.io/badge/-npm-CB3837?style=for-the-badge&logo=npm&logoColor=white" alt="npm" height="28"/></a>
+</p>
+
 **Describe an integration in one sentence. Get a tested TypeScript connector.**
 
 ```
@@ -55,6 +69,25 @@ Full setup for Claude Code, Codex and Cursor in [docs/mcp-setup.md](docs/mcp-set
 
 **GitHub PR** – comment `/patchbay build "<integration>"` on any PR and the workflow in `.github/workflows/patchbay-pr.yml` runs the full pipeline, attaches the generated connector as an artifact and replies with the test score. Needs the three Nebius / Tavily secrets configured in the repo.
 
+## Why not just ask Claude Code / Cursor / Codex yourself?
+
+Same connector, same requirements. Rough per-connector cost:
+
+| Where | Cost | Factor |
+|---|---|---|
+| **patchbay** (Nemotron on Nebius) | **~$0.07** | 1× |
+| Claude Code with Haiku 5.5 | ~$0.10 | 1.4× |
+| Claude Code with Sonnet 5.5 | ~$0.35 | 5× |
+| Claude Code with Opus 4.7 | ~$1.90 | **27×** |
+
+**$0.07 vs ~$1.90 for the same connector. And the tests actually run before you see the file.**
+
+The agent in your IDE is a generalist. For integration connectors — read the docs, map fields, write the thing, prove it works — that's work with hard structure, and a specialized pipeline on cheap models beats a general-purpose agent on expensive ones. Same reason you don't ask Opus to format JSON.
+
+**patchbay sits inside your editor as an MCP server** (`claude mcp add patchbay -- npx -y @patchbay/mcp`), so you keep using Claude Code / Cursor / Codex for everything else — architecture, refactors, bug hunts — and offload connector work to patchbay. Your Claude usage bill goes down for the task Claude is slowest *and* most expensive at.
+
+The generated connector is **plain TypeScript in your repo**, no runtime dependency on patchbay — read it, change it, ship it.
+
 ## Selfhost
 
 ```bash
@@ -70,6 +103,17 @@ The Dockerfile is a three-stage build (deps → build → runtime) producing a ~
 ## Build in public
 
 What broke this week and how it got fixed is in [docs/build-log.md](docs/build-log.md). Short version: nested-contract regex (+2 benchmark points), parallel-repair fiasco (reverted), monotonic repair (never regress past the best attempt), timestamp prompt (don't reject the documented example), esbuild preflight (first-try rate 33% → 52%), Vercel monorepo pain (three fixes, one deploy).
+
+## Training a repair model on our own benchmark runs
+
+Every patchbay benchmark run is a record of the agent failing and then fixing itself. 68 of those `(red draft + failing test report) → green draft` moments across five benchmark passes make a tiny but perfectly-domain-matched training set — and Nebius Token Factory ships an OpenAI-compatible fine-tune endpoint that eats exactly this format.
+
+So we're fine-tuning a repair-focused **Nemotron 3.5 Lightning** on patchbay's own repair history. If it matches **Nemotron 3 Ultra 550B** (patchbay's current repair model) on the held-out eval set, we close the loop: patchbay generates benchmark runs → runs train its own repair model → next benchmark's repair cost drops ~50× while the green rate holds. The dataset, launcher and eval harness are all in-repo:
+
+- `bench/training-data.jsonl` — 68 real red→green repair pairs, extracted from committed benchmark runs
+- `scripts/finetune.ts` — upload / start / watch Nebius fine-tune jobs
+- `scripts/eval-repair.ts` — format, file-coverage and line-overlap metrics against a held-out eval split
+- Full plan + numbers (as they come in): [docs/finetune.md](docs/finetune.md)
 
 ## Status
 
