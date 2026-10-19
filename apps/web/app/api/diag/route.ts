@@ -57,6 +57,24 @@ export async function GET() {
       const res = await fetch('https://api.tokenfactory.nebius.com/v1/models', { method: 'GET' })
       return { status: res.status, ok: res.ok }
     }),
+    nebiusChatKeepAlive: await probe('nebiusChatKeepAlive', async () => {
+      const key = process.env.NEBIUS_API_KEY!
+      const res = await fetch('https://api.tokenfactory.nebius.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: 'nvidia/Nemotron-3_5-Lightning', messages: [{ role: 'user', content: 'reply with just the word ok' }], max_tokens: 10, temperature: 0 }),
+      })
+      return { status: res.status, ok: res.ok, body: (await res.text()).slice(0, 300) }
+    }),
+    nebiusChatConnClose: await probe('nebiusChatConnClose', async () => {
+      const key = process.env.NEBIUS_API_KEY!
+      const res = await fetch('https://api.tokenfactory.nebius.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Connection: 'close' },
+        body: JSON.stringify({ model: 'nvidia/Nemotron-3_5-Lightning', messages: [{ role: 'user', content: 'reply with just the word ok' }], max_tokens: 10, temperature: 0 }),
+      })
+      return { status: res.status, ok: res.ok, body: (await res.text()).slice(0, 300) }
+    }),
   }
   return Response.json(result)
 }
