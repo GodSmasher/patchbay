@@ -32,9 +32,14 @@ it has to turn one TypeScript file into a slightly different TypeScript
 file. patchbay already uses Nemotron 3 Ultra (550B parameters) for
 repair, which works but burns the budget. The hypothesis:
 
-> A fine-tuned **Nemotron 3.5 Lightning** (small, fast) can match or beat
-> Ultra on patchbay's own repair task — because the task itself is narrow
-> enough that in-domain data beats scale.
+> A fine-tuned **Qwen3-30B-A3B-Instruct** (small, fast, ~1/18 the active
+> parameters of Ultra) can match or beat Ultra on patchbay's own repair
+> task — because the task itself is narrow enough that in-domain data
+> beats scale.
+
+(Target model was originally Nemotron 3.5 Lightning, which turned out
+not to be fine-tunable on Token Factory. Qwen3-30B-A3B is the smallest
+instruction model Token Factory lets us fine-tune, so it gets the shot.)
 
 If true, this closes the loop: patchbay generates benchmark runs →
 runs train its own repair model → the next benchmark's cost drops ~50×
@@ -42,11 +47,13 @@ on repair while keeping the green rate up.
 
 ## The training setup
 
-- **Base model**: `nvidia/Nemotron-3_5-Lightning`
-- **Method**: QLoRA (Nebius Token Factory handles this transparently via
-  its OpenAI-compatible `/v1/fine_tuning/jobs` endpoint)
-- **Hyperparameters**: 3 epochs, LR multiplier 1.0, batch size 1
-- **Expected training time**: 2–4 hours on 1× H100
+- **Base model**: `Qwen/Qwen3-30B-A3B-Instruct-2507`
+- **Method**: full fine-tune (Nebius Token Factory decides; LoRA was
+  not required for this model/dataset size)
+- **Hyperparameters**: 3 epochs, batch size 16, context length 16384,
+  LR 1e-5, packing on
+- **Job**: `ftjob-cba43bc57fc04546bb4d8d7e4b86eb28`
+- **Started**: 2026-10-19
 
 Launch script: `scripts/finetune.ts`.
 
@@ -78,11 +85,16 @@ Three metrics, measured against the 7 held-out eval examples by
 Baseline (base Lightning, no fine-tune) and fine-tuned numbers go here
 once the training job completes:
 
-| Model | Format OK | File coverage | Line overlap | $/connector |
-|---|---|---|---|---|
-| Nemotron 3.5 Lightning (base) | tbd | tbd | tbd | — |
-| Nemotron 3 Ultra 550B (patchbay's current repair model) | tbd | tbd | tbd | $0.07 |
-| **ft:Lightning:patchbay-repair** | **tbd** | **tbd** | **tbd** | **tbd** |
+| Model | Format OK | File coverage | Line overlap |
+|---|---|---|---|
+| Nemotron 3.5 Lightning (base, small) | 83% | 17% | 20% |
+| **Nemotron 3 Ultra 550B (patchbay's current repair model) — target to beat** | **100%** | **33%** | **56.5%** |
+| Qwen3-30B-A3B (base, pre-fine-tune) | tbd | tbd | tbd |
+| **ft:Qwen3-30B:patchbay-repair** | **tbd** | **tbd** | **tbd** |
+
+Numbers are from `scripts/eval-repair.ts` over the 6-example held-out
+split. Pass criterion for a win: the fine-tune lands within 10 points
+of Ultra on overlap at ≈1/18 the active parameter count.
 
 Pass criterion for a win: fine-tuned Lightning beats base Lightning on
 all three metrics AND lands within 10 points of Ultra, at a fraction of
