@@ -76,7 +76,8 @@ export function createNebiusClient(opts: {
         return stripReasoning(content)
       } catch (error) {
         lastError = error
-        if (!(error instanceof RetryableError) || attempt === retries) break
+        if (!(error instanceof RetryableError) && !isTransientFetchError(error)) break
+        if (attempt === retries) break
         await sleep(800 * 2 ** attempt)
       }
     }
@@ -96,5 +97,23 @@ export function createNebiusClient(opts: {
 }
 
 class RetryableError extends Error {}
+
+/**
+ * Undici (Node's built-in fetch) throws TypeError('fetch failed') with a transient
+ * network cause on Vercel serverless more often than you'd like — stale keep-alive
+ * sockets, upstream TCP resets, DNS flakes. Treat those as retryable so a single
+ * dropped socket doesn't kill the whole run.
+ */
+function isTransientFetchError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false
+  const cause = (error as Error & { cause?: unknown }).cause as { code?: string; name?: string } | undefined
+  const code = cause?.code ?? ''
+  const name = cause?.name ?? ''
+  return (
+    error.message === 'fetch failed' ||
+    name === 'SocketError' ||
+    ['UND_ERR_SOCKET', 'ECONNRESET', 'ECONNREFUSED', 'ETIMEDOUT', 'EAI_AGAIN', 'ENOTFOUND', 'EPIPE'].includes(code)
+  )
+}
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
