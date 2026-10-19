@@ -89,7 +89,7 @@ once the training job completes:
 |---|---|---|---|
 | Nemotron 3.5 Lightning (base, small) | 83% | 17% | 20% |
 | **Nemotron 3 Ultra 550B (patchbay's current repair model) — target to beat** | **100%** | **33%** | **56.5%** |
-| Qwen3-30B-A3B (base, pre-fine-tune) | tbd | tbd | tbd |
+| Qwen3-30B-A3B (base, pre-fine-tune) | 100% | 0% | 36.5% |
 | **ft:Qwen3-30B:patchbay-repair** | **tbd** | **tbd** | **tbd** |
 
 Numbers are from `scripts/eval-repair.ts` over the 6-example held-out
