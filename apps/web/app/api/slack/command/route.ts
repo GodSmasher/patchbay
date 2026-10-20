@@ -66,9 +66,18 @@ function header(user: string, prompt: string): string {
 async function runAndReport(prompt: string, responseUrl: string, head: string): Promise<void> {
   if (!responseUrl) return
   const start = Date.now()
-  const config = loadConfig()
+  // Slack has a 300s hard cap. Cap attempts and parallel repairs lower than the CLI
+  // defaults so one Slack run doesn't eat all the budget on retries nobody can read.
+  const config = { ...loadConfig(), maxAttempts: 2, parallelRepairs: 1 }
   let lastStep = ''
   const lines: string[] = []
+  // Vercel kills the function at ~300s and Slack silently never hears from us again.
+  // Post an honest handoff message a few seconds BEFORE that, so the user at least
+  // knows the run is still going and can watch it on the web demo.
+  const HANDOFF_MS = 260_000
+  const handoff = setTimeout(() => {
+    void postUpdate(responseUrl, `${head}\n\n${lines.join('\n')}\n\n⏳ _Still running past Slack's 300s window. Follow the full stream at ${liveLink()}._`)
+  }, HANDOFF_MS)
 
   try {
     for await (const event of startRun(prompt, config)) {
@@ -81,9 +90,11 @@ async function runAndReport(prompt: string, responseUrl: string, head: string): 
         await postUpdate(responseUrl, `${head}\n\n${lines.join('\n')}`)
       }
     }
+    clearTimeout(handoff)
     const seconds = Math.round((Date.now() - start) / 1000)
     await postUpdate(responseUrl, `${head}\n\n${lines.join('\n')}\n\n_Finished in ${seconds}s · ${liveLink()}_`)
   } catch (error) {
+    clearTimeout(handoff)
     await postUpdate(responseUrl, `${head}\n\n❌ ${error instanceof Error ? error.message : String(error)}`)
   }
 }
