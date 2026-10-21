@@ -117,7 +117,15 @@ So we're fine-tuning a repair-focused **Nemotron 3.5 Lightning** on patchbay's o
 
 ## Status
 
-Live benchmark (2026-10-06, Nebius sandbox): **90.2% green over 92 runs** (up to 5 passes × 20 integrations), **52.2% first-try**, **$1.39 ± $0.29 per 20-prompt pass** (≈ $0.07 per connector). Eight integrations finished 5/5 green across all passes, three of those first-try every time (Typeform→Pipedrive, Shopify→Airtable, Jotform→Asana). The hard half of the benchmark covers HMAC verification, 429 retry with Retry-After, Idempotency-Key, cursor pagination, chained search-or-create and signature-driven routing. The pre-sandbox esbuild parse check plus parallel repair branches (temperatures 0.1 / 0.4) nearly doubled the first-try rate vs. the 2026-10-02 baseline (33% → 52%). Full breakdown: [bench/RESULTS-variance.md](bench/RESULTS-variance.md).
+Live benchmark (2026-10-21, Nebius sandbox, 53 runs after all recent agent patches):
+
+- **Core 20 prompts** (Typeform → Pipedrive, Shopify → Airtable, Stripe → Mailchimp, …): **80% green · 40% first-try · $0.12/connector**
+- **Brutal 10 extensions** (WebSocket to Pusher, OAuth2 refresh, chained flows, S3 presigned URL, GraphQL nested mutations, HMAC-signed server events): **69% green · 23% first-try · $0.17/connector**
+- **Overall**: **77% green · 36% first-try · $0.13/connector**
+
+The 2026-10-06 run on the 20-prompt core — 5 full passes, 90.2% green, $0.07/connector — is still in [bench/RESULTS-variance.md](bench/RESULTS-variance.md) for the longer-horizon variance picture. This October 21 run adds the brutal 10 to the same bench and shows what happens when you point patchbay at the harder half of the real integration zoo.
+
+The pre-sandbox esbuild parse check, parallel repair branches (temperatures 0.1 / 0.4), monotonic repair (never regress past the best attempt so far), undici-level retry on `UND_ERR_SOCKET` / `fetch failed`, and the `RETRY SEMANTICS` + `CURSOR PAGINATION` rules in the generate prompt are what make the brutal 10 reach 69% instead of ~40%.
 
 ## Dev
 
