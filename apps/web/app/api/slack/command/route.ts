@@ -54,17 +54,29 @@ export async function POST(request: Request) {
   // makes it a safe demo surface. Flip it off to run live again.
   const slackReplay = (process.env.PATCHBAY_SLACK_REPLAY ?? 'true').toLowerCase() === 'true'
   if (!liveAvailable || slackReplay) {
-    const summary = await collectReplaySummary(prompt)
-    const note = slackReplay && liveAvailable
-      ? `_Replay from the recorded Typeform → Pipedrive run. Live demo at ${liveLink()}._`
-      : `_Live mode is off here, replaying the recorded run._`
-    return slackJson(`${header(userName, prompt)}\n${note}\n\n${summary}`)
+    // Even replay takes a few seconds to assemble — Slack's 3s ACK is unforgiving.
+    // Fire-and-forget the replay post; return the ACK immediately.
+    void replayAndReport(prompt, responseUrl, header(userName, prompt), slackReplay && liveAvailable)
+    return slackJson(`${header(userName, prompt)}\n⚡ _Replaying the recorded Typeform → Pipedrive run…_`)
   }
 
   // Kick the real build off in the background; the ACK below must land in <3s.
   void runAndReport(prompt, responseUrl, header(userName, prompt))
 
   return slackJson(`${header(userName, prompt)}\n⚡ _Working on it — plan, research, generate, verify. ~30-60s._`)
+}
+
+async function replayAndReport(prompt: string, responseUrl: string, head: string, isForced: boolean): Promise<void> {
+  if (!responseUrl) return
+  try {
+    const summary = await collectReplaySummary(prompt)
+    const note = isForced
+      ? `_Replay from the recorded Typeform → Pipedrive run. Live demo at ${liveLink()}._`
+      : `_Live mode is off here, replaying the recorded run._`
+    await postUpdate(responseUrl, `${head}\n${note}\n\n${summary}`)
+  } catch (error) {
+    await postUpdate(responseUrl, `${head}\n\n❌ ${error instanceof Error ? error.message : String(error)}`)
+  }
 }
 
 function header(user: string, prompt: string): string {
