@@ -74,7 +74,18 @@ async function main() {
 
 async function scan(args: string[]) {
   const positional = args.filter((a) => !a.startsWith('--'))
-  const dir = positional[0] ? resolve(positional[0]) : process.cwd()
+  let dir = positional[0] ? resolve(positional[0]) : process.cwd()
+  // Accept GitHub URLs: shallow-clone into a tmp dir so judges can scan a
+  // random repo without cloning it themselves.
+  const first = positional[0] ?? ''
+  if (/^https?:\/\/github\.com\//i.test(first) || /^git@github\.com:/i.test(first)) {
+    const { tmpdir } = await import('node:os')
+    const { execSync } = await import('node:child_process')
+    const target = join(tmpdir(), `patchbay-scan-${Date.now()}`)
+    console.log(`cloning ${first} → ${target} (shallow)…`)
+    execSync(`git clone --depth=1 "${first}" "${target}"`, { stdio: 'inherit' })
+    dir = target
+  }
   if (!existsSync(dir)) return usageError(`No such directory: ${dir}`)
   const asJson = args.includes('--json')
   const buildTopArg = args.find((a) => a.startsWith('--build-top='))
