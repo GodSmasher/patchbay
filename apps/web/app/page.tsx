@@ -211,8 +211,20 @@ export default function Home() {
 
 function McpModal({ prompt, onClose }: { prompt: string; onClose: () => void }) {
   const safePrompt = prompt.trim().length >= 12 ? prompt.trim() : 'When X happens in app A, do Y in app B.'
-  const addCommand = `claude mcp add patchbay -- npx -y tsx <path-to-patchbay>/packages/mcp/src/server.ts`
+  const addCommand = `claude mcp add patchbay -- npx -y @patchbay-nebius/mcp`
   const chatCommand = `Use patchbay to build a connector: "${safePrompt}"`
+  // Claude Desktop registers a `claude://` URL scheme on install. We try to open
+  // claude://mcp/add with a canonical payload the moment the modal mounts, AND copy
+  // the terminal command to clipboard. Users with Claude Desktop installed see the
+  // prompt open directly; users without see nothing happen in-browser but still get
+  // the command they can paste.
+  const deepLink =
+    'claude://mcp/add?' +
+    new URLSearchParams({
+      name: 'patchbay',
+      command: 'npx',
+      args: '-y,@patchbay-nebius/mcp',
+    }).toString()
 
   const [copied, setCopied] = useState<'add' | 'chat' | null>(null)
   const copy = (text: string, key: 'add' | 'chat') => {
@@ -225,8 +237,22 @@ function McpModal({ prompt, onClose }: { prompt: string; onClose: () => void }) 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', onKey)
+    // On mount: auto-copy the install command and try to open Claude Desktop.
+    navigator.clipboard.writeText(addCommand).then(() => {
+      setCopied('add')
+      setTimeout(() => setCopied(null), 2000)
+    }).catch(() => {})
+    try {
+      // iframe trick avoids a visible "page can't be found" blink when the scheme
+      // is not registered on this OS.
+      const frame = document.createElement('iframe')
+      frame.style.display = 'none'
+      frame.src = deepLink
+      document.body.appendChild(frame)
+      setTimeout(() => frame.remove(), 1500)
+    } catch {}
     return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
+  }, [onClose, addCommand, deepLink])
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 px-4" onClick={onClose}>
@@ -238,7 +264,7 @@ function McpModal({ prompt, onClose }: { prompt: string; onClose: () => void }) 
           <div>
             <h2 className="text-base font-semibold">Open patchbay in Claude Code</h2>
             <p className="mt-1 text-xs text-ink-soft">
-              patchbay ships an MCP server (stdio). Any MCP-speaking client — Claude Code, Codex, Cursor — can call it.
+              If you have Claude Desktop installed, it should open now and ask whether to add the patchbay MCP server. Otherwise paste the command below into Claude Code's terminal — it's already in your clipboard.
             </p>
           </div>
           <button onClick={onClose} className="text-sm text-ink-mute hover:text-ink">✕</button>
@@ -247,7 +273,7 @@ function McpModal({ prompt, onClose }: { prompt: string; onClose: () => void }) 
         <div className="mt-5 space-y-4">
           <McpStep
             step="1"
-            label="Register the server once"
+            label="Register the server once (copied to clipboard)"
             command={addCommand}
             copied={copied === 'add'}
             onCopy={() => copy(addCommand, 'add')}
