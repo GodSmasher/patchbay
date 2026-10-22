@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import Link from 'next/link'
 
 export const metadata = { title: 'patchbay — benchmark' }
-export const dynamic = 'force-static'
+export const dynamic = 'force-dynamic'
 
 interface PromptRow {
   index: number
