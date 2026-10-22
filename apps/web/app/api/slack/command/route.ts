@@ -48,9 +48,17 @@ export async function POST(request: Request) {
 
   const config = loadConfig()
   const liveAvailable = !config.mock && missingLiveKeys(config).length === 0
-  if (!liveAvailable) {
+  // PATCHBAY_SLACK_REPLAY=true forces the Slack path to use the recorded replay even when
+  // live keys are available. The web demo, MCP server and CLI stay live; Slack trades a
+  // little authenticity for the "always-under-10-seconds, never-times-out" guarantee that
+  // makes it a safe demo surface. Flip it off to run live again.
+  const slackReplay = (process.env.PATCHBAY_SLACK_REPLAY ?? 'true').toLowerCase() === 'true'
+  if (!liveAvailable || slackReplay) {
     const summary = await collectReplaySummary(prompt)
-    return slackJson(`${header(userName, prompt)}\n_Live mode is off here, replaying the recorded run._\n\n${summary}`)
+    const note = slackReplay && liveAvailable
+      ? `_Replay from the recorded Typeform → Pipedrive run. Live demo at ${liveLink()}._`
+      : `_Live mode is off here, replaying the recorded run._`
+    return slackJson(`${header(userName, prompt)}\n${note}\n\n${summary}`)
   }
 
   // Kick the real build off in the background; the ACK below must land in <3s.
