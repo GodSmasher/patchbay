@@ -146,9 +146,11 @@ async function postUpdate(responseUrl: string, text: string): Promise<void> {
   }
 }
 
-async function collectReplaySummary(prompt: string): Promise<string> {
+async function collectReplaySummary(_prompt: string): Promise<string> {
+  // pace=0 skips the "pretend-live" delays replayRun uses on the web demo; we want
+  // the full summary assembled inside Slack's 3s ACK budget.
   const lines: string[] = []
-  for await (const event of replayRun()) {
+  for await (const event of replayRun(undefined, 0)) {
     const line = formatEvent(event)
     if (line) lines.push(line)
   }
