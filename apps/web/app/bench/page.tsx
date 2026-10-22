@@ -25,11 +25,64 @@ interface Variance {
   prompts: PromptRow[]
 }
 
+interface RawVariance {
+  summary?: {
+    passes?: number
+    prompts?: number
+    greenRate?: number
+    firstTryRate?: number
+    costPerPassUsd?: number
+    costPerPassStdUsd?: number
+  }
+  prompts?: Array<Partial<PromptRow>>
+  // legacy flat shape:
+  totalRuns?: number
+  totalGreen?: number
+  totalFirstTry?: number
+  totalCostMean?: number
+  totalCostStd?: number
+}
+
 function loadVariance(): Variance {
-  // The build step copies bench/variance.json next to the Next app; falls back to the public copy
-  // committed into the repo so the page still renders even before a fresh benchmark run.
   const raw = readFileSync(join(process.cwd(), 'public', 'variance.json'), 'utf8')
-  return JSON.parse(raw) as Variance
+  const data = JSON.parse(raw) as RawVariance
+  // New shape: summary.{greenRate,firstTryRate,costPerPassUsd,passes,prompts}
+  if (data.summary) {
+    const passes = data.summary.passes ?? 1
+    const promptCount = data.summary.prompts ?? (data.prompts?.length ?? 0)
+    const totalRuns = passes * promptCount
+    const greenRate = data.summary.greenRate ?? 0
+    const firstTryRate = data.summary.firstTryRate ?? 0
+    const prompts = (data.prompts ?? []).map((p, i) => ({
+      index: p.index ?? i + 1,
+      prompt: p.prompt ?? '',
+      passes: p.passes ?? passes,
+      greenRuns: p.greenRuns ?? 0,
+      firstTryRuns: p.firstTryRuns ?? 0,
+      costMean: p.costMean ?? 0,
+      costStd: p.costStd ?? 0,
+      attemptsMean: p.attemptsMean ?? 0,
+    }))
+    const totalCostMean = (data.summary.costPerPassUsd ?? 0) * passes
+    const totalCostStd = (data.summary.costPerPassStdUsd ?? 0) * passes
+    return {
+      totalRuns,
+      totalGreen: Math.round(totalRuns * greenRate),
+      totalFirstTry: Math.round(totalRuns * firstTryRate),
+      totalCostMean,
+      totalCostStd,
+      prompts,
+    }
+  }
+  // Legacy flat shape fallback.
+  return {
+    totalRuns: data.totalRuns ?? 0,
+    totalGreen: data.totalGreen ?? 0,
+    totalFirstTry: data.totalFirstTry ?? 0,
+    totalCostMean: data.totalCostMean ?? 0,
+    totalCostStd: data.totalCostStd ?? 0,
+    prompts: (data.prompts ?? []) as PromptRow[],
+  }
 }
 
 export default function BenchPage() {
