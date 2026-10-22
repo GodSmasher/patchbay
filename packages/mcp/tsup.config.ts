@@ -9,6 +9,6 @@ export default defineConfig({
   clean: true,
   sourcemap: true,
   outDir: 'dist',
-  external: ['@patchbay/agent', '@modelcontextprotocol/sdk'],
+  external: ['@patchbay-nebius/agent', '@modelcontextprotocol/sdk'],
   // Shebang stays in source — tsup inlines it correctly at the top of the bundle.
 })

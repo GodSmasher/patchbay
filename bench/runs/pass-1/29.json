@@ -1,0 +1,520 @@
+{
+  "prompt": "When an Intercom conversation ends, fetch its full transcript via pagination, redact emails and phone numbers with regex, then store the cleaned transcript in Notion with rich-text formatting.",
+  "events": [
+    {
+      "type": "mode",
+      "mode": "live"
+    },
+    {
+      "type": "step",
+      "step": "plan",
+      "status": "start"
+    },
+    {
+      "type": "plan",
+      "plan": {
+        "summary": "When an Intercom conversation ends, fetch its full transcript via pagination, redact emails and phone numbers with regex, then store the cleaned transcript in Notion with rich-text formatting.",
+        "source": {
+          "app": "Intercom",
+          "trigger": "conversation.updated webhook with state=closed",
+          "docsQuery": "Intercom conversation webhook payload fields pagination transcript"
+        },
+        "target": {
+          "app": "Notion",
+          "action": "append block or create page",
+          "docsQuery": "Notion API append block rich text text content"
+        },
+        "additionalTargets": [
+          {
+            "app": "Intercom",
+            "action": "list conversation messages",
+            "docsQuery": "Intercom API list conversation messages pagination"
+          }
+        ],
+        "fieldMapping": [
+          {
+            "from": "conversation.messages",
+            "to": "rich_text_array",
+            "note": "Iterate pages to collect all message objects before redaction"
+          },
+          {
+            "from": "message.body",
+            "to": "rich_text[].text.content",
+            "note": "Each message body becomes a rich text segment; handle markdown or plain text"
+          },
+          {
+            "from": "message.author.email",
+            "to": "redact_email",
+            "note": "Regex replace email addresses with [REDACTED] before inserting into Notion"
+          },
+          {
+            "from": "message.author.phone",
+            "to": "redact_phone",
+            "note": "Regex replace phone numbers with [REDACTED] before inserting into Notion"
+          }
+        ],
+        "assumptions": [
+          "The webhook fires when a conversation state changes to closed and includes a conversation ID.",
+          "Intercom's conversation messages endpoint supports pagination via \"cursor\" or \"per_page\" parameters to fetch the full transcript.",
+          "Message bodies are plain text or markdown; Notion rich-text blocks will accept raw text content.",
+          "Email and phone number patterns follow standard formats (e.g., email: local@domain.tld, phone: digits with optional +/()-).",
+          "The Notion integration has permission to create/update pages and append rich-text blocks.",
+          "Redaction regexes are applied to the entire message body string, not just specific fields."
+        ]
+      }
+    },
+    {
+      "type": "step",
+      "step": "plan",
+      "status": "done",
+      "detail": "When an Intercom conversation ends, fetch its full transcript via pagination, redact emails and phone numbers with regex, then store the cleaned transcript in Notion with rich-text formatting."
+    },
+    {
+      "type": "step",
+      "step": "research",
+      "status": "start"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Installing typescript + vitest in a sandbox checkpoint"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Searched \"Intercom API list conversation messages pagination\": 2 of 2 picked from Intercom's own docs"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Searched \"Notion API append block rich text text content\": 2 of 2 picked from Notion's own docs"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Searched \"Intercom conversation webhook payload fields pagination transcript\": 2 of 2 picked from Intercom's own docs"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Extracted 6 documentation pages"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Checkpoint ready: cc77486e"
+    },
+    {
+      "type": "sources",
+      "sources": [
+        {
+          "title": "Webhook Topics | Intercom and Fin Developer Platform",
+          "url": "https://developers.intercom.com/docs/references/webhooks/webhook-models",
+          "official": true
+        },
+        {
+          "title": "Conversation Part | Intercom and Fin Developer Platform",
+          "url": "https://developers.intercom.com/docs/references/rest-api/api.intercom.io/models/conversation_part",
+          "official": true
+        },
+        {
+          "title": "Append block children - Notion Docs",
+          "url": "https://developers.notion.com/reference/patch-block-children",
+          "official": true
+        },
+        {
+          "title": "Rich text - Notion Docs",
+          "url": "https://developers.notion.com/reference/rich-text",
+          "official": true
+        },
+        {
+          "title": "List all conversations | Intercom and Fin Developer Platform",
+          "url": "https://developers.intercom.com/docs/references/rest-api/api.intercom.io/conversations/listconversations",
+          "official": true
+        },
+        {
+          "title": "Pagination | Intercom and Fin Developer Platform",
+          "url": "https://developers.intercom.com/docs/build-an-integration/learn-more/rest-apis/pagination",
+          "official": true
+        }
+      ]
+    },
+    {
+      "type": "spec",
+      "spec": {
+        "source": {
+          "app": "Intercom",
+          "role": "source",
+          "method": "POST",
+          "url": "(webhook delivery URL)",
+          "auth": {
+            "type": "none"
+          },
+          "example": {
+            "type": "conversation.updated",
+            "data": {
+              "item": {
+                "id": "conv_123",
+                "state": "closed",
+                "conversation_message": {
+                  "type": "conversation_message",
+                  "id": "msg_123",
+                  "author": {
+                    "type": "admin",
+                    "id": "admin_123"
+                  },
+                  "body": "Hi team, please review the attached files. Contact me at john@example.com or +1-555-123-4567.",
+                  "created_at": 1717020000
+                }
+              }
+            }
+          },
+          "docsUrl": "https://developers.intercom.com/docs/references/webhooks/webhook-models",
+          "notes": [
+            "Webhook payload includes conversation ID and state; trigger when state=closed.",
+            "Message body may be plain text or HTML depending on API version; v2.15+ returns plain text.",
+            "No authentication needed on webhook receiver side; secure via signature validation (not covered here)."
+          ]
+        },
+        "target": [
+          {
+            "app": "Intercom",
+            "role": "target",
+            "method": "GET",
+            "url": "https://api.intercom.io/conversations/{conversation_id}/messages",
+            "auth": {
+              "type": "bearer",
+              "envVar": "INTERCOM_ACCESS_TOKEN"
+            },
+            "example": {},
+            "responseExample": {
+              "type": "conversation_message.list",
+              "conversation_messages": [
+                {
+                  "type": "conversation_message",
+                  "id": "msg_1",
+                  "author": {
+                    "type": "admin",
+                    "id": "admin_1",
+                    "name": "Support",
+                    "email": "support@example.com"
+                  },
+                  "body": "Hello, how can I help?",
+                  "created_at": 1717020000
+                },
+                {
+                  "type": "conversation_message",
+                  "id": "msg_2",
+                  "author": {
+                    "type": "user",
+                    "id": "user_1",
+                    "email": "user@example.com",
+                    "phone": "+1-555-987-6543"
+                  },
+                  "body": "I need help with billing. My email is user@example.com and phone is 555-123-4567.",
+                  "created_at": 1717020060
+                }
+              ],
+              "pages": {
+                "type": "pages",
+                "next": {
+                  "starting_after": "WzE3MDc5MzAwODEwMDAsMTMxLDJd",
+                  "page": 2
+                },
+                "page": 1,
+                "per_page": 20,
+                "total_pages": 2
+              }
+            },
+            "docsUrl": "https://developers.intercom.com/docs/references/rest-api/api.intercom.io/conversations/listconversations",
+            "notes": [
+              "Pagination via cursor using starting_after parameter; stop when pages.next is null.",
+              "Max per_page is 150; default 20.",
+              "Requires bearer token from INTERCOM_ACCESS_TOKEN env var.",
+              "Endpoint returns conversation message parts; use to reconstruct full transcript."
+            ]
+          },
+          {
+            "app": "Notion",
+            "role": "target",
+            "method": "PATCH",
+            "url": "https://api.notion.com/v1/blocks/{block_id}/children",
+            "auth": {
+              "type": "bearer",
+              "envVar": "NOTION_API_KEY"
+            },
+            "example": {
+              "children": [
+                {
+                  "object": "block",
+                  "type": "paragraph",
+                  "paragraph": {
+                    "rich_text": [
+                      {
+                        "type": "text",
+                        "text": {
+                          "content": "Hello, how can I help?"
+                        },
+                        "annotations": {
+                          "bold": false,
+                          "italic": false,
+                          "strikethrough": false,
+                          "underline": false,
+                          "code": false,
+                          "color": "default"
+                        },
+                        "plain_text": "Hello, how can I help?"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "object": "block",
+                  "type": "paragraph",
+                  "paragraph": {
+                    "rich_text": [
+                      {
+                        "type": "text",
+                        "text": {
+                          "content": "I need help with billing. My email is [REDACTED] and phone is [REDACTED]."
+                        },
+                        "annotations": {
+                          "bold": false,
+                          "italic": false,
+                          "strikethrough": false,
+                          "underline": false,
+                          "code": false,
+                          "color": "default"
+                        },
+                        "plain_text": "I need help with billing. My email is [REDACTED] and phone is [REDACTED]."
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            "responseExample": {
+              "object": "list",
+              "results": [
+                {
+                  "object": "block",
+                  "id": "block_id_1",
+                  "type": "paragraph",
+                  "paragraph": {
+                    "rich_text": [
+                      {
+                        "type": "text",
+                        "text": {
+                          "content": "Hello, how can I help?"
+                        },
+                        "annotations": {
+                          "bold": false,
+                          "italic": false,
+                          "strikethrough": false,
+                          "underline": false,
+                          "code": false,
+                          "color": "default"
+                        },
+                        "plain_text": "Hello, how can I help?"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "object": "block",
+                  "id": "block_id_2",
+                  "type": "paragraph",
+                  "paragraph": {
+                    "rich_text": [
+                      {
+                        "type": "text",
+                        "text": {
+                          "content": "I need help with billing. My email is [REDACTED] and phone is [REDACTED]."
+                        },
+                        "annotations": {
+                          "bold": false,
+                          "italic": false,
+                          "strikethrough": false,
+                          "underline": false,
+                          "code": false,
+                          "color": "default"
+                        },
+                        "plain_text": "I need help with billing. My email is [REDACTED] and phone is [REDACTED]."
+                      }
+                    ]
+                  }
+                }
+              ],
+              "has_more": false,
+              "next_cursor": null
+            },
+            "docsUrl": "https://developers.notion.com/reference/patch-block-children",
+            "notes": [
+              "Append children to a parent block (page or block) specified by block_id.",
+              "Requires NOTION_API_KEY bearer token.",
+              "Notion-Version header required but value not specified in docs; treat as required.",
+              "No pagination; single request appends all provided children blocks.",
+              "Rich text supports annotations (bold, italic, etc.) and plain text content.",
+              "Redaction must be applied to message.body before constructing rich_text array."
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "step",
+      "step": "research",
+      "status": "done",
+      "detail": "3 endpoints from 6 pages"
+    },
+    {
+      "type": "step",
+      "step": "generate",
+      "status": "start"
+    },
+    {
+      "type": "files",
+      "attempt": 1,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "export interface IntercomWebhookPayload {\n  type: string;\n  data: {\n    item: {\n      id: string;\n      state: string;\n      conversation_message?: {\n        type: string;\n        id: string;\n        author: {\n          type: string;\n          id: string;\n        };\n        body: string;\n        created_at: number;\n      };\n    };\n  };\n}\n\nexport interface IntercomMessage {\n  type: string;\n  id: string;\n  author: {\n    type: string;\n    id: string;\n    name?: string;\n    email?: string;\n    phone?: string;\n  };\n  body: string;\n  created_at: number;\n}\n\nexport interface IntercomPages {\n  type: string;\n  next: {\n    starting_after: string;\n    page: number;\n  } | null;\n  page: number;\n  per_page: number;\n  total_pages: number;\n}\n\nexport interface IntercomMessagesResponse {\n  type: string;\n  conversation_messages: IntercomMessage[];\n  pages: IntercomPages;\n}\n\nexport interface NotionRichText {\n  type: 'text';\n  text: {\n    content: string;\n  };\n  annotations: {\n    bold: boolean;\n    italic: boolean;\n    strikethrough: boolean;\n    underline: boolean;\n    code: boolean;\n    color: string;\n  };\n  plain_text: string;\n}\n\nexport interface NotionParagraphBlock {\n  object: 'block';\n  type: 'paragraph';\n  paragraph: {\n    rich_text: NotionRichText[];\n  };\n}\n\nexport interface NotionChildrenRequest {\n  children: NotionParagraphBlock[];\n}\n\nexport interface NotionBlockResult {\n  object: 'block';\n  id: string;\n  type: 'paragraph';\n  paragraph: {\n    rich_text: NotionRichText[];\n  };\n}\n\nexport interface NotionChildrenResponse {\n  object: 'list';\n  results: NotionBlockResult[];\n  has_more: boolean;\n  next_cursor: string | null;\n}\n\nexport interface ConnectorConfig {\n  intercomAccessToken: string;\n  notionApiKey: string;\n  notionBlockId: string;\n  notionVersion?: string; // default: '2022-06-28'\n  maxRetries?: number; // default: 3\n  baseRetryDelayMs?: number; // default: 1000\n  maxPages?: number; // default: 50\n  fetch?: typeof fetch;\n}\n\ninterface FetchOptions extends RequestInit {\n  headers?: Record<string, string>;\n}\n\nasync function fetchWithRetry(\n  fetchFn: typeof fetch,\n  url: string,\n  options: FetchOptions,\n  maxRetries: number,\n  baseDelayMs: number\n): Promise<Response> {\n  let attempt = 0;\n  while (true) {\n    const response = await fetchFn(url, options);\n    if (response.status === 429 || (response.status >= 500 && response.status < 600)) {\n      if (attempt >= maxRetries) {\n        throw new Error(`Request failed after ${maxRetries} retries: ${response.status} ${response.statusText} for ${url}`);\n      }\n      const retryAfter = response.headers.get('Retry-After');\n      let delayMs: number;\n      if (retryAfter) {\n        const parsed = parseInt(retryAfter, 10);\n        if (!isNaN(parsed)) {\n          delayMs = parsed * 1000;\n        } else {\n          // Try parsing as HTTP-date\n          const date = new Date(retryAfter);\n          if (!isNaN(date.getTime())) {\n            delayMs = date.getTime() - Date.now();\n            if (delayMs < 0) delayMs = 0;\n          } else {\n            delayMs = baseDelayMs * Math.pow(2, attempt);\n          }\n        }\n      } else {\n        delayMs = baseDelayMs * Math.pow(2, attempt);\n      }\n      if (isNaN(delayMs) || delayMs < 0) delayMs = baseDelayMs * Math.pow(2, attempt);\n      await new Promise(resolve => setTimeout(resolve, delayMs));\n      attempt++;\n      continue;\n    }\n    if (!response.ok) {\n      throw new Error(`HTTP ${response.status} ${response.statusText} for ${url}`);\n    }\n    return response;\n  }\n}\n\nfunction redactText(text: string): string {\n  // Email regex\n  const emailRegex = /\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\\b/g;\n  // Phone regex: matches various formats like +1-555-123-4567, 555-123-4567, (555) 123-4567, etc.\n  const phoneRegex = /(?:\\+?\\d{1,3}[-.\\s]?)?\\(?\\d{3}\\)?[-.\\s]?\\d{3}[-.\\s]?\\d{4}\\b/g;\n  return text.replace(emailRegex, '[REDACTED]').replace(phoneRegex, '[REDACTED]');\n}\n\nfunction buildNotionBlocks(messages: IntercomMessage[]): NotionParagraphBlock[] {\n  return messages.map(msg => ({\n    object: 'block',\n    type: 'paragraph',\n    paragraph: {\n      rich_text: [\n        {\n          type: 'text',\n          text: { content: redactText(msg.body) },\n          annotations: {\n            bold: false,\n            italic: false,\n            strikethrough: false,\n            underline: false,\n            code: false,\n            color: 'default'\n          },\n          plain_text: redactText(msg.body)\n        }\n      ]\n    }\n  }));\n}\n\nexport async function handle(\n  payload: IntercomWebhookPayload,\n  config: ConnectorConfig\n): Promise<{ notionResponse: NotionChildrenResponse }> {\n  const fetchFn = config.fetch ?? fetch;\n  const maxRetries = config.maxRetries ?? 3;\n  const baseRetryDelayMs = config.baseRetryDelayMs ?? 1000;\n  const maxPages = config.maxPages ?? 50;\n  const notionVersion = config.notionVersion ?? '2022-06-28';\n\n  // Validate input\n  if (!payload || payload.type !== 'conversation.updated') {\n    throw new Error('Invalid payload: expected type \"conversation.updated\"');\n  }\n  if (!payload.data?.item?.id) {\n    throw new Error('Missing conversation ID in payload');\n  }\n  if (payload.data.item.state !== 'closed') {\n    throw new Error('Conversation state is not closed; ignoring');\n  }\n\n  const conversationId = payload.data.item.id;\n\n  // Fetch all messages with pagination\n  let allMessages: IntercomMessage[] = [];\n  let startingAfter: string | null = null;\n  let pageCount = 0;\n\n  while (pageCount < maxPages) {\n    pageCount++;\n    const url = new URL(`https://api.intercom.io/conversations/${conversationId}/messages`);\n    if (startingAfter) {\n      url.searchParams.set('starting_after', startingAfter);\n    }\n    url.searchParams.set('per_page', '150'); // max per_page\n\n    const response = await fetchWithRetry(fetchFn, url.toString(), {\n      method: 'GET',\n      headers: {\n        'Authorization': `Bearer ${config.intercomAccessToken}`,\n        'Accept': 'application/json'\n      }\n    }, maxRetries, baseRetryDelayMs);\n\n    const data = await response.json() as IntercomMessagesResponse;\n    if (!data.conversation_messages || !Array.isArray(data.conversation_messages)) {\n      throw new Error('Invalid Intercom messages response: missing conversation_messages array');\n    }\n    allMessages = allMessages.concat(data.conversation_messages);\n\n    if (!data.pages?.next?.starting_after) {\n      break;\n    }\n    startingAfter = data.pages.next.starting_after;\n  }\n\n  if (allMessages.length === 0) {\n    throw new Error('No messages found for conversation');\n  }\n\n  // Build Notion children\n  const children = buildNotionBlocks(allMessages);\n\n  // Append to Notion\n  const notionUrl = `https://api.notion.com/v1/blocks/${config.notionBlockId}/children`;\n  const notionResponse = await fetchWithRetry(fetchFn, notionUrl, {\n    method: 'PATCH',\n    headers: {\n      'Authorization': `Bearer ${config.notionApiKey}`,\n      'Notion-Version': notionVersion,\n      'Content-Type': 'application/json'\n    },\n    body: JSON.stringify({ children })\n  }, maxRetries, baseRetryDelayMs);\n\n  const notionData = await notionResponse.json() as NotionChildrenResponse;\n  return { notionResponse: notionData };\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi } from 'vitest';\nimport { handle, ConnectorConfig, IntercomWebhookPayload } from './connector';\nimport { SOURCE_EXAMPLE, contractFetch, fakeFetch, jsonResponse, RecordedCall } from './fixtures';\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch();\n    const config: ConnectorConfig = {\n      intercomAccessToken: 'test_intercom_token',\n      notionApiKey: 'test_notion_key',\n      notionBlockId: 'test_block_id',\n      fetch\n    };\n    const result = await handle(SOURCE_EXAMPLE as unknown as IntercomWebhookPayload, config);\n    expect(calls.length).toBeGreaterThan(0);\n    expect(result.notionResponse).toBeDefined();\n  });\n});\n\ndescribe('handle', () => {\n  it('validates required fields', async () => {\n    const { fetch, calls } = fakeFetch(() => jsonResponse({}, 200));\n    const config: ConnectorConfig = {\n      intercomAccessToken: 'token',\n      notionApiKey: 'key',\n      notionBlockId: 'block',\n      fetch\n    };\n\n    // Missing type\n    await expect(handle({} as unknown as IntercomWebhookPayload, config)).rejects.toThrow('expected type \"conversation.updated\"');\n    // Wrong type\n    await expect(handle({ type: 'other', data: { item: { id: '1', state: 'closed' } } } as unknown as IntercomWebhookPayload, config)).rejects.toThrow('expected type \"conversation.updated\"');\n    // Missing conversation ID\n    await expect(handle({ type: 'conversation.updated', data: { item: { state: 'closed' } } } as unknown as IntercomWebhookPayload, config)).rejects.toThrow('Missing conversation ID');\n    // State not closed\n    await expect(handle({ type: 'conversation.updated', data: { item: { id: '1', state: 'open' } } } as unknown as IntercomWebhookPayload, config)).rejects.toThrow('not closed');\n  });\n\n  it('fetches all messages with pagination and redacts emails and phones', async () => {\n    const intercomResponses = [\n      {\n        type: 'conversation_message.list',\n        conversation_messages: [\n          {\n            type: 'conversation_message',\n            id: 'msg_1',\n            author: { type: 'admin', id: 'admin_1', name: 'Support', email: 'support@example.com' },\n            body: 'Hello, how can I help?',\n            created_at: 1717020000\n          },\n          {\n            type: 'conversation_message',\n            id: 'msg_2',\n            author: { type: 'user', id: 'user_1', email: 'user@example.com', phone: '+1-555-987-6543' },\n            body: 'I need help with billing. My email is user@example.com and phone is 555-123-4567.',\n            created_at: 1717020060\n          }\n        ],\n        pages: {\n          type: 'pages',\n          next: { starting_after: 'cursor123', page: 2 },\n          page: 1,\n          per_page: 20,\n          total_pages: 2\n        }\n      },\n      {\n        type: 'conversation_message.list',\n        conversation_messages: [\n          {\n            type: 'conversation_message',\n            id: 'msg_3',\n            author: { type: 'admin', id: 'admin_2', name: 'Support2' },\n            body: 'Another message with phone 555-000-1111.',\n            created_at: 1717020100\n          }\n        ],\n        pages: {\n          type: 'pages',\n          next: null,\n          page: 2,\n          per_page: 20,\n          total_pages: 2\n        }\n      }\n    ];\n\n    let intercomCallCount = 0;\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.url.includes('/conversations/') && req.url.includes('/messages')) {\n        const response = intercomResponses[intercomCallCount] || intercomResponses[intercomResponses.length - 1];\n        intercomCallCount++;\n        return jsonResponse(response);\n      }\n      if (req.url.includes('/blocks/') && req.url.includes('/children')) {\n        return jsonResponse({\n          object: 'list',\n          results: [\n            { object: 'block', id: 'block_1', type: 'paragraph', paragraph: { rich_text: [] } }\n          ],\n          has_more: false,\n          next_cursor: null\n        });\n      }\n      return jsonResponse({ error: 'not found' }, 404);\n    });\n\n    const config: ConnectorConfig = {\n      intercomAccessToken: 'intercom_token',\n      notionApiKey: 'notion_key',\n      notionBlockId: 'block_123',\n      fetch\n    };\n\n    const payload: IntercomWebhookPayload = {\n      type: 'conversation.updated',\n      data: {\n        item: {\n          id: 'conv_123',\n          state: 'closed',\n          conversation_message: {\n            type: 'conversation_message',\n            id: 'msg_123',\n            author: { type: 'admin', id: 'admin_123' },\n            body: 'Hi team, please review the attached files. Contact me at john@example.com or +1-555-123-4567.',\n            created_at: 1717020000\n          }\n        }\n      }\n    };\n\n    const result = await handle(payload, config);\n\n    // Check Intercom calls: should be 2 (two pages)\n    const intercomCalls = calls.filter(c => c.url.includes('/conversations/') && c.url.includes('/messages'));\n    expect(intercomCalls.length).toBe(2);\n    // Check auth header\n    expect(intercomCalls[0].headers.get('authorization')).toBe('Bearer intercom_token');\n    // Check pagination: second call should have starting_after\n    expect(intercomCalls[1].url).toContain('starting_after=cursor123');\n\n    // Check Notion call\n    const notionCalls = calls.filter(c => c.url.includes('/blocks/') && c.url.includes('/children'));\n    expect(notionCalls.length).toBe(1);\n    expect(notionCalls[0].method).toBe('PATCH');\n    expect(notionCalls[0].headers.get('authorization')).toBe('Bearer notion_key');\n    expect(notionCalls[0].headers.get('notion-version')).toBe('2022-06-28');\n    const notionBody = notionCalls[0].json as { children: Array<{ paragraph: { rich_text: Array<{ text: { content: string } }> } }> };\n    expect(notionBody.children.length).toBe(3); // three messages total\n    // Check redaction\n    expect(notionBody.children[0].paragraph.rich_text[0].text.content).toBe('Hello, how can I help?');\n    expect(notionBody.children[1].paragraph.rich_text[0].text.content).toBe('I need help with billing. My email is [REDACTED] and phone is [REDACTED].');\n    expect(notionBody.children[2].paragraph.rich_text[0].text.content).toBe('Another message with phone [REDACTED].');\n\n    expect(result.notionResponse).toBeDefined();\n  });\n\n  it('throws on non-2xx Intercom response', async () => {\n    const { fetch, calls } = fakeFetch(() => jsonResponse({ error: 'Unauthorized' }, 401));\n    const config: ConnectorConfig = {\n      intercomAccessToken: 'bad_token',\n      notionApiKey: 'key',\n      notionBlockId: 'block',\n      fetch\n    };\n    const payload: IntercomWebhookPayload = {\n      type: 'conversation.updated',\n      data: { item: { id: 'conv_1', state: 'closed' } }\n    };\n    await expect(handle(payload, config)).rejects.toThrow('HTTP 401 Unauthorized for https://api.intercom.io/conversations/conv_1/messages');\n  });\n\n  it('throws on non-2xx Notion response', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.url.includes('/conversations/')) {\n        return jsonResponse({\n          type: 'conversation_message.list',\n          conversation_messages: [{ type: 'conversation_message', id: 'msg_1', author: { type: 'admin', id: 'a1' }, body: 'Hello', created_at: 1 }],\n          pages: { type: 'pages', next: null, page: 1, per_page: 20, total_pages: 1 }\n        });\n      }\n      return jsonResponse({ error: 'Forbidden' }, 403);\n    });\n    const config: ConnectorConfig = {\n      intercomAccessToken: 'token',\n      notionApiKey: 'bad_key',\n      notionBlockId: 'block',\n      fetch\n    };\n    const payload: IntercomWebhookPayload = {\n      type: 'conversation.updated',\n      data: { item: { id: 'conv_1', state: 'closed' } }\n    };\n    await expect(handle(payload, config)).rejects.toThrow('HTTP 403 Forbidden for https://api.notion.com/v1/blocks/block/children');\n  });\n\n  it('retries on 429 and succeeds', async () => {\n    let attempt = 0;\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.url.includes('/conversations/')) {\n        if (attempt === 0) {\n          attempt++;\n          return jsonResponse({ error: 'Too Many Requests' }, 429);\n        }\n        return jsonResponse({\n          type: 'conversation_message.list',\n          conversation_messages: [{ type: 'conversation_message', id: 'msg_1', author: { type: 'admin', id: 'a1' }, body: 'Hello', created_at: 1 }],\n          pages: { type: 'pages', next: null, page: 1, per_page: 20, total_pages: 1 }\n        });\n      }\n      return jsonResponse({\n        object: 'list',\n        results: [{ object: 'block', id: 'block_1', type: 'paragraph', paragraph: { rich_text: [] } }],\n        has_more: false,\n        next_cursor: null\n      });\n    });\n\n    const config: ConnectorConfig = {\n      intercomAccessToken: 'token',\n      notionApiKey: 'key',\n      notionBlockId: 'block',\n      maxRetries: 3,\n      baseRetryDelayMs: 10, // small delay for test\n      fetch\n    };\n    const payload: IntercomWebhookPayload = {\n      type: 'conversation.updated',\n      data: { item: { id: 'conv_1', state: 'closed' } }\n    };\n    const result = await handle(payload, config);\n    // Should have 2 Intercom calls (initial + 1 retry) and 1 Notion call\n    const intercomCalls = calls.filter(c => c.url.includes('/conversations/'));\n    expect(intercomCalls.length).toBe(2);\n    expect(result.notionResponse).toBeDefined();\n  });\n\n  it('retries up to maxRetries then throws', async () => {\n    const { fetch, calls } = fakeFetch(() => jsonResponse({ error: 'Too Many Requests' }, 429));\n    const config: ConnectorConfig = {\n      intercomAccessToken: 'token',\n      notionApiKey: 'key',\n      notionBlockId: 'block',\n      maxRetries: 2,\n      baseRetryDelayMs: 10,\n      fetch\n    };\n    const payload: IntercomWebhookPayload = {\n      type: 'conversation.updated',\n      data: { item: { id: 'conv_1', state: 'closed' } }\n    };\n    await expect(handle(payload, config)).rejects.toThrow('Request failed after 2 retries');\n    // Should have 3 calls (initial + 2 retries)\n    const intercomCalls = calls.filter(c => c.url.includes('/conversations/'));\n    expect(intercomCalls.length).toBe(3);\n  });\n});\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# Intercom to Notion Transcript Connector\n\nThis connector processes an Intercom `conversation.updated` webhook (when a conversation is closed), fetches the full message transcript via the Intercom API (with pagination), redacts email addresses and phone numbers from message bodies, and appends the cleaned messages as rich-text paragraph blocks to a specified Notion block (page or block).\n\n## Configuration\n\nThe connector requires the following environment variables (passed via `ConnectorConfig`):\n\n| Config Property | Environment Variable | Description |\n|-----------------|----------------------|-------------|\n| `intercomAccessToken` | `INTERCOM_ACCESS_TOKEN` | Bearer token for Intercom API authentication. |\n| `notionApiKey` | `NOTION_API_KEY` | Bearer token for Notion API authentication. |\n| `notionBlockId` | (none, must be provided) | The Notion block ID (page or block) to which children will be appended. |\n| `notionVersion` | `NOTION_VERSION` (optional) | Notion API version header. Defaults to `2022-06-28`. |\n| `maxRetries` | (optional) | Maximum retry attempts for 429/5xx responses. Default: 3. |\n| `baseRetryDelayMs` | (optional) | Base delay in ms for exponential backoff. Default: 1000. |\n| `maxPages` | (optional) | Hard cap on pagination pages. Default: 50. |\n\n## Usage Example\n\n```typescript\nimport { handle } from './connector';\n\nconst payload = {\n  type: 'conversation.updated',\n  data: {\n    item: {\n      id: 'conv_123',\n      state: 'closed',\n      conversation_message: { ... }\n    }\n  }\n};\n\nconst config = {\n  intercomAccessToken: process.env.INTERCOM_ACCESS_TOKEN!,\n  notionApiKey: process.env.NOTION_API_KEY!,\n  notionBlockId: 'your-notion-block-id',\n  notionVersion: '2022-06-28'\n};\n\nconst result = await handle(payload, config);\nconsole.log('Notion response:', result.notionResponse);\n```\n\n## Assumptions\n\n1. The webhook fires only when a conversation state changes to `closed` and includes a conversation ID.\n2. Intercom's conversation messages endpoint supports pagination via the `starting_after` cursor parameter; pagination stops when `pages.next` is null.\n3. Message bodies are plain text (Intercom API v2.15+). HTML bodies are not handled.\n4. Email and phone number patterns follow standard formats; redaction uses regex replacements with `[REDACTED]`.\n5. The Notion integration has permission to append children to the specified block.\n6. Redaction is applied to the entire message body string before constructing Notion rich-text blocks.\n7. The Notion `Notion-Version` header is required; a sensible default is used if not provided.\n8. Retry logic follows exponential backoff with `Retry-After` header support (both seconds and HTTP-date).\n9. Pagination loops are capped at 50 pages (configurable) to prevent runaway loops.\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://developers.intercom.com/docs/references/webhooks/webhook-models\n// Source: https://developers.intercom.com/docs/references/rest-api/api.intercom.io/conversations/listconversations\n// Source: https://developers.notion.com/reference/patch-block-children\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"type\": \"conversation.updated\",\n  \"data\": {\n    \"item\": {\n      \"id\": \"conv_123\",\n      \"state\": \"closed\",\n      \"conversation_message\": {\n        \"type\": \"conversation_message\",\n        \"id\": \"msg_123\",\n        \"author\": {\n          \"type\": \"admin\",\n          \"id\": \"admin_123\"\n        },\n        \"body\": \"Hi team, please review the attached files. Contact me at john@example.com or +1-555-123-4567.\",\n        \"created_at\": 1717020000\n      }\n    }\n  }\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"GET\",\n    \"url\": \"https://api.intercom.io/conversations/{conversation_id}/messages\",\n    \"response\": {\n      \"type\": \"conversation_message.list\",\n      \"conversation_messages\": [\n        {\n          \"type\": \"conversation_message\",\n          \"id\": \"msg_1\",\n          \"author\": {\n            \"type\": \"admin\",\n            \"id\": \"admin_1\",\n            \"name\": \"Support\",\n            \"email\": \"support@example.com\"\n          },\n          \"body\": \"Hello, how can I help?\",\n          \"created_at\": 1717020000\n        },\n        {\n          \"type\": \"conversation_message\",\n          \"id\": \"msg_2\",\n          \"author\": {\n            \"type\": \"user\",\n            \"id\": \"user_1\",\n            \"email\": \"user@example.com\",\n            \"phone\": \"+1-555-987-6543\"\n          },\n          \"body\": \"I need help with billing. My email is user@example.com and phone is 555-123-4567.\",\n          \"created_at\": 1717020060\n        }\n      ],\n      \"pages\": {\n        \"type\": \"pages\",\n        \"next\": {\n          \"starting_after\": \"WzE3MDc5MzAwODEwMDAsMTMxLDJd\",\n          \"page\": 2\n        },\n        \"page\": 1,\n        \"per_page\": 20,\n        \"total_pages\": 2\n      }\n    }\n  },\n  {\n    \"method\": \"PATCH\",\n    \"url\": \"https://api.notion.com/v1/blocks/{block_id}/children\",\n    \"response\": {\n      \"object\": \"list\",\n      \"results\": [\n        {\n          \"object\": \"block\",\n          \"id\": \"block_id_1\",\n          \"type\": \"paragraph\",\n          \"paragraph\": {\n            \"rich_text\": [\n              {\n                \"type\": \"text\",\n                \"text\": {\n                  \"content\": \"Hello, how can I help?\"\n                },\n                \"annotations\": {\n                  \"bold\": false,\n                  \"italic\": false,\n                  \"strikethrough\": false,\n                  \"underline\": false,\n                  \"code\": false,\n                  \"color\": \"default\"\n                },\n                \"plain_text\": \"Hello, how can I help?\"\n              }\n            ]\n          }\n        },\n        {\n          \"object\": \"block\",\n          \"id\": \"block_id_2\",\n          \"type\": \"paragraph\",\n          \"paragraph\": {\n            \"rich_text\": [\n              {\n                \"type\": \"text\",\n                \"text\": {\n                  \"content\": \"I need help with billing. My email is [REDACTED] and phone is [REDACTED].\"\n                },\n                \"annotations\": {\n                  \"bold\": false,\n                  \"italic\": false,\n                  \"strikethrough\": false,\n                  \"underline\": false,\n                  \"code\": false,\n                  \"color\": \"default\"\n                },\n                \"plain_text\": \"I need help with billing. My email is [REDACTED] and phone is [REDACTED].\"\n              }\n            ]\n          }\n        }\n      ],\n      \"has_more\": false,\n      \"next_cursor\": null\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ]
+    },
+    {
+      "type": "step",
+      "step": "generate",
+      "status": "done",
+      "detail": "src/connector.ts, src/connector.test.ts, README.md, src/fixtures.ts"
+    },
+    {
+      "type": "step",
+      "step": "verify",
+      "status": "start"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Forking checkpoint cc77486e with 4 files, network off"
+    },
+    {
+      "type": "tests",
+      "attempt": 1,
+      "report": {
+        "typecheckOk": true,
+        "typecheckOutput": "",
+        "passed": 7,
+        "failed": 0,
+        "total": 7,
+        "failures": [],
+        "durationMs": 356.137939453125,
+        "ranOn": "nebius-sandbox:01a15deb-af51-77e2-8c22-ec3305da363c",
+        "passedNames": [
+          "contract handles the documented example payload",
+          "handle validates required fields",
+          "handle fetches all messages with pagination and redacts emails and phones",
+          "handle throws on non-2xx Intercom response",
+          "handle throws on non-2xx Notion response",
+          "handle retries on 429 and succeeds",
+          "handle retries up to maxRetries then throws"
+        ],
+        "contract": "passed"
+      }
+    },
+    {
+      "type": "step",
+      "step": "verify",
+      "status": "done",
+      "detail": "7/7 tests after 1 attempt"
+    },
+    {
+      "type": "step",
+      "step": "package",
+      "status": "start"
+    },
+    {
+      "type": "usage",
+      "usage": [
+        {
+          "model": "nvidia/Nemotron-3_5-Lightning",
+          "promptTokens": 802,
+          "completionTokens": 501,
+          "costUsd": 0.00016836
+        },
+        {
+          "model": "nvidia/nemotron-3-super-120b-a12b",
+          "promptTokens": 22307,
+          "completionTokens": 1628,
+          "costUsd": 0.008157300000000001
+        },
+        {
+          "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+          "promptTokens": 5625,
+          "completionTokens": 7948,
+          "costUsd": 0.029469000000000002
+        }
+      ]
+    },
+    {
+      "type": "result",
+      "ok": true,
+      "attempts": 1,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "export interface IntercomWebhookPayload {\n  type: string;\n  data: {\n    item: {\n      id: string;\n      state: string;\n      conversation_message?: {\n        type: string;\n        id: string;\n        author: {\n          type: string;\n          id: string;\n        };\n        body: string;\n        created_at: number;\n      };\n    };\n  };\n}\n\nexport interface IntercomMessage {\n  type: string;\n  id: string;\n  author: {\n    type: string;\n    id: string;\n    name?: string;\n    email?: string;\n    phone?: string;\n  };\n  body: string;\n  created_at: number;\n}\n\nexport interface IntercomPages {\n  type: string;\n  next: {\n    starting_after: string;\n    page: number;\n  } | null;\n  page: number;\n  per_page: number;\n  total_pages: number;\n}\n\nexport interface IntercomMessagesResponse {\n  type: string;\n  conversation_messages: IntercomMessage[];\n  pages: IntercomPages;\n}\n\nexport interface NotionRichText {\n  type: 'text';\n  text: {\n    content: string;\n  };\n  annotations: {\n    bold: boolean;\n    italic: boolean;\n    strikethrough: boolean;\n    underline: boolean;\n    code: boolean;\n    color: string;\n  };\n  plain_text: string;\n}\n\nexport interface NotionParagraphBlock {\n  object: 'block';\n  type: 'paragraph';\n  paragraph: {\n    rich_text: NotionRichText[];\n  };\n}\n\nexport interface NotionChildrenRequest {\n  children: NotionParagraphBlock[];\n}\n\nexport interface NotionBlockResult {\n  object: 'block';\n  id: string;\n  type: 'paragraph';\n  paragraph: {\n    rich_text: NotionRichText[];\n  };\n}\n\nexport interface NotionChildrenResponse {\n  object: 'list';\n  results: NotionBlockResult[];\n  has_more: boolean;\n  next_cursor: string | null;\n}\n\nexport interface ConnectorConfig {\n  intercomAccessToken: string;\n  notionApiKey: string;\n  notionBlockId: string;\n  notionVersion?: string; // default: '2022-06-28'\n  maxRetries?: number; // default: 3\n  baseRetryDelayMs?: number; // default: 1000\n  maxPages?: number; // default: 50\n  fetch?: typeof fetch;\n}\n\ninterface FetchOptions extends RequestInit {\n  headers?: Record<string, string>;\n}\n\nasync function fetchWithRetry(\n  fetchFn: typeof fetch,\n  url: string,\n  options: FetchOptions,\n  maxRetries: number,\n  baseDelayMs: number\n): Promise<Response> {\n  let attempt = 0;\n  while (true) {\n    const response = await fetchFn(url, options);\n    if (response.status === 429 || (response.status >= 500 && response.status < 600)) {\n      if (attempt >= maxRetries) {\n        throw new Error(`Request failed after ${maxRetries} retries: ${response.status} ${response.statusText} for ${url}`);\n      }\n      const retryAfter = response.headers.get('Retry-After');\n      let delayMs: number;\n      if (retryAfter) {\n        const parsed = parseInt(retryAfter, 10);\n        if (!isNaN(parsed)) {\n          delayMs = parsed * 1000;\n        } else {\n          // Try parsing as HTTP-date\n          const date = new Date(retryAfter);\n          if (!isNaN(date.getTime())) {\n            delayMs = date.getTime() - Date.now();\n            if (delayMs < 0) delayMs = 0;\n          } else {\n            delayMs = baseDelayMs * Math.pow(2, attempt);\n          }\n        }\n      } else {\n        delayMs = baseDelayMs * Math.pow(2, attempt);\n      }\n      if (isNaN(delayMs) || delayMs < 0) delayMs = baseDelayMs * Math.pow(2, attempt);\n      await new Promise(resolve => setTimeout(resolve, delayMs));\n      attempt++;\n      continue;\n    }\n    if (!response.ok) {\n      throw new Error(`HTTP ${response.status} ${response.statusText} for ${url}`);\n    }\n    return response;\n  }\n}\n\nfunction redactText(text: string): string {\n  // Email regex\n  const emailRegex = /\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\\b/g;\n  // Phone regex: matches various formats like +1-555-123-4567, 555-123-4567, (555) 123-4567, etc.\n  const phoneRegex = /(?:\\+?\\d{1,3}[-.\\s]?)?\\(?\\d{3}\\)?[-.\\s]?\\d{3}[-.\\s]?\\d{4}\\b/g;\n  return text.replace(emailRegex, '[REDACTED]').replace(phoneRegex, '[REDACTED]');\n}\n\nfunction buildNotionBlocks(messages: IntercomMessage[]): NotionParagraphBlock[] {\n  return messages.map(msg => ({\n    object: 'block',\n    type: 'paragraph',\n    paragraph: {\n      rich_text: [\n        {\n          type: 'text',\n          text: { content: redactText(msg.body) },\n          annotations: {\n            bold: false,\n            italic: false,\n            strikethrough: false,\n            underline: false,\n            code: false,\n            color: 'default'\n          },\n          plain_text: redactText(msg.body)\n        }\n      ]\n    }\n  }));\n}\n\nexport async function handle(\n  payload: IntercomWebhookPayload,\n  config: ConnectorConfig\n): Promise<{ notionResponse: NotionChildrenResponse }> {\n  const fetchFn = config.fetch ?? fetch;\n  const maxRetries = config.maxRetries ?? 3;\n  const baseRetryDelayMs = config.baseRetryDelayMs ?? 1000;\n  const maxPages = config.maxPages ?? 50;\n  const notionVersion = config.notionVersion ?? '2022-06-28';\n\n  // Validate input\n  if (!payload || payload.type !== 'conversation.updated') {\n    throw new Error('Invalid payload: expected type \"conversation.updated\"');\n  }\n  if (!payload.data?.item?.id) {\n    throw new Error('Missing conversation ID in payload');\n  }\n  if (payload.data.item.state !== 'closed') {\n    throw new Error('Conversation state is not closed; ignoring');\n  }\n\n  const conversationId = payload.data.item.id;\n\n  // Fetch all messages with pagination\n  let allMessages: IntercomMessage[] = [];\n  let startingAfter: string | null = null;\n  let pageCount = 0;\n\n  while (pageCount < maxPages) {\n    pageCount++;\n    const url = new URL(`https://api.intercom.io/conversations/${conversationId}/messages`);\n    if (startingAfter) {\n      url.searchParams.set('starting_after', startingAfter);\n    }\n    url.searchParams.set('per_page', '150'); // max per_page\n\n    const response = await fetchWithRetry(fetchFn, url.toString(), {\n      method: 'GET',\n      headers: {\n        'Authorization': `Bearer ${config.intercomAccessToken}`,\n        'Accept': 'application/json'\n      }\n    }, maxRetries, baseRetryDelayMs);\n\n    const data = await response.json() as IntercomMessagesResponse;\n    if (!data.conversation_messages || !Array.isArray(data.conversation_messages)) {\n      throw new Error('Invalid Intercom messages response: missing conversation_messages array');\n    }\n    allMessages = allMessages.concat(data.conversation_messages);\n\n    if (!data.pages?.next?.starting_after) {\n      break;\n    }\n    startingAfter = data.pages.next.starting_after;\n  }\n\n  if (allMessages.length === 0) {\n    throw new Error('No messages found for conversation');\n  }\n\n  // Build Notion children\n  const children = buildNotionBlocks(allMessages);\n\n  // Append to Notion\n  const notionUrl = `https://api.notion.com/v1/blocks/${config.notionBlockId}/children`;\n  const notionResponse = await fetchWithRetry(fetchFn, notionUrl, {\n    method: 'PATCH',\n    headers: {\n      'Authorization': `Bearer ${config.notionApiKey}`,\n      'Notion-Version': notionVersion,\n      'Content-Type': 'application/json'\n    },\n    body: JSON.stringify({ children })\n  }, maxRetries, baseRetryDelayMs);\n\n  const notionData = await notionResponse.json() as NotionChildrenResponse;\n  return { notionResponse: notionData };\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi } from 'vitest';\nimport { handle, ConnectorConfig, IntercomWebhookPayload } from './connector';\nimport { SOURCE_EXAMPLE, contractFetch, fakeFetch, jsonResponse, RecordedCall } from './fixtures';\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch();\n    const config: ConnectorConfig = {\n      intercomAccessToken: 'test_intercom_token',\n      notionApiKey: 'test_notion_key',\n      notionBlockId: 'test_block_id',\n      fetch\n    };\n    const result = await handle(SOURCE_EXAMPLE as unknown as IntercomWebhookPayload, config);\n    expect(calls.length).toBeGreaterThan(0);\n    expect(result.notionResponse).toBeDefined();\n  });\n});\n\ndescribe('handle', () => {\n  it('validates required fields', async () => {\n    const { fetch, calls } = fakeFetch(() => jsonResponse({}, 200));\n    const config: ConnectorConfig = {\n      intercomAccessToken: 'token',\n      notionApiKey: 'key',\n      notionBlockId: 'block',\n      fetch\n    };\n\n    // Missing type\n    await expect(handle({} as unknown as IntercomWebhookPayload, config)).rejects.toThrow('expected type \"conversation.updated\"');\n    // Wrong type\n    await expect(handle({ type: 'other', data: { item: { id: '1', state: 'closed' } } } as unknown as IntercomWebhookPayload, config)).rejects.toThrow('expected type \"conversation.updated\"');\n    // Missing conversation ID\n    await expect(handle({ type: 'conversation.updated', data: { item: { state: 'closed' } } } as unknown as IntercomWebhookPayload, config)).rejects.toThrow('Missing conversation ID');\n    // State not closed\n    await expect(handle({ type: 'conversation.updated', data: { item: { id: '1', state: 'open' } } } as unknown as IntercomWebhookPayload, config)).rejects.toThrow('not closed');\n  });\n\n  it('fetches all messages with pagination and redacts emails and phones', async () => {\n    const intercomResponses = [\n      {\n        type: 'conversation_message.list',\n        conversation_messages: [\n          {\n            type: 'conversation_message',\n            id: 'msg_1',\n            author: { type: 'admin', id: 'admin_1', name: 'Support', email: 'support@example.com' },\n            body: 'Hello, how can I help?',\n            created_at: 1717020000\n          },\n          {\n            type: 'conversation_message',\n            id: 'msg_2',\n            author: { type: 'user', id: 'user_1', email: 'user@example.com', phone: '+1-555-987-6543' },\n            body: 'I need help with billing. My email is user@example.com and phone is 555-123-4567.',\n            created_at: 1717020060\n          }\n        ],\n        pages: {\n          type: 'pages',\n          next: { starting_after: 'cursor123', page: 2 },\n          page: 1,\n          per_page: 20,\n          total_pages: 2\n        }\n      },\n      {\n        type: 'conversation_message.list',\n        conversation_messages: [\n          {\n            type: 'conversation_message',\n            id: 'msg_3',\n            author: { type: 'admin', id: 'admin_2', name: 'Support2' },\n            body: 'Another message with phone 555-000-1111.',\n            created_at: 1717020100\n          }\n        ],\n        pages: {\n          type: 'pages',\n          next: null,\n          page: 2,\n          per_page: 20,\n          total_pages: 2\n        }\n      }\n    ];\n\n    let intercomCallCount = 0;\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.url.includes('/conversations/') && req.url.includes('/messages')) {\n        const response = intercomResponses[intercomCallCount] || intercomResponses[intercomResponses.length - 1];\n        intercomCallCount++;\n        return jsonResponse(response);\n      }\n      if (req.url.includes('/blocks/') && req.url.includes('/children')) {\n        return jsonResponse({\n          object: 'list',\n          results: [\n            { object: 'block', id: 'block_1', type: 'paragraph', paragraph: { rich_text: [] } }\n          ],\n          has_more: false,\n          next_cursor: null\n        });\n      }\n      return jsonResponse({ error: 'not found' }, 404);\n    });\n\n    const config: ConnectorConfig = {\n      intercomAccessToken: 'intercom_token',\n      notionApiKey: 'notion_key',\n      notionBlockId: 'block_123',\n      fetch\n    };\n\n    const payload: IntercomWebhookPayload = {\n      type: 'conversation.updated',\n      data: {\n        item: {\n          id: 'conv_123',\n          state: 'closed',\n          conversation_message: {\n            type: 'conversation_message',\n            id: 'msg_123',\n            author: { type: 'admin', id: 'admin_123' },\n            body: 'Hi team, please review the attached files. Contact me at john@example.com or +1-555-123-4567.',\n            created_at: 1717020000\n          }\n        }\n      }\n    };\n\n    const result = await handle(payload, config);\n\n    // Check Intercom calls: should be 2 (two pages)\n    const intercomCalls = calls.filter(c => c.url.includes('/conversations/') && c.url.includes('/messages'));\n    expect(intercomCalls.length).toBe(2);\n    // Check auth header\n    expect(intercomCalls[0].headers.get('authorization')).toBe('Bearer intercom_token');\n    // Check pagination: second call should have starting_after\n    expect(intercomCalls[1].url).toContain('starting_after=cursor123');\n\n    // Check Notion call\n    const notionCalls = calls.filter(c => c.url.includes('/blocks/') && c.url.includes('/children'));\n    expect(notionCalls.length).toBe(1);\n    expect(notionCalls[0].method).toBe('PATCH');\n    expect(notionCalls[0].headers.get('authorization')).toBe('Bearer notion_key');\n    expect(notionCalls[0].headers.get('notion-version')).toBe('2022-06-28');\n    const notionBody = notionCalls[0].json as { children: Array<{ paragraph: { rich_text: Array<{ text: { content: string } }> } }> };\n    expect(notionBody.children.length).toBe(3); // three messages total\n    // Check redaction\n    expect(notionBody.children[0].paragraph.rich_text[0].text.content).toBe('Hello, how can I help?');\n    expect(notionBody.children[1].paragraph.rich_text[0].text.content).toBe('I need help with billing. My email is [REDACTED] and phone is [REDACTED].');\n    expect(notionBody.children[2].paragraph.rich_text[0].text.content).toBe('Another message with phone [REDACTED].');\n\n    expect(result.notionResponse).toBeDefined();\n  });\n\n  it('throws on non-2xx Intercom response', async () => {\n    const { fetch, calls } = fakeFetch(() => jsonResponse({ error: 'Unauthorized' }, 401));\n    const config: ConnectorConfig = {\n      intercomAccessToken: 'bad_token',\n      notionApiKey: 'key',\n      notionBlockId: 'block',\n      fetch\n    };\n    const payload: IntercomWebhookPayload = {\n      type: 'conversation.updated',\n      data: { item: { id: 'conv_1', state: 'closed' } }\n    };\n    await expect(handle(payload, config)).rejects.toThrow('HTTP 401 Unauthorized for https://api.intercom.io/conversations/conv_1/messages');\n  });\n\n  it('throws on non-2xx Notion response', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.url.includes('/conversations/')) {\n        return jsonResponse({\n          type: 'conversation_message.list',\n          conversation_messages: [{ type: 'conversation_message', id: 'msg_1', author: { type: 'admin', id: 'a1' }, body: 'Hello', created_at: 1 }],\n          pages: { type: 'pages', next: null, page: 1, per_page: 20, total_pages: 1 }\n        });\n      }\n      return jsonResponse({ error: 'Forbidden' }, 403);\n    });\n    const config: ConnectorConfig = {\n      intercomAccessToken: 'token',\n      notionApiKey: 'bad_key',\n      notionBlockId: 'block',\n      fetch\n    };\n    const payload: IntercomWebhookPayload = {\n      type: 'conversation.updated',\n      data: { item: { id: 'conv_1', state: 'closed' } }\n    };\n    await expect(handle(payload, config)).rejects.toThrow('HTTP 403 Forbidden for https://api.notion.com/v1/blocks/block/children');\n  });\n\n  it('retries on 429 and succeeds', async () => {\n    let attempt = 0;\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.url.includes('/conversations/')) {\n        if (attempt === 0) {\n          attempt++;\n          return jsonResponse({ error: 'Too Many Requests' }, 429);\n        }\n        return jsonResponse({\n          type: 'conversation_message.list',\n          conversation_messages: [{ type: 'conversation_message', id: 'msg_1', author: { type: 'admin', id: 'a1' }, body: 'Hello', created_at: 1 }],\n          pages: { type: 'pages', next: null, page: 1, per_page: 20, total_pages: 1 }\n        });\n      }\n      return jsonResponse({\n        object: 'list',\n        results: [{ object: 'block', id: 'block_1', type: 'paragraph', paragraph: { rich_text: [] } }],\n        has_more: false,\n        next_cursor: null\n      });\n    });\n\n    const config: ConnectorConfig = {\n      intercomAccessToken: 'token',\n      notionApiKey: 'key',\n      notionBlockId: 'block',\n      maxRetries: 3,\n      baseRetryDelayMs: 10, // small delay for test\n      fetch\n    };\n    const payload: IntercomWebhookPayload = {\n      type: 'conversation.updated',\n      data: { item: { id: 'conv_1', state: 'closed' } }\n    };\n    const result = await handle(payload, config);\n    // Should have 2 Intercom calls (initial + 1 retry) and 1 Notion call\n    const intercomCalls = calls.filter(c => c.url.includes('/conversations/'));\n    expect(intercomCalls.length).toBe(2);\n    expect(result.notionResponse).toBeDefined();\n  });\n\n  it('retries up to maxRetries then throws', async () => {\n    const { fetch, calls } = fakeFetch(() => jsonResponse({ error: 'Too Many Requests' }, 429));\n    const config: ConnectorConfig = {\n      intercomAccessToken: 'token',\n      notionApiKey: 'key',\n      notionBlockId: 'block',\n      maxRetries: 2,\n      baseRetryDelayMs: 10,\n      fetch\n    };\n    const payload: IntercomWebhookPayload = {\n      type: 'conversation.updated',\n      data: { item: { id: 'conv_1', state: 'closed' } }\n    };\n    await expect(handle(payload, config)).rejects.toThrow('Request failed after 2 retries');\n    // Should have 3 calls (initial + 2 retries)\n    const intercomCalls = calls.filter(c => c.url.includes('/conversations/'));\n    expect(intercomCalls.length).toBe(3);\n  });\n});\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# Intercom to Notion Transcript Connector\n\nThis connector processes an Intercom `conversation.updated` webhook (when a conversation is closed), fetches the full message transcript via the Intercom API (with pagination), redacts email addresses and phone numbers from message bodies, and appends the cleaned messages as rich-text paragraph blocks to a specified Notion block (page or block).\n\n## Configuration\n\nThe connector requires the following environment variables (passed via `ConnectorConfig`):\n\n| Config Property | Environment Variable | Description |\n|-----------------|----------------------|-------------|\n| `intercomAccessToken` | `INTERCOM_ACCESS_TOKEN` | Bearer token for Intercom API authentication. |\n| `notionApiKey` | `NOTION_API_KEY` | Bearer token for Notion API authentication. |\n| `notionBlockId` | (none, must be provided) | The Notion block ID (page or block) to which children will be appended. |\n| `notionVersion` | `NOTION_VERSION` (optional) | Notion API version header. Defaults to `2022-06-28`. |\n| `maxRetries` | (optional) | Maximum retry attempts for 429/5xx responses. Default: 3. |\n| `baseRetryDelayMs` | (optional) | Base delay in ms for exponential backoff. Default: 1000. |\n| `maxPages` | (optional) | Hard cap on pagination pages. Default: 50. |\n\n## Usage Example\n\n```typescript\nimport { handle } from './connector';\n\nconst payload = {\n  type: 'conversation.updated',\n  data: {\n    item: {\n      id: 'conv_123',\n      state: 'closed',\n      conversation_message: { ... }\n    }\n  }\n};\n\nconst config = {\n  intercomAccessToken: process.env.INTERCOM_ACCESS_TOKEN!,\n  notionApiKey: process.env.NOTION_API_KEY!,\n  notionBlockId: 'your-notion-block-id',\n  notionVersion: '2022-06-28'\n};\n\nconst result = await handle(payload, config);\nconsole.log('Notion response:', result.notionResponse);\n```\n\n## Assumptions\n\n1. The webhook fires only when a conversation state changes to `closed` and includes a conversation ID.\n2. Intercom's conversation messages endpoint supports pagination via the `starting_after` cursor parameter; pagination stops when `pages.next` is null.\n3. Message bodies are plain text (Intercom API v2.15+). HTML bodies are not handled.\n4. Email and phone number patterns follow standard formats; redaction uses regex replacements with `[REDACTED]`.\n5. The Notion integration has permission to append children to the specified block.\n6. Redaction is applied to the entire message body string before constructing Notion rich-text blocks.\n7. The Notion `Notion-Version` header is required; a sensible default is used if not provided.\n8. Retry logic follows exponential backoff with `Retry-After` header support (both seconds and HTTP-date).\n9. Pagination loops are capped at 50 pages (configurable) to prevent runaway loops.\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://developers.intercom.com/docs/references/webhooks/webhook-models\n// Source: https://developers.intercom.com/docs/references/rest-api/api.intercom.io/conversations/listconversations\n// Source: https://developers.notion.com/reference/patch-block-children\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"type\": \"conversation.updated\",\n  \"data\": {\n    \"item\": {\n      \"id\": \"conv_123\",\n      \"state\": \"closed\",\n      \"conversation_message\": {\n        \"type\": \"conversation_message\",\n        \"id\": \"msg_123\",\n        \"author\": {\n          \"type\": \"admin\",\n          \"id\": \"admin_123\"\n        },\n        \"body\": \"Hi team, please review the attached files. Contact me at john@example.com or +1-555-123-4567.\",\n        \"created_at\": 1717020000\n      }\n    }\n  }\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"GET\",\n    \"url\": \"https://api.intercom.io/conversations/{conversation_id}/messages\",\n    \"response\": {\n      \"type\": \"conversation_message.list\",\n      \"conversation_messages\": [\n        {\n          \"type\": \"conversation_message\",\n          \"id\": \"msg_1\",\n          \"author\": {\n            \"type\": \"admin\",\n            \"id\": \"admin_1\",\n            \"name\": \"Support\",\n            \"email\": \"support@example.com\"\n          },\n          \"body\": \"Hello, how can I help?\",\n          \"created_at\": 1717020000\n        },\n        {\n          \"type\": \"conversation_message\",\n          \"id\": \"msg_2\",\n          \"author\": {\n            \"type\": \"user\",\n            \"id\": \"user_1\",\n            \"email\": \"user@example.com\",\n            \"phone\": \"+1-555-987-6543\"\n          },\n          \"body\": \"I need help with billing. My email is user@example.com and phone is 555-123-4567.\",\n          \"created_at\": 1717020060\n        }\n      ],\n      \"pages\": {\n        \"type\": \"pages\",\n        \"next\": {\n          \"starting_after\": \"WzE3MDc5MzAwODEwMDAsMTMxLDJd\",\n          \"page\": 2\n        },\n        \"page\": 1,\n        \"per_page\": 20,\n        \"total_pages\": 2\n      }\n    }\n  },\n  {\n    \"method\": \"PATCH\",\n    \"url\": \"https://api.notion.com/v1/blocks/{block_id}/children\",\n    \"response\": {\n      \"object\": \"list\",\n      \"results\": [\n        {\n          \"object\": \"block\",\n          \"id\": \"block_id_1\",\n          \"type\": \"paragraph\",\n          \"paragraph\": {\n            \"rich_text\": [\n              {\n                \"type\": \"text\",\n                \"text\": {\n                  \"content\": \"Hello, how can I help?\"\n                },\n                \"annotations\": {\n                  \"bold\": false,\n                  \"italic\": false,\n                  \"strikethrough\": false,\n                  \"underline\": false,\n                  \"code\": false,\n                  \"color\": \"default\"\n                },\n                \"plain_text\": \"Hello, how can I help?\"\n              }\n            ]\n          }\n        },\n        {\n          \"object\": \"block\",\n          \"id\": \"block_id_2\",\n          \"type\": \"paragraph\",\n          \"paragraph\": {\n            \"rich_text\": [\n              {\n                \"type\": \"text\",\n                \"text\": {\n                  \"content\": \"I need help with billing. My email is [REDACTED] and phone is [REDACTED].\"\n                },\n                \"annotations\": {\n                  \"bold\": false,\n                  \"italic\": false,\n                  \"strikethrough\": false,\n                  \"underline\": false,\n                  \"code\": false,\n                  \"color\": \"default\"\n                },\n                \"plain_text\": \"I need help with billing. My email is [REDACTED] and phone is [REDACTED].\"\n              }\n            ]\n          }\n        }\n      ],\n      \"has_more\": false,\n      \"next_cursor\": null\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ],
+      "report": {
+        "typecheckOk": true,
+        "typecheckOutput": "",
+        "passed": 7,
+        "failed": 0,
+        "total": 7,
+        "failures": [],
+        "durationMs": 356.137939453125,
+        "ranOn": "nebius-sandbox:01a15deb-af51-77e2-8c22-ec3305da363c",
+        "passedNames": [
+          "contract handles the documented example payload",
+          "handle validates required fields",
+          "handle fetches all messages with pagination and redacts emails and phones",
+          "handle throws on non-2xx Intercom response",
+          "handle throws on non-2xx Notion response",
+          "handle retries on 429 and succeeds",
+          "handle retries up to maxRetries then throws"
+        ],
+        "contract": "passed"
+      }
+    },
+    {
+      "type": "step",
+      "step": "package",
+      "status": "done"
+    }
+  ]
+}

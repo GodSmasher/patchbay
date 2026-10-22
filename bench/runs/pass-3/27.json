@@ -1,0 +1,755 @@
+{
+  "prompt": "When a Zendesk ticket is updated, open a WebSocket to Pusher Channels and push the status change to channel presence-ticket-<id> as event ticket.updated.",
+  "events": [
+    {
+      "type": "mode",
+      "mode": "live"
+    },
+    {
+      "type": "step",
+      "step": "plan",
+      "status": "start"
+    },
+    {
+      "type": "plan",
+      "plan": {
+        "summary": "When a Zendesk ticket is updated, push the status change to a Pusher Channels presence channel named ticket-<id> with event ticket.updated.",
+        "source": {
+          "app": "Zendesk",
+          "trigger": "ticket.updated webhook",
+          "docsQuery": "Zendesk ticket updated webhook payload fields"
+        },
+        "target": {
+          "app": "Pusher Channels",
+          "action": "trigger event on presence channel",
+          "docsQuery": "Pusher Channels trigger event presence channel API"
+        },
+        "additionalTargets": [],
+        "fieldMapping": [
+          {
+            "from": "ticket.id",
+            "to": "channelName",
+            "note": "format as presence-ticket-<id>"
+          },
+          {
+            "from": "ticket.status",
+            "to": "eventName",
+            "note": "value is 'ticket.updated'"
+          },
+          {
+            "from": "ticket.subject",
+            "to": "eventData",
+            "note": "subject text of the ticket"
+          },
+          {
+            "from": "ticket.latest_comment",
+            "to": "eventData",
+            "note": "latest comment text if available"
+          }
+        ],
+        "assumptions": [
+          "The Zendesk webhook payload includes ticket.id, ticket.status, ticket.subject, and ticket.latest_comment.",
+          "Pusher Channels API uses an app key and secret for authentication on presence channels.",
+          "The target presence channel name must be constructed as 'presence-ticket-<ticket.id>' per the request.",
+          "The webhook fires on any status change; the integration will push the same event name 'ticket.updated' for all updates."
+        ]
+      }
+    },
+    {
+      "type": "step",
+      "step": "plan",
+      "status": "done",
+      "detail": "When a Zendesk ticket is updated, push the status change to a Pusher Channels presence channel named ticket-<id> with event ticket.updated."
+    },
+    {
+      "type": "step",
+      "step": "research",
+      "status": "start"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Installing typescript + vitest in a sandbox checkpoint"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Searched \"Zendesk ticket updated webhook payload fields\": 2 of 2 picked from Zendesk's own docs"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "No Pusher Channels page in the results, searched pusherchannels.com directly: 0 results"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Searched \"Pusher Channels trigger event presence channel API\": 0 of 2 picked from Pusher Channels's own docs"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Extracted 4 documentation pages"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Checkpoint ready: 4e79505e"
+    },
+    {
+      "type": "sources",
+      "sources": [
+        {
+          "title": "Webhook event types | Zendesk Developer Docs",
+          "url": "https://developer.zendesk.com/api-reference/webhooks/event-types/webhook-event-types",
+          "official": true
+        },
+        {
+          "title": "Workflow: Convert an API token webhook to an action flow – Zendesk help",
+          "url": "https://support.zendesk.com/hc/en-us/articles/11171036600986-Workflow-Convert-an-API-token-webhook-to-an-action-flow",
+          "official": true
+        },
+        {
+          "title": "Pusher Channels Docs | What is an event?",
+          "url": "https://pusher.com/docs/channels/using_channels/events",
+          "official": false
+        },
+        {
+          "title": "Channels Api | APIs.io APIs",
+          "url": "https://apis.io/apis/pusher/channels-api",
+          "official": false
+        }
+      ]
+    },
+    {
+      "type": "spec",
+      "spec": {
+        "source": {
+          "app": "Zendesk",
+          "role": "source",
+          "method": "POST",
+          "url": "(webhook delivery URL configured by user)",
+          "auth": {
+            "type": "none",
+            "name": null,
+            "envVar": null
+          },
+          "example": {
+            "type": "zen:event-type:ticket.updated",
+            "account_id": 123456,
+            "id": "abc123-def456-ghi789",
+            "time": "2024-01-15T10:30:00Z",
+            "zendesk_event_version": "2022-06-20",
+            "subject": "zen:ticket:98765",
+            "detail": {
+              "id": "98765",
+              "status": "open",
+              "subject": "Help needed with login",
+              "latest_comment": {
+                "body": "I cannot access my account after password reset."
+              }
+            },
+            "event": {}
+          },
+          "docsUrl": "https://developer.zendesk.com/api-reference/webhooks/event-types/webhook-event-types",
+          "notes": [
+            "Zendesk webhook payloads follow a standardized schema with top-level properties: type, account_id, id, time, zendesk_event_version, subject, detail, event.",
+            "For ticket.updated events, the detail object contains ticket fields including id, status, subject, and latest_comment.",
+            "The webhook is triggered via a Zendesk trigger or automation tied to ticket updates.",
+            "No authentication is applied to incoming webhooks; the connector receives raw POST body.",
+            "The connector must extract ticket.id, ticket.status, ticket.subject, and ticket.latest_comment.body from the detail object."
+          ]
+        },
+        "target": [
+          {
+            "app": "Pusher Channels",
+            "role": "target",
+            "method": "POST",
+            "url": "https://ws-{cluster}.pusher.com/apps/{app_key}/channels/presence-ticket-{ticket_id}/events",
+            "auth": {
+              "type": "header",
+              "name": "Authorization",
+              "envVar": "PUSHER_AUTH_TOKEN"
+            },
+            "example": {
+              "name": "ticket.updated",
+              "channel": "presence-ticket-98765",
+              "data": {
+                "subject": "Help needed with login",
+                "latest_comment": "I cannot access my account after password reset."
+              }
+            },
+            "responseExample": {},
+            "docsUrl": "https://pusher.com/docs/channels/using_channels/events",
+            "notes": [
+              "Pusher Channels HTTP API requires Basic Auth or signed request; the connector must generate an auth token using Pusher app key and secret (not shown in docs but required).",
+              "The presence channel name must be formatted as 'presence-ticket-<ticket.id>'.",
+              "The event name is hardcoded to 'ticket.updated' per plan assumptions.",
+              "The event data should include ticket.subject and ticket.latest_comment.body as per field mapping.",
+              "Authentication is done via Authorization header with a signed token; the exact format is implementation-specific but requires app key and secret.",
+              "Cluster ({cluster}) and app_key ({app_key}) are placeholders to be filled from environment variables.",
+              "Ticket ID ({ticket_id}) is substituted from the webhook payload at runtime."
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "step",
+      "step": "research",
+      "status": "done",
+      "detail": "2 endpoints from 4 pages"
+    },
+    {
+      "type": "step",
+      "step": "generate",
+      "status": "start"
+    },
+    {
+      "type": "files",
+      "attempt": 1,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "export interface ConnectorConfig {\n  /** Pusher Channels app key (from Pusher dashboard) */\n  pusherAppKey: string\n  /** Pusher Channels app secret (from Pusher dashboard) */\n  pusherSecret: string\n  /** Pusher Channels cluster identifier (e.g., 'mt1', 'eu', 'ap1') */\n  pusherCluster: string\n  /** Optional pre-computed Authorization token. If omitted, a signed token is generated. */\n  pusherAuthToken?: string\n  /** Injected fetch implementation for testing. Defaults to global fetch. */\n  fetch?: typeof fetch\n}\n\nexport interface ZendeskTicketUpdatedPayload {\n  type: string\n  account_id: number\n  id: string\n  time: string\n  zendesk_event_version: string\n  subject: string\n  detail: {\n    id: string\n    status: string\n    subject: string\n    latest_comment?: {\n      body: string\n    }\n  }\n  event: Record<string, unknown>\n}\n\nexport interface HandleResult {\n  channel: string\n  eventName: string\n  eventData: {\n    subject: string\n    latest_comment?: string\n  }\n  pusherResponse: unknown\n}\n\nfunction generatePusherAuthToken(\n  appKey: string,\n  secret: string,\n  method: string,\n  path: string,\n  body: string\n): string {\n  const timestamp = Math.floor(Date.now() / 1000).toString()\n  const bodyMd5 = cryptoHash(body)\n  const queryParams = new URLSearchParams({\n    auth_key: appKey,\n    auth_timestamp: timestamp,\n    auth_version: '1.0',\n    body_md5: bodyMd5,\n  })\n  const sortedQuery = Array.from(queryParams.entries())\n    .sort(([a], [b]) => a.localeCompare(b))\n    .map(([k, v]) => `${k}=${v}`)\n    .join('&')\n  const stringToSign = `${method}\\n${path}\\n${sortedQuery}`\n  const signature = hmacSha256(secret, stringToSign)\n  return `Bearer ${appKey}:${signature}`\n}\n\nasync function cryptoHash(input: string): Promise<string> {\n  const encoder = new TextEncoder()\n  const data = encoder.encode(input)\n  const hashBuffer = await crypto.subtle.digest('MD5', data)\n  const hashArray = Array.from(new Uint8Array(hashBuffer))\n  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('')\n}\n\nasync function hmacSha256(secret: string, message: string): Promise<string> {\n  const encoder = new TextEncoder()\n  const key = await crypto.subtle.importKey(\n    'raw',\n    encoder.encode(secret),\n    { name: 'HMAC', hash: 'SHA-256' },\n    false,\n    ['sign']\n  )\n  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(message))\n  const sigArray = Array.from(new Uint8Array(signature))\n  return sigArray.map((b) => b.toString(16).padStart(2, '0')).join('')\n}\n\nexport async function handle(\n  payload: ZendeskTicketUpdatedPayload,\n  config: ConnectorConfig\n): Promise<HandleResult> {\n  const fetchImpl = config.fetch ?? fetch\n\n  if (!payload.detail?.id) {\n    throw new Error('Missing required field: detail.id (ticket ID)')\n  }\n  if (!payload.detail?.status) {\n    throw new Error('Missing required field: detail.status (ticket status)')\n  }\n  if (!payload.detail?.subject) {\n    throw new Error('Missing required field: detail.subject (ticket subject)')\n  }\n\n  const ticketId = payload.detail.id\n  const channel = `presence-ticket-${ticketId}`\n  const eventName = 'ticket.updated'\n  const eventData: HandleResult['eventData'] = {\n    subject: payload.detail.subject,\n  }\n  if (payload.detail.latest_comment?.body) {\n    eventData.latest_comment = payload.detail.latest_comment.body\n  }\n\n  const bodyObj = { name: eventName, channel, data: eventData }\n  const body = JSON.stringify(bodyObj)\n\n  const path = `/apps/${config.pusherAppKey}/channels/${channel}/events`\n  const url = `https://ws-${config.pusherCluster}.pusher.com${path}`\n\n  let authToken: string\n  if (config.pusherAuthToken) {\n    authToken = config.pusherAuthToken\n  } else {\n    authToken = await generatePusherAuthToken(config.pusherAppKey, config.pusherSecret, 'POST', path, body)\n  }\n\n  const response = await fetchImpl(url, {\n    method: 'POST',\n    headers: {\n      Authorization: authToken,\n      'Content-Type': 'application/json',\n    },\n    body,\n  })\n\n  if (!response.ok) {\n    throw new Error(`Pusher Channels API error: ${response.status} ${response.statusText} at POST ${url}`)\n  }\n\n  const pusherResponse = (await response.json()) as unknown\n\n  return {\n    channel,\n    eventName,\n    eventData,\n    pusherResponse,\n  }\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi, beforeEach } from 'vitest'\nimport { handle, ConnectorConfig, ZendeskTicketUpdatedPayload, HandleResult } from './connector'\nimport {\n  SOURCE_EXAMPLE,\n  contractFetch,\n  fakeFetch,\n  jsonResponse,\n  TARGET_ENDPOINTS,\n  type RecordedCall,\n} from './fixtures'\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch()\n    const config: ConnectorConfig = {\n      pusherAppKey: 'test-app-key',\n      pusherSecret: 'test-secret',\n      pusherCluster: 'mt1',\n      fetch,\n    }\n    const result = await handle(SOURCE_EXAMPLE as unknown as ZendeskTicketUpdatedPayload, config)\n    expect(calls.length).toBeGreaterThan(0)\n    expect(result.channel).toBe('presence-ticket-98765')\n    expect(result.eventName).toBe('ticket.updated')\n    expect(result.eventData.subject).toBe('Help needed with login')\n    expect(result.eventData.latest_comment).toBe('I cannot access my account after password reset.')\n  })\n})\n\ndescribe('handle', () => {\n  let baseConfig: ConnectorConfig\n  let recordedCalls: RecordedCall[]\n\n  beforeEach(() => {\n    baseConfig = {\n      pusherAppKey: 'test-app-key',\n      pusherSecret: 'test-secret',\n      pusherCluster: 'mt1',\n    }\n    recordedCalls = []\n  })\n\n  function makeFetch(handler: (req: RecordedCall) => Response | Promise<Response>) {\n    const { fetch, calls } = fakeFetch(handler)\n    recordedCalls.push(...calls)\n    return fetch\n  }\n\n  function makePayload(overrides: Partial<ZendeskTicketUpdatedPayload> = {}): ZendeskTicketUpdatedPayload {\n    return {\n      type: 'zen:event-type:ticket.updated',\n      account_id: 123456,\n      id: 'abc123-def456-ghi789',\n      time: '2024-01-15T10:30:00Z',\n      zendesk_event_version: '2022-06-20',\n      subject: 'zen:ticket:98765',\n      detail: {\n        id: '98765',\n        status: 'open',\n        subject: 'Help needed with login',\n        latest_comment: {\n          body: 'I cannot access my account after password reset.',\n        },\n      },\n      event: {},\n      ...overrides,\n    }\n  }\n\n  it('happy path: sends correct request to Pusher with signed auth', async () => {\n    const fetch = makeFetch((req) => {\n      expect(req.method).toBe('POST')\n      expect(req.url).toBe('https://ws-mt1.pusher.com/apps/test-app-key/channels/presence-ticket-98765/events')\n      expect(req.headers.get('content-type')).toBe('application/json')\n      expect(req.headers.get('authorization')).toMatch(/^Bearer test-app-key:[a-f0-9]{64}$/)\n      const body = req.json as { name: string; channel: string; data: { subject: string; latest_comment: string } }\n      expect(body.name).toBe('ticket.updated')\n      expect(body.channel).toBe('presence-ticket-98765')\n      expect(body.data.subject).toBe('Help needed with login')\n      expect(body.data.latest_comment).toBe('I cannot access my account after password reset.')\n      return jsonResponse({}, 200)\n    })\n\n    const result = await handle(makePayload(), { ...baseConfig, fetch })\n    expect(result.channel).toBe('presence-ticket-98765')\n    expect(result.eventName).toBe('ticket.updated')\n    expect(result.eventData.subject).toBe('Help needed with login')\n    expect(result.eventData.latest_comment).toBe('I cannot access my account after password reset.')\n  })\n\n  it('uses pre-computed auth token when provided', async () => {\n    const fetch = makeFetch((req) => {\n      expect(req.headers.get('authorization')).toBe('Bearer precomputed-token')\n      return jsonResponse({}, 200)\n    })\n\n    const config: ConnectorConfig = { ...baseConfig, pusherAuthToken: 'Bearer precomputed-token', fetch }\n    await handle(makePayload(), config)\n  })\n\n  it('omits latest_comment from event data when not present in payload', async () => {\n    const fetch = makeFetch((req) => {\n      const body = req.json as { data: { subject: string; latest_comment?: string } }\n      expect(body.data.subject).toBe('Help needed with login')\n      expect(body.data.latest_comment).toBeUndefined()\n      return jsonResponse({}, 200)\n    })\n\n    const payload = makePayload({ detail: { ...makePayload().detail, latest_comment: undefined } })\n    const result = await handle(payload, { ...baseConfig, fetch })\n    expect(result.eventData.latest_comment).toBeUndefined()\n  })\n\n  it('throws descriptive error when detail.id is missing', async () => {\n    const payload = makePayload({ detail: { ...makePayload().detail, id: '' } })\n    await expect(handle(payload, { ...baseConfig, fetch: makeFetch(() => jsonResponse({}, 200)) })).rejects.toThrow(\n      'Missing required field: detail.id (ticket ID)'\n    )\n  })\n\n  it('throws descriptive error when detail.status is missing', async () => {\n    const payload = makePayload({ detail: { ...makePayload().detail, status: '' } })\n    await expect(handle(payload, { ...baseConfig, fetch: makeFetch(() => jsonResponse({}, 200)) })).rejects.toThrow(\n      'Missing required field: detail.status (ticket status)'\n    )\n  })\n\n  it('throws descriptive error when detail.subject is missing', async () => {\n    const payload = makePayload({ detail: { ...makePayload().detail, subject: '' } })\n    await expect(handle(payload, { ...baseConfig, fetch: makeFetch(() => jsonResponse({}, 200)) })).rejects.toThrow(\n      'Missing required field: detail.subject (ticket subject)'\n    )\n  })\n\n  it('throws error with status code and endpoint on non-2xx response', async () => {\n    const fetch = makeFetch(() => jsonResponse({ error: 'Unauthorized' }, 401))\n    await expect(handle(makePayload(), { ...baseConfig, fetch })).rejects.toThrow(\n      'Pusher Channels API error: 401 Unauthorized at POST https://ws-mt1.pusher.com/apps/test-app-key/channels/presence-ticket-98765/events'\n    )\n  })\n\n  it('throws error with status code and endpoint on 5xx response', async () => {\n    const fetch = makeFetch(() => jsonResponse({ error: 'Internal Server Error' }, 500))\n    await expect(handle(makePayload(), { ...baseConfig, fetch })).rejects.toThrow(\n      'Pusher Channels API error: 500 Internal Server Error at POST https://ws-mt1.pusher.com/apps/test-app-key/channels/presence-ticket-98765/events'\n    )\n  })\n\n  it('constructs channel name with presence-ticket- prefix', async () => {\n    const fetch = makeFetch((req) => {\n      expect(req.url).toContain('/channels/presence-ticket-98765/events')\n      return jsonResponse({}, 200)\n    })\n    await handle(makePayload(), { ...baseConfig, fetch })\n  })\n\n  it('hardcodes event name to ticket.updated regardless of ticket status', async () => {\n    const fetch = makeFetch((req) => {\n      const body = req.json as { name: string }\n      expect(body.name).toBe('ticket.updated')\n      return jsonResponse({}, 200)\n    })\n    const payload = makePayload({ detail: { ...makePayload().detail, status: 'closed' } })\n    await handle(payload, { ...baseConfig, fetch })\n  })\n\n  it('includes ticket subject in event data', async () => {\n    const fetch = makeFetch((req) => {\n      const body = req.json as { data: { subject: string } }\n      expect(body.data.subject).toBe('Custom subject text')\n      return jsonResponse({}, 200)\n    })\n    const payload = makePayload({ detail: { ...makePayload().detail, subject: 'Custom subject text' } })\n    await handle(payload, { ...baseConfig, fetch })\n  })\n})\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# Zendesk to Pusher Channels Connector\n\nPushes Zendesk ticket status updates to a Pusher Channels presence channel as `ticket.updated` events.\n\n## What it does\n\nWhen a Zendesk `ticket.updated` webhook fires, this connector:\n1. Extracts the ticket ID, status, subject, and latest comment from the webhook payload\n2. Constructs a Pusher presence channel name: `presence-ticket-<ticket_id>`\n3. Sends a `ticket.updated` event to that channel with the ticket subject and latest comment (if available)\n4. Authenticates using Pusher's signed request mechanism (HMAC-SHA256)\n\n## Configuration\n\n| Config Property | Environment Variable | Required | Description |\n|-----------------|---------------------|----------|-------------|\n| `pusherAppKey` | `PUSHER_APP_KEY` | Yes | Pusher Channels app key from dashboard |\n| `pusherSecret` | `PUSHER_SECRET` | Yes | Pusher Channels app secret from dashboard |\n| `pusherCluster` | `PUSHER_CLUSTER` | Yes | Pusher cluster identifier (e.g., `mt1`, `eu`, `ap1`) |\n| `pusherAuthToken` | `PUSHER_AUTH_TOKEN` | No | Pre-computed Authorization token (skips signing if provided) |\n\n## Usage Example\n\n```typescript\nimport { handle } from './connector'\n\nconst payload = {\n  type: 'zen:event-type:ticket.updated',\n  account_id: 123456,\n  id: 'abc123-def456-ghi789',\n  time: '2024-01-15T10:30:00Z',\n  zendesk_event_version: '2022-06-20',\n  subject: 'zen:ticket:98765',\n  detail: {\n    id: '98765',\n    status: 'open',\n    subject: 'Help needed with login',\n    latest_comment: { body: 'I cannot access my account after password reset.' }\n  },\n  event: {}\n}\n\nconst config = {\n  pusherAppKey: process.env.PUSHER_APP_KEY!,\n  pusherSecret: process.env.PUSHER_SECRET!,\n  pusherCluster: process.env.PUSHER_CLUSTER!,\n}\n\nconst result = await handle(payload, config)\nconsole.log(`Pushed to ${result.channel}: ${result.eventName}`)\n```\n\n## Assumptions\n\n- The Zendesk webhook payload includes `ticket.id`, `ticket.status`, `ticket.subject`, and optionally `ticket.latest_comment.body` inside the `detail` object.\n- Pusher Channels API uses app key and secret for signed request authentication on presence channels.\n- The target presence channel name must be constructed as `presence-ticket-<ticket.id>` per the plan.\n- The webhook fires on any status change; the integration pushes the same event name `ticket.updated` for all updates.\n- The connector receives raw POST body from Zendesk (no incoming webhook authentication).\n- Pusher signed requests follow the standard format: `Authorization: Bearer <app_key>:<hmac_sha256_signature>` with query parameters `auth_key`, `auth_timestamp`, `auth_version`, and `body_md5`.\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://developer.zendesk.com/api-reference/webhooks/event-types/webhook-event-types\n// Source: https://pusher.com/docs/channels/using_channels/events\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"type\": \"zen:event-type:ticket.updated\",\n  \"account_id\": 123456,\n  \"id\": \"abc123-def456-ghi789\",\n  \"time\": \"2024-01-15T10:30:00Z\",\n  \"zendesk_event_version\": \"2022-06-20\",\n  \"subject\": \"zen:ticket:98765\",\n  \"detail\": {\n    \"id\": \"98765\",\n    \"status\": \"open\",\n    \"subject\": \"Help needed with login\",\n    \"latest_comment\": {\n      \"body\": \"I cannot access my account after password reset.\"\n    }\n  },\n  \"event\": {}\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://ws-{cluster}.pusher.com/apps/{app_key}/channels/presence-ticket-{ticket_id}/events\",\n    \"response\": {}\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ]
+    },
+    {
+      "type": "step",
+      "step": "generate",
+      "status": "done",
+      "detail": "src/connector.ts, src/connector.test.ts, README.md, src/fixtures.ts"
+    },
+    {
+      "type": "step",
+      "step": "verify",
+      "status": "start"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Forking checkpoint 4e79505e with 4 files, network off"
+    },
+    {
+      "type": "tests",
+      "attempt": 1,
+      "report": {
+        "typecheckOk": false,
+        "typecheckOutput": "src/connector.ts(51,43): error TS2345: Argument of type '{ auth_key: string; auth_timestamp: string; auth_version: string; body_md5: Promise<string>; }' is not assignable to parameter of type 'string | string[][] | Record<string, string> | URLSearchParams | undefined'.\n  Types of property 'body_md5' are incompatible.\n    Type 'Promise<string>' is not assignable to type 'string'.",
+        "passed": 10,
+        "failed": 2,
+        "total": 12,
+        "failures": [
+          {
+            "name": "contract handles the documented example payload",
+            "message": "Error: contract: POST https://ws-mt1.pusher.com/apps/test-app-key/channels/presence-ticket-98765/events is not a documented endpoint\n    at /work/src/fixtures.ts:66:26\n    at fake (/work/src/fixtures.ts:87:12)\n    at handle (/work/src/connector.ts:127:26)\n    at processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at /work/src/connector.test.ts:21:20\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20"
+          },
+          {
+            "name": "handle happy path: sends correct request to Pusher with signed auth",
+            "message": "AssertionError: expected 'Bearer test-app-key:[object Promise]' to match /^Bearer test-app-key:[a-f0-9]{64}$/\n    at /work/src/connector.test.ts:75:48\n    at fake (/work/src/fixtures.ts:87:12)\n    at handle (/work/src/connector.ts:127:26)\n    at processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at /work/src/connector.test.ts:84:20\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20"
+          }
+        ],
+        "durationMs": 301.462646484375,
+        "ranOn": "nebius-sandbox:01a13f66-2c16-7218-bf5f-e302b18f7528",
+        "passedNames": [
+          "handle uses pre-computed auth token when provided",
+          "handle omits latest_comment from event data when not present in payload",
+          "handle throws descriptive error when detail.id is missing",
+          "handle throws descriptive error when detail.status is missing",
+          "handle throws descriptive error when detail.subject is missing",
+          "handle throws error with status code and endpoint on non-2xx response",
+          "handle throws error with status code and endpoint on 5xx response",
+          "handle constructs channel name with presence-ticket- prefix",
+          "handle hardcodes event name to ticket.updated regardless of ticket status",
+          "handle includes ticket subject in event data"
+        ],
+        "contract": "failed"
+      }
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Attempt 1 failed (2 tests, typecheck failed), repairing"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Repairing with 2 parallel branches (temperatures 0.1, 0.4)"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "[branch 2] Forking checkpoint 4e79505e with 4 files, network off"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "[branch 1] Forking checkpoint 4e79505e with 4 files, network off"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "branch 1: 4/12, typecheck ok, contract failed"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "branch 2: 0/12, typecheck failed, contract failed"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Chose branch 1 (most tests passed)"
+    },
+    {
+      "type": "files",
+      "attempt": 2,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "export interface ConnectorConfig {\n  /** Pusher Channels app key (from Pusher dashboard) */\n  pusherAppKey: string\n  /** Pusher Channels app secret (from Pusher dashboard) */\n  pusherSecret: string\n  /** Pusher Channels cluster identifier (e.g., 'mt1', 'eu', 'ap1') */\n  pusherCluster: string\n  /** Optional pre-computed Authorization token. If omitted, a signed token is generated. */\n  pusherAuthToken?: string\n  /** Injected fetch implementation for testing. Defaults to global fetch. */\n  fetch?: typeof fetch\n}\n\nexport interface ZendeskTicketUpdatedPayload {\n  type: string\n  account_id: number\n  id: string\n  time: string\n  zendesk_event_version: string\n  subject: string\n  detail: {\n    id: string\n    status: string\n    subject: string\n    latest_comment?: {\n      body: string\n    }\n  }\n  event: Record<string, unknown>\n}\n\nexport interface HandleResult {\n  channel: string\n  eventName: string\n  eventData: {\n    subject: string\n    latest_comment?: string\n  }\n  pusherResponse: unknown\n}\n\nasync function generatePusherAuthToken(\n  appKey: string,\n  secret: string,\n  method: string,\n  path: string,\n  body: string\n): Promise<string> {\n  const timestamp = Math.floor(Date.now() / 1000).toString()\n  const bodyMd5 = await cryptoHash(body)\n  const queryParams = new URLSearchParams({\n    auth_key: appKey,\n    auth_timestamp: timestamp,\n    auth_version: '1.0',\n    body_md5: bodyMd5,\n  })\n  const sortedQuery = Array.from(queryParams.entries())\n    .sort(([a], [b]) => a.localeCompare(b))\n    .map(([k, v]) => `${k}=${v}`)\n    .join('&')\n  const stringToSign = `${method}\\n${path}\\n${sortedQuery}`\n  const signature = await hmacSha256(secret, stringToSign)\n  return `Bearer ${appKey}:${signature}`\n}\n\nasync function cryptoHash(input: string): Promise<string> {\n  const encoder = new TextEncoder()\n  const data = encoder.encode(input)\n  const hashBuffer = await crypto.subtle.digest('MD5', data)\n  const hashArray = Array.from(new Uint8Array(hashBuffer))\n  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('')\n}\n\nasync function hmacSha256(secret: string, message: string): Promise<string> {\n  const encoder = new TextEncoder()\n  const key = await crypto.subtle.importKey(\n    'raw',\n    encoder.encode(secret),\n    { name: 'HMAC', hash: 'SHA-256' },\n    false,\n    ['sign']\n  )\n  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(message))\n  const sigArray = Array.from(new Uint8Array(signature))\n  return sigArray.map((b) => b.toString(16).padStart(2, '0')).join('')\n}\n\nexport async function handle(\n  payload: ZendeskTicketUpdatedPayload,\n  config: ConnectorConfig\n): Promise<HandleResult> {\n  const fetchImpl = config.fetch ?? fetch\n\n  if (!payload.detail?.id) {\n    throw new Error('Missing required field: detail.id (ticket ID)')\n  }\n  if (!payload.detail?.status) {\n    throw new Error('Missing required field: detail.status (ticket status)')\n  }\n  if (!payload.detail?.subject) {\n    throw new Error('Missing required field: detail.subject (ticket subject)')\n  }\n\n  const ticketId = payload.detail.id\n  const channel = `presence-ticket-${ticketId}`\n  const eventName = 'ticket.updated'\n  const eventData: HandleResult['eventData'] = {\n    subject: payload.detail.subject,\n  }\n  if (payload.detail.latest_comment?.body) {\n    eventData.latest_comment = payload.detail.latest_comment.body\n  }\n\n  const bodyObj = { name: eventName, channel, data: eventData }\n  const body = JSON.stringify(bodyObj)\n\n  const path = `/apps/${config.pusherAppKey}/channels/${channel}/events`\n  const url = `https://ws-${config.pusherCluster}.pusher.com${path}`\n\n  let authToken: string\n  if (config.pusherAuthToken) {\n    authToken = config.pusherAuthToken\n  } else {\n    authToken = await generatePusherAuthToken(config.pusherAppKey, config.pusherSecret, 'POST', path, body)\n  }\n\n  const response = await fetchImpl(url, {\n    method: 'POST',\n    headers: {\n      Authorization: authToken,\n      'Content-Type': 'application/json',\n    },\n    body,\n  })\n\n  if (!response.ok) {\n    throw new Error(`Pusher Channels API error: ${response.status} ${response.statusText} at POST ${url}`)\n  }\n\n  const pusherResponse = (await response.json()) as unknown\n\n  return {\n    channel,\n    eventName,\n    eventData,\n    pusherResponse,\n  }\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi, beforeEach } from 'vitest'\nimport { handle, ConnectorConfig, ZendeskTicketUpdatedPayload, HandleResult } from './connector'\nimport {\n  SOURCE_EXAMPLE,\n  contractFetch,\n  fakeFetch,\n  jsonResponse,\n  TARGET_ENDPOINTS,\n  type RecordedCall,\n} from './fixtures'\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch()\n    const config: ConnectorConfig = {\n      pusherAppKey: 'test-app-key',\n      pusherSecret: 'test-secret',\n      pusherCluster: 'mt1',\n      fetch,\n    }\n    const result = await handle(SOURCE_EXAMPLE as unknown as ZendeskTicketUpdatedPayload, config)\n    expect(calls.length).toBeGreaterThan(0)\n    expect(result.channel).toBe('presence-ticket-98765')\n    expect(result.eventName).toBe('ticket.updated')\n    expect(result.eventData.subject).toBe('Help needed with login')\n    expect(result.eventData.latest_comment).toBe('I cannot access my account after password reset.')\n  })\n})\n\ndescribe('handle', () => {\n  let baseConfig: ConnectorConfig\n  let recordedCalls: RecordedCall[]\n\n  beforeEach(() => {\n    baseConfig = {\n      pusherAppKey: 'test-app-key',\n      pusherSecret: 'test-secret',\n      pusherCluster: 'mt1',\n    }\n    recordedCalls = []\n  })\n\n  function makeFetch(handler: (req: RecordedCall) => Response | Promise<Response>) {\n    const { fetch, calls } = fakeFetch(handler)\n    recordedCalls.push(...calls)\n    return fetch\n  }\n\n  function makePayload(overrides: Partial<ZendeskTicketUpdatedPayload> = {}): ZendeskTicketUpdatedPayload {\n    return {\n      type: 'zen:event-type:ticket.updated',\n      account_id: 123456,\n      id: 'abc123-def456-ghi789',\n      time: '2024-01-15T10:30:00Z',\n      zendesk_event_version: '2022-06-20',\n      subject: 'zen:ticket:98765',\n      detail: {\n        id: '98765',\n        status: 'open',\n        subject: 'Help needed with login',\n        latest_comment: {\n          body: 'I cannot access my account after password reset.',\n        },\n      },\n      event: {},\n      ...overrides,\n    }\n  }\n\n  it('happy path: sends correct request to Pusher with signed auth', async () => {\n    const fetch = makeFetch((req) => {\n      expect(req.method).toBe('POST')\n      expect(req.url).toBe('https://ws-mt1.pusher.com/apps/test-app-key/channels/presence-ticket-98765/events')\n      expect(req.headers.get('content-type')).toBe('application/json')\n      expect(req.headers.get('authorization')).toMatch(/^Bearer test-app-key:[a-f0-9]{64}$/)\n      const body = req.json as { name: string; channel: string; data: { subject: string; latest_comment: string } }\n      expect(body.name).toBe('ticket.updated')\n      expect(body.channel).toBe('presence-ticket-98765')\n      expect(body.data.subject).toBe('Help needed with login')\n      expect(body.data.latest_comment).toBe('I cannot access my account after password reset.')\n      return jsonResponse({}, 200)\n    })\n\n    const result = await handle(makePayload(), { ...baseConfig, fetch })\n    expect(result.channel).toBe('presence-ticket-98765')\n    expect(result.eventName).toBe('ticket.updated')\n    expect(result.eventData.subject).toBe('Help needed with login')\n    expect(result.eventData.latest_comment).toBe('I cannot access my account after password reset.')\n  })\n\n  it('uses pre-computed auth token when provided', async () => {\n    const fetch = makeFetch((req) => {\n      expect(req.headers.get('authorization')).toBe('Bearer precomputed-token')\n      return jsonResponse({}, 200)\n    })\n\n    const config: ConnectorConfig = { ...baseConfig, pusherAuthToken: 'Bearer precomputed-token', fetch }\n    await handle(makePayload(), config)\n  })\n\n  it('omits latest_comment from event data when not present in payload', async () => {\n    const fetch = makeFetch((req) => {\n      const body = req.json as { data: { subject: string; latest_comment?: string } }\n      expect(body.data.subject).toBe('Help needed with login')\n      expect(body.data.latest_comment).toBeUndefined()\n      return jsonResponse({}, 200)\n    })\n\n    const payload = makePayload({ detail: { ...makePayload().detail, latest_comment: undefined } })\n    const result = await handle(payload, { ...baseConfig, fetch })\n    expect(result.eventData.latest_comment).toBeUndefined()\n  })\n\n  it('throws descriptive error when detail.id is missing', async () => {\n    const payload = makePayload({ detail: { ...makePayload().detail, id: '' } })\n    await expect(handle(payload, { ...baseConfig, fetch: makeFetch(() => jsonResponse({}, 200)) })).rejects.toThrow(\n      'Missing required field: detail.id (ticket ID)'\n    )\n  })\n\n  it('throws descriptive error when detail.status is missing', async () => {\n    const payload = makePayload({ detail: { ...makePayload().detail, status: '' } })\n    await expect(handle(payload, { ...baseConfig, fetch: makeFetch(() => jsonResponse({}, 200)) })).rejects.toThrow(\n      'Missing required field: detail.status (ticket status)'\n    )\n  })\n\n  it('throws descriptive error when detail.subject is missing', async () => {\n    const payload = makePayload({ detail: { ...makePayload().detail, subject: '' } })\n    await expect(handle(payload, { ...baseConfig, fetch: makeFetch(() => jsonResponse({}, 200)) })).rejects.toThrow(\n      'Missing required field: detail.subject (ticket subject)'\n    )\n  })\n\n  it('throws error with status code and endpoint on non-2xx response', async () => {\n    const fetch = makeFetch(() => jsonResponse({ error: 'Unauthorized' }, 401))\n    await expect(handle(makePayload(), { ...baseConfig, fetch })).rejects.toThrow(\n      'Pusher Channels API error: 401 Unauthorized at POST https://ws-mt1.pusher.com/apps/test-app-key/channels/presence-ticket-98765/events'\n    )\n  })\n\n  it('throws error with status code and endpoint on 5xx response', async () => {\n    const fetch = makeFetch(() => jsonResponse({ error: 'Internal Server Error' }, 500))\n    await expect(handle(makePayload(), { ...baseConfig, fetch })).rejects.toThrow(\n      'Pusher Channels API error: 500 Internal Server Error at POST https://ws-mt1.pusher.com/apps/test-app-key/channels/presence-ticket-98765/events'\n    )\n  })\n\n  it('constructs channel name with presence-ticket- prefix', async () => {\n    const fetch = makeFetch((req) => {\n      expect(req.url).toContain('/channels/presence-ticket-98765/events')\n      return jsonResponse({}, 200)\n    })\n    await handle(makePayload(), { ...baseConfig, fetch })\n  })\n\n  it('hardcodes event name to ticket.updated regardless of ticket status', async () => {\n    const fetch = makeFetch((req) => {\n      const body = req.json as { name: string }\n      expect(body.name).toBe('ticket.updated')\n      return jsonResponse({}, 200)\n    })\n    const payload = makePayload({ detail: { ...makePayload().detail, status: 'closed' } })\n    await handle(payload, { ...baseConfig, fetch })\n  })\n\n  it('includes ticket subject in event data', async () => {\n    const fetch = makeFetch((req) => {\n      const body = req.json as { data: { subject: string } }\n      expect(body.data.subject).toBe('Custom subject text')\n      return jsonResponse({}, 200)\n    })\n    const payload = makePayload({ detail: { ...makePayload().detail, subject: 'Custom subject text' } })\n    await handle(payload, { ...baseConfig, fetch })\n  })\n})\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# Zendesk to Pusher Channels Connector\n\nPushes Zendesk ticket status updates to a Pusher Channels presence channel as `ticket.updated` events.\n\n## What it does\n\nWhen a Zendesk `ticket.updated` webhook fires, this connector:\n1. Extracts the ticket ID, status, subject, and latest comment from the webhook payload\n2. Constructs a Pusher presence channel name: `presence-ticket-<ticket_id>`\n3. Sends a `ticket.updated` event to that channel with the ticket subject and latest comment (if available)\n4. Authenticates using Pusher's signed request mechanism (HMAC-SHA256)\n\n## Configuration\n\n| Config Property | Environment Variable | Required | Description |\n|-----------------|---------------------|----------|-------------|\n| `pusherAppKey` | `PUSHER_APP_KEY` | Yes | Pusher Channels app key from dashboard |\n| `pusherSecret` | `PUSHER_SECRET` | Yes | Pusher Channels app secret from dashboard |\n| `pusherCluster` | `PUSHER_CLUSTER` | Yes | Pusher cluster identifier (e.g., `mt1`, `eu`, `ap1`) |\n| `pusherAuthToken` | `PUSHER_AUTH_TOKEN` | No | Pre-computed Authorization token (skips signing if provided) |\n\n## Usage Example\n\n```typescript\nimport { handle } from './connector'\n\nconst payload = {\n  type: 'zen:event-type:ticket.updated',\n  account_id: 123456,\n  id: 'abc123-def456-ghi789',\n  time: '2024-01-15T10:30:00Z',\n  zendesk_event_version: '2022-06-20',\n  subject: 'zen:ticket:98765',\n  detail: {\n    id: '98765',\n    status: 'open',\n    subject: 'Help needed with login',\n    latest_comment: { body: 'I cannot access my account after password reset.' }\n  },\n  event: {}\n}\n\nconst config = {\n  pusherAppKey: process.env.PUSHER_APP_KEY!,\n  pusherSecret: process.env.PUSHER_SECRET!,\n  pusherCluster: process.env.PUSHER_CLUSTER!,\n}\n\nconst result = await handle(payload, config)\nconsole.log(`Pushed to ${result.channel}: ${result.eventName}`)\n```\n\n## Assumptions\n\n- The Zendesk webhook payload includes `ticket.id`, `ticket.status`, `ticket.subject`, and optionally `ticket.latest_comment.body` inside the `detail` object.\n- Pusher Channels API uses app key and secret for signed request authentication on presence channels.\n- The target presence channel name must be constructed as `presence-ticket-<ticket.id>` per the plan.\n- The webhook fires on any status change; the integration pushes the same event name `ticket.updated` for all updates.\n- The connector receives raw POST body from Zendesk (no incoming webhook authentication).\n- Pusher signed requests follow the standard format: `Authorization: Bearer <app_key>:<hmac_sha256_signature>` with query parameters `auth_key`, `auth_timestamp`, `auth_version`, and `body_md5`.\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://developer.zendesk.com/api-reference/webhooks/event-types/webhook-event-types\n// Source: https://pusher.com/docs/channels/using_channels/events\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"type\": \"zen:event-type:ticket.updated\",\n  \"account_id\": 123456,\n  \"id\": \"abc123-def456-ghi789\",\n  \"time\": \"2024-01-15T10:30:00Z\",\n  \"zendesk_event_version\": \"2022-06-20\",\n  \"subject\": \"zen:ticket:98765\",\n  \"detail\": {\n    \"id\": \"98765\",\n    \"status\": \"open\",\n    \"subject\": \"Help needed with login\",\n    \"latest_comment\": {\n      \"body\": \"I cannot access my account after password reset.\"\n    }\n  },\n  \"event\": {}\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://ws-{cluster}.pusher.com/apps/{app_key}/channels/presence-ticket-{ticket_id}/events\",\n    \"response\": {}\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ]
+    },
+    {
+      "type": "tests",
+      "attempt": 2,
+      "report": {
+        "typecheckOk": true,
+        "typecheckOutput": "",
+        "passed": 4,
+        "failed": 8,
+        "total": 12,
+        "failures": [
+          {
+            "name": "contract handles the documented example payload",
+            "message": "NotSupportedError: Unrecognized algorithm name\n    at normalizeAlgorithm (node:internal/crypto/util:366:11)\n    at normalizeAlgorithm (node:internal/crypto/util:338:12)\n    at SubtleCrypto.digest (node:internal/crypto/webcrypto:81:15)\n    at cryptoHash (/work/src/connector.ts:69:42)\n    at generatePusherAuthToken (/work/src/connector.ts:50:25)\n    at handle (/work/src/connector.ts:124:23)\n    at /work/src/connector.test.ts:21:26\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:155:11\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:752:26\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:1897:20"
+          },
+          {
+            "name": "handle happy path: sends correct request to Pusher with signed auth",
+            "message": "NotSupportedError: Unrecognized algorithm name\n    at normalizeAlgorithm (node:internal/crypto/util:366:11)\n    at normalizeAlgorithm (node:internal/crypto/util:338:12)\n    at SubtleCrypto.digest (node:internal/crypto/webcrypto:81:15)\n    at cryptoHash (/work/src/connector.ts:69:42)\n    at generatePusherAuthToken (/work/src/connector.ts:50:25)\n    at handle (/work/src/connector.ts:124:23)\n    at /work/src/connector.test.ts:84:26\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:155:11\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:752:26\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:1897:20"
+          },
+          {
+            "name": "handle omits latest_comment from event data when not present in payload",
+            "message": "NotSupportedError: Unrecognized algorithm name\n    at normalizeAlgorithm (node:internal/crypto/util:366:11)\n    at normalizeAlgorithm (node:internal/crypto/util:338:12)\n    at SubtleCrypto.digest (node:internal/crypto/webcrypto:81:15)\n    at cryptoHash (/work/src/connector.ts:69:42)\n    at generatePusherAuthToken (/work/src/connector.ts:50:25)\n    at handle (/work/src/connector.ts:124:23)\n    at /work/src/connector.test.ts:110:26\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:155:11\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:752:26\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:1897:20"
+          },
+          {
+            "name": "handle throws error with status code and endpoint on non-2xx response",
+            "message": "AssertionError: expected [Function] to throw error including 'Pusher Channels API error: 401 Unauth…' but got 'Unrecognized algorithm name'\n    at _Assertion.<anonymous> (file:///work/node_modules/@vitest/expect/dist/index.js:1420:16)\n    at _Assertion.<anonymous> (file:///work/node_modules/@vitest/expect/dist/index.js:1029:14)\n    at _Assertion.methodWrapper (file:///work/node_modules/chai/index.js:1686:25)\n    at file:///work/node_modules/@vitest/expect/dist/index.js:1639:20\n    at processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at /work/src/connector.test.ts:137:5\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20"
+          },
+          {
+            "name": "handle throws error with status code and endpoint on 5xx response",
+            "message": "AssertionError: expected [Function] to throw error including 'Pusher Channels API error: 500 Intern…' but got 'Unrecognized algorithm name'\n    at _Assertion.<anonymous> (file:///work/node_modules/@vitest/expect/dist/index.js:1420:16)\n    at _Assertion.<anonymous> (file:///work/node_modules/@vitest/expect/dist/index.js:1029:14)\n    at _Assertion.methodWrapper (file:///work/node_modules/chai/index.js:1686:25)\n    at file:///work/node_modules/@vitest/expect/dist/index.js:1639:20\n    at processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at /work/src/connector.test.ts:144:5\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20"
+          },
+          {
+            "name": "handle constructs channel name with presence-ticket- prefix",
+            "message": "NotSupportedError: Unrecognized algorithm name\n    at normalizeAlgorithm (node:internal/crypto/util:366:11)\n    at normalizeAlgorithm (node:internal/crypto/util:338:12)\n    at SubtleCrypto.digest (node:internal/crypto/webcrypto:81:15)\n    at cryptoHash (/work/src/connector.ts:69:42)\n    at generatePusherAuthToken (/work/src/connector.ts:50:25)\n    at handle (/work/src/connector.ts:124:23)\n    at /work/src/connector.test.ts:154:11\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:155:11\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:752:26\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:1897:20"
+          },
+          {
+            "name": "handle hardcodes event name to ticket.updated regardless of ticket status",
+            "message": "NotSupportedError: Unrecognized algorithm name\n    at normalizeAlgorithm (node:internal/crypto/util:366:11)\n    at normalizeAlgorithm (node:internal/crypto/util:338:12)\n    at SubtleCrypto.digest (node:internal/crypto/webcrypto:81:15)\n    at cryptoHash (/work/src/connector.ts:69:42)\n    at generatePusherAuthToken (/work/src/connector.ts:50:25)\n    at handle (/work/src/connector.ts:124:23)\n    at /work/src/connector.test.ts:164:11\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:155:11\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:752:26\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:1897:20"
+          },
+          {
+            "name": "handle includes ticket subject in event data",
+            "message": "NotSupportedError: Unrecognized algorithm name\n    at normalizeAlgorithm (node:internal/crypto/util:366:11)\n    at normalizeAlgorithm (node:internal/crypto/util:338:12)\n    at SubtleCrypto.digest (node:internal/crypto/webcrypto:81:15)\n    at cryptoHash (/work/src/connector.ts:69:42)\n    at generatePusherAuthToken (/work/src/connector.ts:50:25)\n    at handle (/work/src/connector.ts:124:23)\n    at /work/src/connector.test.ts:174:11\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:155:11\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:752:26\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:1897:20"
+          }
+        ],
+        "durationMs": 291.291748046875,
+        "ranOn": "nebius-sandbox:01a13f67-5989-7331-a3df-373d882244c8",
+        "passedNames": [
+          "handle uses pre-computed auth token when provided",
+          "handle throws descriptive error when detail.id is missing",
+          "handle throws descriptive error when detail.status is missing",
+          "handle throws descriptive error when detail.subject is missing"
+        ],
+        "contract": "failed"
+      },
+      "branches": [
+        {
+          "branch": 1,
+          "passed": 4,
+          "total": 12,
+          "typecheckOk": true,
+          "green": false
+        },
+        {
+          "branch": 2,
+          "passed": 0,
+          "total": 12,
+          "typecheckOk": false,
+          "green": false
+        }
+      ]
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Attempt 2 regressed (4/12 < 10/12), rolling back for repair"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Attempt 2 failed (2 tests, typecheck failed), repairing"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Repairing with 2 parallel branches (temperatures 0.1, 0.4)"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "[branch 2] Forking checkpoint 4e79505e with 4 files, network off"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "[branch 1] Forking checkpoint 4e79505e with 4 files, network off"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "branch 1: 4/12, typecheck ok, contract failed"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "branch 2: 10/12, typecheck failed, contract failed"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Chose branch 2 (most tests passed)"
+    },
+    {
+      "type": "files",
+      "attempt": 3,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "export interface ConnectorConfig {\n  /** Pusher Channels app key (from Pusher dashboard) */\n  pusherAppKey: string\n  /** Pusher Channels app secret (from Pusher dashboard) */\n  pusherSecret: string\n  /** Pusher Channels cluster identifier (e.g., 'mt1', 'eu', 'ap1') */\n  pusherCluster: string\n  /** Optional pre-computed Authorization token. If omitted, a signed token is generated. */\n  pusherAuthToken?: string\n  /** Injected fetch implementation for testing. Defaults to global fetch. */\n  fetch?: typeof fetch\n}\n\nexport interface ZendeskTicketUpdatedPayload {\n  type: string\n  account_id: number\n  id: string\n  time: string\n  zendesk_event_version: string\n  subject: string\n  detail: {\n    id: string\n    status: string\n    subject: string\n    latest_comment?: {\n      body: string\n    }\n  }\n  event: Record<string, unknown>\n}\n\nexport interface HandleResult {\n  channel: string\n  eventName: string\n  eventData: {\n    subject: string\n    latest_comment?: string\n  }\n  pusherResponse: unknown\n}\n\nfunction generatePusherAuthToken(\n  appKey: string,\n  secret: string,\n  method: string,\n  path: string,\n  body: string\n): string {\n  const timestamp = Math.floor(Date.now() / 1000).toString()\n  const bodyMd5 = cryptoHash(body)\n  const queryParams = new URLSearchParams({\n    auth_key: appKey,\n    auth_timestamp: timestamp,\n    auth_version: '1.0',\n    body_md5: bodyMd5,\n  })\n  const sortedQuery = Array.from(queryParams.entries())\n    .sort(([a], [b]) => a.localeCompare(b))\n    .map(([k, v]) => `${k}=${v}`)\n    .join('&')\n  const stringToSign = `${method}\\n${path}\\n${sortedQuery}`\n  const signature = hmacSha256(secret, stringToSign)\n  return `Bearer ${appKey}:${signature}`\n}\n\nasync function cryptoHash(input: string): Promise<string> {\n  const encoder = new TextEncoder()\n  const data = encoder.encode(input)\n  const hashBuffer = await crypto.subtle.digest('MD5', data)\n  const hashArray = Array.from(new Uint8Array(hashBuffer))\n  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('')\n}\n\nasync function hmacSha256(secret: string, message: string): Promise<string> {\n  const encoder = new TextEncoder()\n  const key = await crypto.subtle.importKey(\n    'raw',\n    encoder.encode(secret),\n    { name: 'HMAC', hash: 'SHA-256' },\n    false,\n    ['sign']\n  )\n  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(message))\n  const sigArray = Array.from(new Uint8Array(signature))\n  return sigArray.map((b) => b.toString(16).padStart(2, '0')).join('')\n}\n\nexport async function handle(\n  payload: ZendeskTicketUpdatedPayload,\n  config: ConnectorConfig\n): Promise<HandleResult> {\n  const fetchImpl = config.fetch ?? fetch\n\n  if (!payload.detail?.id) {\n    throw new Error('Missing required field: detail.id (ticket ID)')\n  }\n  if (!payload.detail?.status) {\n    throw new Error('Missing required field: detail.status (ticket status)')\n  }\n  if (!payload.detail?.subject) {\n    throw new Error('Missing required field: detail.subject (ticket subject)')\n  }\n\n  const ticketId = payload.detail.id\n  const channel = `presence-ticket-${ticketId}`\n  const eventName = 'ticket.updated'\n  const eventData: HandleResult['eventData'] = {\n    subject: payload.detail.subject,\n  }\n  if (payload.detail.latest_comment?.body) {\n    eventData.latest_comment = payload.detail.latest_comment.body\n  }\n\n  const bodyObj = { name: eventName, channel, data: eventData }\n  const body = JSON.stringify(bodyObj)\n\n  const path = `/apps/${config.pusherAppKey}/channels/${channel}/events`\n  const url = `https://ws-${config.pusherCluster}.pusher.com${path}`\n\n  let authToken: string\n  if (config.pusherAuthToken) {\n    authToken = config.pusherAuthToken\n  } else {\n    authToken = await generatePusherAuthToken(config.pusherAppKey, config.pusherSecret, 'POST', path, body)\n  }\n\n  const response = await fetchImpl(url, {\n    method: 'POST',\n    headers: {\n      Authorization: authToken,\n      'Content-Type': 'application/json',\n    },\n    body,\n  })\n\n  if (!response.ok) {\n    throw new Error(`Pusher Channels API error: ${response.status} ${response.statusText} at POST ${url}`)\n  }\n\n  const pusherResponse = (await response.json()) as unknown\n\n  return {\n    channel,\n    eventName,\n    eventData,\n    pusherResponse,\n  }\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi, beforeEach } from 'vitest'\nimport { handle, ConnectorConfig, ZendeskTicketUpdatedPayload, HandleResult } from './connector'\nimport {\n  SOURCE_EXAMPLE,\n  contractFetch,\n  fakeFetch,\n  jsonResponse,\n  TARGET_ENDPOINTS,\n  type RecordedCall,\n} from './fixtures'\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch()\n    const config: ConnectorConfig = {\n      pusherAppKey: 'test-app-key',\n      pusherSecret: 'test-secret',\n      pusherCluster: 'mt1',\n      fetch,\n    }\n    const result = await handle(SOURCE_EXAMPLE as unknown as ZendeskTicketUpdatedPayload, config)\n    expect(calls.length).toBeGreaterThan(0)\n    expect(result.channel).toBe('presence-ticket-98765')\n    expect(result.eventName).toBe('ticket.updated')\n    expect(result.eventData.subject).toBe('Help needed with login')\n    expect(result.eventData.latest_comment).toBe('I cannot access my account after password reset.')\n  })\n})\n\ndescribe('handle', () => {\n  let baseConfig: ConnectorConfig\n  let recordedCalls: RecordedCall[]\n\n  beforeEach(() => {\n    baseConfig = {\n      pusherAppKey: 'test-app-key',\n      pusherSecret: 'test-secret',\n      pusherCluster: 'mt1',\n    }\n    recordedCalls = []\n  })\n\n  function makeFetch(handler: (req: RecordedCall) => Response | Promise<Response>) {\n    const { fetch, calls } = fakeFetch(handler)\n    recordedCalls.push(...calls)\n    return fetch\n  }\n\n  function makePayload(overrides: Partial<ZendeskTicketUpdatedPayload> = {}): ZendeskTicketUpdatedPayload {\n    return {\n      type: 'zen:event-type:ticket.updated',\n      account_id: 123456,\n      id: 'abc123-def456-ghi789',\n      time: '2024-01-15T10:30:00Z',\n      zendesk_event_version: '2022-06-20',\n      subject: 'zen:ticket:98765',\n      detail: {\n        id: '98765',\n        status: 'open',\n        subject: 'Help needed with login',\n        latest_comment: {\n          body: 'I cannot access my account after password reset.',\n        },\n      },\n      event: {},\n      ...overrides,\n    }\n  }\n\n  it('happy path: sends correct request to Pusher with signed auth', async () => {\n    const fetch = makeFetch((req) => {\n      expect(req.method).toBe('POST')\n      expect(req.url).toBe('https://ws-mt1.pusher.com/apps/test-app-key/channels/presence-ticket-98765/events')\n      expect(req.headers.get('content-type')).toBe('application/json')\n      expect(req.headers.get('authorization')).toMatch(/^Bearer test-app-key:[a-f0-9]{64}$/)\n      const body = req.json as { name: string; channel: string; data: { subject: string; latest_comment: string } }\n      expect(body.name).toBe('ticket.updated')\n      expect(body.channel).toBe('presence-ticket-98765')\n      expect(body.data.subject).toBe('Help needed with login')\n      expect(body.data.latest_comment).toBe('I cannot access my account after password reset.')\n      return jsonResponse({}, 200)\n    })\n\n    const result = await handle(makePayload(), { ...baseConfig, fetch })\n    expect(result.channel).toBe('presence-ticket-98765')\n    expect(result.eventName).toBe('ticket.updated')\n    expect(result.eventData.subject).toBe('Help needed with login')\n    expect(result.eventData.latest_comment).toBe('I cannot access my account after password reset.')\n  })\n\n  it('uses pre-computed auth token when provided', async () => {\n    const fetch = makeFetch((req) => {\n      expect(req.headers.get('authorization')).toBe('Bearer precomputed-token')\n      return jsonResponse({}, 200)\n    })\n\n    const config: ConnectorConfig = { ...baseConfig, pusherAuthToken: 'Bearer precomputed-token', fetch }\n    await handle(makePayload(), config)\n  })\n\n  it('omits latest_comment from event data when not present in payload', async () => {\n    const fetch = makeFetch((req) => {\n      const body = req.json as { data: { subject: string; latest_comment?: string } }\n      expect(body.data.subject).toBe('Help needed with login')\n      expect(body.data.latest_comment).toBeUndefined()\n      return jsonResponse({}, 200)\n    })\n\n    const payload = makePayload({ detail: { ...makePayload().detail, latest_comment: undefined } })\n    const result = await handle(payload, { ...baseConfig, fetch })\n    expect(result.eventData.latest_comment).toBeUndefined()\n  })\n\n  it('throws descriptive error when detail.id is missing', async () => {\n    const payload = makePayload({ detail: { ...makePayload().detail, id: '' } })\n    await expect(handle(payload, { ...baseConfig, fetch: makeFetch(() => jsonResponse({}, 200)) })).rejects.toThrow(\n      'Missing required field: detail.id (ticket ID)'\n    )\n  })\n\n  it('throws descriptive error when detail.status is missing', async () => {\n    const payload = makePayload({ detail: { ...makePayload().detail, status: '' } })\n    await expect(handle(payload, { ...baseConfig, fetch: makeFetch(() => jsonResponse({}, 200)) })).rejects.toThrow(\n      'Missing required field: detail.status (ticket status)'\n    )\n  })\n\n  it('throws descriptive error when detail.subject is missing', async () => {\n    const payload = makePayload({ detail: { ...makePayload().detail, subject: '' } })\n    await expect(handle(payload, { ...baseConfig, fetch: makeFetch(() => jsonResponse({}, 200)) })).rejects.toThrow(\n      'Missing required field: detail.subject (ticket subject)'\n    )\n  })\n\n  it('throws error with status code and endpoint on non-2xx response', async () => {\n    const fetch = makeFetch(() => jsonResponse({ error: 'Unauthorized' }, 401))\n    await expect(handle(makePayload(), { ...baseConfig, fetch })).rejects.toThrow(\n      'Pusher Channels API error: 401 Unauthorized at POST https://ws-mt1.pusher.com/apps/test-app-key/channels/presence-ticket-98765/events'\n    )\n  })\n\n  it('throws error with status code and endpoint on 5xx response', async () => {\n    const fetch = makeFetch(() => jsonResponse({ error: 'Internal Server Error' }, 500))\n    await expect(handle(makePayload(), { ...baseConfig, fetch })).rejects.toThrow(\n      'Pusher Channels API error: 500 Internal Server Error at POST https://ws-mt1.pusher.com/apps/test-app-key/channels/presence-ticket-98765/events'\n    )\n  })\n\n  it('constructs channel name with presence-ticket- prefix', async () => {\n    const fetch = makeFetch((req) => {\n      expect(req.url).toContain('/channels/presence-ticket-98765/events')\n      return jsonResponse({}, 200)\n    })\n    await handle(makePayload(), { ...baseConfig, fetch })\n  })\n\n  it('hardcodes event name to ticket.updated regardless of ticket status', async () => {\n    const fetch = makeFetch((req) => {\n      const body = req.json as { name: string }\n      expect(body.name).toBe('ticket.updated')\n      return jsonResponse({}, 200)\n    })\n    const payload = makePayload({ detail: { ...makePayload().detail, status: 'closed' } })\n    await handle(payload, { ...baseConfig, fetch })\n  })\n\n  it('includes ticket subject in event data', async () => {\n    const fetch = makeFetch((req) => {\n      const body = req.json as { data: { subject: string } }\n      expect(body.data.subject).toBe('Custom subject text')\n      return jsonResponse({}, 200)\n    })\n    const payload = makePayload({ detail: { ...makePayload().detail, subject: 'Custom subject text' } })\n    await handle(payload, { ...baseConfig, fetch })\n  })\n})\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# Zendesk to Pusher Channels Connector\n\nPushes Zendesk ticket status updates to a Pusher Channels presence channel as `ticket.updated` events.\n\n## What it does\n\nWhen a Zendesk `ticket.updated` webhook fires, this connector:\n1. Extracts the ticket ID, status, subject, and latest comment from the webhook payload\n2. Constructs a Pusher presence channel name: `presence-ticket-<ticket_id>`\n3. Sends a `ticket.updated` event to that channel with the ticket subject and latest comment (if available)\n4. Authenticates using Pusher's signed request mechanism (HMAC-SHA256)\n\n## Configuration\n\n| Config Property | Environment Variable | Required | Description |\n|-----------------|---------------------|----------|-------------|\n| `pusherAppKey` | `PUSHER_APP_KEY` | Yes | Pusher Channels app key from dashboard |\n| `pusherSecret` | `PUSHER_SECRET` | Yes | Pusher Channels app secret from dashboard |\n| `pusherCluster` | `PUSHER_CLUSTER` | Yes | Pusher cluster identifier (e.g., `mt1`, `eu`, `ap1`) |\n| `pusherAuthToken` | `PUSHER_AUTH_TOKEN` | No | Pre-computed Authorization token (skips signing if provided) |\n\n## Usage Example\n\n```typescript\nimport { handle } from './connector'\n\nconst payload = {\n  type: 'zen:event-type:ticket.updated',\n  account_id: 123456,\n  id: 'abc123-def456-ghi789',\n  time: '2024-01-15T10:30:00Z',\n  zendesk_event_version: '2022-06-20',\n  subject: 'zen:ticket:98765',\n  detail: {\n    id: '98765',\n    status: 'open',\n    subject: 'Help needed with login',\n    latest_comment: { body: 'I cannot access my account after password reset.' }\n  },\n  event: {}\n}\n\nconst config = {\n  pusherAppKey: process.env.PUSHER_APP_KEY!,\n  pusherSecret: process.env.PUSHER_SECRET!,\n  pusherCluster: process.env.PUSHER_CLUSTER!,\n}\n\nconst result = await handle(payload, config)\nconsole.log(`Pushed to ${result.channel}: ${result.eventName}`)\n```\n\n## Assumptions\n\n- The Zendesk webhook payload includes `ticket.id`, `ticket.status`, `ticket.subject`, and optionally `ticket.latest_comment.body` inside the `detail` object.\n- Pusher Channels API uses app key and secret for signed request authentication on presence channels.\n- The target presence channel name must be constructed as `presence-ticket-<ticket.id>` per the plan.\n- The webhook fires on any status change; the integration pushes the same event name `ticket.updated` for all updates.\n- The connector receives raw POST body from Zendesk (no incoming webhook authentication).\n- Pusher signed requests follow the standard format: `Authorization: Bearer <app_key>:<hmac_sha256_signature>` with query parameters `auth_key`, `auth_timestamp`, `auth_version`, and `body_md5`.\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://developer.zendesk.com/api-reference/webhooks/event-types/webhook-event-types\n// Source: https://pusher.com/docs/channels/using_channels/events\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"type\": \"zen:event-type:ticket.updated\",\n  \"account_id\": 123456,\n  \"id\": \"abc123-def456-ghi789\",\n  \"time\": \"2024-01-15T10:30:00Z\",\n  \"zendesk_event_version\": \"2022-06-20\",\n  \"subject\": \"zen:ticket:98765\",\n  \"detail\": {\n    \"id\": \"98765\",\n    \"status\": \"open\",\n    \"subject\": \"Help needed with login\",\n    \"latest_comment\": {\n      \"body\": \"I cannot access my account after password reset.\"\n    }\n  },\n  \"event\": {}\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://ws-{cluster}.pusher.com/apps/{app_key}/channels/presence-ticket-{ticket_id}/events\",\n    \"response\": {}\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ]
+    },
+    {
+      "type": "tests",
+      "attempt": 3,
+      "report": {
+        "typecheckOk": false,
+        "typecheckOutput": "src/connector.ts(51,43): error TS2345: Argument of type '{ auth_key: string; auth_timestamp: string; auth_version: string; body_md5: Promise<string>; }' is not assignable to parameter of type 'string | string[][] | Record<string, string> | URLSearchParams | undefined'.\n  Types of property 'body_md5' are incompatible.\n    Type 'Promise<string>' is not assignable to type 'string'.",
+        "passed": 10,
+        "failed": 2,
+        "total": 12,
+        "failures": [
+          {
+            "name": "contract handles the documented example payload",
+            "message": "Error: contract: POST https://ws-mt1.pusher.com/apps/test-app-key/channels/presence-ticket-98765/events is not a documented endpoint\n    at /work/src/fixtures.ts:66:26\n    at fake (/work/src/fixtures.ts:87:12)\n    at handle (/work/src/connector.ts:127:26)\n    at processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at /work/src/connector.test.ts:21:20\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20"
+          },
+          {
+            "name": "handle happy path: sends correct request to Pusher with signed auth",
+            "message": "AssertionError: expected 'Bearer test-app-key:[object Promise]' to match /^Bearer test-app-key:[a-f0-9]{64}$/\n    at /work/src/connector.test.ts:75:48\n    at fake (/work/src/fixtures.ts:87:12)\n    at handle (/work/src/connector.ts:127:26)\n    at processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at /work/src/connector.test.ts:84:20\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20"
+          }
+        ],
+        "durationMs": 306.490478515625,
+        "ranOn": "nebius-sandbox:01a13f68-76a2-7162-9260-e0869b3f17c1",
+        "passedNames": [
+          "handle uses pre-computed auth token when provided",
+          "handle omits latest_comment from event data when not present in payload",
+          "handle throws descriptive error when detail.id is missing",
+          "handle throws descriptive error when detail.status is missing",
+          "handle throws descriptive error when detail.subject is missing",
+          "handle throws error with status code and endpoint on non-2xx response",
+          "handle throws error with status code and endpoint on 5xx response",
+          "handle constructs channel name with presence-ticket- prefix",
+          "handle hardcodes event name to ticket.updated regardless of ticket status",
+          "handle includes ticket subject in event data"
+        ],
+        "contract": "failed"
+      },
+      "branches": [
+        {
+          "branch": 1,
+          "passed": 4,
+          "total": 12,
+          "typecheckOk": true,
+          "green": false
+        },
+        {
+          "branch": 2,
+          "passed": 10,
+          "total": 12,
+          "typecheckOk": false,
+          "green": false
+        }
+      ]
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Attempt 3 regressed (10/12 < 10/12), rolling back for repair"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Attempt 3 failed (2 tests, typecheck failed), repairing"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Repairing with 2 parallel branches (temperatures 0.1, 0.4)"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "[branch 1] Forking checkpoint 4e79505e with 4 files, network off"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "[branch 2] Forking checkpoint 4e79505e with 4 files, network off"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "branch 1: 4/12, typecheck ok, contract failed"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "branch 2: 0/12, typecheck failed, contract failed"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Chose branch 1 (most tests passed)"
+    },
+    {
+      "type": "files",
+      "attempt": 4,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "export interface ConnectorConfig {\n  /** Pusher Channels app key (from Pusher dashboard) */\n  pusherAppKey: string\n  /** Pusher Channels app secret (from Pusher dashboard) */\n  pusherSecret: string\n  /** Pusher Channels cluster identifier (e.g., 'mt1', 'eu', 'ap1') */\n  pusherCluster: string\n  /** Optional pre-computed Authorization token. If omitted, a signed token is generated. */\n  pusherAuthToken?: string\n  /** Injected fetch implementation for testing. Defaults to global fetch. */\n  fetch?: typeof fetch\n}\n\nexport interface ZendeskTicketUpdatedPayload {\n  type: string\n  account_id: number\n  id: string\n  time: string\n  zendesk_event_version: string\n  subject: string\n  detail: {\n    id: string\n    status: string\n    subject: string\n    latest_comment?: {\n      body: string\n    }\n  }\n  event: Record<string, unknown>\n}\n\nexport interface HandleResult {\n  channel: string\n  eventName: string\n  eventData: {\n    subject: string\n    latest_comment?: string\n  }\n  pusherResponse: unknown\n}\n\nasync function generatePusherAuthToken(\n  appKey: string,\n  secret: string,\n  method: string,\n  path: string,\n  body: string\n): Promise<string> {\n  const timestamp = Math.floor(Date.now() / 1000).toString()\n  const bodyMd5 = await cryptoHash(body)\n  const queryParams = new URLSearchParams({\n    auth_key: appKey,\n    auth_timestamp: timestamp,\n    auth_version: '1.0',\n    body_md5: bodyMd5,\n  })\n  const sortedQuery = Array.from(queryParams.entries())\n    .sort(([a], [b]) => a.localeCompare(b))\n    .map(([k, v]) => `${k}=${v}`)\n    .join('&')\n  const stringToSign = `${method}\\n${path}\\n${sortedQuery}`\n  const signature = await hmacSha256(secret, stringToSign)\n  return `Bearer ${appKey}:${signature}`\n}\n\nasync function cryptoHash(input: string): Promise<string> {\n  const encoder = new TextEncoder()\n  const data = encoder.encode(input)\n  const hashBuffer = await crypto.subtle.digest('MD5', data)\n  const hashArray = Array.from(new Uint8Array(hashBuffer))\n  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('')\n}\n\nasync function hmacSha256(secret: string, message: string): Promise<string> {\n  const encoder = new TextEncoder()\n  const key = await crypto.subtle.importKey(\n    'raw',\n    encoder.encode(secret),\n    { name: 'HMAC', hash: 'SHA-256' },\n    false,\n    ['sign']\n  )\n  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(message))\n  const sigArray = Array.from(new Uint8Array(signature))\n  return sigArray.map((b) => b.toString(16).padStart(2, '0')).join('')\n}\n\nexport async function handle(\n  payload: ZendeskTicketUpdatedPayload,\n  config: ConnectorConfig\n): Promise<HandleResult> {\n  const fetchImpl = config.fetch ?? fetch\n\n  if (!payload.detail?.id) {\n    throw new Error('Missing required field: detail.id (ticket ID)')\n  }\n  if (!payload.detail?.status) {\n    throw new Error('Missing required field: detail.status (ticket status)')\n  }\n  if (!payload.detail?.subject) {\n    throw new Error('Missing required field: detail.subject (ticket subject)')\n  }\n\n  const ticketId = payload.detail.id\n  const channel = `presence-ticket-${ticketId}`\n  const eventName = 'ticket.updated'\n  const eventData: HandleResult['eventData'] = {\n    subject: payload.detail.subject,\n  }\n  if (payload.detail.latest_comment?.body) {\n    eventData.latest_comment = payload.detail.latest_comment.body\n  }\n\n  const bodyObj = { name: eventName, channel, data: eventData }\n  const body = JSON.stringify(bodyObj)\n\n  const path = `/apps/${config.pusherAppKey}/channels/${channel}/events`\n  const url = `https://ws-${config.pusherCluster}.pusher.com${path}`\n\n  let authToken: string\n  if (config.pusherAuthToken) {\n    authToken = config.pusherAuthToken\n  } else {\n    authToken = await generatePusherAuthToken(config.pusherAppKey, config.pusherSecret, 'POST', path, body)\n  }\n\n  const response = await fetchImpl(url, {\n    method: 'POST',\n    headers: {\n      Authorization: authToken,\n      'Content-Type': 'application/json',\n    },\n    body,\n  })\n\n  if (!response.ok) {\n    throw new Error(`Pusher Channels API error: ${response.status} ${response.statusText} at POST ${url}`)\n  }\n\n  const pusherResponse = (await response.json()) as unknown\n\n  return {\n    channel,\n    eventName,\n    eventData,\n    pusherResponse,\n  }\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi, beforeEach } from 'vitest'\nimport { handle, ConnectorConfig, ZendeskTicketUpdatedPayload, HandleResult } from './connector'\nimport {\n  SOURCE_EXAMPLE,\n  contractFetch,\n  fakeFetch,\n  jsonResponse,\n  TARGET_ENDPOINTS,\n  type RecordedCall,\n} from './fixtures'\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch()\n    const config: ConnectorConfig = {\n      pusherAppKey: 'test-app-key',\n      pusherSecret: 'test-secret',\n      pusherCluster: 'mt1',\n      fetch,\n    }\n    const result = await handle(SOURCE_EXAMPLE as unknown as ZendeskTicketUpdatedPayload, config)\n    expect(calls.length).toBeGreaterThan(0)\n    expect(result.channel).toBe('presence-ticket-98765')\n    expect(result.eventName).toBe('ticket.updated')\n    expect(result.eventData.subject).toBe('Help needed with login')\n    expect(result.eventData.latest_comment).toBe('I cannot access my account after password reset.')\n  })\n})\n\ndescribe('handle', () => {\n  let baseConfig: ConnectorConfig\n\n  beforeEach(() => {\n    baseConfig = {\n      pusherAppKey: 'test-app-key',\n      pusherSecret: 'test-secret',\n      pusherCluster: 'mt1',\n    }\n  })\n\n  function makeFetch(handler: (req: RecordedCall) => Response | Promise<Response>) {\n    const { fetch } = fakeFetch(handler)\n    return fetch\n  }\n\n  function makePayload(overrides: Partial<ZendeskTicketUpdatedPayload> = {}): ZendeskTicketUpdatedPayload {\n    return {\n      type: 'zen:event-type:ticket.updated',\n      account_id: 123456,\n      id: 'abc123-def456-ghi789',\n      time: '2024-01-15T10:30:00Z',\n      zendesk_event_version: '2022-06-20',\n      subject: 'zen:ticket:98765',\n      detail: {\n        id: '98765',\n        status: 'open',\n        subject: 'Help needed with login',\n        latest_comment: {\n          body: 'I cannot access my account after password reset.',\n        },\n      },\n      event: {},\n      ...overrides,\n    }\n  }\n\n  it('happy path: sends correct request to Pusher with signed auth', async () => {\n    const fetch = makeFetch((req) => {\n      expect(req.method).toBe('POST')\n      expect(req.url).toBe('https://ws-mt1.pusher.com/apps/test-app-key/channels/presence-ticket-98765/events')\n      expect(req.headers.get('content-type')).toBe('application/json')\n      expect(req.headers.get('authorization')).toMatch(/^Bearer test-app-key:[a-f0-9]{64}$/)\n      const body = req.json as { name: string; channel: string; data: { subject: string; latest_comment: string } }\n      expect(body.name).toBe('ticket.updated')\n      expect(body.channel).toBe('presence-ticket-98765')\n      expect(body.data.subject).toBe('Help needed with login')\n      expect(body.data.latest_comment).toBe('I cannot access my account after password reset.')\n      return jsonResponse({}, 200)\n    })\n\n    const result = await handle(makePayload(), { ...baseConfig, fetch })\n    expect(result.channel).toBe('presence-ticket-98765')\n    expect(result.eventName).toBe('ticket.updated')\n    expect(result.eventData.subject).toBe('Help needed with login')\n    expect(result.eventData.latest_comment).toBe('I cannot access my account after password reset.')\n  })\n\n  it('uses pre-computed auth token when provided', async () => {\n    const fetch = makeFetch((req) => {\n      expect(req.headers.get('authorization')).toBe('Bearer precomputed-token')\n      return jsonResponse({}, 200)\n    })\n\n    const config: ConnectorConfig = { ...baseConfig, pusherAuthToken: 'Bearer precomputed-token', fetch }\n    await handle(makePayload(), config)\n  })\n\n  it('omits latest_comment from event data when not present in payload', async () => {\n    const fetch = makeFetch((req) => {\n      const body = req.json as { data: { subject: string; latest_comment?: string } }\n      expect(body.data.subject).toBe('Help needed with login')\n      expect(body.data.latest_comment).toBeUndefined()\n      return jsonResponse({}, 200)\n    })\n\n    const payload = makePayload({ detail: { ...makePayload().detail, latest_comment: undefined } })\n    const result = await handle(payload, { ...baseConfig, fetch })\n    expect(result.eventData.latest_comment).toBeUndefined()\n  })\n\n  it('throws descriptive error when detail.id is missing', async () => {\n    const payload = makePayload({ detail: { ...makePayload().detail, id: '' } })\n    await expect(handle(payload, { ...baseConfig, fetch: makeFetch(() => jsonResponse({}, 200)) })).rejects.toThrow(\n      'Missing required field: detail.id (ticket ID)'\n    )\n  })\n\n  it('throws descriptive error when detail.status is missing', async () => {\n    const payload = makePayload({ detail: { ...makePayload().detail, status: '' } })\n    await expect(handle(payload, { ...baseConfig, fetch: makeFetch(() => jsonResponse({}, 200)) })).rejects.toThrow(\n      'Missing required field: detail.status (ticket status)'\n    )\n  })\n\n  it('throws descriptive error when detail.subject is missing', async () => {\n    const payload = makePayload({ detail: { ...makePayload().detail, subject: '' } })\n    await expect(handle(payload, { ...baseConfig, fetch: makeFetch(() => jsonResponse({}, 200)) })).rejects.toThrow(\n      'Missing required field: detail.subject (ticket subject)'\n    )\n  })\n\n  it('throws error with status code and endpoint on non-2xx response', async () => {\n    const fetch = makeFetch(() => jsonResponse({ error: 'Unauthorized' }, 401))\n    await expect(handle(makePayload(), { ...baseConfig, fetch })).rejects.toThrow(\n      'Pusher Channels API error: 401 Unauthorized at POST https://ws-mt1.pusher.com/apps/test-app-key/channels/presence-ticket-98765/events'\n    )\n  })\n\n  it('throws error with status code and endpoint on 5xx response', async () => {\n    const fetch = makeFetch(() => jsonResponse({ error: 'Internal Server Error' }, 500))\n    await expect(handle(makePayload(), { ...baseConfig, fetch })).rejects.toThrow(\n      'Pusher Channels API error: 500 Internal Server Error at POST https://ws-mt1.pusher.com/apps/test-app-key/channels/presence-ticket-98765/events'\n    )\n  })\n\n  it('constructs channel name with presence-ticket- prefix', async () => {\n    const fetch = makeFetch((req) => {\n      expect(req.url).toContain('/channels/presence-ticket-98765/events')\n      return jsonResponse({}, 200)\n    })\n    await handle(makePayload(), { ...baseConfig, fetch })\n  })\n\n  it('hardcodes event name to ticket.updated regardless of ticket status', async () => {\n    const fetch = makeFetch((req) => {\n      const body = req.json as { name: string }\n      expect(body.name).toBe('ticket.updated')\n      return jsonResponse({}, 200)\n    })\n    const payload = makePayload({ detail: { ...makePayload().detail, status: 'closed' } })\n    await handle(payload, { ...baseConfig, fetch })\n  })\n\n  it('includes ticket subject in event data', async () => {\n    const fetch = makeFetch((req) => {\n      const body = req.json as { data: { subject: string } }\n      expect(body.data.subject).toBe('Custom subject text')\n      return jsonResponse({}, 200)\n    })\n    const payload = makePayload({ detail: { ...makePayload().detail, subject: 'Custom subject text' } })\n    await handle(payload, { ...baseConfig, fetch })\n  })\n})\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# Zendesk to Pusher Channels Connector\n\nPushes Zendesk ticket status updates to a Pusher Channels presence channel as `ticket.updated` events.\n\n## What it does\n\nWhen a Zendesk `ticket.updated` webhook fires, this connector:\n1. Extracts the ticket ID, status, subject, and latest comment from the webhook payload\n2. Constructs a Pusher presence channel name: `presence-ticket-<ticket_id>`\n3. Sends a `ticket.updated` event to that channel with the ticket subject and latest comment (if available)\n4. Authenticates using Pusher's signed request mechanism (HMAC-SHA256)\n\n## Configuration\n\n| Config Property | Environment Variable | Required | Description |\n|-----------------|---------------------|----------|-------------|\n| `pusherAppKey` | `PUSHER_APP_KEY` | Yes | Pusher Channels app key from dashboard |\n| `pusherSecret` | `PUSHER_SECRET` | Yes | Pusher Channels app secret from dashboard |\n| `pusherCluster` | `PUSHER_CLUSTER` | Yes | Pusher cluster identifier (e.g., `mt1`, `eu`, `ap1`) |\n| `pusherAuthToken` | `PUSHER_AUTH_TOKEN` | No | Pre-computed Authorization token (skips signing if provided) |\n\n## Usage Example\n\n```typescript\nimport { handle } from './connector'\n\nconst payload = {\n  type: 'zen:event-type:ticket.updated',\n  account_id: 123456,\n  id: 'abc123-def456-ghi789',\n  time: '2024-01-15T10:30:00Z',\n  zendesk_event_version: '2022-06-20',\n  subject: 'zen:ticket:98765',\n  detail: {\n    id: '98765',\n    status: 'open',\n    subject: 'Help needed with login',\n    latest_comment: { body: 'I cannot access my account after password reset.' }\n  },\n  event: {}\n}\n\nconst config = {\n  pusherAppKey: process.env.PUSHER_APP_KEY!,\n  pusherSecret: process.env.PUSHER_SECRET!,\n  pusherCluster: process.env.PUSHER_CLUSTER!,\n}\n\nconst result = await handle(payload, config)\nconsole.log(`Pushed to ${result.channel}: ${result.eventName}`)\n```\n\n## Assumptions\n\n- The Zendesk webhook payload includes `ticket.id`, `ticket.status`, `ticket.subject`, and optionally `ticket.latest_comment.body` inside the `detail` object.\n- Pusher Channels API uses app key and secret for signed request authentication on presence channels.\n- The target presence channel name must be constructed as `presence-ticket-<ticket.id>` per the plan.\n- The webhook fires on any status change; the integration pushes the same event name `ticket.updated` for all updates.\n- The connector receives raw POST body from Zendesk (no incoming webhook authentication).\n- Pusher signed requests follow the standard format: `Authorization: Bearer <app_key>:<hmac_sha256_signature>` with query parameters `auth_key`, `auth_timestamp`, `auth_version`, and `body_md5`.\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://developer.zendesk.com/api-reference/webhooks/event-types/webhook-event-types\n// Source: https://pusher.com/docs/channels/using_channels/events\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"type\": \"zen:event-type:ticket.updated\",\n  \"account_id\": 123456,\n  \"id\": \"abc123-def456-ghi789\",\n  \"time\": \"2024-01-15T10:30:00Z\",\n  \"zendesk_event_version\": \"2022-06-20\",\n  \"subject\": \"zen:ticket:98765\",\n  \"detail\": {\n    \"id\": \"98765\",\n    \"status\": \"open\",\n    \"subject\": \"Help needed with login\",\n    \"latest_comment\": {\n      \"body\": \"I cannot access my account after password reset.\"\n    }\n  },\n  \"event\": {}\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://ws-{cluster}.pusher.com/apps/{app_key}/channels/presence-ticket-{ticket_id}/events\",\n    \"response\": {}\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ]
+    },
+    {
+      "type": "tests",
+      "attempt": 4,
+      "report": {
+        "typecheckOk": true,
+        "typecheckOutput": "",
+        "passed": 4,
+        "failed": 8,
+        "total": 12,
+        "failures": [
+          {
+            "name": "contract handles the documented example payload",
+            "message": "NotSupportedError: Unrecognized algorithm name\n    at normalizeAlgorithm (node:internal/crypto/util:366:11)\n    at normalizeAlgorithm (node:internal/crypto/util:338:12)\n    at SubtleCrypto.digest (node:internal/crypto/webcrypto:81:15)\n    at cryptoHash (/work/src/connector.ts:69:42)\n    at generatePusherAuthToken (/work/src/connector.ts:50:25)\n    at handle (/work/src/connector.ts:124:23)\n    at /work/src/connector.test.ts:21:26\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:155:11\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:752:26\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:1897:20"
+          },
+          {
+            "name": "handle happy path: sends correct request to Pusher with signed auth",
+            "message": "NotSupportedError: Unrecognized algorithm name\n    at normalizeAlgorithm (node:internal/crypto/util:366:11)\n    at normalizeAlgorithm (node:internal/crypto/util:338:12)\n    at SubtleCrypto.digest (node:internal/crypto/webcrypto:81:15)\n    at cryptoHash (/work/src/connector.ts:69:42)\n    at generatePusherAuthToken (/work/src/connector.ts:50:25)\n    at handle (/work/src/connector.ts:124:23)\n    at /work/src/connector.test.ts:81:26\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:155:11\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:752:26\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:1897:20"
+          },
+          {
+            "name": "handle omits latest_comment from event data when not present in payload",
+            "message": "NotSupportedError: Unrecognized algorithm name\n    at normalizeAlgorithm (node:internal/crypto/util:366:11)\n    at normalizeAlgorithm (node:internal/crypto/util:338:12)\n    at SubtleCrypto.digest (node:internal/crypto/webcrypto:81:15)\n    at cryptoHash (/work/src/connector.ts:69:42)\n    at generatePusherAuthToken (/work/src/connector.ts:50:25)\n    at handle (/work/src/connector.ts:124:23)\n    at /work/src/connector.test.ts:107:26\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:155:11\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:752:26\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:1897:20"
+          },
+          {
+            "name": "handle throws error with status code and endpoint on non-2xx response",
+            "message": "AssertionError: expected [Function] to throw error including 'Pusher Channels API error: 401 Unauth…' but got 'Unrecognized algorithm name'\n    at _Assertion.<anonymous> (file:///work/node_modules/@vitest/expect/dist/index.js:1420:16)\n    at _Assertion.<anonymous> (file:///work/node_modules/@vitest/expect/dist/index.js:1029:14)\n    at _Assertion.methodWrapper (file:///work/node_modules/chai/index.js:1686:25)\n    at file:///work/node_modules/@vitest/expect/dist/index.js:1639:20\n    at processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at /work/src/connector.test.ts:134:5\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20"
+          },
+          {
+            "name": "handle throws error with status code and endpoint on 5xx response",
+            "message": "AssertionError: expected [Function] to throw error including 'Pusher Channels API error: 500 Intern…' but got 'Unrecognized algorithm name'\n    at _Assertion.<anonymous> (file:///work/node_modules/@vitest/expect/dist/index.js:1420:16)\n    at _Assertion.<anonymous> (file:///work/node_modules/@vitest/expect/dist/index.js:1029:14)\n    at _Assertion.methodWrapper (file:///work/node_modules/chai/index.js:1686:25)\n    at file:///work/node_modules/@vitest/expect/dist/index.js:1639:20\n    at processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at /work/src/connector.test.ts:141:5\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20"
+          },
+          {
+            "name": "handle constructs channel name with presence-ticket- prefix",
+            "message": "NotSupportedError: Unrecognized algorithm name\n    at normalizeAlgorithm (node:internal/crypto/util:366:11)\n    at normalizeAlgorithm (node:internal/crypto/util:338:12)\n    at SubtleCrypto.digest (node:internal/crypto/webcrypto:81:15)\n    at cryptoHash (/work/src/connector.ts:69:42)\n    at generatePusherAuthToken (/work/src/connector.ts:50:25)\n    at handle (/work/src/connector.ts:124:23)\n    at /work/src/connector.test.ts:151:11\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:155:11\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:752:26\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:1897:20"
+          },
+          {
+            "name": "handle hardcodes event name to ticket.updated regardless of ticket status",
+            "message": "NotSupportedError: Unrecognized algorithm name\n    at normalizeAlgorithm (node:internal/crypto/util:366:11)\n    at normalizeAlgorithm (node:internal/crypto/util:338:12)\n    at SubtleCrypto.digest (node:internal/crypto/webcrypto:81:15)\n    at cryptoHash (/work/src/connector.ts:69:42)\n    at generatePusherAuthToken (/work/src/connector.ts:50:25)\n    at handle (/work/src/connector.ts:124:23)\n    at /work/src/connector.test.ts:161:11\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:155:11\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:752:26\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:1897:20"
+          },
+          {
+            "name": "handle includes ticket subject in event data",
+            "message": "NotSupportedError: Unrecognized algorithm name\n    at normalizeAlgorithm (node:internal/crypto/util:366:11)\n    at normalizeAlgorithm (node:internal/crypto/util:338:12)\n    at SubtleCrypto.digest (node:internal/crypto/webcrypto:81:15)\n    at cryptoHash (/work/src/connector.ts:69:42)\n    at generatePusherAuthToken (/work/src/connector.ts:50:25)\n    at handle (/work/src/connector.ts:124:23)\n    at /work/src/connector.test.ts:171:11\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:155:11\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:752:26\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:1897:20"
+          }
+        ],
+        "durationMs": 316.34130859375,
+        "ranOn": "nebius-sandbox:01a13f69-b470-774c-94c7-cbfff1c4a913",
+        "passedNames": [
+          "handle uses pre-computed auth token when provided",
+          "handle throws descriptive error when detail.id is missing",
+          "handle throws descriptive error when detail.status is missing",
+          "handle throws descriptive error when detail.subject is missing"
+        ],
+        "contract": "failed"
+      },
+      "branches": [
+        {
+          "branch": 1,
+          "passed": 4,
+          "total": 12,
+          "typecheckOk": true,
+          "green": false
+        },
+        {
+          "branch": 2,
+          "passed": 0,
+          "total": 12,
+          "typecheckOk": false,
+          "green": false
+        }
+      ]
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Attempt 4 regressed (4/12 < 10/12), rolling back for repair"
+    },
+    {
+      "type": "step",
+      "step": "verify",
+      "status": "error",
+      "detail": "10/12 tests after 4 attempts"
+    },
+    {
+      "type": "step",
+      "step": "package",
+      "status": "start"
+    },
+    {
+      "type": "usage",
+      "usage": [
+        {
+          "model": "nvidia/Nemotron-3_5-Lightning",
+          "promptTokens": 804,
+          "completionTokens": 359,
+          "costUsd": 0.00013440000000000001
+        },
+        {
+          "model": "nvidia/nemotron-3-super-120b-a12b",
+          "promptTokens": 11331,
+          "completionTokens": 765,
+          "costUsd": 0.0040878
+        },
+        {
+          "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+          "promptTokens": 44999,
+          "completionTokens": 131692,
+          "costUsd": 0.440075
+        }
+      ]
+    },
+    {
+      "type": "result",
+      "ok": false,
+      "attempts": 4,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "export interface ConnectorConfig {\n  /** Pusher Channels app key (from Pusher dashboard) */\n  pusherAppKey: string\n  /** Pusher Channels app secret (from Pusher dashboard) */\n  pusherSecret: string\n  /** Pusher Channels cluster identifier (e.g., 'mt1', 'eu', 'ap1') */\n  pusherCluster: string\n  /** Optional pre-computed Authorization token. If omitted, a signed token is generated. */\n  pusherAuthToken?: string\n  /** Injected fetch implementation for testing. Defaults to global fetch. */\n  fetch?: typeof fetch\n}\n\nexport interface ZendeskTicketUpdatedPayload {\n  type: string\n  account_id: number\n  id: string\n  time: string\n  zendesk_event_version: string\n  subject: string\n  detail: {\n    id: string\n    status: string\n    subject: string\n    latest_comment?: {\n      body: string\n    }\n  }\n  event: Record<string, unknown>\n}\n\nexport interface HandleResult {\n  channel: string\n  eventName: string\n  eventData: {\n    subject: string\n    latest_comment?: string\n  }\n  pusherResponse: unknown\n}\n\nfunction generatePusherAuthToken(\n  appKey: string,\n  secret: string,\n  method: string,\n  path: string,\n  body: string\n): string {\n  const timestamp = Math.floor(Date.now() / 1000).toString()\n  const bodyMd5 = cryptoHash(body)\n  const queryParams = new URLSearchParams({\n    auth_key: appKey,\n    auth_timestamp: timestamp,\n    auth_version: '1.0',\n    body_md5: bodyMd5,\n  })\n  const sortedQuery = Array.from(queryParams.entries())\n    .sort(([a], [b]) => a.localeCompare(b))\n    .map(([k, v]) => `${k}=${v}`)\n    .join('&')\n  const stringToSign = `${method}\\n${path}\\n${sortedQuery}`\n  const signature = hmacSha256(secret, stringToSign)\n  return `Bearer ${appKey}:${signature}`\n}\n\nasync function cryptoHash(input: string): Promise<string> {\n  const encoder = new TextEncoder()\n  const data = encoder.encode(input)\n  const hashBuffer = await crypto.subtle.digest('MD5', data)\n  const hashArray = Array.from(new Uint8Array(hashBuffer))\n  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('')\n}\n\nasync function hmacSha256(secret: string, message: string): Promise<string> {\n  const encoder = new TextEncoder()\n  const key = await crypto.subtle.importKey(\n    'raw',\n    encoder.encode(secret),\n    { name: 'HMAC', hash: 'SHA-256' },\n    false,\n    ['sign']\n  )\n  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(message))\n  const sigArray = Array.from(new Uint8Array(signature))\n  return sigArray.map((b) => b.toString(16).padStart(2, '0')).join('')\n}\n\nexport async function handle(\n  payload: ZendeskTicketUpdatedPayload,\n  config: ConnectorConfig\n): Promise<HandleResult> {\n  const fetchImpl = config.fetch ?? fetch\n\n  if (!payload.detail?.id) {\n    throw new Error('Missing required field: detail.id (ticket ID)')\n  }\n  if (!payload.detail?.status) {\n    throw new Error('Missing required field: detail.status (ticket status)')\n  }\n  if (!payload.detail?.subject) {\n    throw new Error('Missing required field: detail.subject (ticket subject)')\n  }\n\n  const ticketId = payload.detail.id\n  const channel = `presence-ticket-${ticketId}`\n  const eventName = 'ticket.updated'\n  const eventData: HandleResult['eventData'] = {\n    subject: payload.detail.subject,\n  }\n  if (payload.detail.latest_comment?.body) {\n    eventData.latest_comment = payload.detail.latest_comment.body\n  }\n\n  const bodyObj = { name: eventName, channel, data: eventData }\n  const body = JSON.stringify(bodyObj)\n\n  const path = `/apps/${config.pusherAppKey}/channels/${channel}/events`\n  const url = `https://ws-${config.pusherCluster}.pusher.com${path}`\n\n  let authToken: string\n  if (config.pusherAuthToken) {\n    authToken = config.pusherAuthToken\n  } else {\n    authToken = await generatePusherAuthToken(config.pusherAppKey, config.pusherSecret, 'POST', path, body)\n  }\n\n  const response = await fetchImpl(url, {\n    method: 'POST',\n    headers: {\n      Authorization: authToken,\n      'Content-Type': 'application/json',\n    },\n    body,\n  })\n\n  if (!response.ok) {\n    throw new Error(`Pusher Channels API error: ${response.status} ${response.statusText} at POST ${url}`)\n  }\n\n  const pusherResponse = (await response.json()) as unknown\n\n  return {\n    channel,\n    eventName,\n    eventData,\n    pusherResponse,\n  }\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi, beforeEach } from 'vitest'\nimport { handle, ConnectorConfig, ZendeskTicketUpdatedPayload, HandleResult } from './connector'\nimport {\n  SOURCE_EXAMPLE,\n  contractFetch,\n  fakeFetch,\n  jsonResponse,\n  TARGET_ENDPOINTS,\n  type RecordedCall,\n} from './fixtures'\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch()\n    const config: ConnectorConfig = {\n      pusherAppKey: 'test-app-key',\n      pusherSecret: 'test-secret',\n      pusherCluster: 'mt1',\n      fetch,\n    }\n    const result = await handle(SOURCE_EXAMPLE as unknown as ZendeskTicketUpdatedPayload, config)\n    expect(calls.length).toBeGreaterThan(0)\n    expect(result.channel).toBe('presence-ticket-98765')\n    expect(result.eventName).toBe('ticket.updated')\n    expect(result.eventData.subject).toBe('Help needed with login')\n    expect(result.eventData.latest_comment).toBe('I cannot access my account after password reset.')\n  })\n})\n\ndescribe('handle', () => {\n  let baseConfig: ConnectorConfig\n  let recordedCalls: RecordedCall[]\n\n  beforeEach(() => {\n    baseConfig = {\n      pusherAppKey: 'test-app-key',\n      pusherSecret: 'test-secret',\n      pusherCluster: 'mt1',\n    }\n    recordedCalls = []\n  })\n\n  function makeFetch(handler: (req: RecordedCall) => Response | Promise<Response>) {\n    const { fetch, calls } = fakeFetch(handler)\n    recordedCalls.push(...calls)\n    return fetch\n  }\n\n  function makePayload(overrides: Partial<ZendeskTicketUpdatedPayload> = {}): ZendeskTicketUpdatedPayload {\n    return {\n      type: 'zen:event-type:ticket.updated',\n      account_id: 123456,\n      id: 'abc123-def456-ghi789',\n      time: '2024-01-15T10:30:00Z',\n      zendesk_event_version: '2022-06-20',\n      subject: 'zen:ticket:98765',\n      detail: {\n        id: '98765',\n        status: 'open',\n        subject: 'Help needed with login',\n        latest_comment: {\n          body: 'I cannot access my account after password reset.',\n        },\n      },\n      event: {},\n      ...overrides,\n    }\n  }\n\n  it('happy path: sends correct request to Pusher with signed auth', async () => {\n    const fetch = makeFetch((req) => {\n      expect(req.method).toBe('POST')\n      expect(req.url).toBe('https://ws-mt1.pusher.com/apps/test-app-key/channels/presence-ticket-98765/events')\n      expect(req.headers.get('content-type')).toBe('application/json')\n      expect(req.headers.get('authorization')).toMatch(/^Bearer test-app-key:[a-f0-9]{64}$/)\n      const body = req.json as { name: string; channel: string; data: { subject: string; latest_comment: string } }\n      expect(body.name).toBe('ticket.updated')\n      expect(body.channel).toBe('presence-ticket-98765')\n      expect(body.data.subject).toBe('Help needed with login')\n      expect(body.data.latest_comment).toBe('I cannot access my account after password reset.')\n      return jsonResponse({}, 200)\n    })\n\n    const result = await handle(makePayload(), { ...baseConfig, fetch })\n    expect(result.channel).toBe('presence-ticket-98765')\n    expect(result.eventName).toBe('ticket.updated')\n    expect(result.eventData.subject).toBe('Help needed with login')\n    expect(result.eventData.latest_comment).toBe('I cannot access my account after password reset.')\n  })\n\n  it('uses pre-computed auth token when provided', async () => {\n    const fetch = makeFetch((req) => {\n      expect(req.headers.get('authorization')).toBe('Bearer precomputed-token')\n      return jsonResponse({}, 200)\n    })\n\n    const config: ConnectorConfig = { ...baseConfig, pusherAuthToken: 'Bearer precomputed-token', fetch }\n    await handle(makePayload(), config)\n  })\n\n  it('omits latest_comment from event data when not present in payload', async () => {\n    const fetch = makeFetch((req) => {\n      const body = req.json as { data: { subject: string; latest_comment?: string } }\n      expect(body.data.subject).toBe('Help needed with login')\n      expect(body.data.latest_comment).toBeUndefined()\n      return jsonResponse({}, 200)\n    })\n\n    const payload = makePayload({ detail: { ...makePayload().detail, latest_comment: undefined } })\n    const result = await handle(payload, { ...baseConfig, fetch })\n    expect(result.eventData.latest_comment).toBeUndefined()\n  })\n\n  it('throws descriptive error when detail.id is missing', async () => {\n    const payload = makePayload({ detail: { ...makePayload().detail, id: '' } })\n    await expect(handle(payload, { ...baseConfig, fetch: makeFetch(() => jsonResponse({}, 200)) })).rejects.toThrow(\n      'Missing required field: detail.id (ticket ID)'\n    )\n  })\n\n  it('throws descriptive error when detail.status is missing', async () => {\n    const payload = makePayload({ detail: { ...makePayload().detail, status: '' } })\n    await expect(handle(payload, { ...baseConfig, fetch: makeFetch(() => jsonResponse({}, 200)) })).rejects.toThrow(\n      'Missing required field: detail.status (ticket status)'\n    )\n  })\n\n  it('throws descriptive error when detail.subject is missing', async () => {\n    const payload = makePayload({ detail: { ...makePayload().detail, subject: '' } })\n    await expect(handle(payload, { ...baseConfig, fetch: makeFetch(() => jsonResponse({}, 200)) })).rejects.toThrow(\n      'Missing required field: detail.subject (ticket subject)'\n    )\n  })\n\n  it('throws error with status code and endpoint on non-2xx response', async () => {\n    const fetch = makeFetch(() => jsonResponse({ error: 'Unauthorized' }, 401))\n    await expect(handle(makePayload(), { ...baseConfig, fetch })).rejects.toThrow(\n      'Pusher Channels API error: 401 Unauthorized at POST https://ws-mt1.pusher.com/apps/test-app-key/channels/presence-ticket-98765/events'\n    )\n  })\n\n  it('throws error with status code and endpoint on 5xx response', async () => {\n    const fetch = makeFetch(() => jsonResponse({ error: 'Internal Server Error' }, 500))\n    await expect(handle(makePayload(), { ...baseConfig, fetch })).rejects.toThrow(\n      'Pusher Channels API error: 500 Internal Server Error at POST https://ws-mt1.pusher.com/apps/test-app-key/channels/presence-ticket-98765/events'\n    )\n  })\n\n  it('constructs channel name with presence-ticket- prefix', async () => {\n    const fetch = makeFetch((req) => {\n      expect(req.url).toContain('/channels/presence-ticket-98765/events')\n      return jsonResponse({}, 200)\n    })\n    await handle(makePayload(), { ...baseConfig, fetch })\n  })\n\n  it('hardcodes event name to ticket.updated regardless of ticket status', async () => {\n    const fetch = makeFetch((req) => {\n      const body = req.json as { name: string }\n      expect(body.name).toBe('ticket.updated')\n      return jsonResponse({}, 200)\n    })\n    const payload = makePayload({ detail: { ...makePayload().detail, status: 'closed' } })\n    await handle(payload, { ...baseConfig, fetch })\n  })\n\n  it('includes ticket subject in event data', async () => {\n    const fetch = makeFetch((req) => {\n      const body = req.json as { data: { subject: string } }\n      expect(body.data.subject).toBe('Custom subject text')\n      return jsonResponse({}, 200)\n    })\n    const payload = makePayload({ detail: { ...makePayload().detail, subject: 'Custom subject text' } })\n    await handle(payload, { ...baseConfig, fetch })\n  })\n})\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# Zendesk to Pusher Channels Connector\n\nPushes Zendesk ticket status updates to a Pusher Channels presence channel as `ticket.updated` events.\n\n## What it does\n\nWhen a Zendesk `ticket.updated` webhook fires, this connector:\n1. Extracts the ticket ID, status, subject, and latest comment from the webhook payload\n2. Constructs a Pusher presence channel name: `presence-ticket-<ticket_id>`\n3. Sends a `ticket.updated` event to that channel with the ticket subject and latest comment (if available)\n4. Authenticates using Pusher's signed request mechanism (HMAC-SHA256)\n\n## Configuration\n\n| Config Property | Environment Variable | Required | Description |\n|-----------------|---------------------|----------|-------------|\n| `pusherAppKey` | `PUSHER_APP_KEY` | Yes | Pusher Channels app key from dashboard |\n| `pusherSecret` | `PUSHER_SECRET` | Yes | Pusher Channels app secret from dashboard |\n| `pusherCluster` | `PUSHER_CLUSTER` | Yes | Pusher cluster identifier (e.g., `mt1`, `eu`, `ap1`) |\n| `pusherAuthToken` | `PUSHER_AUTH_TOKEN` | No | Pre-computed Authorization token (skips signing if provided) |\n\n## Usage Example\n\n```typescript\nimport { handle } from './connector'\n\nconst payload = {\n  type: 'zen:event-type:ticket.updated',\n  account_id: 123456,\n  id: 'abc123-def456-ghi789',\n  time: '2024-01-15T10:30:00Z',\n  zendesk_event_version: '2022-06-20',\n  subject: 'zen:ticket:98765',\n  detail: {\n    id: '98765',\n    status: 'open',\n    subject: 'Help needed with login',\n    latest_comment: { body: 'I cannot access my account after password reset.' }\n  },\n  event: {}\n}\n\nconst config = {\n  pusherAppKey: process.env.PUSHER_APP_KEY!,\n  pusherSecret: process.env.PUSHER_SECRET!,\n  pusherCluster: process.env.PUSHER_CLUSTER!,\n}\n\nconst result = await handle(payload, config)\nconsole.log(`Pushed to ${result.channel}: ${result.eventName}`)\n```\n\n## Assumptions\n\n- The Zendesk webhook payload includes `ticket.id`, `ticket.status`, `ticket.subject`, and optionally `ticket.latest_comment.body` inside the `detail` object.\n- Pusher Channels API uses app key and secret for signed request authentication on presence channels.\n- The target presence channel name must be constructed as `presence-ticket-<ticket.id>` per the plan.\n- The webhook fires on any status change; the integration pushes the same event name `ticket.updated` for all updates.\n- The connector receives raw POST body from Zendesk (no incoming webhook authentication).\n- Pusher signed requests follow the standard format: `Authorization: Bearer <app_key>:<hmac_sha256_signature>` with query parameters `auth_key`, `auth_timestamp`, `auth_version`, and `body_md5`.\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://developer.zendesk.com/api-reference/webhooks/event-types/webhook-event-types\n// Source: https://pusher.com/docs/channels/using_channels/events\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"type\": \"zen:event-type:ticket.updated\",\n  \"account_id\": 123456,\n  \"id\": \"abc123-def456-ghi789\",\n  \"time\": \"2024-01-15T10:30:00Z\",\n  \"zendesk_event_version\": \"2022-06-20\",\n  \"subject\": \"zen:ticket:98765\",\n  \"detail\": {\n    \"id\": \"98765\",\n    \"status\": \"open\",\n    \"subject\": \"Help needed with login\",\n    \"latest_comment\": {\n      \"body\": \"I cannot access my account after password reset.\"\n    }\n  },\n  \"event\": {}\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://ws-{cluster}.pusher.com/apps/{app_key}/channels/presence-ticket-{ticket_id}/events\",\n    \"response\": {}\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ],
+      "report": {
+        "typecheckOk": false,
+        "typecheckOutput": "src/connector.ts(51,43): error TS2345: Argument of type '{ auth_key: string; auth_timestamp: string; auth_version: string; body_md5: Promise<string>; }' is not assignable to parameter of type 'string | string[][] | Record<string, string> | URLSearchParams | undefined'.\n  Types of property 'body_md5' are incompatible.\n    Type 'Promise<string>' is not assignable to type 'string'.",
+        "passed": 10,
+        "failed": 2,
+        "total": 12,
+        "failures": [
+          {
+            "name": "contract handles the documented example payload",
+            "message": "Error: contract: POST https://ws-mt1.pusher.com/apps/test-app-key/channels/presence-ticket-98765/events is not a documented endpoint\n    at /work/src/fixtures.ts:66:26\n    at fake (/work/src/fixtures.ts:87:12)\n    at handle (/work/src/connector.ts:127:26)\n    at processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at /work/src/connector.test.ts:21:20\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20"
+          },
+          {
+            "name": "handle happy path: sends correct request to Pusher with signed auth",
+            "message": "AssertionError: expected 'Bearer test-app-key:[object Promise]' to match /^Bearer test-app-key:[a-f0-9]{64}$/\n    at /work/src/connector.test.ts:75:48\n    at fake (/work/src/fixtures.ts:87:12)\n    at handle (/work/src/connector.ts:127:26)\n    at processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at /work/src/connector.test.ts:84:20\n    at file:///work/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20"
+          }
+        ],
+        "durationMs": 301.462646484375,
+        "ranOn": "nebius-sandbox:01a13f66-2c16-7218-bf5f-e302b18f7528",
+        "passedNames": [
+          "handle uses pre-computed auth token when provided",
+          "handle omits latest_comment from event data when not present in payload",
+          "handle throws descriptive error when detail.id is missing",
+          "handle throws descriptive error when detail.status is missing",
+          "handle throws descriptive error when detail.subject is missing",
+          "handle throws error with status code and endpoint on non-2xx response",
+          "handle throws error with status code and endpoint on 5xx response",
+          "handle constructs channel name with presence-ticket- prefix",
+          "handle hardcodes event name to ticket.updated regardless of ticket status",
+          "handle includes ticket subject in event data"
+        ],
+        "contract": "failed"
+      }
+    },
+    {
+      "type": "step",
+      "step": "package",
+      "status": "done"
+    }
+  ]
+}

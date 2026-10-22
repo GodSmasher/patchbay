@@ -1,4 +1,4 @@
-import type { ApiSpec, Plan, Source } from '@patchbay/agent'
+import type { ApiSpec, Plan, Source } from '@patchbay-nebius/agent'
 
 export function PlanCard({ plan, spec, sources }: { plan: Plan; spec: ApiSpec | null; sources: Source[] }) {
   return (

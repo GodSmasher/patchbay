@@ -25,9 +25,9 @@ import { z } from 'zod'
 // wiring; the credentials just need to live in the checkout like for the CLI.
 loadRepoEnv()
 
-const { loadConfig, missingLiveKeys, startResearch, startRun, startVerify } = await import('@patchbay/agent')
-type GeneratedFile = import('@patchbay/agent').GeneratedFile
-type RunEvent = import('@patchbay/agent').RunEvent
+const { loadConfig, missingLiveKeys, startResearch, startRun, startVerify } = await import('@patchbay-nebius/agent')
+type GeneratedFile = import('@patchbay-nebius/agent').GeneratedFile
+type RunEvent = import('@patchbay-nebius/agent').RunEvent
 
 function loadRepoEnv(): void {
   const here = dirname(fileURLToPath(import.meta.url))

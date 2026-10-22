@@ -1,0 +1,399 @@
+{
+  "prompt": "When a Stripe charge.refunded webhook arrives, send an idempotent POST to Mailchimp add-tag using the charge id as Idempotency-Key, and skip when the tag already exists.",
+  "events": [
+    {
+      "type": "mode",
+      "mode": "live"
+    },
+    {
+      "type": "step",
+      "step": "plan",
+      "status": "start"
+    },
+    {
+      "type": "plan",
+      "plan": {
+        "summary": "When a Stripe charge.refunded webhook arrives, add a tag to a Mailchimp subscriber identified by the Stripe charge ID, using an idempotent POST with the charge ID as the Idempotency-Key and skipping if the tag already exists.",
+        "source": {
+          "app": "Stripe",
+          "trigger": "charge.refunded webhook",
+          "docsQuery": "Stripe charge.refunded webhook payload charge id customer email"
+        },
+        "target": {
+          "app": "Mailchimp",
+          "action": "add tag to subscriber",
+          "docsQuery": "Mailchimp API add tag to subscriber endpoint idempotency key"
+        },
+        "additionalTargets": [
+          {
+            "app": "Mailchimp",
+            "action": "get subscriber tags",
+            "docsQuery": "Mailchimp API get subscriber tags endpoint"
+          }
+        ],
+        "fieldMapping": [
+          {
+            "from": "charge.id",
+            "to": "subscriber.id",
+            "note": "Stripe charge ID maps to Mailchimp subscriber ID (email or hash)"
+          },
+          {
+            "from": "tag.name",
+            "to": "tags",
+            "note": "Tag name to add; must already exist in Mailchimp or be created first"
+          }
+        ],
+        "assumptions": [
+          "The webhook payload includes a charge object with id and customer fields.",
+          "Mailchimp subscriber can be identified by the Stripe customer email or the charge ID itself.",
+          "The tag name is known or can be derived from the request context.",
+          "Idempotency-Key header is supported by the Mailchimp endpoint for the given subscriber.",
+          "The integration can check existing tags on the subscriber before adding to avoid duplicates."
+        ]
+      }
+    },
+    {
+      "type": "step",
+      "step": "plan",
+      "status": "done",
+      "detail": "When a Stripe charge.refunded webhook arrives, add a tag to a Mailchimp subscriber identified by the Stripe charge ID, using an idempotent POST with the charge ID as the Idempotency-Key and skipping if the tag already exists."
+    },
+    {
+      "type": "step",
+      "step": "research",
+      "status": "start"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Installing typescript + vitest in a sandbox checkpoint"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Searched \"Mailchimp API get subscriber tags endpoint\": 2 of 2 picked from Mailchimp's own docs"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Searched \"Stripe charge.refunded webhook payload charge id customer email\": 1 of 2 picked from Stripe's own docs"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "No Mailchimp page in the results, searched mailchimp.com directly: 5 results"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Searched \"Mailchimp API add tag to subscriber endpoint idempotency key\": 2 of 2 picked from Mailchimp's own docs"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Extracted 6 documentation pages"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Checkpoint ready: 760d4ae2"
+    },
+    {
+      "type": "sources",
+      "sources": [
+        {
+          "title": "Using webhooks with subscriptions | Stripe Documentation",
+          "url": "https://docs.stripe.com/billing/subscriptions/webhooks",
+          "official": true
+        },
+        {
+          "title": "Stripe Webhooks: Complete Guide with Payload Examples [2025]",
+          "url": "https://inventivehq.com/blog/stripe-webhooks-guide",
+          "official": false
+        },
+        {
+          "title": "Add or remove member tags | Mailchimp | Developer",
+          "url": "https://mailchimp.com/developer/marketing/api/list-member-tags/add-or-remove-member-tags",
+          "official": true
+        },
+        {
+          "title": "Add or remove member tags | Mailchimp | Developer",
+          "url": "https://mailchimp.com/developer/marketing/api/lists/members/create-member-tag",
+          "official": true
+        },
+        {
+          "title": "Get subscriber email activity | Mailchimp | Developer",
+          "url": "https://mailchimp.com/developer/marketing/api/email-activity-reports/get-subscriber-email-activity",
+          "official": true
+        },
+        {
+          "title": "Add member to list | Mailchimp | Developer",
+          "url": "https://mailchimp.com/developer/marketing/api/lists/members/create-member",
+          "official": true
+        }
+      ]
+    },
+    {
+      "type": "spec",
+      "spec": {
+        "source": {
+          "app": "Stripe",
+          "role": "source",
+          "method": "POST",
+          "url": "/webhook/stripe",
+          "auth": {
+            "type": "none",
+            "name": null,
+            "envVar": null
+          },
+          "example": {
+            "id": "evt_charge_refunded_example",
+            "object": "event",
+            "type": "charge.refunded",
+            "data": {
+              "object": {
+                "id": "ch_1234567890",
+                "customer": "cus_abcdefg",
+                "amount": 1000,
+                "currency": "usd",
+                "refunded": true
+              }
+            }
+          },
+          "docsUrl": "https://docs.stripe.com/billing/subscriptions/webhooks",
+          "notes": [
+            "Stripe webhook payloads follow the standard Event object structure with id, type, created, data.object, livemode, and pending_webhooks fields.",
+            "The charge.refunded event indicates a full or partial refund of a charge associated with a subscription invoice.",
+            "Verify webhook signatures using the Stripe webhook signing secret (whsec_*) via HMAC-SHA256 with timestamp validation to prevent replay attacks.",
+            "The connector should extract charge.id from data.object.id and customer email from data.object.customer (requiring a separate Customer lookup if email is needed).",
+            "For local testing, use the Stripe CLI to forward events to localhost; production requires a publicly accessible HTTPS endpoint."
+          ]
+        },
+        "target": [
+          {
+            "app": "Mailchimp",
+            "role": "target",
+            "method": "GET",
+            "url": "https://api.mailchimp.com/3.0/lists/:list_id/members/:subscriber_hash/tags",
+            "auth": {
+              "type": "bearer",
+              "name": "Authorization",
+              "envVar": "MAILCHIMP_API_KEY"
+            },
+            "example": {},
+            "responseExample": {
+              "tags": [
+                {
+                  "id": 1,
+                  "name": "Refunded",
+                  "status": "active"
+                }
+              ]
+            },
+            "docsUrl": "https://mailchimp.com/developer/marketing/api/list-member-tags/add-or-remove-member-tags",
+            "notes": [
+              "Endpoint retrieves all tags for a subscriber identified by subscriber_hash (MD5 of lowercase email).",
+              "Requires list_id and subscriber_hash as path parameters.",
+              "Response includes tags array with objects containing id, name, and status.",
+              "Pagination is not mentioned in the docs; assumes all tags returned in a single response.",
+              "Used to check if a tag already exists before adding to avoid duplicates."
+            ]
+          },
+          {
+            "app": "Mailchimp",
+            "role": "target",
+            "method": "POST",
+            "url": "https://api.mailchimp.com/3.0/lists/:list_id/members/:subscriber_hash/tags",
+            "auth": {
+              "type": "bearer",
+              "name": "Authorization",
+              "envVar": "MAILCHIMP_API_KEY"
+            },
+            "example": {
+              "tags": [
+                {
+                  "name": "Refunded",
+                  "status": "active"
+                }
+              ]
+            },
+            "responseExample": {},
+            "docsUrl": "https://mailchimp.com/developer/marketing/api/list-member-tags/add-or-remove-member-tags",
+            "notes": [
+              "Endpoint adds or removes tags from a list member; creates new tag if it doesn't exist and status is 'active'.",
+              "Requires list_id and subscriber_hash as path parameters.",
+              "Request body expects tags array of objects with name and status fields.",
+              "Idempotency-Key header is supported; use Stripe charge.id as the Idempotency-Key value to prevent duplicate tag additions.",
+              "If the tag already exists with status 'active', the connector should skip the POST call (determined via prior GET).",
+              "Empty response on success; no meaningful response body to parse.",
+              "Authentication via Bearer token using Mailchimp API key."
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "step",
+      "step": "research",
+      "status": "done",
+      "detail": "3 endpoints from 6 pages"
+    },
+    {
+      "type": "step",
+      "step": "generate",
+      "status": "start"
+    },
+    {
+      "type": "files",
+      "attempt": 1,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "export interface ConnectorConfig {\n  /** Mailchimp API key (from MAILCHIMP_API_KEY env var) */\n  mailchimpApiKey: string;\n  /** Mailchimp list ID (audience ID) */\n  listId: string;\n  /** Tag name to add (default: \"Refunded\") */\n  tagName?: string;\n  /** Injected fetch for testing */\n  fetch?: typeof fetch;\n}\n\nexport interface StripeChargeRefundedPayload {\n  id: string;\n  object: 'event';\n  type: 'charge.refunded';\n  data: {\n    object: {\n      id: string;\n      customer: string;\n      amount: number;\n      currency: string;\n      refunded: boolean;\n    };\n  };\n}\n\nexport interface HandleResult {\n  /** Whether the tag was added (false if skipped) */\n  tagAdded: boolean;\n  /** Stripe charge ID used as idempotency key and subscriber hash */\n  chargeId: string;\n  /** Subscriber hash used in Mailchimp API (equals chargeId per field mapping) */\n  subscriberHash: string;\n  /** Tag name that was added or skipped */\n  tagName: string;\n  /** True if tag already existed and POST was skipped */\n  skipped: boolean;\n}\n\nasync function fetchWithAuth(\n  fetchImpl: typeof fetch,\n  url: string,\n  options: RequestInit,\n  apiKey: string\n): Promise<Response> {\n  const headers = new Headers(options.headers);\n  headers.set('Authorization', `Bearer ${apiKey}`);\n  return fetchImpl(url, { ...options, headers });\n}\n\nexport async function handle(\n  payload: StripeChargeRefundedPayload,\n  config: ConnectorConfig\n): Promise<HandleResult> {\n  // Validate required payload fields\n  if (!payload.data?.object?.id) {\n    throw new Error('Missing required field: data.object.id (charge ID)');\n  }\n  if (!payload.data?.object?.customer) {\n    throw new Error('Missing required field: data.object.customer (customer ID)');\n  }\n  if (!config.mailchimpApiKey) {\n    throw new Error('Missing required config: mailchimpApiKey');\n  }\n  if (!config.listId) {\n    throw new Error('Missing required config: listId');\n  }\n\n  const chargeId = payload.data.object.id;\n  const subscriberHash = chargeId; // Per fieldMapping: charge.id -> subscriber.id\n  const tagName = config.tagName ?? 'Refunded';\n  const baseUrl = `https://api.mailchimp.com/3.0/lists/${config.listId}/members/${subscriberHash}/tags`;\n\n  const fetchImpl = config.fetch ?? globalThis.fetch;\n\n  // GET existing tags to check for duplicate\n  const getResponse = await fetchWithAuth(fetchImpl, baseUrl, { method: 'GET' }, config.mailchimpApiKey);\n  if (!getResponse.ok) {\n    throw new Error(`GET ${baseUrl} failed with status ${getResponse.status}`);\n  }\n  const getData = await getResponse.json() as { tags?: Array<{ name: string; status: string }> };\n  const existingTags = getData.tags ?? [];\n  const tagExists = existingTags.some(tag => tag.name === tagName && tag.status === 'active');\n\n  if (tagExists) {\n    return {\n      tagAdded: false,\n      chargeId,\n      subscriberHash,\n      tagName,\n      skipped: true,\n    };\n  }\n\n  // POST to add tag with Idempotency-Key\n  const postBody = JSON.stringify({\n    tags: [{ name: tagName, status: 'active' }],\n  });\n  const postHeaders = new Headers();\n  postHeaders.set('Idempotency-Key', chargeId);\n  postHeaders.set('Content-Type', 'application/json');\n\n  const postResponse = await fetchWithAuth(fetchImpl, baseUrl, {\n    method: 'POST',\n    body: postBody,\n    headers: postHeaders,\n  }, config.mailchimpApiKey);\n\n  if (!postResponse.ok) {\n    throw new Error(`POST ${baseUrl} failed with status ${postResponse.status}`);\n  }\n\n  return {\n    tagAdded: true,\n    chargeId,\n    subscriberHash,\n    tagName,\n    skipped: false,\n  };\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi } from 'vitest';\nimport { handle, ConnectorConfig, StripeChargeRefundedPayload, HandleResult } from './connector';\nimport { SOURCE_EXAMPLE, contractFetch, fakeFetch, jsonResponse } from './fixtures';\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch();\n    const config: ConnectorConfig = {\n      mailchimpApiKey: 'test-api-key',\n      listId: 'test-list-id',\n      tagName: 'Refunded',\n      fetch,\n    };\n    const result = await handle(SOURCE_EXAMPLE as unknown as StripeChargeRefundedPayload, config);\n    expect(calls.length).toBeGreaterThan(0);\n    expect(result.tagAdded).toBe(false);\n    expect(result.skipped).toBe(true);\n    expect(result.chargeId).toBe('ch_1234567890');\n    expect(result.subscriberHash).toBe('ch_1234567890');\n    expect(result.tagName).toBe('Refunded');\n  });\n});\n\ndescribe('handle', () => {\n  it('adds tag when not present (happy path)', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.method === 'GET') {\n        return jsonResponse({ tags: [] });\n      }\n      if (req.method === 'POST') {\n        expect(req.json).toEqual({ tags: [{ name: 'Refunded', status: 'active' }] });\n        expect(req.headers.get('idempotency-key')).toBe('ch_1234567890');\n        return jsonResponse({}, 200);\n      }\n      return jsonResponse({ error: 'not found' }, 404);\n    });\n\n    const config: ConnectorConfig = {\n      mailchimpApiKey: 'test-key',\n      listId: 'list-123',\n      fetch,\n    };\n    const payload: StripeChargeRefundedPayload = {\n      id: 'evt_1',\n      object: 'event',\n      type: 'charge.refunded',\n      data: {\n        object: {\n          id: 'ch_1234567890',\n          customer: 'cus_abc',\n          amount: 1000,\n          currency: 'usd',\n          refunded: true,\n        },\n      },\n    };\n\n    const result = await handle(payload, config);\n    expect(result.tagAdded).toBe(true);\n    expect(result.skipped).toBe(false);\n    expect(calls.length).toBe(2);\n    expect(calls[0].method).toBe('GET');\n    expect(calls[1].method).toBe('POST');\n  });\n\n  it('sends Authorization header with Bearer token', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      const auth = req.headers.get('authorization');\n      expect(auth).toBe('Bearer test-key');\n      if (req.method === 'GET') return jsonResponse({ tags: [] });\n      return jsonResponse({}, 200);\n    });\n\n    const config: ConnectorConfig = {\n      mailchimpApiKey: 'test-key',\n      listId: 'list-123',\n      fetch,\n    };\n    const payload: StripeChargeRefundedPayload = {\n      id: 'evt_1',\n      object: 'event',\n      type: 'charge.refunded',\n      data: {\n        object: {\n          id: 'ch_1',\n          customer: 'cus_1',\n          amount: 100,\n          currency: 'usd',\n          refunded: true,\n        },\n      },\n    };\n\n    await handle(payload, config);\n    expect(calls.length).toBeGreaterThan(0);\n  });\n\n  it('maps charge.id to subscriber_hash and Idempotency-Key', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.method === 'GET') {\n        expect(req.url).toContain('/members/ch_999/tags');\n        return jsonResponse({ tags: [] });\n      }\n      if (req.method === 'POST') {\n        expect(req.url).toContain('/members/ch_999/tags');\n        expect(req.headers.get('idempotency-key')).toBe('ch_999');\n        return jsonResponse({}, 200);\n      }\n      return jsonResponse({}, 404);\n    });\n\n    const config: ConnectorConfig = {\n      mailchimpApiKey: 'key',\n      listId: 'list-1',\n      fetch,\n    };\n    const payload: StripeChargeRefundedPayload = {\n      id: 'evt_1',\n      object: 'event',\n      type: 'charge.refunded',\n      data: {\n        object: {\n          id: 'ch_999',\n          customer: 'cus_1',\n          amount: 100,\n          currency: 'usd',\n          refunded: true,\n        },\n      },\n    };\n\n    const result = await handle(payload, config);\n    expect(result.subscriberHash).toBe('ch_999');\n    expect(result.chargeId).toBe('ch_999');\n  });\n\n  it('throws on missing charge ID', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200));\n    const config: ConnectorConfig = { mailchimpApiKey: 'key', listId: 'list', fetch };\n    const payload = {\n      id: 'evt_1',\n      object: 'event' as const,\n      type: 'charge.refunded' as const,\n      data: { object: { customer: 'cus_1', amount: 100, currency: 'usd', refunded: true } },\n    } as unknown as StripeChargeRefundedPayload;\n\n    await expect(handle(payload, config)).rejects.toThrow('Missing required field: data.object.id');\n  });\n\n  it('throws on missing customer ID', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200));\n    const config: ConnectorConfig = { mailchimpApiKey: 'key', listId: 'list', fetch };\n    const payload = {\n      id: 'evt_1',\n      object: 'event' as const,\n      type: 'charge.refunded' as const,\n      data: { object: { id: 'ch_1', amount: 100, currency: 'usd', refunded: true } },\n    } as unknown as StripeChargeRefundedPayload;\n\n    await expect(handle(payload, config)).rejects.toThrow('Missing required field: data.object.customer');\n  });\n\n  it('throws on missing mailchimpApiKey config', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200));\n    const config = { listId: 'list', fetch } as unknown as ConnectorConfig;\n    const payload: StripeChargeRefundedPayload = {\n      id: 'evt_1',\n      object: 'event',\n      type: 'charge.refunded',\n      data: { object: { id: 'ch_1', customer: 'cus_1', amount: 100, currency: 'usd', refunded: true } },\n    };\n\n    await expect(handle(payload, config)).rejects.toThrow('Missing required config: mailchimpApiKey');\n  });\n\n  it('throws on missing listId config', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200));\n    const config = { mailchimpApiKey: 'key', fetch } as unknown as ConnectorConfig;\n    const payload: StripeChargeRefundedPayload = {\n      id: 'evt_1',\n      object: 'event',\n      type: 'charge.refunded',\n      data: { object: { id: 'ch_1', customer: 'cus_1', amount: 100, currency: 'usd', refunded: true } },\n    };\n\n    await expect(handle(payload, config)).rejects.toThrow('Missing required config: listId');\n  });\n\n  it('throws on non-2xx GET response', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({ error: 'not found' }, 404));\n    const config: ConnectorConfig = { mailchimpApiKey: 'key', listId: 'list', fetch };\n    const payload: StripeChargeRefundedPayload = {\n      id: 'evt_1',\n      object: 'event',\n      type: 'charge.refunded',\n      data: { object: { id: 'ch_1', customer: 'cus_1', amount: 100, currency: 'usd', refunded: true } },\n    };\n\n    await expect(handle(payload, config)).rejects.toThrow('GET https://api.mailchimp.com/3.0/lists/list/members/ch_1/tags failed with status 404');\n  });\n\n  it('throws on non-2xx POST response', async () => {\n    const { fetch } = fakeFetch((req) => {\n      if (req.method === 'GET') return jsonResponse({ tags: [] });\n      return jsonResponse({ error: 'conflict' }, 409);\n    });\n    const config: ConnectorConfig = { mailchimpApiKey: 'key', listId: 'list', fetch };\n    const payload: StripeChargeRefundedPayload = {\n      id: 'evt_1',\n      object: 'event',\n      type: 'charge.refunded',\n      data: { object: { id: 'ch_1', customer: 'cus_1', amount: 100, currency: 'usd', refunded: true } },\n    };\n\n    await expect(handle(payload, config)).rejects.toThrow('POST https://api.mailchimp.com/3.0/lists/list/members/ch_1/tags failed with status 409');\n  });\n\n  it('uses custom tagName from config', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.method === 'GET') return jsonResponse({ tags: [] });\n      expect(req.json).toEqual({ tags: [{ name: 'CustomTag', status: 'active' }] });\n      return jsonResponse({}, 200);\n    });\n\n    const config: ConnectorConfig = {\n      mailchimpApiKey: 'key',\n      listId: 'list',\n      tagName: 'CustomTag',\n      fetch,\n    };\n    const payload: StripeChargeRefundedPayload = {\n      id: 'evt_1',\n      object: 'event',\n      type: 'charge.refunded',\n      data: { object: { id: 'ch_1', customer: 'cus_1', amount: 100, currency: 'usd', refunded: true } },\n    };\n\n    const result = await handle(payload, config);\n    expect(result.tagName).toBe('CustomTag');\n    expect(result.tagAdded).toBe(true);\n  });\n});\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# Stripe Charge Refunded → Mailchimp Tag Connector\n\nAdds a tag to a Mailchimp subscriber when a Stripe `charge.refunded` webhook is received. The connector checks existing tags first and skips the addition if the tag is already present, using the Stripe charge ID as an idempotency key to prevent duplicates.\n\n## What it does\n\n1. Receives a Stripe `charge.refunded` webhook payload\n2. Extracts the charge ID (`data.object.id`)\n3. Queries Mailchimp for the subscriber's current tags (subscriber hash = charge ID)\n4. If the configured tag (default: \"Refunded\") is already active, exits without calling POST\n5. Otherwise, POSTs the tag to Mailchimp with `Idempotency-Key: <charge-id>` header\n\n## Configuration\n\n| Config Property | Environment Variable | Required | Description |\n|-----------------|---------------------|----------|-------------|\n| `mailchimpApiKey` | `MAILCHIMP_API_KEY` | Yes | Mailchimp API key (Bearer token) |\n| `listId` | — | Yes | Mailchimp list (audience) ID |\n| `tagName` | — | No | Tag name to add (default: \"Refunded\") |\n\n## Usage Example\n\n```typescript\nimport { handle, ConnectorConfig } from './connector';\n\nconst config: ConnectorConfig = {\n  mailchimpApiKey: process.env.MAILCHIMP_API_KEY!,\n  listId: 'your-mailchimp-list-id',\n  tagName: 'Refunded',\n};\n\n// In your webhook handler (e.g., Express, Fastify, etc.)\napp.post('/webhook/stripe', async (req, res) => {\n  try {\n    const result = await handle(req.body, config);\n    res.json({ success: true, ...result });\n  } catch (err) {\n    console.error(err);\n    res.status(500).json({ success: false, error: err.message });\n  }\n});\n```\n\n## Assumptions\n\n- The webhook payload follows Stripe's standard Event structure with `data.object.id` (charge ID) and `data.object.customer` (customer ID).\n- The Mailchimp subscriber hash is the Stripe charge ID (per field mapping `charge.id → subscriber.id`). If your Mailchimp subscribers are keyed by email hash, you must pre-compute and store the charge ID as the subscriber's foreign key or use a separate lookup.\n- The tag name exists in Mailchimp or will be created on first addition (Mailchimp creates tags automatically when `status: \"active\"`).\n- Mailchimp's `/tags` endpoint supports the `Idempotency-Key` header for safe retries.\n- The connector checks existing tags via GET before POST to avoid duplicate additions; the GET response is assumed to contain all tags in a single page (no pagination).\n- Webhook signature verification is **not** performed by this connector; implement it upstream (e.g., in your HTTP framework middleware) using `stripe.webhookSigningSecret`.\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://docs.stripe.com/billing/subscriptions/webhooks\n// Source: https://mailchimp.com/developer/marketing/api/list-member-tags/add-or-remove-member-tags\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"id\": \"evt_charge_refunded_example\",\n  \"object\": \"event\",\n  \"type\": \"charge.refunded\",\n  \"data\": {\n    \"object\": {\n      \"id\": \"ch_1234567890\",\n      \"customer\": \"cus_abcdefg\",\n      \"amount\": 1000,\n      \"currency\": \"usd\",\n      \"refunded\": true\n    }\n  }\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"GET\",\n    \"url\": \"https://api.mailchimp.com/3.0/lists/:list_id/members/:subscriber_hash/tags\",\n    \"response\": {\n      \"tags\": [\n        {\n          \"id\": 1,\n          \"name\": \"Refunded\",\n          \"status\": \"active\"\n        }\n      ]\n    }\n  },\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://api.mailchimp.com/3.0/lists/:list_id/members/:subscriber_hash/tags\",\n    \"response\": {}\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ]
+    },
+    {
+      "type": "step",
+      "step": "generate",
+      "status": "done",
+      "detail": "src/connector.ts, src/connector.test.ts, README.md, src/fixtures.ts"
+    },
+    {
+      "type": "step",
+      "step": "verify",
+      "status": "start"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Forking checkpoint 760d4ae2 with 4 files, network off"
+    },
+    {
+      "type": "tests",
+      "attempt": 1,
+      "report": {
+        "typecheckOk": true,
+        "typecheckOutput": "",
+        "passed": 11,
+        "failed": 0,
+        "total": 11,
+        "failures": [],
+        "durationMs": 291.8056640625,
+        "ranOn": "nebius-sandbox:01a15de2-d2a2-7302-9c5a-ab686793f5d7",
+        "passedNames": [
+          "contract handles the documented example payload",
+          "handle adds tag when not present (happy path)",
+          "handle sends Authorization header with Bearer token",
+          "handle maps charge.id to subscriber_hash and Idempotency-Key",
+          "handle throws on missing charge ID",
+          "handle throws on missing customer ID",
+          "handle throws on missing mailchimpApiKey config",
+          "handle throws on missing listId config",
+          "handle throws on non-2xx GET response",
+          "handle throws on non-2xx POST response",
+          "handle uses custom tagName from config"
+        ],
+        "contract": "passed"
+      }
+    },
+    {
+      "type": "step",
+      "step": "verify",
+      "status": "done",
+      "detail": "11/11 tests after 1 attempt"
+    },
+    {
+      "type": "step",
+      "step": "package",
+      "status": "start"
+    },
+    {
+      "type": "usage",
+      "usage": [
+        {
+          "model": "nvidia/Nemotron-3_5-Lightning",
+          "promptTokens": 812,
+          "completionTokens": 387,
+          "costUsd": 0.0001416
+        },
+        {
+          "model": "nvidia/nemotron-3-super-120b-a12b",
+          "promptTokens": 11162,
+          "completionTokens": 926,
+          "costUsd": 0.004182
+        },
+        {
+          "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+          "promptTokens": 4121,
+          "completionTokens": 7675,
+          "costUsd": 0.027146
+        }
+      ]
+    },
+    {
+      "type": "result",
+      "ok": true,
+      "attempts": 1,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "export interface ConnectorConfig {\n  /** Mailchimp API key (from MAILCHIMP_API_KEY env var) */\n  mailchimpApiKey: string;\n  /** Mailchimp list ID (audience ID) */\n  listId: string;\n  /** Tag name to add (default: \"Refunded\") */\n  tagName?: string;\n  /** Injected fetch for testing */\n  fetch?: typeof fetch;\n}\n\nexport interface StripeChargeRefundedPayload {\n  id: string;\n  object: 'event';\n  type: 'charge.refunded';\n  data: {\n    object: {\n      id: string;\n      customer: string;\n      amount: number;\n      currency: string;\n      refunded: boolean;\n    };\n  };\n}\n\nexport interface HandleResult {\n  /** Whether the tag was added (false if skipped) */\n  tagAdded: boolean;\n  /** Stripe charge ID used as idempotency key and subscriber hash */\n  chargeId: string;\n  /** Subscriber hash used in Mailchimp API (equals chargeId per field mapping) */\n  subscriberHash: string;\n  /** Tag name that was added or skipped */\n  tagName: string;\n  /** True if tag already existed and POST was skipped */\n  skipped: boolean;\n}\n\nasync function fetchWithAuth(\n  fetchImpl: typeof fetch,\n  url: string,\n  options: RequestInit,\n  apiKey: string\n): Promise<Response> {\n  const headers = new Headers(options.headers);\n  headers.set('Authorization', `Bearer ${apiKey}`);\n  return fetchImpl(url, { ...options, headers });\n}\n\nexport async function handle(\n  payload: StripeChargeRefundedPayload,\n  config: ConnectorConfig\n): Promise<HandleResult> {\n  // Validate required payload fields\n  if (!payload.data?.object?.id) {\n    throw new Error('Missing required field: data.object.id (charge ID)');\n  }\n  if (!payload.data?.object?.customer) {\n    throw new Error('Missing required field: data.object.customer (customer ID)');\n  }\n  if (!config.mailchimpApiKey) {\n    throw new Error('Missing required config: mailchimpApiKey');\n  }\n  if (!config.listId) {\n    throw new Error('Missing required config: listId');\n  }\n\n  const chargeId = payload.data.object.id;\n  const subscriberHash = chargeId; // Per fieldMapping: charge.id -> subscriber.id\n  const tagName = config.tagName ?? 'Refunded';\n  const baseUrl = `https://api.mailchimp.com/3.0/lists/${config.listId}/members/${subscriberHash}/tags`;\n\n  const fetchImpl = config.fetch ?? globalThis.fetch;\n\n  // GET existing tags to check for duplicate\n  const getResponse = await fetchWithAuth(fetchImpl, baseUrl, { method: 'GET' }, config.mailchimpApiKey);\n  if (!getResponse.ok) {\n    throw new Error(`GET ${baseUrl} failed with status ${getResponse.status}`);\n  }\n  const getData = await getResponse.json() as { tags?: Array<{ name: string; status: string }> };\n  const existingTags = getData.tags ?? [];\n  const tagExists = existingTags.some(tag => tag.name === tagName && tag.status === 'active');\n\n  if (tagExists) {\n    return {\n      tagAdded: false,\n      chargeId,\n      subscriberHash,\n      tagName,\n      skipped: true,\n    };\n  }\n\n  // POST to add tag with Idempotency-Key\n  const postBody = JSON.stringify({\n    tags: [{ name: tagName, status: 'active' }],\n  });\n  const postHeaders = new Headers();\n  postHeaders.set('Idempotency-Key', chargeId);\n  postHeaders.set('Content-Type', 'application/json');\n\n  const postResponse = await fetchWithAuth(fetchImpl, baseUrl, {\n    method: 'POST',\n    body: postBody,\n    headers: postHeaders,\n  }, config.mailchimpApiKey);\n\n  if (!postResponse.ok) {\n    throw new Error(`POST ${baseUrl} failed with status ${postResponse.status}`);\n  }\n\n  return {\n    tagAdded: true,\n    chargeId,\n    subscriberHash,\n    tagName,\n    skipped: false,\n  };\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi } from 'vitest';\nimport { handle, ConnectorConfig, StripeChargeRefundedPayload, HandleResult } from './connector';\nimport { SOURCE_EXAMPLE, contractFetch, fakeFetch, jsonResponse } from './fixtures';\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch();\n    const config: ConnectorConfig = {\n      mailchimpApiKey: 'test-api-key',\n      listId: 'test-list-id',\n      tagName: 'Refunded',\n      fetch,\n    };\n    const result = await handle(SOURCE_EXAMPLE as unknown as StripeChargeRefundedPayload, config);\n    expect(calls.length).toBeGreaterThan(0);\n    expect(result.tagAdded).toBe(false);\n    expect(result.skipped).toBe(true);\n    expect(result.chargeId).toBe('ch_1234567890');\n    expect(result.subscriberHash).toBe('ch_1234567890');\n    expect(result.tagName).toBe('Refunded');\n  });\n});\n\ndescribe('handle', () => {\n  it('adds tag when not present (happy path)', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.method === 'GET') {\n        return jsonResponse({ tags: [] });\n      }\n      if (req.method === 'POST') {\n        expect(req.json).toEqual({ tags: [{ name: 'Refunded', status: 'active' }] });\n        expect(req.headers.get('idempotency-key')).toBe('ch_1234567890');\n        return jsonResponse({}, 200);\n      }\n      return jsonResponse({ error: 'not found' }, 404);\n    });\n\n    const config: ConnectorConfig = {\n      mailchimpApiKey: 'test-key',\n      listId: 'list-123',\n      fetch,\n    };\n    const payload: StripeChargeRefundedPayload = {\n      id: 'evt_1',\n      object: 'event',\n      type: 'charge.refunded',\n      data: {\n        object: {\n          id: 'ch_1234567890',\n          customer: 'cus_abc',\n          amount: 1000,\n          currency: 'usd',\n          refunded: true,\n        },\n      },\n    };\n\n    const result = await handle(payload, config);\n    expect(result.tagAdded).toBe(true);\n    expect(result.skipped).toBe(false);\n    expect(calls.length).toBe(2);\n    expect(calls[0].method).toBe('GET');\n    expect(calls[1].method).toBe('POST');\n  });\n\n  it('sends Authorization header with Bearer token', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      const auth = req.headers.get('authorization');\n      expect(auth).toBe('Bearer test-key');\n      if (req.method === 'GET') return jsonResponse({ tags: [] });\n      return jsonResponse({}, 200);\n    });\n\n    const config: ConnectorConfig = {\n      mailchimpApiKey: 'test-key',\n      listId: 'list-123',\n      fetch,\n    };\n    const payload: StripeChargeRefundedPayload = {\n      id: 'evt_1',\n      object: 'event',\n      type: 'charge.refunded',\n      data: {\n        object: {\n          id: 'ch_1',\n          customer: 'cus_1',\n          amount: 100,\n          currency: 'usd',\n          refunded: true,\n        },\n      },\n    };\n\n    await handle(payload, config);\n    expect(calls.length).toBeGreaterThan(0);\n  });\n\n  it('maps charge.id to subscriber_hash and Idempotency-Key', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.method === 'GET') {\n        expect(req.url).toContain('/members/ch_999/tags');\n        return jsonResponse({ tags: [] });\n      }\n      if (req.method === 'POST') {\n        expect(req.url).toContain('/members/ch_999/tags');\n        expect(req.headers.get('idempotency-key')).toBe('ch_999');\n        return jsonResponse({}, 200);\n      }\n      return jsonResponse({}, 404);\n    });\n\n    const config: ConnectorConfig = {\n      mailchimpApiKey: 'key',\n      listId: 'list-1',\n      fetch,\n    };\n    const payload: StripeChargeRefundedPayload = {\n      id: 'evt_1',\n      object: 'event',\n      type: 'charge.refunded',\n      data: {\n        object: {\n          id: 'ch_999',\n          customer: 'cus_1',\n          amount: 100,\n          currency: 'usd',\n          refunded: true,\n        },\n      },\n    };\n\n    const result = await handle(payload, config);\n    expect(result.subscriberHash).toBe('ch_999');\n    expect(result.chargeId).toBe('ch_999');\n  });\n\n  it('throws on missing charge ID', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200));\n    const config: ConnectorConfig = { mailchimpApiKey: 'key', listId: 'list', fetch };\n    const payload = {\n      id: 'evt_1',\n      object: 'event' as const,\n      type: 'charge.refunded' as const,\n      data: { object: { customer: 'cus_1', amount: 100, currency: 'usd', refunded: true } },\n    } as unknown as StripeChargeRefundedPayload;\n\n    await expect(handle(payload, config)).rejects.toThrow('Missing required field: data.object.id');\n  });\n\n  it('throws on missing customer ID', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200));\n    const config: ConnectorConfig = { mailchimpApiKey: 'key', listId: 'list', fetch };\n    const payload = {\n      id: 'evt_1',\n      object: 'event' as const,\n      type: 'charge.refunded' as const,\n      data: { object: { id: 'ch_1', amount: 100, currency: 'usd', refunded: true } },\n    } as unknown as StripeChargeRefundedPayload;\n\n    await expect(handle(payload, config)).rejects.toThrow('Missing required field: data.object.customer');\n  });\n\n  it('throws on missing mailchimpApiKey config', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200));\n    const config = { listId: 'list', fetch } as unknown as ConnectorConfig;\n    const payload: StripeChargeRefundedPayload = {\n      id: 'evt_1',\n      object: 'event',\n      type: 'charge.refunded',\n      data: { object: { id: 'ch_1', customer: 'cus_1', amount: 100, currency: 'usd', refunded: true } },\n    };\n\n    await expect(handle(payload, config)).rejects.toThrow('Missing required config: mailchimpApiKey');\n  });\n\n  it('throws on missing listId config', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200));\n    const config = { mailchimpApiKey: 'key', fetch } as unknown as ConnectorConfig;\n    const payload: StripeChargeRefundedPayload = {\n      id: 'evt_1',\n      object: 'event',\n      type: 'charge.refunded',\n      data: { object: { id: 'ch_1', customer: 'cus_1', amount: 100, currency: 'usd', refunded: true } },\n    };\n\n    await expect(handle(payload, config)).rejects.toThrow('Missing required config: listId');\n  });\n\n  it('throws on non-2xx GET response', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({ error: 'not found' }, 404));\n    const config: ConnectorConfig = { mailchimpApiKey: 'key', listId: 'list', fetch };\n    const payload: StripeChargeRefundedPayload = {\n      id: 'evt_1',\n      object: 'event',\n      type: 'charge.refunded',\n      data: { object: { id: 'ch_1', customer: 'cus_1', amount: 100, currency: 'usd', refunded: true } },\n    };\n\n    await expect(handle(payload, config)).rejects.toThrow('GET https://api.mailchimp.com/3.0/lists/list/members/ch_1/tags failed with status 404');\n  });\n\n  it('throws on non-2xx POST response', async () => {\n    const { fetch } = fakeFetch((req) => {\n      if (req.method === 'GET') return jsonResponse({ tags: [] });\n      return jsonResponse({ error: 'conflict' }, 409);\n    });\n    const config: ConnectorConfig = { mailchimpApiKey: 'key', listId: 'list', fetch };\n    const payload: StripeChargeRefundedPayload = {\n      id: 'evt_1',\n      object: 'event',\n      type: 'charge.refunded',\n      data: { object: { id: 'ch_1', customer: 'cus_1', amount: 100, currency: 'usd', refunded: true } },\n    };\n\n    await expect(handle(payload, config)).rejects.toThrow('POST https://api.mailchimp.com/3.0/lists/list/members/ch_1/tags failed with status 409');\n  });\n\n  it('uses custom tagName from config', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.method === 'GET') return jsonResponse({ tags: [] });\n      expect(req.json).toEqual({ tags: [{ name: 'CustomTag', status: 'active' }] });\n      return jsonResponse({}, 200);\n    });\n\n    const config: ConnectorConfig = {\n      mailchimpApiKey: 'key',\n      listId: 'list',\n      tagName: 'CustomTag',\n      fetch,\n    };\n    const payload: StripeChargeRefundedPayload = {\n      id: 'evt_1',\n      object: 'event',\n      type: 'charge.refunded',\n      data: { object: { id: 'ch_1', customer: 'cus_1', amount: 100, currency: 'usd', refunded: true } },\n    };\n\n    const result = await handle(payload, config);\n    expect(result.tagName).toBe('CustomTag');\n    expect(result.tagAdded).toBe(true);\n  });\n});\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# Stripe Charge Refunded → Mailchimp Tag Connector\n\nAdds a tag to a Mailchimp subscriber when a Stripe `charge.refunded` webhook is received. The connector checks existing tags first and skips the addition if the tag is already present, using the Stripe charge ID as an idempotency key to prevent duplicates.\n\n## What it does\n\n1. Receives a Stripe `charge.refunded` webhook payload\n2. Extracts the charge ID (`data.object.id`)\n3. Queries Mailchimp for the subscriber's current tags (subscriber hash = charge ID)\n4. If the configured tag (default: \"Refunded\") is already active, exits without calling POST\n5. Otherwise, POSTs the tag to Mailchimp with `Idempotency-Key: <charge-id>` header\n\n## Configuration\n\n| Config Property | Environment Variable | Required | Description |\n|-----------------|---------------------|----------|-------------|\n| `mailchimpApiKey` | `MAILCHIMP_API_KEY` | Yes | Mailchimp API key (Bearer token) |\n| `listId` | — | Yes | Mailchimp list (audience) ID |\n| `tagName` | — | No | Tag name to add (default: \"Refunded\") |\n\n## Usage Example\n\n```typescript\nimport { handle, ConnectorConfig } from './connector';\n\nconst config: ConnectorConfig = {\n  mailchimpApiKey: process.env.MAILCHIMP_API_KEY!,\n  listId: 'your-mailchimp-list-id',\n  tagName: 'Refunded',\n};\n\n// In your webhook handler (e.g., Express, Fastify, etc.)\napp.post('/webhook/stripe', async (req, res) => {\n  try {\n    const result = await handle(req.body, config);\n    res.json({ success: true, ...result });\n  } catch (err) {\n    console.error(err);\n    res.status(500).json({ success: false, error: err.message });\n  }\n});\n```\n\n## Assumptions\n\n- The webhook payload follows Stripe's standard Event structure with `data.object.id` (charge ID) and `data.object.customer` (customer ID).\n- The Mailchimp subscriber hash is the Stripe charge ID (per field mapping `charge.id → subscriber.id`). If your Mailchimp subscribers are keyed by email hash, you must pre-compute and store the charge ID as the subscriber's foreign key or use a separate lookup.\n- The tag name exists in Mailchimp or will be created on first addition (Mailchimp creates tags automatically when `status: \"active\"`).\n- Mailchimp's `/tags` endpoint supports the `Idempotency-Key` header for safe retries.\n- The connector checks existing tags via GET before POST to avoid duplicate additions; the GET response is assumed to contain all tags in a single page (no pagination).\n- Webhook signature verification is **not** performed by this connector; implement it upstream (e.g., in your HTTP framework middleware) using `stripe.webhookSigningSecret`.\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://docs.stripe.com/billing/subscriptions/webhooks\n// Source: https://mailchimp.com/developer/marketing/api/list-member-tags/add-or-remove-member-tags\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"id\": \"evt_charge_refunded_example\",\n  \"object\": \"event\",\n  \"type\": \"charge.refunded\",\n  \"data\": {\n    \"object\": {\n      \"id\": \"ch_1234567890\",\n      \"customer\": \"cus_abcdefg\",\n      \"amount\": 1000,\n      \"currency\": \"usd\",\n      \"refunded\": true\n    }\n  }\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"GET\",\n    \"url\": \"https://api.mailchimp.com/3.0/lists/:list_id/members/:subscriber_hash/tags\",\n    \"response\": {\n      \"tags\": [\n        {\n          \"id\": 1,\n          \"name\": \"Refunded\",\n          \"status\": \"active\"\n        }\n      ]\n    }\n  },\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://api.mailchimp.com/3.0/lists/:list_id/members/:subscriber_hash/tags\",\n    \"response\": {}\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ],
+      "report": {
+        "typecheckOk": true,
+        "typecheckOutput": "",
+        "passed": 11,
+        "failed": 0,
+        "total": 11,
+        "failures": [],
+        "durationMs": 291.8056640625,
+        "ranOn": "nebius-sandbox:01a15de2-d2a2-7302-9c5a-ab686793f5d7",
+        "passedNames": [
+          "contract handles the documented example payload",
+          "handle adds tag when not present (happy path)",
+          "handle sends Authorization header with Bearer token",
+          "handle maps charge.id to subscriber_hash and Idempotency-Key",
+          "handle throws on missing charge ID",
+          "handle throws on missing customer ID",
+          "handle throws on missing mailchimpApiKey config",
+          "handle throws on missing listId config",
+          "handle throws on non-2xx GET response",
+          "handle throws on non-2xx POST response",
+          "handle uses custom tagName from config"
+        ],
+        "contract": "passed"
+      }
+    },
+    {
+      "type": "step",
+      "step": "package",
+      "status": "done"
+    }
+  ]
+}

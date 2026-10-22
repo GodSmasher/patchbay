@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import type { StepId } from '@patchbay/agent'
+import type { StepId } from '@patchbay-nebius/agent'
 import { STEPS, type RunState, type StepStatus } from '@/lib/use-run'
 
 const LABELS: Record<StepId, { title: string; model: string }> = {

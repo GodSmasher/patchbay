@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import type { RunEvent, GeneratedFile, Plan, Source, TestReport, Usage } from '@patchbay/agent'
+import type { RunEvent, GeneratedFile, Plan, Source, TestReport, Usage } from '@patchbay-nebius/agent'
 import { getShare } from '@/lib/share-store'
 
 export const dynamic = 'force-dynamic'

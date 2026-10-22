@@ -1,4 +1,4 @@
-# @patchbay/mcp
+# @patchbay-nebius/mcp
 
 [![patchbay](https://img.shields.io/badge/patchbay-github-181717?logo=github)](https://github.com/GodSmasher/patchbay)
 [![MCP](https://img.shields.io/badge/MCP-stdio-6938EF)](https://modelcontextprotocol.io)
@@ -18,7 +18,7 @@ Each tool streams `notifications/progress` and `notifications/message` while it 
 ## Install into Claude Code
 
 ```bash
-claude mcp add patchbay -- npx -y @patchbay/mcp
+claude mcp add patchbay -- npx -y @patchbay-nebius/mcp
 ```
 
 Or edit `~/.claude.json`:
@@ -26,7 +26,7 @@ Or edit `~/.claude.json`:
 ```json
 {
   "mcpServers": {
-    "patchbay": { "command": "npx", "args": ["-y", "@patchbay/mcp"] }
+    "patchbay": { "command": "npx", "args": ["-y", "@patchbay-nebius/mcp"] }
   }
 }
 ```
@@ -52,7 +52,7 @@ With `claude mcp add` you can inline them via `--env`, or just set them in your 
 
 ## Also runs as
 
-- **CLI** — `npm install -g @patchbay/agent`
+- **CLI** — `npm install -g @patchbay-nebius/agent`
 - **Web app** — live at <https://patchbay-nebius.vercel.app>
 - **Slack slash command** — [docs/slack-setup.md](https://github.com/GodSmasher/patchbay/blob/main/docs/slack-setup.md)
 

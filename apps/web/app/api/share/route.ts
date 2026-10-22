@@ -1,4 +1,4 @@
-import type { RunEvent } from '@patchbay/agent'
+import type { RunEvent } from '@patchbay-nebius/agent'
 import { putShare } from '@/lib/share-store'
 
 export const runtime = 'nodejs'

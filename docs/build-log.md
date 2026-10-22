@@ -270,7 +270,7 @@ build:
 2. The preflight syntax check (bug 5) imports `esbuild`, a Node-only binary
    dependency. Next's webpack tried to bundle it and choked on the type
    definitions.
-3. `rootDirectory=apps/web` meant `@patchbay/agent` from `packages/agent/`
+3. `rootDirectory=apps/web` meant `@patchbay-nebius/agent` from `packages/agent/`
    wasn't visible to the build either — the workspace symlink needs the
    repo root.
 
@@ -285,7 +285,7 @@ build:
 - Set the Vercel project to `rootDirectory=null` + custom commands via API:
   ```
   installCommand = "npm install"
-  buildCommand   = "npm run build -w @patchbay/web"
+  buildCommand   = "npm run build -w @patchbay-nebius/web"
   outputDirectory = "apps/web/.next"
   ```
 

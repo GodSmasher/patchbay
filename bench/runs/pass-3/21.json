@@ -1,0 +1,649 @@
+{
+  "prompt": "When a Stripe invoice is finalized, create a line item in QuickBooks for every invoice line and attach the Stripe invoice URL to the QuickBooks invoice.",
+  "events": [
+    {
+      "type": "mode",
+      "mode": "live"
+    },
+    {
+      "type": "step",
+      "step": "plan",
+      "status": "start"
+    },
+    {
+      "type": "plan",
+      "plan": {
+        "summary": "When a Stripe invoice is finalized, create a corresponding invoice in QuickBooks and add a line item for each Stripe invoice line, then attach the Stripe invoice URL to the QuickBooks invoice.",
+        "source": {
+          "app": "Stripe",
+          "trigger": "invoice.finalized webhook",
+          "docsQuery": "Stripe invoice.finalized webhook payload line items invoice URL"
+        },
+        "target": {
+          "app": "QuickBooks",
+          "action": "create invoice",
+          "docsQuery": "QuickBooks Online API create invoice with line items request body"
+        },
+        "additionalTargets": [
+          {
+            "app": "QuickBooks",
+            "action": "attach document to invoice",
+            "docsQuery": "QuickBooks Online API attach existing document to invoice request body"
+          }
+        ],
+        "fieldMapping": [
+          {
+            "from": "id",
+            "to": "DocNumber",
+            "note": "Stripe invoice ID used as QuickBooks DocNumber"
+          },
+          {
+            "from": "customer.email",
+            "to": "CustomerRef",
+            "note": "QuickBooks Customer ID reference"
+          },
+          {
+            "from": "lines[][description]",
+            "to": "Line",
+            "note": "Map each Stripe line description to QuickBooks line item description"
+          },
+          {
+            "from": "lines[][amount]",
+            "to": "Amount",
+            "note": "Map each Stripe line amount (in cents) to QuickBooks amount"
+          },
+          {
+            "from": "lines[][currency]",
+            "to": "Currency",
+            "note": "Convert Stripe currency code to QuickBooks currency enum"
+          },
+          {
+            "from": "invoice.url",
+            "to": "CustomField",
+            "note": "Attach Stripe invoice URL as a custom field or attachment on the QuickBooks invoice"
+          }
+        ],
+        "assumptions": [
+          "The Stripe webhook is already configured and delivering invoice.finalized events.",
+          "The QuickBooks company file exists and the integration has OAuth access with write permissions.",
+          "Each Stripe invoice line can be directly mapped to a QuickBooks line item without additional transformation.",
+          "QuickBooks supports attaching a URL as a custom field or document reference; if not, the URL will be logged for manual review."
+        ]
+      }
+    },
+    {
+      "type": "step",
+      "step": "plan",
+      "status": "done",
+      "detail": "When a Stripe invoice is finalized, create a corresponding invoice in QuickBooks and add a line item for each Stripe invoice line, then attach the Stripe invoice URL to the QuickBooks invoice."
+    },
+    {
+      "type": "step",
+      "step": "research",
+      "status": "start"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Installing typescript + vitest in a sandbox checkpoint"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Searched \"QuickBooks Online API attach existing document to invoice request body\": 1 of 2 picked from QuickBooks's own docs"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Searched \"Stripe invoice.finalized webhook payload line items invoice URL\": 2 of 2 picked from Stripe's own docs"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "No QuickBooks page in the results, searched quickbooks.com directly: 5 results"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Searched \"QuickBooks Online API create invoice with line items request body\": 2 of 2 picked from QuickBooks's own docs"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Checkpoint ready: 1c3bbc01"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Extracted 5 documentation pages"
+    },
+    {
+      "type": "sources",
+      "sources": [
+        {
+          "title": "Retrieve an invoice's line items | Stripe API Reference",
+          "url": "https://docs.stripe.com/api/invoice-line-item/retrieve",
+          "official": true
+        },
+        {
+          "title": "The Invoice object | Stripe API Reference",
+          "url": "https://docs.stripe.com/api/invoices/object",
+          "official": true
+        },
+        {
+          "title": "Online Bill Pay - Automate Your Bills Today | QuickBooks",
+          "url": "https://quickbooks.com/billpay",
+          "official": true
+        },
+        {
+          "title": "Free Invoice Generator — Create an Invoice in Minutes",
+          "url": "https://quickbooks.com/InvoiceAI",
+          "official": true
+        },
+        {
+          "title": "Linking an Estimate to an Invoice via QuickBooks API - Intuit",
+          "url": "https://quickbooks.intuit.com/community/topic/show?tid=88479&fid=9",
+          "official": true
+        },
+        {
+          "title": "Attaching file to invoice and include on send via API. - Help",
+          "url": "https://help.developer.intuit.com/s/question/0D54R00006tjUxuSAE/attaching-file-to-invoice-and-include-on-send-via-api",
+          "official": false
+        }
+      ]
+    },
+    {
+      "type": "spec",
+      "spec": {
+        "source": {
+          "app": "Stripe",
+          "role": "source",
+          "method": "POST",
+          "url": "",
+          "auth": {
+            "type": "none",
+            "name": null,
+            "envVar": null
+          },
+          "example": {
+            "id": "in_1NpHiG2eZvKYlo2CZV0ZkEBT",
+            "customer": {
+              "email": "jennyrosen@example.com"
+            },
+            "lines": {
+              "data": [
+                {
+                  "description": "My First Invoice Item (created for API docs)",
+                  "amount": 129999,
+                  "currency": "usd"
+                }
+              ]
+            },
+            "url": "https://pay.stripe.com/invoice/in_1NpHiG2eZvKYlo2CZV0ZkEBT"
+          },
+          "docsUrl": "https://docs.stripe.com/api/invoices/object",
+          "notes": [
+            "Stripe invoice.finalized webhook delivers the full invoice object including lines.data array with amount in cents, currency, description, and hosted invoice URL.",
+            "Lines are paginated via the /v1/invoices/:id/lines endpoint with has_more and url for pagination; connector must follow pagination if has_more is true.",
+            "No auth needed in spec as webhook delivery is handled by platform; Stripe signature verification is assumed elsewhere."
+          ]
+        },
+        "target": [
+          {
+            "app": "QuickBooks",
+            "role": "target",
+            "method": "POST",
+            "url": "https://quickbooks.api.intuit.com/v3/company/<realmID>/invoice",
+            "auth": {
+              "type": "bearer",
+              "name": "Authorization",
+              "envVar": "QUICKBOOKS_OAUTH_ACCESS_TOKEN"
+            },
+            "example": {
+              "DocNumber": "in_1NpHiG2eZvKYlo2CZV0ZkEBT",
+              "Line": [
+                {
+                  "Description": "My First Invoice Item (created for API docs)",
+                  "Amount": 1299.99,
+                  "DetailType": "SalesItemLineDetail",
+                  "SalesItemLineDetail": {
+                    "ItemRef": {
+                      "value": "1",
+                      "name": "Service"
+                    }
+                  }
+                }
+              ],
+              "Currency": "USD",
+              "CustomField": [
+                {
+                  "DefinitionId": "1",
+                  "StringValue": "https://pay.stripe.com/invoice/in_1NpHiG2eZvKYlo2CZV0ZkEBT"
+                }
+              ]
+            },
+            "responseExample": {
+              "Invoice": {
+                "Id": "123",
+                "DocNumber": "in_1NpHiG2eZvKYlo2CZV0ZkEBT"
+              }
+            },
+            "docsUrl": "https://developer.intuit.com/app/developer/qbo/docs/api/accounting/most-commonly-used/invoice",
+            "notes": [
+              "QuickBooks Online API requires realmID and OAuth 2.0 Bearer token.",
+              "Amount must be in decimal dollars (convert from cents).",
+              "Currency must be ISO 4217 enum (e.g., 'USD').",
+              "Line items require DetailType and SalesItemLineDetail with ItemRef; assuming a default service item.",
+              "CustomField used to store Stripe invoice URL; assumes a custom field named 'Stripe Invoice URL' with DefinitionId '1'.",
+              "No pagination in create invoice endpoint."
+            ]
+          },
+          {
+            "app": "QuickBooks",
+            "role": "target",
+            "method": "POST",
+            "url": "https://quickbooks.api.intuit.com/v3/company/<realmID>/attachment",
+            "auth": {
+              "type": "bearer",
+              "name": "Authorization",
+              "envVar": "QUICKBOOKS_OAUTH_ACCESS_TOKEN"
+            },
+            "example": {
+              "AttachableRef": [
+                {
+                  "EntityRef": {
+                    "type": "Invoice",
+                    "value": "123"
+                  }
+                }
+              ],
+              "FileName": "stripe_invoice.txt",
+              "ContentType": "text/plain",
+              "ByteOrder": "LittleEndian",
+              "Content": "aHR0cHM6Ly9wYWkuc3RyaXBlLmNvbS9pbnZvaWNlL2luXzFOcEhHMWV2WksiWWxvMkNaVjBaZ0VCVA=="
+            },
+            "responseExample": {
+              "Attachment": {
+                "Id": "456"
+              }
+            },
+            "docsUrl": "https://developer.intuit.com/app/developer/qbo/docs/api/accounting/attachment",
+            "notes": [
+              "QuickBooks Attach endpoint used to attach document (here, Stripe URL as text file) to invoice via AttachableRef.EntityRef.",
+              "Requires Invoice ID from previous create invoice response.",
+              "File contains base64-encoded Stripe invoice URL.",
+              "ContentType 'text/plain' used for URL; could also be 'text/uri-list'.",
+              "No pagination in attachment endpoint."
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "step",
+      "step": "research",
+      "status": "done",
+      "detail": "3 endpoints from 6 pages"
+    },
+    {
+      "type": "step",
+      "step": "generate",
+      "status": "start"
+    },
+    {
+      "type": "files",
+      "attempt": 1,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "export interface StripeInvoiceFinalizedPayload {\n  id: string;\n  customer: {\n    email: string;\n  };\n  lines: {\n    data: Array<{\n      description: string;\n      amount: number;\n      currency: string;\n    }>;\n    has_more?: boolean;\n    url?: string;\n  };\n  url: string;\n}\n\nexport interface ConnectorConfig {\n  realmId: string;\n  accessToken: string;\n  serviceItemId?: string;\n  customFieldDefinitionId?: string;\n  defaultCustomerId: string;\n  fetch?: typeof fetch;\n}\n\nexport interface HandleResult {\n  invoiceId: string;\n  attachmentId: string;\n}\n\nfunction base64Encode(str: string): string {\n  if (typeof Buffer !== 'undefined') {\n    return Buffer.from(str).toString('base64');\n  }\n  // Fallback for browser-like environments (not expected in patchbay)\n  return btoa(str);\n}\n\nasync function fetchAllStripeLines(\n  payload: StripeInvoiceFinalizedPayload,\n  fetchFn: typeof fetch\n): Promise<StripeInvoiceFinalizedPayload['lines']['data']> {\n  const lines = payload.lines.data;\n  if (payload.lines.has_more && payload.lines.url) {\n    throw new Error(\n      'Stripe invoice lines pagination detected (has_more=true) but connector cannot fetch additional pages without Stripe API credentials. Provide a Stripe secret key or ensure webhook delivers all lines.'\n    );\n  }\n  return lines;\n}\n\nexport async function handle(\n  payload: StripeInvoiceFinalizedPayload,\n  config: ConnectorConfig\n): Promise<HandleResult> {\n  const fetchFn = config.fetch ?? fetch;\n\n  // Validate required fields\n  if (!payload.id) throw new Error('Missing required field: id');\n  if (!payload.customer?.email) throw new Error('Missing required field: customer.email');\n  if (!payload.lines?.data || !Array.isArray(payload.lines.data) || payload.lines.data.length === 0) {\n    throw new Error('Missing required field: lines.data (must be non-empty array)');\n  }\n  if (!payload.url) throw new Error('Missing required field: url');\n\n  const allLines = await fetchAllStripeLines(payload, fetchFn);\n\n  // Convert lines to QuickBooks format\n  const qbLines = allLines.map((line) => ({\n    Description: line.description,\n    Amount: line.amount / 100,\n    DetailType: 'SalesItemLineDetail',\n    SalesItemLineDetail: {\n      ItemRef: {\n        value: config.serviceItemId ?? '1',\n        name: 'Service',\n      },\n    },\n  }));\n\n  // Determine currency from first line (assume all lines same currency)\n  const currency = allLines[0].currency.toUpperCase();\n\n  // Build invoice request body\n  const invoiceBody = {\n    DocNumber: payload.id,\n    Line: qbLines,\n    Currency: currency,\n    CustomerRef: {\n      value: config.defaultCustomerId,\n    },\n    CustomField: [\n      {\n        DefinitionId: config.customFieldDefinitionId ?? '1',\n        StringValue: payload.url,\n      },\n    ],\n  };\n\n  const invoiceUrl = `https://quickbooks.api.intuit.com/v3/company/${config.realmId}/invoice`;\n  const invoiceResponse = await fetchFn(invoiceUrl, {\n    method: 'POST',\n    headers: {\n      Authorization: `Bearer ${config.accessToken}`,\n      'Content-Type': 'application/json',\n      Accept: 'application/json',\n    },\n    body: JSON.stringify(invoiceBody),\n  });\n\n  if (!invoiceResponse.ok) {\n    throw new Error(\n      `QuickBooks create invoice failed: ${invoiceResponse.status} ${invoiceResponse.statusText} at ${invoiceUrl}`\n    );\n  }\n\n  const invoiceJson = await invoiceResponse.json();\n  const invoiceId = invoiceJson?.Invoice?.Id;\n  if (!invoiceId) throw new Error('QuickBooks invoice response missing Invoice.Id');\n\n  // Attach Stripe invoice URL as document\n  const attachmentBody = {\n    AttachableRef: [\n      {\n        EntityRef: {\n          type: 'Invoice',\n          value: invoiceId,\n        },\n      },\n    ],\n    FileName: 'stripe_invoice.txt',\n    ContentType: 'text/plain',\n    ByteOrder: 'LittleEndian',\n    Content: base64Encode(payload.url),\n  };\n\n  const attachmentUrl = `https://quickbooks.api.intuit.com/v3/company/${config.realmId}/attachment`;\n  const attachmentResponse = await fetchFn(attachmentUrl, {\n    method: 'POST',\n    headers: {\n      Authorization: `Bearer ${config.accessToken}`,\n      'Content-Type': 'application/json',\n      Accept: 'application/json',\n    },\n    body: JSON.stringify(attachmentBody),\n  });\n\n  if (!attachmentResponse.ok) {\n    throw new Error(\n      `QuickBooks attach document failed: ${attachmentResponse.status} ${attachmentResponse.statusText} at ${attachmentUrl}`\n    );\n  }\n\n  const attachmentJson = await attachmentResponse.json();\n  const attachmentId = attachmentJson?.Attachment?.Id;\n  if (!attachmentId) throw new Error('QuickBooks attachment response missing Attachment.Id');\n\n  return { invoiceId, attachmentId };\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi } from 'vitest';\nimport { handle, ConnectorConfig, StripeInvoiceFinalizedPayload } from './connector';\nimport {\n  SOURCE_EXAMPLE,\n  contractFetch,\n  fakeFetch,\n  jsonResponse,\n  TARGET_ENDPOINTS,\n} from './fixtures';\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch();\n    const config: ConnectorConfig = {\n      realmId: 'test-realm',\n      accessToken: 'test-token',\n      defaultCustomerId: '1',\n      fetch,\n    };\n    const result = await handle(SOURCE_EXAMPLE as unknown as StripeInvoiceFinalizedPayload, config);\n    expect(calls.length).toBeGreaterThan(0);\n    expect(result.invoiceId).toBe('123');\n    expect(result.attachmentId).toBe('456');\n  });\n});\n\ndescribe('happy path', () => {\n  it('creates invoice and attachment with correct request bodies', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.url.endsWith('/invoice')) {\n        expect(req.method).toBe('POST');\n        expect(req.headers.get('authorization')).toBe('Bearer test-token');\n        expect(req.json).toMatchObject({\n          DocNumber: 'in_123',\n          Currency: 'USD',\n          CustomerRef: { value: '42' },\n          CustomField: [{ DefinitionId: '1', StringValue: 'https://pay.stripe.com/invoice/in_123' }],\n        });\n        expect(Array.isArray(req.json.Line)).toBe(true);\n        expect(req.json.Line[0]).toMatchObject({\n          Description: 'Test Item',\n          Amount: 12.99,\n          DetailType: 'SalesItemLineDetail',\n          SalesItemLineDetail: { ItemRef: { value: '1', name: 'Service' } },\n        });\n        return jsonResponse({ Invoice: { Id: '999', DocNumber: 'in_123' } }, 201);\n      }\n      if (req.url.endsWith('/attachment')) {\n        expect(req.method).toBe('POST');\n        expect(req.headers.get('authorization')).toBe('Bearer test-token');\n        expect(req.json).toMatchObject({\n          AttachableRef: [{ EntityRef: { type: 'Invoice', value: '999' } }],\n          FileName: 'stripe_invoice.txt',\n          ContentType: 'text/plain',\n          ByteOrder: 'LittleEndian',\n          Content: 'aHR0cHM6Ly9wYXkuc3RyaXBlLmNvbS9pbnZvaWNlL2luXzEyMw==', // base64 of the URL\n        });\n        return jsonResponse({ Attachment: { Id: '888' } }, 201);\n      }\n      return jsonResponse({ error: 'not found' }, 404);\n    });\n\n    const payload: StripeInvoiceFinalizedPayload = {\n      id: 'in_123',\n      customer: { email: 'test@example.com' },\n      lines: {\n        data: [\n          { description: 'Test Item', amount: 1299, currency: 'usd' },\n        ],\n      },\n      url: 'https://pay.stripe.com/invoice/in_123',\n    };\n\n    const config: ConnectorConfig = {\n      realmId: 'test-realm',\n      accessToken: 'test-token',\n      defaultCustomerId: '42',\n      fetch,\n    };\n\n    const result = await handle(payload, config);\n    expect(result.invoiceId).toBe('999');\n    expect(result.attachmentId).toBe('888');\n    expect(calls.length).toBe(2);\n  });\n});\n\ndescribe('auth mechanism', () => {\n  it('sends Bearer token in Authorization header for both requests', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      expect(req.headers.get('authorization')).toBe('Bearer secret-123');\n      if (req.url.endsWith('/invoice')) return jsonResponse({ Invoice: { Id: '1' } }, 201);\n      if (req.url.endsWith('/attachment')) return jsonResponse({ Attachment: { Id: '2' } }, 201);\n      return jsonResponse({}, 404);\n    });\n\n    const payload: StripeInvoiceFinalizedPayload = {\n      id: 'in_1',\n      customer: { email: 'a@b.com' },\n      lines: { data: [{ description: 'x', amount: 100, currency: 'usd' }] },\n      url: 'https://pay.stripe.com/invoice/in_1',\n    };\n\n    await handle(payload, {\n      realmId: 'r',\n      accessToken: 'secret-123',\n      defaultCustomerId: '1',\n      fetch,\n    });\n\n    expect(calls.length).toBe(2);\n  });\n});\n\ndescribe('field mapping', () => {\n  it('maps Stripe fields to QuickBooks invoice correctly', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.url.endsWith('/invoice')) {\n        const body = req.json as any;\n        expect(body.DocNumber).toBe('in_map');\n        expect(body.Currency).toBe('EUR');\n        expect(body.CustomerRef.value).toBe('cust-99');\n        expect(body.CustomField[0].StringValue).toBe('https://pay.stripe.com/invoice/in_map');\n        expect(body.Line[0].Description).toBe('Mapped Item');\n        expect(body.Line[0].Amount).toBe(42.5);\n        expect(body.Line[0].SalesItemLineDetail.ItemRef.value).toBe('svc-5');\n        return jsonResponse({ Invoice: { Id: '1' } }, 201);\n      }\n      if (req.url.endsWith('/attachment')) return jsonResponse({ Attachment: { Id: '2' } }, 201);\n      return jsonResponse({}, 404);\n    });\n\n    const payload: StripeInvoiceFinalizedPayload = {\n      id: 'in_map',\n      customer: { email: 'ignored@email.com' },\n      lines: { data: [{ description: 'Mapped Item', amount: 4250, currency: 'eur' }] },\n      url: 'https://pay.stripe.com/invoice/in_map',\n    };\n\n    await handle(payload, {\n      realmId: 'r',\n      accessToken: 't',\n      defaultCustomerId: 'cust-99',\n      serviceItemId: 'svc-5',\n      customFieldDefinitionId: '9',\n      fetch,\n    });\n\n    expect(calls[0].json).toMatchObject({\n      DocNumber: 'in_map',\n      Currency: 'EUR',\n      CustomerRef: { value: 'cust-99' },\n      CustomField: [{ DefinitionId: '9', StringValue: 'https://pay.stripe.com/invoice/in_map' }],\n      Line: [{\n        Description: 'Mapped Item',\n        Amount: 42.5,\n        SalesItemLineDetail: { ItemRef: { value: 'svc-5', name: 'Service' } },\n      }],\n    });\n  });\n});\n\ndescribe('missing required fields', () => {\n  it('throws on missing id', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200));\n    const payload = { ...SOURCE_EXAMPLE, id: undefined } as unknown as StripeInvoiceFinalizedPayload;\n    await expect(handle(payload, { realmId: 'r', accessToken: 't', defaultCustomerId: '1', fetch })).rejects.toThrow(\n      'Missing required field: id'\n    );\n  });\n\n  it('throws on missing customer.email', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200));\n    const payload = { ...SOURCE_EXAMPLE, customer: {} } as unknown as StripeInvoiceFinalizedPayload;\n    await expect(handle(payload, { realmId: 'r', accessToken: 't', defaultCustomerId: '1', fetch })).rejects.toThrow(\n      'Missing required field: customer.email'\n    );\n  });\n\n  it('throws on missing lines.data', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200));\n    const payload = { ...SOURCE_EXAMPLE, lines: { data: [] } } as unknown as StripeInvoiceFinalizedPayload;\n    await expect(handle(payload, { realmId: 'r', accessToken: 't', defaultCustomerId: '1', fetch })).rejects.toThrow(\n      'Missing required field: lines.data (must be non-empty array)'\n    );\n  });\n\n  it('throws on missing url', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200));\n    const payload = { ...SOURCE_EXAMPLE, url: undefined } as unknown as StripeInvoiceFinalizedPayload;\n    await expect(handle(payload, { realmId: 'r', accessToken: 't', defaultCustomerId: '1', fetch })).rejects.toThrow(\n      'Missing required field: url'\n    );\n  });\n});\n\ndescribe('non-2xx target response', () => {\n  it('throws with status and endpoint on invoice creation failure', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({ error: 'unauthorized' }, 401));\n    const payload: StripeInvoiceFinalizedPayload = {\n      id: 'in_1',\n      customer: { email: 'a@b.com' },\n      lines: { data: [{ description: 'x', amount: 100, currency: 'usd' }] },\n      url: 'https://pay.stripe.com/invoice/in_1',\n    };\n    await expect(\n      handle(payload, { realmId: 'r', accessToken: 't', defaultCustomerId: '1', fetch })\n    ).rejects.toThrow('QuickBooks create invoice failed: 401 Unauthorized at https://quickbooks.api.intuit.com/v3/company/r/invoice');\n  });\n\n  it('throws with status and endpoint on attachment failure', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.url.endsWith('/invoice')) return jsonResponse({ Invoice: { Id: '1' } }, 201);\n      return jsonResponse({ error: 'server error' }, 500);\n    });\n    const payload: StripeInvoiceFinalizedPayload = {\n      id: 'in_1',\n      customer: { email: 'a@b.com' },\n      lines: { data: [{ description: 'x', amount: 100, currency: 'usd' }] },\n      url: 'https://pay.stripe.com/invoice/in_1',\n    };\n    await expect(\n      handle(payload, { realmId: 'r', accessToken: 't', defaultCustomerId: '1', fetch })\n    ).rejects.toThrow('QuickBooks attach document failed: 500 Internal Server Error at https://quickbooks.api.intuit.com/v3/company/r/attachment');\n  });\n});\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# Stripe Invoice to QuickBooks Connector\n\nThis connector listens for Stripe `invoice.finalized` webhooks, creates a corresponding invoice in QuickBooks Online with line items, and attaches the Stripe invoice URL as a document to the QuickBooks invoice.\n\n## What it does\n\n1. Receives a Stripe `invoice.finalized` webhook payload.\n2. Validates required fields (invoice ID, customer email, line items, hosted invoice URL).\n3. Converts Stripe line items (amounts in cents, currency codes) to QuickBooks format (decimal amounts, ISO 4217 currency).\n4. Creates a QuickBooks invoice via the QuickBooks Online API (`POST /v3/company/<realmID>/invoice`).\n5. Attaches the Stripe invoice URL as a base64-encoded text file to the created invoice via the QuickBooks Attachment endpoint (`POST /v3/company/<realmID>/attachment`).\n6. Returns the created QuickBooks invoice ID and attachment ID.\n\n## Configuration / Environment Variables\n\n| Config Property | Environment Variable | Required | Description |\n|-----------------|----------------------|----------|-------------|\n| `realmId` | `QUICKBOOKS_REALM_ID` | Yes | QuickBooks company realm ID (used in API base URL). |\n| `accessToken` | `QUICKBOOKS_OAUTH_ACCESS_TOKEN` | Yes | OAuth 2.0 Bearer token for QuickBooks API authentication. |\n| `defaultCustomerId` | `QUICKBOOKS_DEFAULT_CUSTOMER_ID` | Yes | QuickBooks Customer ID to use for `CustomerRef` (the connector cannot look up customers by email). |\n| `serviceItemId` | `QUICKBOOKS_SERVICE_ITEM_ID` | No (default: `\"1\"`) | QuickBooks Item ID for the default service item used in line items. |\n| `customFieldDefinitionId` | `QUICKBOOKS_STRIPE_URL_CUSTOM_FIELD_DEFINITION_ID` | No (default: `\"1\"`) | QuickBooks Custom Field Definition ID for the \"Stripe Invoice URL\" field. |\n\nAll secrets must be provided via the config object at runtime. The connector never reads `process.env` directly.\n\n## Usage Example\n\n```typescript\nimport { handle, ConnectorConfig } from './connector';\n\nconst config: ConnectorConfig = {\n  realmId: process.env.QUICKBOOKS_REALM_ID!,\n  accessToken: process.env.QUICKBOOKS_OAUTH_ACCESS_TOKEN!,\n  defaultCustomerId: process.env.QUICKBOOKS_DEFAULT_CUSTOMER_ID!,\n  // optional overrides:\n  // serviceItemId: process.env.QUICKBOOKS_SERVICE_ITEM_ID,\n  // customFieldDefinitionId: process.env.QUICKBOOKS_STRIPE_URL_CUSTOM_FIELD_DEFINITION_ID,\n};\n\nconst stripeWebhookPayload = {\n  id: 'in_1NpHiG2eZvKYlo2CZV0ZkEBT',\n  customer: { email: 'jennyrosen@example.com' },\n  lines: {\n    data: [\n      { description: 'My First Invoice Item', amount: 129999, currency: 'usd' }\n    ]\n  },\n  url: 'https://pay.stripe.com/invoice/in_1NpHiG2eZvKYlo2CZV0ZkEBT'\n};\n\nconst result = await handle(stripeWebhookPayload, config);\nconsole.log('Created QuickBooks invoice:', result.invoiceId);\nconsole.log('Attached document:', result.attachmentId);\n```\n\n## Assumptions & Limitations\n\n- The Stripe webhook is already configured and delivers `invoice.finalized` events with the full invoice object including `lines.data`.\n- The QuickBooks company file exists and the integration has OAuth access with write permissions.\n- Each Stripe invoice line maps directly to a QuickBooks line item without additional transformation (quantity, tax, etc. are not handled).\n- QuickBooks supports attaching a URL as a custom field (DefinitionId) and as a document attachment. The connector uses a default service item (ItemRef value `\"1\"`) and a default custom field (DefinitionId `\"1\"`). Override via config if your setup differs.\n- The connector uses the `defaultCustomerId` config for `CustomerRef` because it cannot query QuickBooks for a customer by email. You must map Stripe customers to QuickBooks customers externally and provide the ID.\n- Stripe line item pagination (`has_more: true`) is not supported because the connector lacks Stripe API credentials. If the webhook payload contains `has_more: true`, the connector throws an error. Ensure your webhook delivers all lines or enhance the connector with a Stripe secret key.\n- Amounts are converted from cents to decimal dollars (divide by 100).\n- Currency codes are uppercased to match ISO 4217 (e.g., `usd` → `USD`).\n- The attachment stores the Stripe invoice URL as a base64-encoded plain text file named `stripe_invoice.txt`.\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://docs.stripe.com/api/invoices/object\n// Source: https://developer.intuit.com/app/developer/qbo/docs/api/accounting/most-commonly-used/invoice\n// Source: https://developer.intuit.com/app/developer/qbo/docs/api/accounting/attachment\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"id\": \"in_1NpHiG2eZvKYlo2CZV0ZkEBT\",\n  \"customer\": {\n    \"email\": \"jennyrosen@example.com\"\n  },\n  \"lines\": {\n    \"data\": [\n      {\n        \"description\": \"My First Invoice Item (created for API docs)\",\n        \"amount\": 129999,\n        \"currency\": \"usd\"\n      }\n    ]\n  },\n  \"url\": \"https://pay.stripe.com/invoice/in_1NpHiG2eZvKYlo2CZV0ZkEBT\"\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://quickbooks.api.intuit.com/v3/company/<realmID>/invoice\",\n    \"response\": {\n      \"Invoice\": {\n        \"Id\": \"123\",\n        \"DocNumber\": \"in_1NpHiG2eZvKYlo2CZV0ZkEBT\"\n      }\n    }\n  },\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://quickbooks.api.intuit.com/v3/company/<realmID>/attachment\",\n    \"response\": {\n      \"Attachment\": {\n        \"Id\": \"456\"\n      }\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ]
+    },
+    {
+      "type": "step",
+      "step": "generate",
+      "status": "done",
+      "detail": "src/connector.ts, src/connector.test.ts, README.md, src/fixtures.ts"
+    },
+    {
+      "type": "step",
+      "step": "verify",
+      "status": "start"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Forking checkpoint 1c3bbc01 with 4 files, network off"
+    },
+    {
+      "type": "tests",
+      "attempt": 1,
+      "report": {
+        "typecheckOk": false,
+        "typecheckOutput": "src/connector.test.ts(39,30): error TS18046: 'req.json' is of type 'unknown'.\nsrc/connector.test.ts(40,16): error TS18046: 'req.json' is of type 'unknown'.",
+        "passed": 10,
+        "failed": 0,
+        "total": 10,
+        "failures": [],
+        "durationMs": 289.794189453125,
+        "ranOn": "nebius-sandbox:01a13f5a-b4d3-70df-8c4d-a708fb191222",
+        "passedNames": [
+          "contract handles the documented example payload",
+          "happy path creates invoice and attachment with correct request bodies",
+          "auth mechanism sends Bearer token in Authorization header for both requests",
+          "field mapping maps Stripe fields to QuickBooks invoice correctly",
+          "missing required fields throws on missing id",
+          "missing required fields throws on missing customer.email",
+          "missing required fields throws on missing lines.data",
+          "missing required fields throws on missing url",
+          "non-2xx target response throws with status and endpoint on invoice creation failure",
+          "non-2xx target response throws with status and endpoint on attachment failure"
+        ],
+        "contract": "passed"
+      }
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Attempt 1 failed (0 tests, typecheck failed), repairing"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Repairing with 2 parallel branches (temperatures 0.1, 0.4)"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "[branch 2] Forking checkpoint 1c3bbc01 with 4 files, network off"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "[branch 1] Forking checkpoint 1c3bbc01 with 4 files, network off"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "branch 1: 10/10, typecheck failed, contract passed"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "branch 2: 0/2, typecheck failed, contract failed"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Chose branch 1 (most tests passed)"
+    },
+    {
+      "type": "files",
+      "attempt": 2,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "export interface StripeInvoiceFinalizedPayload {\n  id: string;\n  customer: {\n    email: string;\n  };\n  lines: {\n    data: Array<{\n      description: string;\n      amount: number;\n      currency: string;\n    }>;\n    has_more?: boolean;\n    url?: string;\n  };\n  url: string;\n}\n\nexport interface ConnectorConfig {\n  realmId: string;\n  accessToken: string;\n  serviceItemId?: string;\n  customFieldDefinitionId?: string;\n  defaultCustomerId: string;\n  fetch?: typeof fetch;\n}\n\nexport interface HandleResult {\n  invoiceId: string;\n  attachmentId: string;\n}\n\nfunction base64Encode(str: string): string {\n  if (typeof Buffer !== 'undefined') {\n    return Buffer.from(str).toString('base64');\n  }\n  return btoa(str);\n}\n\nasync function fetchAllStripeLines(\n  payload: StripeInvoiceFinalizedPayload,\n  fetchFn: typeof fetch\n): Promise<StripeInvoiceFinalizedPayload['lines']['data']> {\n  const lines = payload.lines.data;\n  if (payload.lines.has_more && payload.lines.url) {\n    throw new Error(\n      'Stripe invoice lines pagination detected (has_more=true) but connector cannot fetch additional pages without Stripe API credentials. Provide a Stripe secret key or ensure webhook delivers all lines.'\n    );\n  }\n  return lines;\n}\n\nexport async function handle(\n  payload: StripeInvoiceFinalizedPayload,\n  config: ConnectorConfig\n): Promise<HandleResult> {\n  const fetchFn = config.fetch ?? fetch;\n\n  if (!payload.id) throw new Error('Missing required field: id');\n  if (!payload.customer?.email) throw new Error('Missing required field: customer.email');\n  if (!payload.lines?.data || !Array.isArray(payload.lines.data) || payload.lines.data.length === 0) {\n    throw new Error('Missing required field: lines.data (must be non-empty array)');\n  }\n  if (!payload.url) throw new Error('Missing required field: url');\n\n  const allLines = await fetchAllStripeLines(payload, fetchFn);\n\n  const qbLines = allLines.map((line) => ({\n    Description: line.description,\n    Amount: line.amount / 100,\n    DetailType: 'SalesItemLineDetail',\n    SalesItemLineDetail: {\n      ItemRef: {\n        value: config.serviceItemId ?? '1',\n        name: 'Service',\n      },\n    },\n  }));\n\n  const currency = allLines[0].currency.toUpperCase();\n\n  const invoiceBody = {\n    DocNumber: payload.id,\n    Line: qbLines,\n    Currency: currency,\n    CustomerRef: {\n      value: config.defaultCustomerId,\n    },\n    CustomField: [\n      {\n        DefinitionId: config.customFieldDefinitionId ?? '1',\n        StringValue: payload.url,\n      },\n    ],\n  };\n\n  const invoiceUrl = `https://quickbooks.api.intuit.com/v3/company/${config.realmId}/invoice`;\n  const invoiceResponse = await fetchFn(invoiceUrl, {\n    method: 'POST',\n    headers: {\n      Authorization: `Bearer ${config.accessToken}`,\n      'Content-Type': 'application/json',\n      Accept: 'application/json',\n    },\n    body: JSON.stringify(invoiceBody),\n  });\n\n  if (!invoiceResponse.ok) {\n    throw new Error(\n      `QuickBooks create invoice failed: ${invoiceResponse.status} ${invoiceResponse.statusText} at ${invoiceUrl}`\n    );\n  }\n\n  const invoiceJson = await invoiceResponse.json();\n  const invoiceId = invoiceJson?.Invoice?.Id;\n  if (!invoiceId) throw new Error('QuickBooks invoice response missing Invoice.Id');\n\n  const attachmentBody = {\n    AttachableRef: [\n      {\n        EntityRef: {\n          type: 'Invoice',\n          value: invoiceId,\n        },\n      },\n    ],\n    FileName: 'stripe_invoice.txt',\n    ContentType: 'text/plain',\n    ByteOrder: 'LittleEndian',\n    Content: base64Encode(payload.url),\n  };\n\n  const attachmentUrl = `https://quickbooks.api.intuit.com/v3/company/${config.realmId}/attachment`;\n  const attachmentResponse = await fetchFn(attachmentUrl, {\n    method: 'POST',\n    headers: {\n      Authorization: `Bearer ${config.accessToken}`,\n      'Content-Type': 'application/json',\n      Accept: 'application/json',\n    },\n    body: JSON.stringify(attachmentBody),\n  });\n\n  if (!attachmentResponse.ok) {\n    throw new Error(\n      `QuickBooks attach document failed: ${attachmentResponse.status} ${attachmentResponse.statusText} at ${attachmentUrl}`\n    );\n  }\n\n  const attachmentJson = await attachmentResponse.json();\n  const attachmentId = attachmentJson?.Attachment?.Id;\n  if (!attachmentId) throw new Error('QuickBooks attachment response missing Attachment.Id');\n\n  return { invoiceId, attachmentId };\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi } from 'vitest';\nimport { handle, ConnectorConfig, StripeInvoiceFinalizedPayload } from './connector';\nimport {\n  SOURCE_EXAMPLE,\n  contractFetch,\n  fakeFetch,\n  jsonResponse,\n  TARGET_ENDPOINTS,\n} from './fixtures';\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch();\n    const config: ConnectorConfig = {\n      realmId: 'test-realm',\n      accessToken: 'test-token',\n      defaultCustomerId: '1',\n      fetch,\n    };\n    const result = await handle(SOURCE_EXAMPLE as unknown as StripeInvoiceFinalizedPayload, config);\n    expect(calls.length).toBeGreaterThan(0);\n    expect(result.invoiceId).toBe('123');\n    expect(result.attachmentId).toBe('456');\n  });\n});\n\ndescribe('happy path', () => {\n  it('creates invoice and attachment with correct request bodies', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.url.endsWith('/invoice')) {\n        expect(req.method).toBe('POST');\n        expect(req.headers.get('authorization')).toBe('Bearer test-token');\n        const body = req.json as Record<string, unknown>;\n        expect(body).toMatchObject({\n          DocNumber: 'in_123',\n          Currency: 'USD',\n          CustomerRef: { value: '42' },\n          CustomField: [{ DefinitionId: '1', StringValue: 'https://pay.stripe.com/invoice/in_123' }],\n        });\n        expect(Array.isArray(body.Line)).toBe(true);\n        const line0 = body.Line[0] as Record<string, unknown>;\n        expect(line0).toMatchObject({\n          Description: 'Test Item',\n          Amount: 12.99,\n          DetailType: 'SalesItemLineDetail',\n          SalesItemLineDetail: { ItemRef: { value: '1', name: 'Service' } },\n        });\n        return jsonResponse({ Invoice: { Id: '999', DocNumber: 'in_123' } }, 201);\n      }\n      if (req.url.endsWith('/attachment')) {\n        expect(req.method).toBe('POST');\n        expect(req.headers.get('authorization')).toBe('Bearer test-token');\n        const body = req.json as Record<string, unknown>;\n        expect(body).toMatchObject({\n          AttachableRef: [{ EntityRef: { type: 'Invoice', value: '999' } }],\n          FileName: 'stripe_invoice.txt',\n          ContentType: 'text/plain',\n          ByteOrder: 'LittleEndian',\n          Content: 'aHR0cHM6Ly9wYXkuc3RyaXBlLmNvbS9pbnZvaWNlL2luXzEyMw==',\n        });\n        return jsonResponse({ Attachment: { Id: '888' } }, 201);\n      }\n      return jsonResponse({ error: 'not found' }, 404);\n    });\n\n    const payload: StripeInvoiceFinalizedPayload = {\n      id: 'in_123',\n      customer: { email: 'test@example.com' },\n      lines: {\n        data: [\n          { description: 'Test Item', amount: 1299, currency: 'usd' },\n        ],\n      },\n      url: 'https://pay.stripe.com/invoice/in_123',\n    };\n\n    const config: ConnectorConfig = {\n      realmId: 'test-realm',\n      accessToken: 'test-token',\n      defaultCustomerId: '42',\n      fetch,\n    };\n\n    const result = await handle(payload, config);\n    expect(result.invoiceId).toBe('999');\n    expect(result.attachmentId).toBe('888');\n    expect(calls.length).toBe(2);\n  });\n});\n\ndescribe('auth mechanism', () => {\n  it('sends Bearer token in Authorization header for both requests', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      expect(req.headers.get('authorization')).toBe('Bearer secret-123');\n      if (req.url.endsWith('/invoice')) return jsonResponse({ Invoice: { Id: '1' } }, 201);\n      if (req.url.endsWith('/attachment')) return jsonResponse({ Attachment: { Id: '2' } }, 201);\n      return jsonResponse({}, 404);\n    });\n\n    const payload: StripeInvoiceFinalizedPayload = {\n      id: 'in_1',\n      customer: { email: 'a@b.com' },\n      lines: { data: [{ description: 'x', amount: 100, currency: 'usd' }] },\n      url: 'https://pay.stripe.com/invoice/in_1',\n    };\n\n    await handle(payload, {\n      realmId: 'r',\n      accessToken: 'secret-123',\n      defaultCustomerId: '1',\n      fetch,\n    });\n\n    expect(calls.length).toBe(2);\n  });\n});\n\ndescribe('field mapping', () => {\n  it('maps Stripe fields to QuickBooks invoice correctly', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.url.endsWith('/invoice')) {\n        const body = req.json as Record<string, unknown>;\n        expect(body.DocNumber).toBe('in_map');\n        expect(body.Currency).toBe('EUR');\n        expect((body.CustomerRef as Record<string, unknown>).value).toBe('cust-99');\n        expect((body.CustomField as unknown[])[0]).toMatchObject({\n          DefinitionId: '9',\n          StringValue: 'https://pay.stripe.com/invoice/in_map',\n        });\n        const line0 = (body.Line as unknown[])[0] as Record<string, unknown>;\n        expect(line0.Description).toBe('Mapped Item');\n        expect(line0.Amount).toBe(42.5);\n        expect(((line0.SalesItemLineDetail as Record<string, unknown>).ItemRef as Record<string, unknown>).value).toBe('svc-5');\n        return jsonResponse({ Invoice: { Id: '1' } }, 201);\n      }\n      if (req.url.endsWith('/attachment')) return jsonResponse({ Attachment: { Id: '2' } }, 201);\n      return jsonResponse({}, 404);\n    });\n\n    const payload: StripeInvoiceFinalizedPayload = {\n      id: 'in_map',\n      customer: { email: 'ignored@email.com' },\n      lines: { data: [{ description: 'Mapped Item', amount: 4250, currency: 'eur' }] },\n      url: 'https://pay.stripe.com/invoice/in_map',\n    };\n\n    await handle(payload, {\n      realmId: 'r',\n      accessToken: 't',\n      defaultCustomerId: 'cust-99',\n      serviceItemId: 'svc-5',\n      customFieldDefinitionId: '9',\n      fetch,\n    });\n\n    const invoiceCallBody = calls[0].json as Record<string, unknown>;\n    expect(invoiceCallBody).toMatchObject({\n      DocNumber: 'in_map',\n      Currency: 'EUR',\n      CustomerRef: { value: 'cust-99' },\n      CustomField: [{ DefinitionId: '9', StringValue: 'https://pay.stripe.com/invoice/in_map' }],\n      Line: [{\n        Description: 'Mapped Item',\n        Amount: 42.5,\n        SalesItemLineDetail: { ItemRef: { value: 'svc-5', name: 'Service' } },\n      }],\n    });\n  });\n});\n\ndescribe('missing required fields', () => {\n  it('throws on missing id', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200));\n    const payload = { ...SOURCE_EXAMPLE, id: undefined } as unknown as StripeInvoiceFinalizedPayload;\n    await expect(handle(payload, { realmId: 'r', accessToken: 't', defaultCustomerId: '1', fetch })).rejects.toThrow(\n      'Missing required field: id'\n    );\n  });\n\n  it('throws on missing customer.email', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200));\n    const payload = { ...SOURCE_EXAMPLE, customer: {} } as unknown as StripeInvoiceFinalizedPayload;\n    await expect(handle(payload, { realmId: 'r', accessToken: 't', defaultCustomerId: '1', fetch })).rejects.toThrow(\n      'Missing required field: customer.email'\n    );\n  });\n\n  it('throws on missing lines.data', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200));\n    const payload = { ...SOURCE_EXAMPLE, lines: { data: [] } } as unknown as StripeInvoiceFinalizedPayload;\n    await expect(handle(payload, { realmId: 'r', accessToken: 't', defaultCustomerId: '1', fetch })).rejects.toThrow(\n      'Missing required field: lines.data (must be non-empty array)'\n    );\n  });\n\n  it('throws on missing url', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200));\n    const payload = { ...SOURCE_EXAMPLE, url: undefined } as unknown as StripeInvoiceFinalizedPayload;\n    await expect(handle(payload, { realmId: 'r', accessToken: 't', defaultCustomerId: '1', fetch })).rejects.toThrow(\n      'Missing required field: url'\n    );\n  });\n});\n\ndescribe('non-2xx target response', () => {\n  it('throws with status and endpoint on invoice creation failure', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({ error: 'unauthorized' }, 401));\n    const payload: StripeInvoiceFinalizedPayload = {\n      id: 'in_1',\n      customer: { email: 'a@b.com' },\n      lines: { data: [{ description: 'x', amount: 100, currency: 'usd' }] },\n      url: 'https://pay.stripe.com/invoice/in_1',\n    };\n    await expect(\n      handle(payload, { realmId: 'r', accessToken: 't', defaultCustomerId: '1', fetch })\n    ).rejects.toThrow('QuickBooks create invoice failed: 401 Unauthorized at https://quickbooks.api.intuit.com/v3/company/r/invoice');\n  });\n\n  it('throws with status and endpoint on attachment failure', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.url.endsWith('/invoice')) return jsonResponse({ Invoice: { Id: '1' } }, 201);\n      return jsonResponse({ error: 'server error' }, 500);\n    });\n    const payload: StripeInvoiceFinalizedPayload = {\n      id: 'in_1',\n      customer: { email: 'a@b.com' },\n      lines: { data: [{ description: 'x', amount: 100, currency: 'usd' }] },\n      url: 'https://pay.stripe.com/invoice/in_1',\n    };\n    await expect(\n      handle(payload, { realmId: 'r', accessToken: 't', defaultCustomerId: '1', fetch })\n    ).rejects.toThrow('QuickBooks attach document failed: 500 Internal Server Error at https://quickbooks.api.intuit.com/v3/company/r/attachment');\n  });\n});\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# Stripe Invoice to QuickBooks Connector\n\nThis connector listens for Stripe `invoice.finalized` webhooks, creates a corresponding invoice in QuickBooks Online with line items, and attaches the Stripe invoice URL as a document to the QuickBooks invoice.\n\n## What it does\n\n1. Receives a Stripe `invoice.finalized` webhook payload.\n2. Validates required fields (invoice ID, customer email, line items, hosted invoice URL).\n3. Converts Stripe line items (amounts in cents, currency codes) to QuickBooks format (decimal amounts, ISO 4217 currency).\n4. Creates a QuickBooks invoice via the QuickBooks Online API (`POST /v3/company/<realmID>/invoice`).\n5. Attaches the Stripe invoice URL as a base64-encoded text file to the created invoice via the QuickBooks Attachment endpoint (`POST /v3/company/<realmID>/attachment`).\n6. Returns the created QuickBooks invoice ID and attachment ID.\n\n## Configuration / Environment Variables\n\n| Config Property | Environment Variable | Required | Description |\n|-----------------|----------------------|----------|-------------|\n| `realmId` | `QUICKBOOKS_REALM_ID` | Yes | QuickBooks company realm ID (used in API base URL). |\n| `accessToken` | `QUICKBOOKS_OAUTH_ACCESS_TOKEN` | Yes | OAuth 2.0 Bearer token for QuickBooks API authentication. |\n| `defaultCustomerId` | `QUICKBOOKS_DEFAULT_CUSTOMER_ID` | Yes | QuickBooks Customer ID to use for `CustomerRef` (the connector cannot look up customers by email). |\n| `serviceItemId` | `QUICKBOOKS_SERVICE_ITEM_ID` | No (default: `\"1\"`) | QuickBooks Item ID for the default service item used in line items. |\n| `customFieldDefinitionId` | `QUICKBOOKS_STRIPE_URL_CUSTOM_FIELD_DEFINITION_ID` | No (default: `\"1\"`) | QuickBooks Custom Field Definition ID for the \"Stripe Invoice URL\" field. |\n\nAll secrets must be provided via the config object at runtime. The connector never reads `process.env` directly.\n\n## Usage Example\n\n```typescript\nimport { handle, ConnectorConfig } from './connector';\n\nconst config: ConnectorConfig = {\n  realmId: process.env.QUICKBOOKS_REALM_ID!,\n  accessToken: process.env.QUICKBOOKS_OAUTH_ACCESS_TOKEN!,\n  defaultCustomerId: process.env.QUICKBOOKS_DEFAULT_CUSTOMER_ID!,\n  // optional overrides:\n  // serviceItemId: process.env.QUICKBOOKS_SERVICE_ITEM_ID,\n  // customFieldDefinitionId: process.env.QUICKBOOKS_STRIPE_URL_CUSTOM_FIELD_DEFINITION_ID,\n};\n\nconst stripeWebhookPayload = {\n  id: 'in_1NpHiG2eZvKYlo2CZV0ZkEBT',\n  customer: { email: 'jennyrosen@example.com' },\n  lines: {\n    data: [\n      { description: 'My First Invoice Item', amount: 129999, currency: 'usd' }\n    ]\n  },\n  url: 'https://pay.stripe.com/invoice/in_1NpHiG2eZvKYlo2CZV0ZkEBT'\n};\n\nconst result = await handle(stripeWebhookPayload, config);\nconsole.log('Created QuickBooks invoice:', result.invoiceId);\nconsole.log('Attached document:', result.attachmentId);\n```\n\n## Assumptions & Limitations\n\n- The Stripe webhook is already configured and delivers `invoice.finalized` events with the full invoice object including `lines.data`.\n- The QuickBooks company file exists and the integration has OAuth access with write permissions.\n- Each Stripe invoice line maps directly to a QuickBooks line item without additional transformation (quantity, tax, etc. are not handled).\n- QuickBooks supports attaching a URL as a custom field (DefinitionId) and as a document attachment. The connector uses a default service item (ItemRef value `\"1\"`) and a default custom field (DefinitionId `\"1\"`). Override via config if your setup differs.\n- The connector uses the `defaultCustomerId` config for `CustomerRef` because it cannot query QuickBooks for a customer by email. You must map Stripe customers to QuickBooks customers externally and provide the ID.\n- Stripe line item pagination (`has_more: true`) is not supported because the connector lacks Stripe API credentials. If the webhook payload contains `has_more: true`, the connector throws an error. Ensure your webhook delivers all lines or enhance the connector with a Stripe secret key.\n- Amounts are converted from cents to decimal dollars (divide by 100).\n- Currency codes are uppercased to match ISO 4217 (e.g., `usd` → `USD`).\n- The attachment stores the Stripe invoice URL as a base64-encoded plain text file named `stripe_invoice.txt`.\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://docs.stripe.com/api/invoices/object\n// Source: https://developer.intuit.com/app/developer/qbo/docs/api/accounting/most-commonly-used/invoice\n// Source: https://developer.intuit.com/app/developer/qbo/docs/api/accounting/attachment\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"id\": \"in_1NpHiG2eZvKYlo2CZV0ZkEBT\",\n  \"customer\": {\n    \"email\": \"jennyrosen@example.com\"\n  },\n  \"lines\": {\n    \"data\": [\n      {\n        \"description\": \"My First Invoice Item (created for API docs)\",\n        \"amount\": 129999,\n        \"currency\": \"usd\"\n      }\n    ]\n  },\n  \"url\": \"https://pay.stripe.com/invoice/in_1NpHiG2eZvKYlo2CZV0ZkEBT\"\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://quickbooks.api.intuit.com/v3/company/<realmID>/invoice\",\n    \"response\": {\n      \"Invoice\": {\n        \"Id\": \"123\",\n        \"DocNumber\": \"in_1NpHiG2eZvKYlo2CZV0ZkEBT\"\n      }\n    }\n  },\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://quickbooks.api.intuit.com/v3/company/<realmID>/attachment\",\n    \"response\": {\n      \"Attachment\": {\n        \"Id\": \"456\"\n      }\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ]
+    },
+    {
+      "type": "tests",
+      "attempt": 2,
+      "report": {
+        "typecheckOk": false,
+        "typecheckOutput": "src/connector.test.ts(41,23): error TS18046: 'body.Line' is of type 'unknown'.",
+        "passed": 10,
+        "failed": 0,
+        "total": 10,
+        "failures": [],
+        "durationMs": 292.795654296875,
+        "ranOn": "nebius-sandbox:01a13f5a-f990-7028-9c75-36b465d9294c",
+        "passedNames": [
+          "contract handles the documented example payload",
+          "happy path creates invoice and attachment with correct request bodies",
+          "auth mechanism sends Bearer token in Authorization header for both requests",
+          "field mapping maps Stripe fields to QuickBooks invoice correctly",
+          "missing required fields throws on missing id",
+          "missing required fields throws on missing customer.email",
+          "missing required fields throws on missing lines.data",
+          "missing required fields throws on missing url",
+          "non-2xx target response throws with status and endpoint on invoice creation failure",
+          "non-2xx target response throws with status and endpoint on attachment failure"
+        ],
+        "contract": "passed"
+      },
+      "branches": [
+        {
+          "branch": 1,
+          "passed": 10,
+          "total": 10,
+          "typecheckOk": false,
+          "green": false
+        },
+        {
+          "branch": 2,
+          "passed": 0,
+          "total": 2,
+          "typecheckOk": false,
+          "green": false
+        }
+      ]
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Attempt 2 regressed (10/10 < 10/10), rolling back for repair"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Attempt 2 failed (0 tests, typecheck failed), repairing"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Repairing with 2 parallel branches (temperatures 0.1, 0.4)"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "[branch 2] Forking checkpoint 1c3bbc01 with 4 files, network off"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "[branch 1] Forking checkpoint 1c3bbc01 with 4 files, network off"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "branch 1: 10/10, typecheck ok, contract passed"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "branch 2: 10/10, typecheck failed, contract passed"
+    },
+    {
+      "type": "log",
+      "step": "verify",
+      "message": "Chose branch 1 (first green)"
+    },
+    {
+      "type": "files",
+      "attempt": 3,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "export interface StripeInvoiceFinalizedPayload {\n  id: string;\n  customer: {\n    email: string;\n  };\n  lines: {\n    data: Array<{\n      description: string;\n      amount: number;\n      currency: string;\n    }>;\n    has_more?: boolean;\n    url?: string;\n  };\n  url: string;\n}\n\nexport interface ConnectorConfig {\n  realmId: string;\n  accessToken: string;\n  serviceItemId?: string;\n  customFieldDefinitionId?: string;\n  defaultCustomerId: string;\n  fetch?: typeof fetch;\n}\n\nexport interface HandleResult {\n  invoiceId: string;\n  attachmentId: string;\n}\n\nfunction base64Encode(str: string): string {\n  if (typeof Buffer !== 'undefined') {\n    return Buffer.from(str).toString('base64');\n  }\n  // Fallback for browser-like environments (not expected in patchbay)\n  return btoa(str);\n}\n\nasync function fetchAllStripeLines(\n  payload: StripeInvoiceFinalizedPayload,\n  fetchFn: typeof fetch\n): Promise<StripeInvoiceFinalizedPayload['lines']['data']> {\n  const lines = payload.lines.data;\n  if (payload.lines.has_more && payload.lines.url) {\n    throw new Error(\n      'Stripe invoice lines pagination detected (has_more=true) but connector cannot fetch additional pages without Stripe API credentials. Provide a Stripe secret key or ensure webhook delivers all lines.'\n    );\n  }\n  return lines;\n}\n\nexport async function handle(\n  payload: StripeInvoiceFinalizedPayload,\n  config: ConnectorConfig\n): Promise<HandleResult> {\n  const fetchFn = config.fetch ?? fetch;\n\n  // Validate required fields\n  if (!payload.id) throw new Error('Missing required field: id');\n  if (!payload.customer?.email) throw new Error('Missing required field: customer.email');\n  if (!payload.lines?.data || !Array.isArray(payload.lines.data) || payload.lines.data.length === 0) {\n    throw new Error('Missing required field: lines.data (must be non-empty array)');\n  }\n  if (!payload.url) throw new Error('Missing required field: url');\n\n  const allLines = await fetchAllStripeLines(payload, fetchFn);\n\n  // Convert lines to QuickBooks format\n  const qbLines = allLines.map((line) => ({\n    Description: line.description,\n    Amount: line.amount / 100,\n    DetailType: 'SalesItemLineDetail',\n    SalesItemLineDetail: {\n      ItemRef: {\n        value: config.serviceItemId ?? '1',\n        name: 'Service',\n      },\n    },\n  }));\n\n  // Determine currency from first line (assume all lines same currency)\n  const currency = allLines[0].currency.toUpperCase();\n\n  // Build invoice request body\n  const invoiceBody = {\n    DocNumber: payload.id,\n    Line: qbLines,\n    Currency: currency,\n    CustomerRef: {\n      value: config.defaultCustomerId,\n    },\n    CustomField: [\n      {\n        DefinitionId: config.customFieldDefinitionId ?? '1',\n        StringValue: payload.url,\n      },\n    ],\n  };\n\n  const invoiceUrl = `https://quickbooks.api.intuit.com/v3/company/${config.realmId}/invoice`;\n  const invoiceResponse = await fetchFn(invoiceUrl, {\n    method: 'POST',\n    headers: {\n      Authorization: `Bearer ${config.accessToken}`,\n      'Content-Type': 'application/json',\n      Accept: 'application/json',\n    },\n    body: JSON.stringify(invoiceBody),\n  });\n\n  if (!invoiceResponse.ok) {\n    throw new Error(\n      `QuickBooks create invoice failed: ${invoiceResponse.status} ${invoiceResponse.statusText} at ${invoiceUrl}`\n    );\n  }\n\n  const invoiceJson = await invoiceResponse.json();\n  const invoiceId = invoiceJson?.Invoice?.Id;\n  if (!invoiceId) throw new Error('QuickBooks invoice response missing Invoice.Id');\n\n  // Attach Stripe invoice URL as document\n  const attachmentBody = {\n    AttachableRef: [\n      {\n        EntityRef: {\n          type: 'Invoice',\n          value: invoiceId,\n        },\n      },\n    ],\n    FileName: 'stripe_invoice.txt',\n    ContentType: 'text/plain',\n    ByteOrder: 'LittleEndian',\n    Content: base64Encode(payload.url),\n  };\n\n  const attachmentUrl = `https://quickbooks.api.intuit.com/v3/company/${config.realmId}/attachment`;\n  const attachmentResponse = await fetchFn(attachmentUrl, {\n    method: 'POST',\n    headers: {\n      Authorization: `Bearer ${config.accessToken}`,\n      'Content-Type': 'application/json',\n      Accept: 'application/json',\n    },\n    body: JSON.stringify(attachmentBody),\n  });\n\n  if (!attachmentResponse.ok) {\n    throw new Error(\n      `QuickBooks attach document failed: ${attachmentResponse.status} ${attachmentResponse.statusText} at ${attachmentUrl}`\n    );\n  }\n\n  const attachmentJson = await attachmentResponse.json();\n  const attachmentId = attachmentJson?.Attachment?.Id;\n  if (!attachmentId) throw new Error('QuickBooks attachment response missing Attachment.Id');\n\n  return { invoiceId, attachmentId };\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi } from 'vitest';\nimport { handle, ConnectorConfig, StripeInvoiceFinalizedPayload } from './connector';\nimport {\n  SOURCE_EXAMPLE,\n  contractFetch,\n  fakeFetch,\n  jsonResponse,\n  TARGET_ENDPOINTS,\n} from './fixtures';\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch();\n    const config: ConnectorConfig = {\n      realmId: 'test-realm',\n      accessToken: 'test-token',\n      defaultCustomerId: '1',\n      fetch,\n    };\n    const result = await handle(SOURCE_EXAMPLE as unknown as StripeInvoiceFinalizedPayload, config);\n    expect(calls.length).toBeGreaterThan(0);\n    expect(result.invoiceId).toBe('123');\n    expect(result.attachmentId).toBe('456');\n  });\n});\n\ndescribe('happy path', () => {\n  it('creates invoice and attachment with correct request bodies', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.url.endsWith('/invoice')) {\n        expect(req.method).toBe('POST');\n        expect(req.headers.get('authorization')).toBe('Bearer test-token');\n        const body = req.json as Record<string, unknown>;\n        expect(body).toMatchObject({\n          DocNumber: 'in_123',\n          Currency: 'USD',\n          CustomerRef: { value: '42' },\n          CustomField: [{ DefinitionId: '1', StringValue: 'https://pay.stripe.com/invoice/in_123' }],\n        });\n        expect(Array.isArray(body.Line)).toBe(true);\n        expect((body.Line as unknown[])[0]).toMatchObject({\n          Description: 'Test Item',\n          Amount: 12.99,\n          DetailType: 'SalesItemLineDetail',\n          SalesItemLineDetail: { ItemRef: { value: '1', name: 'Service' } },\n        });\n        return jsonResponse({ Invoice: { Id: '999', DocNumber: 'in_123' } }, 201);\n      }\n      if (req.url.endsWith('/attachment')) {\n        expect(req.method).toBe('POST');\n        expect(req.headers.get('authorization')).toBe('Bearer test-token');\n        const body = req.json as Record<string, unknown>;\n        expect(body).toMatchObject({\n          AttachableRef: [{ EntityRef: { type: 'Invoice', value: '999' } }],\n          FileName: 'stripe_invoice.txt',\n          ContentType: 'text/plain',\n          ByteOrder: 'LittleEndian',\n          Content: 'aHR0cHM6Ly9wYXkuc3RyaXBlLmNvbS9pbnZvaWNlL2luXzEyMw==', // base64 of the URL\n        });\n        return jsonResponse({ Attachment: { Id: '888' } }, 201);\n      }\n      return jsonResponse({ error: 'not found' }, 404);\n    });\n\n    const payload: StripeInvoiceFinalizedPayload = {\n      id: 'in_123',\n      customer: { email: 'test@example.com' },\n      lines: {\n        data: [\n          { description: 'Test Item', amount: 1299, currency: 'usd' },\n        ],\n      },\n      url: 'https://pay.stripe.com/invoice/in_123',\n    };\n\n    const config: ConnectorConfig = {\n      realmId: 'test-realm',\n      accessToken: 'test-token',\n      defaultCustomerId: '42',\n      fetch,\n    };\n\n    const result = await handle(payload, config);\n    expect(result.invoiceId).toBe('999');\n    expect(result.attachmentId).toBe('888');\n    expect(calls.length).toBe(2);\n  });\n});\n\ndescribe('auth mechanism', () => {\n  it('sends Bearer token in Authorization header for both requests', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      expect(req.headers.get('authorization')).toBe('Bearer secret-123');\n      if (req.url.endsWith('/invoice')) return jsonResponse({ Invoice: { Id: '1' } }, 201);\n      if (req.url.endsWith('/attachment')) return jsonResponse({ Attachment: { Id: '2' } }, 201);\n      return jsonResponse({}, 404);\n    });\n\n    const payload: StripeInvoiceFinalizedPayload = {\n      id: 'in_1',\n      customer: { email: 'a@b.com' },\n      lines: { data: [{ description: 'x', amount: 100, currency: 'usd' }] },\n      url: 'https://pay.stripe.com/invoice/in_1',\n    };\n\n    await handle(payload, {\n      realmId: 'r',\n      accessToken: 'secret-123',\n      defaultCustomerId: '1',\n      fetch,\n    });\n\n    expect(calls.length).toBe(2);\n  });\n});\n\ndescribe('field mapping', () => {\n  it('maps Stripe fields to QuickBooks invoice correctly', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.url.endsWith('/invoice')) {\n        const body = req.json as Record<string, unknown>;\n        expect(body.DocNumber).toBe('in_map');\n        expect(body.Currency).toBe('EUR');\n        expect((body.CustomerRef as Record<string, unknown>).value).toBe('cust-99');\n        expect((body.CustomField as unknown[])[0]).toMatchObject({ DefinitionId: '9', StringValue: 'https://pay.stripe.com/invoice/in_map' });\n        expect((body.Line as unknown[])[0]).toMatchObject({\n          Description: 'Mapped Item',\n          Amount: 42.5,\n          SalesItemLineDetail: { ItemRef: { value: 'svc-5', name: 'Service' } },\n        });\n        return jsonResponse({ Invoice: { Id: '1' } }, 201);\n      }\n      if (req.url.endsWith('/attachment')) return jsonResponse({ Attachment: { Id: '2' } }, 201);\n      return jsonResponse({}, 404);\n    });\n\n    const payload: StripeInvoiceFinalizedPayload = {\n      id: 'in_map',\n      customer: { email: 'ignored@email.com' },\n      lines: { data: [{ description: 'Mapped Item', amount: 4250, currency: 'eur' }] },\n      url: 'https://pay.stripe.com/invoice/in_map',\n    };\n\n    await handle(payload, {\n      realmId: 'r',\n      accessToken: 't',\n      defaultCustomerId: 'cust-99',\n      serviceItemId: 'svc-5',\n      customFieldDefinitionId: '9',\n      fetch,\n    });\n\n    expect(calls[0].json).toMatchObject({\n      DocNumber: 'in_map',\n      Currency: 'EUR',\n      CustomerRef: { value: 'cust-99' },\n      CustomField: [{ DefinitionId: '9', StringValue: 'https://pay.stripe.com/invoice/in_map' }],\n      Line: [{\n        Description: 'Mapped Item',\n        Amount: 42.5,\n        SalesItemLineDetail: { ItemRef: { value: 'svc-5', name: 'Service' } },\n      }],\n    });\n  });\n});\n\ndescribe('missing required fields', () => {\n  it('throws on missing id', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200));\n    const payload = { ...SOURCE_EXAMPLE, id: undefined } as unknown as StripeInvoiceFinalizedPayload;\n    await expect(handle(payload, { realmId: 'r', accessToken: 't', defaultCustomerId: '1', fetch })).rejects.toThrow(\n      'Missing required field: id'\n    );\n  });\n\n  it('throws on missing customer.email', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200));\n    const payload = { ...SOURCE_EXAMPLE, customer: {} } as unknown as StripeInvoiceFinalizedPayload;\n    await expect(handle(payload, { realmId: 'r', accessToken: 't', defaultCustomerId: '1', fetch })).rejects.toThrow(\n      'Missing required field: customer.email'\n    );\n  });\n\n  it('throws on missing lines.data', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200));\n    const payload = { ...SOURCE_EXAMPLE, lines: { data: [] } } as unknown as StripeInvoiceFinalizedPayload;\n    await expect(handle(payload, { realmId: 'r', accessToken: 't', defaultCustomerId: '1', fetch })).rejects.toThrow(\n      'Missing required field: lines.data (must be non-empty array)'\n    );\n  });\n\n  it('throws on missing url', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200));\n    const payload = { ...SOURCE_EXAMPLE, url: undefined } as unknown as StripeInvoiceFinalizedPayload;\n    await expect(handle(payload, { realmId: 'r', accessToken: 't', defaultCustomerId: '1', fetch })).rejects.toThrow(\n      'Missing required field: url'\n    );\n  });\n});\n\ndescribe('non-2xx target response', () => {\n  it('throws with status and endpoint on invoice creation failure', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({ error: 'unauthorized' }, 401));\n    const payload: StripeInvoiceFinalizedPayload = {\n      id: 'in_1',\n      customer: { email: 'a@b.com' },\n      lines: { data: [{ description: 'x', amount: 100, currency: 'usd' }] },\n      url: 'https://pay.stripe.com/invoice/in_1',\n    };\n    await expect(\n      handle(payload, { realmId: 'r', accessToken: 't', defaultCustomerId: '1', fetch })\n    ).rejects.toThrow('QuickBooks create invoice failed: 401 Unauthorized at https://quickbooks.api.intuit.com/v3/company/r/invoice');\n  });\n\n  it('throws with status and endpoint on attachment failure', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.url.endsWith('/invoice')) return jsonResponse({ Invoice: { Id: '1' } }, 201);\n      return jsonResponse({ error: 'server error' }, 500);\n    });\n    const payload: StripeInvoiceFinalizedPayload = {\n      id: 'in_1',\n      customer: { email: 'a@b.com' },\n      lines: { data: [{ description: 'x', amount: 100, currency: 'usd' }] },\n      url: 'https://pay.stripe.com/invoice/in_1',\n    };\n    await expect(\n      handle(payload, { realmId: 'r', accessToken: 't', defaultCustomerId: '1', fetch })\n    ).rejects.toThrow('QuickBooks attach document failed: 500 Internal Server Error at https://quickbooks.api.intuit.com/v3/company/r/attachment');\n  });\n});\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# Stripe Invoice to QuickBooks Connector\n\nThis connector listens for Stripe `invoice.finalized` webhooks, creates a corresponding invoice in QuickBooks Online with line items, and attaches the Stripe invoice URL as a document to the QuickBooks invoice.\n\n## What it does\n\n1. Receives a Stripe `invoice.finalized` webhook payload.\n2. Validates required fields (invoice ID, customer email, line items, hosted invoice URL).\n3. Converts Stripe line items (amounts in cents, currency codes) to QuickBooks format (decimal amounts, ISO 4217 currency).\n4. Creates a QuickBooks invoice via the QuickBooks Online API (`POST /v3/company/<realmID>/invoice`).\n5. Attaches the Stripe invoice URL as a base64-encoded text file to the created invoice via the QuickBooks Attachment endpoint (`POST /v3/company/<realmID>/attachment`).\n6. Returns the created QuickBooks invoice ID and attachment ID.\n\n## Configuration / Environment Variables\n\n| Config Property | Environment Variable | Required | Description |\n|-----------------|----------------------|----------|-------------|\n| `realmId` | `QUICKBOOKS_REALM_ID` | Yes | QuickBooks company realm ID (used in API base URL). |\n| `accessToken` | `QUICKBOOKS_OAUTH_ACCESS_TOKEN` | Yes | OAuth 2.0 Bearer token for QuickBooks API authentication. |\n| `defaultCustomerId` | `QUICKBOOKS_DEFAULT_CUSTOMER_ID` | Yes | QuickBooks Customer ID to use for `CustomerRef` (the connector cannot look up customers by email). |\n| `serviceItemId` | `QUICKBOOKS_SERVICE_ITEM_ID` | No (default: `\"1\"`) | QuickBooks Item ID for the default service item used in line items. |\n| `customFieldDefinitionId` | `QUICKBOOKS_STRIPE_URL_CUSTOM_FIELD_DEFINITION_ID` | No (default: `\"1\"`) | QuickBooks Custom Field Definition ID for the \"Stripe Invoice URL\" field. |\n\nAll secrets must be provided via the config object at runtime. The connector never reads `process.env` directly.\n\n## Usage Example\n\n```typescript\nimport { handle, ConnectorConfig } from './connector';\n\nconst config: ConnectorConfig = {\n  realmId: process.env.QUICKBOOKS_REALM_ID!,\n  accessToken: process.env.QUICKBOOKS_OAUTH_ACCESS_TOKEN!,\n  defaultCustomerId: process.env.QUICKBOOKS_DEFAULT_CUSTOMER_ID!,\n  // optional overrides:\n  // serviceItemId: process.env.QUICKBOOKS_SERVICE_ITEM_ID,\n  // customFieldDefinitionId: process.env.QUICKBOOKS_STRIPE_URL_CUSTOM_FIELD_DEFINITION_ID,\n};\n\nconst stripeWebhookPayload = {\n  id: 'in_1NpHiG2eZvKYlo2CZV0ZkEBT',\n  customer: { email: 'jennyrosen@example.com' },\n  lines: {\n    data: [\n      { description: 'My First Invoice Item (created for API docs)', amount: 129999, currency: 'usd' }\n    ]\n  },\n  url: 'https://pay.stripe.com/invoice/in_1NpHiG2eZvKYlo2CZV0ZkEBT'\n};\n\nconst result = await handle(stripeWebhookPayload, config);\nconsole.log('Created QuickBooks invoice:', result.invoiceId);\nconsole.log('Attached document:', result.attachmentId);\n```\n\n## Assumptions & Limitations\n\n- The Stripe webhook is already configured and delivers `invoice.finalized` events with the full invoice object including `lines.data`.\n- The QuickBooks company file exists and the integration has OAuth access with write permissions.\n- Each Stripe invoice line maps directly to a QuickBooks line item without additional transformation (quantity, tax, etc. are not handled).\n- QuickBooks supports attaching a URL as a custom field (DefinitionId) and as a document attachment. The connector uses a default service item (ItemRef value `\"1\"`) and a default custom field (DefinitionId `\"1\"`). Override via config if your setup differs.\n- The connector uses the `defaultCustomerId` config for `CustomerRef` because it cannot query QuickBooks for a customer by email. You must map Stripe customers to QuickBooks customers externally and provide the ID.\n- Stripe line item pagination (`has_more: true`) is not supported because the connector lacks Stripe API credentials. If the webhook payload contains `has_more: true`, the connector throws an error. Ensure your webhook delivers all lines or enhance the connector with a Stripe secret key.\n- Amounts are converted from cents to decimal dollars (divide by 100).\n- Currency codes are uppercased to match ISO 4217 (e.g., `usd` → `USD`).\n- The attachment stores the Stripe invoice URL as a base64-encoded plain text file named `stripe_invoice.txt`.\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://docs.stripe.com/api/invoices/object\n// Source: https://developer.intuit.com/app/developer/qbo/docs/api/accounting/most-commonly-used/invoice\n// Source: https://developer.intuit.com/app/developer/qbo/docs/api/accounting/attachment\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"id\": \"in_1NpHiG2eZvKYlo2CZV0ZkEBT\",\n  \"customer\": {\n    \"email\": \"jennyrosen@example.com\"\n  },\n  \"lines\": {\n    \"data\": [\n      {\n        \"description\": \"My First Invoice Item (created for API docs)\",\n        \"amount\": 129999,\n        \"currency\": \"usd\"\n      }\n    ]\n  },\n  \"url\": \"https://pay.stripe.com/invoice/in_1NpHiG2eZvKYlo2CZV0ZkEBT\"\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://quickbooks.api.intuit.com/v3/company/<realmID>/invoice\",\n    \"response\": {\n      \"Invoice\": {\n        \"Id\": \"123\",\n        \"DocNumber\": \"in_1NpHiG2eZvKYlo2CZV0ZkEBT\"\n      }\n    }\n  },\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://quickbooks.api.intuit.com/v3/company/<realmID>/attachment\",\n    \"response\": {\n      \"Attachment\": {\n        \"Id\": \"456\"\n      }\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ]
+    },
+    {
+      "type": "tests",
+      "attempt": 3,
+      "report": {
+        "typecheckOk": true,
+        "typecheckOutput": "",
+        "passed": 10,
+        "failed": 0,
+        "total": 10,
+        "failures": [],
+        "durationMs": 308.790771484375,
+        "ranOn": "nebius-sandbox:01a13f5b-589f-7030-8828-032ef7768ffa",
+        "passedNames": [
+          "contract handles the documented example payload",
+          "happy path creates invoice and attachment with correct request bodies",
+          "auth mechanism sends Bearer token in Authorization header for both requests",
+          "field mapping maps Stripe fields to QuickBooks invoice correctly",
+          "missing required fields throws on missing id",
+          "missing required fields throws on missing customer.email",
+          "missing required fields throws on missing lines.data",
+          "missing required fields throws on missing url",
+          "non-2xx target response throws with status and endpoint on invoice creation failure",
+          "non-2xx target response throws with status and endpoint on attachment failure"
+        ],
+        "contract": "passed"
+      },
+      "branches": [
+        {
+          "branch": 1,
+          "passed": 10,
+          "total": 10,
+          "typecheckOk": true,
+          "green": true
+        },
+        {
+          "branch": 2,
+          "passed": 10,
+          "total": 10,
+          "typecheckOk": false,
+          "green": false
+        }
+      ]
+    },
+    {
+      "type": "step",
+      "step": "verify",
+      "status": "done",
+      "detail": "10/10 tests after 3 attempts"
+    },
+    {
+      "type": "step",
+      "step": "package",
+      "status": "start"
+    },
+    {
+      "type": "usage",
+      "usage": [
+        {
+          "model": "nvidia/Nemotron-3_5-Lightning",
+          "promptTokens": 800,
+          "completionTokens": 488,
+          "costUsd": 0.00016512
+        },
+        {
+          "model": "nvidia/nemotron-3-super-120b-a12b",
+          "promptTokens": 28886,
+          "completionTokens": 1182,
+          "costUsd": 0.0097296
+        },
+        {
+          "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+          "promptTokens": 33955,
+          "completionTokens": 28661,
+          "costUsd": 0.119938
+        }
+      ]
+    },
+    {
+      "type": "result",
+      "ok": true,
+      "attempts": 3,
+      "files": [
+        {
+          "path": "src/connector.ts",
+          "content": "export interface StripeInvoiceFinalizedPayload {\n  id: string;\n  customer: {\n    email: string;\n  };\n  lines: {\n    data: Array<{\n      description: string;\n      amount: number;\n      currency: string;\n    }>;\n    has_more?: boolean;\n    url?: string;\n  };\n  url: string;\n}\n\nexport interface ConnectorConfig {\n  realmId: string;\n  accessToken: string;\n  serviceItemId?: string;\n  customFieldDefinitionId?: string;\n  defaultCustomerId: string;\n  fetch?: typeof fetch;\n}\n\nexport interface HandleResult {\n  invoiceId: string;\n  attachmentId: string;\n}\n\nfunction base64Encode(str: string): string {\n  if (typeof Buffer !== 'undefined') {\n    return Buffer.from(str).toString('base64');\n  }\n  // Fallback for browser-like environments (not expected in patchbay)\n  return btoa(str);\n}\n\nasync function fetchAllStripeLines(\n  payload: StripeInvoiceFinalizedPayload,\n  fetchFn: typeof fetch\n): Promise<StripeInvoiceFinalizedPayload['lines']['data']> {\n  const lines = payload.lines.data;\n  if (payload.lines.has_more && payload.lines.url) {\n    throw new Error(\n      'Stripe invoice lines pagination detected (has_more=true) but connector cannot fetch additional pages without Stripe API credentials. Provide a Stripe secret key or ensure webhook delivers all lines.'\n    );\n  }\n  return lines;\n}\n\nexport async function handle(\n  payload: StripeInvoiceFinalizedPayload,\n  config: ConnectorConfig\n): Promise<HandleResult> {\n  const fetchFn = config.fetch ?? fetch;\n\n  // Validate required fields\n  if (!payload.id) throw new Error('Missing required field: id');\n  if (!payload.customer?.email) throw new Error('Missing required field: customer.email');\n  if (!payload.lines?.data || !Array.isArray(payload.lines.data) || payload.lines.data.length === 0) {\n    throw new Error('Missing required field: lines.data (must be non-empty array)');\n  }\n  if (!payload.url) throw new Error('Missing required field: url');\n\n  const allLines = await fetchAllStripeLines(payload, fetchFn);\n\n  // Convert lines to QuickBooks format\n  const qbLines = allLines.map((line) => ({\n    Description: line.description,\n    Amount: line.amount / 100,\n    DetailType: 'SalesItemLineDetail',\n    SalesItemLineDetail: {\n      ItemRef: {\n        value: config.serviceItemId ?? '1',\n        name: 'Service',\n      },\n    },\n  }));\n\n  // Determine currency from first line (assume all lines same currency)\n  const currency = allLines[0].currency.toUpperCase();\n\n  // Build invoice request body\n  const invoiceBody = {\n    DocNumber: payload.id,\n    Line: qbLines,\n    Currency: currency,\n    CustomerRef: {\n      value: config.defaultCustomerId,\n    },\n    CustomField: [\n      {\n        DefinitionId: config.customFieldDefinitionId ?? '1',\n        StringValue: payload.url,\n      },\n    ],\n  };\n\n  const invoiceUrl = `https://quickbooks.api.intuit.com/v3/company/${config.realmId}/invoice`;\n  const invoiceResponse = await fetchFn(invoiceUrl, {\n    method: 'POST',\n    headers: {\n      Authorization: `Bearer ${config.accessToken}`,\n      'Content-Type': 'application/json',\n      Accept: 'application/json',\n    },\n    body: JSON.stringify(invoiceBody),\n  });\n\n  if (!invoiceResponse.ok) {\n    throw new Error(\n      `QuickBooks create invoice failed: ${invoiceResponse.status} ${invoiceResponse.statusText} at ${invoiceUrl}`\n    );\n  }\n\n  const invoiceJson = await invoiceResponse.json();\n  const invoiceId = invoiceJson?.Invoice?.Id;\n  if (!invoiceId) throw new Error('QuickBooks invoice response missing Invoice.Id');\n\n  // Attach Stripe invoice URL as document\n  const attachmentBody = {\n    AttachableRef: [\n      {\n        EntityRef: {\n          type: 'Invoice',\n          value: invoiceId,\n        },\n      },\n    ],\n    FileName: 'stripe_invoice.txt',\n    ContentType: 'text/plain',\n    ByteOrder: 'LittleEndian',\n    Content: base64Encode(payload.url),\n  };\n\n  const attachmentUrl = `https://quickbooks.api.intuit.com/v3/company/${config.realmId}/attachment`;\n  const attachmentResponse = await fetchFn(attachmentUrl, {\n    method: 'POST',\n    headers: {\n      Authorization: `Bearer ${config.accessToken}`,\n      'Content-Type': 'application/json',\n      Accept: 'application/json',\n    },\n    body: JSON.stringify(attachmentBody),\n  });\n\n  if (!attachmentResponse.ok) {\n    throw new Error(\n      `QuickBooks attach document failed: ${attachmentResponse.status} ${attachmentResponse.statusText} at ${attachmentUrl}`\n    );\n  }\n\n  const attachmentJson = await attachmentResponse.json();\n  const attachmentId = attachmentJson?.Attachment?.Id;\n  if (!attachmentId) throw new Error('QuickBooks attachment response missing Attachment.Id');\n\n  return { invoiceId, attachmentId };\n}\n"
+        },
+        {
+          "path": "src/connector.test.ts",
+          "content": "import { describe, it, expect, vi } from 'vitest';\nimport { handle, ConnectorConfig, StripeInvoiceFinalizedPayload } from './connector';\nimport {\n  SOURCE_EXAMPLE,\n  contractFetch,\n  fakeFetch,\n  jsonResponse,\n  TARGET_ENDPOINTS,\n} from './fixtures';\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch();\n    const config: ConnectorConfig = {\n      realmId: 'test-realm',\n      accessToken: 'test-token',\n      defaultCustomerId: '1',\n      fetch,\n    };\n    const result = await handle(SOURCE_EXAMPLE as unknown as StripeInvoiceFinalizedPayload, config);\n    expect(calls.length).toBeGreaterThan(0);\n    expect(result.invoiceId).toBe('123');\n    expect(result.attachmentId).toBe('456');\n  });\n});\n\ndescribe('happy path', () => {\n  it('creates invoice and attachment with correct request bodies', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.url.endsWith('/invoice')) {\n        expect(req.method).toBe('POST');\n        expect(req.headers.get('authorization')).toBe('Bearer test-token');\n        const body = req.json as Record<string, unknown>;\n        expect(body).toMatchObject({\n          DocNumber: 'in_123',\n          Currency: 'USD',\n          CustomerRef: { value: '42' },\n          CustomField: [{ DefinitionId: '1', StringValue: 'https://pay.stripe.com/invoice/in_123' }],\n        });\n        expect(Array.isArray(body.Line)).toBe(true);\n        expect((body.Line as unknown[])[0]).toMatchObject({\n          Description: 'Test Item',\n          Amount: 12.99,\n          DetailType: 'SalesItemLineDetail',\n          SalesItemLineDetail: { ItemRef: { value: '1', name: 'Service' } },\n        });\n        return jsonResponse({ Invoice: { Id: '999', DocNumber: 'in_123' } }, 201);\n      }\n      if (req.url.endsWith('/attachment')) {\n        expect(req.method).toBe('POST');\n        expect(req.headers.get('authorization')).toBe('Bearer test-token');\n        const body = req.json as Record<string, unknown>;\n        expect(body).toMatchObject({\n          AttachableRef: [{ EntityRef: { type: 'Invoice', value: '999' } }],\n          FileName: 'stripe_invoice.txt',\n          ContentType: 'text/plain',\n          ByteOrder: 'LittleEndian',\n          Content: 'aHR0cHM6Ly9wYXkuc3RyaXBlLmNvbS9pbnZvaWNlL2luXzEyMw==', // base64 of the URL\n        });\n        return jsonResponse({ Attachment: { Id: '888' } }, 201);\n      }\n      return jsonResponse({ error: 'not found' }, 404);\n    });\n\n    const payload: StripeInvoiceFinalizedPayload = {\n      id: 'in_123',\n      customer: { email: 'test@example.com' },\n      lines: {\n        data: [\n          { description: 'Test Item', amount: 1299, currency: 'usd' },\n        ],\n      },\n      url: 'https://pay.stripe.com/invoice/in_123',\n    };\n\n    const config: ConnectorConfig = {\n      realmId: 'test-realm',\n      accessToken: 'test-token',\n      defaultCustomerId: '42',\n      fetch,\n    };\n\n    const result = await handle(payload, config);\n    expect(result.invoiceId).toBe('999');\n    expect(result.attachmentId).toBe('888');\n    expect(calls.length).toBe(2);\n  });\n});\n\ndescribe('auth mechanism', () => {\n  it('sends Bearer token in Authorization header for both requests', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      expect(req.headers.get('authorization')).toBe('Bearer secret-123');\n      if (req.url.endsWith('/invoice')) return jsonResponse({ Invoice: { Id: '1' } }, 201);\n      if (req.url.endsWith('/attachment')) return jsonResponse({ Attachment: { Id: '2' } }, 201);\n      return jsonResponse({}, 404);\n    });\n\n    const payload: StripeInvoiceFinalizedPayload = {\n      id: 'in_1',\n      customer: { email: 'a@b.com' },\n      lines: { data: [{ description: 'x', amount: 100, currency: 'usd' }] },\n      url: 'https://pay.stripe.com/invoice/in_1',\n    };\n\n    await handle(payload, {\n      realmId: 'r',\n      accessToken: 'secret-123',\n      defaultCustomerId: '1',\n      fetch,\n    });\n\n    expect(calls.length).toBe(2);\n  });\n});\n\ndescribe('field mapping', () => {\n  it('maps Stripe fields to QuickBooks invoice correctly', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.url.endsWith('/invoice')) {\n        const body = req.json as Record<string, unknown>;\n        expect(body.DocNumber).toBe('in_map');\n        expect(body.Currency).toBe('EUR');\n        expect((body.CustomerRef as Record<string, unknown>).value).toBe('cust-99');\n        expect((body.CustomField as unknown[])[0]).toMatchObject({ DefinitionId: '9', StringValue: 'https://pay.stripe.com/invoice/in_map' });\n        expect((body.Line as unknown[])[0]).toMatchObject({\n          Description: 'Mapped Item',\n          Amount: 42.5,\n          SalesItemLineDetail: { ItemRef: { value: 'svc-5', name: 'Service' } },\n        });\n        return jsonResponse({ Invoice: { Id: '1' } }, 201);\n      }\n      if (req.url.endsWith('/attachment')) return jsonResponse({ Attachment: { Id: '2' } }, 201);\n      return jsonResponse({}, 404);\n    });\n\n    const payload: StripeInvoiceFinalizedPayload = {\n      id: 'in_map',\n      customer: { email: 'ignored@email.com' },\n      lines: { data: [{ description: 'Mapped Item', amount: 4250, currency: 'eur' }] },\n      url: 'https://pay.stripe.com/invoice/in_map',\n    };\n\n    await handle(payload, {\n      realmId: 'r',\n      accessToken: 't',\n      defaultCustomerId: 'cust-99',\n      serviceItemId: 'svc-5',\n      customFieldDefinitionId: '9',\n      fetch,\n    });\n\n    expect(calls[0].json).toMatchObject({\n      DocNumber: 'in_map',\n      Currency: 'EUR',\n      CustomerRef: { value: 'cust-99' },\n      CustomField: [{ DefinitionId: '9', StringValue: 'https://pay.stripe.com/invoice/in_map' }],\n      Line: [{\n        Description: 'Mapped Item',\n        Amount: 42.5,\n        SalesItemLineDetail: { ItemRef: { value: 'svc-5', name: 'Service' } },\n      }],\n    });\n  });\n});\n\ndescribe('missing required fields', () => {\n  it('throws on missing id', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200));\n    const payload = { ...SOURCE_EXAMPLE, id: undefined } as unknown as StripeInvoiceFinalizedPayload;\n    await expect(handle(payload, { realmId: 'r', accessToken: 't', defaultCustomerId: '1', fetch })).rejects.toThrow(\n      'Missing required field: id'\n    );\n  });\n\n  it('throws on missing customer.email', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200));\n    const payload = { ...SOURCE_EXAMPLE, customer: {} } as unknown as StripeInvoiceFinalizedPayload;\n    await expect(handle(payload, { realmId: 'r', accessToken: 't', defaultCustomerId: '1', fetch })).rejects.toThrow(\n      'Missing required field: customer.email'\n    );\n  });\n\n  it('throws on missing lines.data', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200));\n    const payload = { ...SOURCE_EXAMPLE, lines: { data: [] } } as unknown as StripeInvoiceFinalizedPayload;\n    await expect(handle(payload, { realmId: 'r', accessToken: 't', defaultCustomerId: '1', fetch })).rejects.toThrow(\n      'Missing required field: lines.data (must be non-empty array)'\n    );\n  });\n\n  it('throws on missing url', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200));\n    const payload = { ...SOURCE_EXAMPLE, url: undefined } as unknown as StripeInvoiceFinalizedPayload;\n    await expect(handle(payload, { realmId: 'r', accessToken: 't', defaultCustomerId: '1', fetch })).rejects.toThrow(\n      'Missing required field: url'\n    );\n  });\n});\n\ndescribe('non-2xx target response', () => {\n  it('throws with status and endpoint on invoice creation failure', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({ error: 'unauthorized' }, 401));\n    const payload: StripeInvoiceFinalizedPayload = {\n      id: 'in_1',\n      customer: { email: 'a@b.com' },\n      lines: { data: [{ description: 'x', amount: 100, currency: 'usd' }] },\n      url: 'https://pay.stripe.com/invoice/in_1',\n    };\n    await expect(\n      handle(payload, { realmId: 'r', accessToken: 't', defaultCustomerId: '1', fetch })\n    ).rejects.toThrow('QuickBooks create invoice failed: 401 Unauthorized at https://quickbooks.api.intuit.com/v3/company/r/invoice');\n  });\n\n  it('throws with status and endpoint on attachment failure', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      if (req.url.endsWith('/invoice')) return jsonResponse({ Invoice: { Id: '1' } }, 201);\n      return jsonResponse({ error: 'server error' }, 500);\n    });\n    const payload: StripeInvoiceFinalizedPayload = {\n      id: 'in_1',\n      customer: { email: 'a@b.com' },\n      lines: { data: [{ description: 'x', amount: 100, currency: 'usd' }] },\n      url: 'https://pay.stripe.com/invoice/in_1',\n    };\n    await expect(\n      handle(payload, { realmId: 'r', accessToken: 't', defaultCustomerId: '1', fetch })\n    ).rejects.toThrow('QuickBooks attach document failed: 500 Internal Server Error at https://quickbooks.api.intuit.com/v3/company/r/attachment');\n  });\n});\n"
+        },
+        {
+          "path": "README.md",
+          "content": "# Stripe Invoice to QuickBooks Connector\n\nThis connector listens for Stripe `invoice.finalized` webhooks, creates a corresponding invoice in QuickBooks Online with line items, and attaches the Stripe invoice URL as a document to the QuickBooks invoice.\n\n## What it does\n\n1. Receives a Stripe `invoice.finalized` webhook payload.\n2. Validates required fields (invoice ID, customer email, line items, hosted invoice URL).\n3. Converts Stripe line items (amounts in cents, currency codes) to QuickBooks format (decimal amounts, ISO 4217 currency).\n4. Creates a QuickBooks invoice via the QuickBooks Online API (`POST /v3/company/<realmID>/invoice`).\n5. Attaches the Stripe invoice URL as a base64-encoded text file to the created invoice via the QuickBooks Attachment endpoint (`POST /v3/company/<realmID>/attachment`).\n6. Returns the created QuickBooks invoice ID and attachment ID.\n\n## Configuration / Environment Variables\n\n| Config Property | Environment Variable | Required | Description |\n|-----------------|----------------------|----------|-------------|\n| `realmId` | `QUICKBOOKS_REALM_ID` | Yes | QuickBooks company realm ID (used in API base URL). |\n| `accessToken` | `QUICKBOOKS_OAUTH_ACCESS_TOKEN` | Yes | OAuth 2.0 Bearer token for QuickBooks API authentication. |\n| `defaultCustomerId` | `QUICKBOOKS_DEFAULT_CUSTOMER_ID` | Yes | QuickBooks Customer ID to use for `CustomerRef` (the connector cannot look up customers by email). |\n| `serviceItemId` | `QUICKBOOKS_SERVICE_ITEM_ID` | No (default: `\"1\"`) | QuickBooks Item ID for the default service item used in line items. |\n| `customFieldDefinitionId` | `QUICKBOOKS_STRIPE_URL_CUSTOM_FIELD_DEFINITION_ID` | No (default: `\"1\"`) | QuickBooks Custom Field Definition ID for the \"Stripe Invoice URL\" field. |\n\nAll secrets must be provided via the config object at runtime. The connector never reads `process.env` directly.\n\n## Usage Example\n\n```typescript\nimport { handle, ConnectorConfig } from './connector';\n\nconst config: ConnectorConfig = {\n  realmId: process.env.QUICKBOOKS_REALM_ID!,\n  accessToken: process.env.QUICKBOOKS_OAUTH_ACCESS_TOKEN!,\n  defaultCustomerId: process.env.QUICKBOOKS_DEFAULT_CUSTOMER_ID!,\n  // optional overrides:\n  // serviceItemId: process.env.QUICKBOOKS_SERVICE_ITEM_ID,\n  // customFieldDefinitionId: process.env.QUICKBOOKS_STRIPE_URL_CUSTOM_FIELD_DEFINITION_ID,\n};\n\nconst stripeWebhookPayload = {\n  id: 'in_1NpHiG2eZvKYlo2CZV0ZkEBT',\n  customer: { email: 'jennyrosen@example.com' },\n  lines: {\n    data: [\n      { description: 'My First Invoice Item (created for API docs)', amount: 129999, currency: 'usd' }\n    ]\n  },\n  url: 'https://pay.stripe.com/invoice/in_1NpHiG2eZvKYlo2CZV0ZkEBT'\n};\n\nconst result = await handle(stripeWebhookPayload, config);\nconsole.log('Created QuickBooks invoice:', result.invoiceId);\nconsole.log('Attached document:', result.attachmentId);\n```\n\n## Assumptions & Limitations\n\n- The Stripe webhook is already configured and delivers `invoice.finalized` events with the full invoice object including `lines.data`.\n- The QuickBooks company file exists and the integration has OAuth access with write permissions.\n- Each Stripe invoice line maps directly to a QuickBooks line item without additional transformation (quantity, tax, etc. are not handled).\n- QuickBooks supports attaching a URL as a custom field (DefinitionId) and as a document attachment. The connector uses a default service item (ItemRef value `\"1\"`) and a default custom field (DefinitionId `\"1\"`). Override via config if your setup differs.\n- The connector uses the `defaultCustomerId` config for `CustomerRef` because it cannot query QuickBooks for a customer by email. You must map Stripe customers to QuickBooks customers externally and provide the ID.\n- Stripe line item pagination (`has_more: true`) is not supported because the connector lacks Stripe API credentials. If the webhook payload contains `has_more: true`, the connector throws an error. Ensure your webhook delivers all lines or enhance the connector with a Stripe secret key.\n- Amounts are converted from cents to decimal dollars (divide by 100).\n- Currency codes are uppercased to match ISO 4217 (e.g., `usd` → `USD`).\n- The attachment stores the Stripe invoice URL as a base64-encoded plain text file named `stripe_invoice.txt`.\n"
+        },
+        {
+          "path": "src/fixtures.ts",
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://docs.stripe.com/api/invoices/object\n// Source: https://developer.intuit.com/app/developer/qbo/docs/api/accounting/most-commonly-used/invoice\n// Source: https://developer.intuit.com/app/developer/qbo/docs/api/accounting/attachment\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"id\": \"in_1NpHiG2eZvKYlo2CZV0ZkEBT\",\n  \"customer\": {\n    \"email\": \"jennyrosen@example.com\"\n  },\n  \"lines\": {\n    \"data\": [\n      {\n        \"description\": \"My First Invoice Item (created for API docs)\",\n        \"amount\": 129999,\n        \"currency\": \"usd\"\n      }\n    ]\n  },\n  \"url\": \"https://pay.stripe.com/invoice/in_1NpHiG2eZvKYlo2CZV0ZkEBT\"\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://quickbooks.api.intuit.com/v3/company/<realmID>/invoice\",\n    \"response\": {\n      \"Invoice\": {\n        \"Id\": \"123\",\n        \"DocNumber\": \"in_1NpHiG2eZvKYlo2CZV0ZkEBT\"\n      }\n    }\n  },\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://quickbooks.api.intuit.com/v3/company/<realmID>/attachment\",\n    \"response\": {\n      \"Attachment\": {\n        \"Id\": \"456\"\n      }\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+        }
+      ],
+      "report": {
+        "typecheckOk": true,
+        "typecheckOutput": "",
+        "passed": 10,
+        "failed": 0,
+        "total": 10,
+        "failures": [],
+        "durationMs": 308.790771484375,
+        "ranOn": "nebius-sandbox:01a13f5b-589f-7030-8828-032ef7768ffa",
+        "passedNames": [
+          "contract handles the documented example payload",
+          "happy path creates invoice and attachment with correct request bodies",
+          "auth mechanism sends Bearer token in Authorization header for both requests",
+          "field mapping maps Stripe fields to QuickBooks invoice correctly",
+          "missing required fields throws on missing id",
+          "missing required fields throws on missing customer.email",
+          "missing required fields throws on missing lines.data",
+          "missing required fields throws on missing url",
+          "non-2xx target response throws with status and endpoint on invoice creation failure",
+          "non-2xx target response throws with status and endpoint on attachment failure"
+        ],
+        "contract": "passed"
+      }
+    },
+    {
+      "type": "step",
+      "step": "package",
+      "status": "done"
+    }
+  ]
+}

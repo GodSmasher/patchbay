@@ -1,6 +1,14 @@
+<p align="center">
+  <img src="assets/claude-anim.svg" alt="Claude" height="56"/>
+  &nbsp;&nbsp;
+  <img src="https://img.shields.io/badge/-Cursor-000000?style=for-the-badge&logo=cursor&logoColor=white" alt="Cursor" height="32"/>
+  &nbsp;
+  <img src="https://img.shields.io/badge/-Codex-412991?style=for-the-badge&logo=openai&logoColor=white" alt="Codex" height="32"/>
+</p>
+
 # patchbay MCP – setup
 
-patchbay ships an MCP server (`@patchbay/mcp`) that any MCP-speaking client can
+patchbay ships an MCP server (`@patchbay-nebius/mcp`) that any MCP-speaking client can
 call. It exposes three tools:
 
 | Tool              | What it does                                                                    |
@@ -43,7 +51,7 @@ is up. `stdout` is reserved for JSON-RPC; never write to it manually.
 One line, no repo clone, no absolute paths:
 
 ```
-claude mcp add patchbay -- npx -y @patchbay/mcp
+claude mcp add patchbay -- npx -y @patchbay-nebius/mcp
 ```
 
 Or edit `~/.claude.json` (user scope) / `.mcp.json` (project scope) and add:
@@ -53,7 +61,7 @@ Or edit `~/.claude.json` (user scope) / `.mcp.json` (project scope) and add:
   "mcpServers": {
     "patchbay": {
       "command": "npx",
-      "args": ["-y", "@patchbay/mcp"]
+      "args": ["-y", "@patchbay-nebius/mcp"]
     }
   }
 }
@@ -77,7 +85,7 @@ Add to `~/.codex/config.toml`:
 ```toml
 [mcp_servers.patchbay]
 command = "npx"
-args = ["-y", "@patchbay/mcp"]
+args = ["-y", "@patchbay-nebius/mcp"]
 ```
 
 Then start a Codex session – `patchbay` shows up under `/mcp list`.
@@ -92,7 +100,7 @@ project. Same shape as Claude Code:
   "mcpServers": {
     "patchbay": {
       "command": "npx",
-      "args": ["-y", "@patchbay/mcp"]
+      "args": ["-y", "@patchbay-nebius/mcp"]
     }
   }
 }

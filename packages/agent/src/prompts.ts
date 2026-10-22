@@ -120,6 +120,21 @@ Hard rules:
   contract test with vi.useFakeTimers() + vi.setSystemTime(new Date(<a date compatible with
   SOURCE_EXAMPLE's timestamps>)), or make the guard window large enough that the documented
   example always validates. The contract test must never fail with "timestamp too old".
+- RETRY SEMANTICS. "Retry up to N times" means at most N retry attempts after the initial
+  request, so total HTTP calls are at most N+1. On a 429 (or other retryable status), compute
+  the next delay as delay = Math.max(parseRetryAfter(res), baseMs * 2 ** retryIndex) where
+  retryIndex starts at 0 for the first retry. Retry-After may be an integer in seconds OR an
+  HTTP-date string — handle both and fall back to pure exponential backoff when the header is
+  absent, malformed, or parses as NaN. Never call setTimeout(NaN). Tests will assert the mock
+  fetch is called exactly (successfulAttempt + 1) times on success and exactly (N + 1) times
+  on exhaustion; the loop must match this count exactly.
+- CURSOR PAGINATION. Terminate pagination loops on the API's explicit end signal — for
+  GraphQL (Linear, Shopify GraphQL, GitHub v4) check pageInfo.hasNextPage === false, for REST
+  check the absence or null of the cursor field (next_cursor, after, starting_after, page_info).
+  Never loop while "cursor is truthy" alone — many APIs return an empty-string or placeholder
+  cursor on the final page. Pass the cursor under the exact field name the vendor documents
+  (after for Linear, starting_after for Intercom and Stripe, page_info for Shopify REST).
+  Hard-cap every pagination loop at 50 iterations as a safety net against runaway loops.
 - For every other test use fakeFetch and jsonResponse from './fixtures' instead of writing your own fetch mock:
     const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 2 }, 201) : jsonResponse({ error: 'x' }, 500))
   Each recorded call is { method, url, body (the string as sent), json (the parsed body), headers (a Headers object,

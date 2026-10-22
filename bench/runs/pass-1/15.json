@@ -24,22 +24,29 @@
           "action": "create or update contact",
           "docsQuery": "HubSpot CRM API create or update contact by email properties"
         },
+        "additionalTargets": [
+          {
+            "app": "Stripe",
+            "action": "set idempotency key",
+            "docsQuery": "Stripe API idempotency key checkout session creation"
+          }
+        ],
         "fieldMapping": [
           {
             "from": "customer.email",
-            "to": "email",
-            "note": "Stripe customer email address"
+            "to": "properties['email']"
           },
           {
             "from": "id",
-            "to": "id",
-            "note": "Stripe session id used as Idempotency-Key for HubSpot request"
+            "to": "properties['stripe_session_id']",
+            "note": "Stripe session id used as idempotency key and stored as custom contact property"
           }
         ],
         "assumptions": [
-          "The Stripe webhook payload includes a customer.email field.",
-          "The HubSpot contact can be identified and updated by the email property.",
-          "The integration will pass the Stripe session id as the Idempotency-Key header in the HubSpot API request to ensure idempotent behavior."
+          "The HubSpot contact is identified and updated by the 'email' property.",
+          "A custom contact property named 'stripe_session_id' exists or will be created to store the Stripe session identifier.",
+          "The webhook payload includes a 'customer.email' field and a top-level 'id' representing the session id.",
+          "Idempotency handling is managed by the HubSpot API using the provided Idempotency-Key header."
         ]
       }
     },
@@ -62,30 +69,40 @@
     {
       "type": "log",
       "step": "research",
+      "message": "Searched \"Stripe checkout.session.completed webhook payload customer email client_reference_id\": 2 of 2 picked from Stripe's own docs"
+    },
+    {
+      "type": "log",
+      "step": "research",
+      "message": "Searched \"Stripe API idempotency key checkout session creation\": 2 of 2 picked from Stripe's own docs"
+    },
+    {
+      "type": "log",
+      "step": "research",
       "message": "Searched \"HubSpot CRM API create or update contact by email properties\": 2 of 2 picked from HubSpot's own docs"
     },
     {
       "type": "log",
       "step": "research",
-      "message": "Searched \"Stripe checkout.session.completed webhook payload customer email client_reference_id\": 1 of 2 picked from Stripe's own docs"
+      "message": "Extracted 6 documentation pages"
     },
     {
       "type": "log",
-      "step": "research",
-      "message": "Extracted 4 documentation pages"
+      "step": "verify",
+      "message": "Checkpoint ready: 19719fef"
     },
     {
       "type": "sources",
       "sources": [
         {
-          "title": "Track a payment link | Stripe Documentation",
-          "url": "https://docs.stripe.com/payment-links/url-parameters",
+          "title": "The Checkout Session object | Stripe API Reference",
+          "url": "https://docs.stripe.com/api/checkout/sessions/object",
           "official": true
         },
         {
-          "title": "Stripe Webhook integration - \"current user \"problem - Database - Bubble Forum",
-          "url": "https://forum.bubble.io/t/stripe-webhook-integration-current-user-problem/246863",
-          "official": false
+          "title": "Retrieve a Checkout Session | Stripe API Reference",
+          "url": "https://docs.stripe.com/api/checkout/sessions/retrieve",
+          "official": true
         },
         {
           "title": "Create or update a contact by email - HubSpot docs",
@@ -95,6 +112,16 @@
         {
           "title": "CRM API | Contacts - HubSpot docs",
           "url": "https://developers.hubspot.com/docs/api-reference/legacy/crm/objects/contacts/guide",
+          "official": true
+        },
+        {
+          "title": "Create a Checkout Session | Stripe API Reference",
+          "url": "https://docs.stripe.com/api/checkout/sessions/create",
+          "official": true
+        },
+        {
+          "title": "Idempotent requests | Stripe API Reference",
+          "url": "https://docs.stripe.com/api/idempotent_requests",
           "official": true
         }
       ]
@@ -106,24 +133,23 @@
           "app": "Stripe",
           "role": "source",
           "method": "POST",
-          "url": "/webhook/receive",
+          "url": "",
           "auth": {
             "type": "none",
             "name": null,
             "envVar": null
           },
           "example": {
-            "id": "cs_test_a1b2c3d4e5f6g7h8i9j0",
-            "customer": {
-              "email": "customer@example.com"
-            },
-            "client_reference_id": "optional_internal_id"
+            "id": "cs_test_a11YYufWQzNY63zpQ6QSNRQhkUpVph4WRmzW0zWJO2znZKdVujZ0N0S22u",
+            "object": "checkout.session",
+            "customer_email": "user@example.com",
+            "client_reference_id": "order_123"
           },
           "docsUrl": "https://docs.stripe.com/api/checkout/sessions/object",
           "notes": [
-            "Stripe delivers webhook events via POST to the configured endpoint; verify signature using Stripe-Signature header and webhook secret.",
-            "The checkout.session.completed event includes customer.email and id (session ID).",
-            "client_reference_id is optional and may be present if set when creating the session."
+            "Webhook payload includes top-level 'id' (session ID) and 'customer_email'.",
+            "Trigger event is 'checkout.session.completed'.",
+            "No authentication needed in source block; webhook delivery is assumed authenticated by platform."
           ]
         },
         "target": [
@@ -141,7 +167,11 @@
               "properties": [
                 {
                   "property": "email",
-                  "value": "customer@example.com"
+                  "value": "user@example.com"
+                },
+                {
+                  "property": "stripe_session_id",
+                  "value": "cs_test_a11YYufWQzNY63zpQ6QSNRQhkUpVph4WRmzW0zWJO2znZKdVujZ0N0S22u"
                 }
               ]
             },
@@ -151,12 +181,42 @@
             },
             "docsUrl": "https://developers.hubspot.com/docs/api-reference/legacy/crm/objects/contacts/v1/post-contacts-v1-contact-create-OrUpdate-email-contact-email",
             "notes": [
-              "The contact_email path parameter must be URL-encoded; replace {contact_email} with the actual email address.",
-              "Requires HubSpot API key or OAuth access token with crm.objects.contacts.write scope.",
-              "If contact does not exist, it is created; if exists, it is updated with provided properties.",
-              "Only properties array is accepted in body; each property requires property and value fields.",
-              "Email is the primary unique identifier in HubSpot for contacts.",
-              "No pagination; this is a single contact upsert operation."
+              "Endpoint creates or updates contact by email in URL path.",
+              "Requires at least one property in 'properties' array.",
+              "Custom property 'stripe_session_id' must exist in HubSpot.",
+              "Idempotency handled via Idempotency-Key header (see notes)."
+            ]
+          },
+          {
+            "app": "Stripe",
+            "role": "target",
+            "method": "POST",
+            "url": "https://api.stripe.com/v1/checkout/sessions",
+            "auth": {
+              "type": "bearer",
+              "name": "Authorization",
+              "envVar": "STRIPE_SECRET_KEY"
+            },
+            "example": {
+              "success_url": "https://example.com/success",
+              "line_items": [
+                {
+                  "price": "{{PRICE_ID}}",
+                  "quantity": 2
+                }
+              ],
+              "mode": "payment"
+            },
+            "responseExample": {
+              "id": "cs_test_a11YYufWQzNY63zpQ6QSNRQhkUpVph4WRmzW0zWJO2znZKdVujZ0N0S22u",
+              "object": "checkout.session"
+            },
+            "docsUrl": "https://docs.stripe.com/api/checkout/sessions/create",
+            "notes": [
+              "Idempotency key passed via 'Idempotency-Key' header.",
+              "Used to safely retry session creation.",
+              "Not actually called in this flow (session already exists), but included per plan.additionalTargets.",
+              "Docs show POST /v1/checkout/sessions accepts idempotency key."
             ]
           }
         ]
@@ -166,7 +226,7 @@
       "type": "step",
       "step": "research",
       "status": "done",
-      "detail": "2 endpoints from 4 pages"
+      "detail": "3 endpoints from 6 pages"
     },
     {
       "type": "step",
@@ -179,19 +239,19 @@
       "files": [
         {
           "path": "src/connector.ts",
-          "content": "export interface ConnectorConfig {\n  /** HubSpot API access token (Bearer). */\n  hubspotAccessToken: string\n  /** Injected fetch for testing; defaults to global fetch. */\n  fetch?: typeof fetch\n}\n\nexport interface StripeCheckoutSessionCompletedPayload {\n  id: string\n  customer: {\n    email: string\n  }\n  client_reference_id?: string\n}\n\nexport interface HandleResult {\n  /** HubSpot contact vid from the response. */\n  vid: number\n  /** Whether the contact was newly created. */\n  isNew: boolean\n  /** The email used for the upsert. */\n  email: string\n}\n\nfunction validatePayload(payload: unknown): asserts payload is StripeCheckoutSessionCompletedPayload {\n  if (!payload || typeof payload !== 'object') {\n    throw new Error('Payload must be an object')\n  }\n  const p = payload as Record<string, unknown>\n  if (typeof p.id !== 'string' || !p.id) {\n    throw new Error('Missing required field: id (Stripe session ID)')\n  }\n  if (!p.customer || typeof p.customer !== 'object') {\n    throw new Error('Missing required field: customer')\n  }\n  const customer = p.customer as Record<string, unknown>\n  if (typeof customer.email !== 'string' || !customer.email) {\n    throw new Error('Missing required field: customer.email')\n  }\n}\n\nexport async function handle(\n  payload: StripeCheckoutSessionCompletedPayload,\n  config: ConnectorConfig\n): Promise<HandleResult> {\n  validatePayload(payload)\n\n  const { hubspotAccessToken, fetch = globalThis.fetch } = config\n  if (!hubspotAccessToken) {\n    throw new Error('Missing required config: hubspotAccessToken')\n  }\n\n  const email = payload.customer.email\n  const encodedEmail = encodeURIComponent(email)\n  const url = `https://api.hubapi.com/contacts/v1/contact/createOrUpdate/email/${encodedEmail}`\n\n  const body = {\n    properties: [\n      { property: 'email', value: email }\n    ]\n  }\n\n  const response = await fetch(url, {\n    method: 'POST',\n    headers: {\n      'Authorization': `Bearer ${hubspotAccessToken}`,\n      'Content-Type': 'application/json',\n      'Idempotency-Key': payload.id\n    },\n    body: JSON.stringify(body)\n  })\n\n  if (!response.ok) {\n    throw new Error(`HubSpot API error: ${response.status} ${response.statusText} for POST ${url}`)\n  }\n\n  const data = await response.json() as { vid: number; isNew: boolean }\n  return { vid: data.vid, isNew: data.isNew, email }\n}\n"
+          "content": "export interface ConnectorConfig {\n  hubspotAccessToken: string\n  stripeSecretKey: string\n  fetch: typeof fetch\n}\n\nexport interface StripeCheckoutSessionCompletedPayload {\n  id: string\n  object: string\n  customer_email: string\n  client_reference_id?: string\n}\n\nexport interface HubSpotContactResponse {\n  vid: number\n  isNew: boolean\n}\n\nexport interface HandleResult {\n  hubspotContactId: number\n  isNewContact: boolean\n  stripeSessionId: string\n}\n\nasync function handle(\n  payload: StripeCheckoutSessionCompletedPayload,\n  config: ConnectorConfig\n): Promise<HandleResult> {\n  if (!payload.id) {\n    throw new Error('Missing required field: id (Stripe session ID)')\n  }\n  if (!payload.customer_email) {\n    throw new Error('Missing required field: customer_email')\n  }\n\n  const hubspotUrl = `https://api.hubapi.com/contacts/v1/contact/createOrUpdate/email/${encodeURIComponent(payload.customer_email)}`\n\n  const hubspotBody = {\n    properties: [\n      { property: 'email', value: payload.customer_email },\n      { property: 'stripe_session_id', value: payload.id }\n    ]\n  }\n\n  const hubspotHeaders: Record<string, string> = {\n    'Authorization': `Bearer ${config.hubspotAccessToken}`,\n    'Content-Type': 'application/json',\n    'Idempotency-Key': payload.id\n  }\n\n  const hubspotResponse = await config.fetch(hubspotUrl, {\n    method: 'POST',\n    headers: hubspotHeaders,\n    body: JSON.stringify(hubspotBody)\n  })\n\n  if (!hubspotResponse.ok) {\n    throw new Error(`HubSpot API error: ${hubspotResponse.status} ${hubspotResponse.statusText} for POST ${hubspotUrl}`)\n  }\n\n  const hubspotResult = await hubspotResponse.json() as HubSpotContactResponse\n\n  return {\n    hubspotContactId: hubspotResult.vid,\n    isNewContact: hubspotResult.isNew,\n    stripeSessionId: payload.id\n  }\n}\n\nexport { handle }\n"
         },
         {
           "path": "src/connector.test.ts",
-          "content": "import { describe, it, expect, vi } from 'vitest'\nimport { handle, ConnectorConfig, StripeCheckoutSessionCompletedPayload } from './connector'\nimport { SOURCE_EXAMPLE, contractFetch, fakeFetch, jsonResponse } from './fixtures'\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch()\n    const config: ConnectorConfig = {\n      hubspotAccessToken: 'test-token',\n      fetch\n    }\n    const result = await handle(SOURCE_EXAMPLE as unknown as StripeCheckoutSessionCompletedPayload, config)\n    expect(calls.length).toBeGreaterThan(0)\n    expect(result.vid).toBe(3234574)\n    expect(result.isNew).toBe(false)\n    expect(result.email).toBe('customer@example.com')\n  })\n})\n\ndescribe('handle', () => {\n  it('maps customer.email to HubSpot email property and uses session id as Idempotency-Key', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      expect(req.url).toBe('https://api.hubapi.com/contacts/v1/contact/createOrUpdate/email/customer%40example.com')\n      expect(req.method).toBe('POST')\n      expect(req.headers.get('authorization')).toBe('Bearer test-token')\n      expect(req.headers.get('idempotency-key')).toBe('cs_test_a1b2c3d4e5f6g7h8i9j0')\n      expect(req.json).toEqual({\n        properties: [{ property: 'email', value: 'customer@example.com' }]\n      })\n      return jsonResponse({ vid: 12345, isNew: true })\n    })\n\n    const payload: StripeCheckoutSessionCompletedPayload = {\n      id: 'cs_test_a1b2c3d4e5f6g7h8i9j0',\n      customer: { email: 'customer@example.com' }\n    }\n\n    const result = await handle(payload, { hubspotAccessToken: 'test-token', fetch })\n    expect(result).toEqual({ vid: 12345, isNew: true, email: 'customer@example.com' })\n    expect(calls.length).toBe(1)\n  })\n\n  it('throws when customer.email is missing', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n    const payload = { id: 'cs_123', customer: {} } as unknown as StripeCheckoutSessionCompletedPayload\n    await expect(handle(payload, { hubspotAccessToken: 'token', fetch })).rejects.toThrow('Missing required field: customer.email')\n  })\n\n  it('throws when id is missing', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n    const payload = { customer: { email: 'test@example.com' } } as unknown as StripeCheckoutSessionCompletedPayload\n    await expect(handle(payload, { hubspotAccessToken: 'token', fetch })).rejects.toThrow('Missing required field: id')\n  })\n\n  it('throws when payload is not an object', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n    await expect(handle(null as unknown as StripeCheckoutSessionCompletedPayload, { hubspotAccessToken: 'token', fetch })).rejects.toThrow('Payload must be an object')\n  })\n\n  it('throws on non-2xx HubSpot response with status and endpoint', async () => {\n    const { fetch, calls } = fakeFetch(() => jsonResponse({ error: 'unauthorized' }, 401))\n    const payload: StripeCheckoutSessionCompletedPayload = {\n      id: 'cs_123',\n      customer: { email: 'test@example.com' }\n    }\n    await expect(handle(payload, { hubspotAccessToken: 'token', fetch })).rejects.toThrow('HubSpot API error: 401 Unauthorized for POST https://api.hubapi.com/contacts/v1/contact/createOrUpdate/email/test%40example.com')\n    expect(calls.length).toBe(1)\n  })\n\n  it('throws when hubspotAccessToken is missing from config', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n    const payload: StripeCheckoutSessionCompletedPayload = {\n      id: 'cs_123',\n      customer: { email: 'test@example.com' }\n    }\n    await expect(handle(payload, { hubspotAccessToken: '', fetch })).rejects.toThrow('Missing required config: hubspotAccessToken')\n  })\n\n  it('URL-encodes email with special characters', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      expect(req.url).toBe('https://api.hubapi.com/contacts/v1/contact/createOrUpdate/email/user%2Btag%40example.com')\n      return jsonResponse({ vid: 999, isNew: false })\n    })\n\n    const payload: StripeCheckoutSessionCompletedPayload = {\n      id: 'cs_456',\n      customer: { email: 'user+tag@example.com' }\n    }\n\n    const result = await handle(payload, { hubspotAccessToken: 'token', fetch })\n    expect(result.email).toBe('user+tag@example.com')\n    expect(calls.length).toBe(1)\n  })\n})\n"
+          "content": "import { describe, it, expect, vi } from 'vitest'\nimport { handle, StripeCheckoutSessionCompletedPayload, ConnectorConfig } from './connector'\nimport { SOURCE_EXAMPLE, contractFetch, fakeFetch, jsonResponse, TARGET_ENDPOINTS } from './fixtures'\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch()\n    const config: ConnectorConfig = {\n      hubspotAccessToken: 'test-hubspot-token',\n      stripeSecretKey: 'test-stripe-key',\n      fetch\n    }\n    const result = await handle(SOURCE_EXAMPLE as unknown as StripeCheckoutSessionCompletedPayload, config)\n    expect(calls.length).toBeGreaterThan(0)\n    expect(result.hubspotContactId).toBe(3234574)\n    expect(result.isNewContact).toBe(false)\n    expect(result.stripeSessionId).toBe(SOURCE_EXAMPLE.id)\n  })\n})\n\ndescribe('handle', () => {\n  it('maps fields correctly and sends Idempotency-Key header', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      expect(req.method).toBe('POST')\n      expect(req.url).toBe('https://api.hubapi.com/contacts/v1/contact/createOrUpdate/email/user%40example.com')\n      expect(req.headers.get('authorization')).toBe('Bearer test-hubspot-token')\n      expect(req.headers.get('idempotency-key')).toBe('cs_test_123')\n      expect(req.json).toEqual({\n        properties: [\n          { property: 'email', value: 'user@example.com' },\n          { property: 'stripe_session_id', value: 'cs_test_123' }\n        ]\n      })\n      return jsonResponse({ vid: 999, isNew: true })\n    })\n\n    const payload: StripeCheckoutSessionCompletedPayload = {\n      id: 'cs_test_123',\n      object: 'checkout.session',\n      customer_email: 'user@example.com'\n    }\n\n    const result = await handle(payload, {\n      hubspotAccessToken: 'test-hubspot-token',\n      stripeSecretKey: 'test-stripe-key',\n      fetch\n    })\n\n    expect(result.hubspotContactId).toBe(999)\n    expect(result.isNewContact).toBe(true)\n    expect(result.stripeSessionId).toBe('cs_test_123')\n    expect(calls.length).toBe(1)\n  })\n\n  it('throws when id is missing', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n    const payload = { object: 'checkout.session', customer_email: 'user@example.com' } as unknown as StripeCheckoutSessionCompletedPayload\n    await expect(handle(payload, { hubspotAccessToken: 't', stripeSecretKey: 's', fetch })).rejects.toThrow('Missing required field: id')\n  })\n\n  it('throws when customer_email is missing', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n    const payload = { id: 'cs_test_123', object: 'checkout.session' } as unknown as StripeCheckoutSessionCompletedPayload\n    await expect(handle(payload, { hubspotAccessToken: 't', stripeSecretKey: 's', fetch })).rejects.toThrow('Missing required field: customer_email')\n  })\n\n  it('throws on non-2xx HubSpot response with status and endpoint', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({ error: 'unauthorized' }, 401))\n    const payload: StripeCheckoutSessionCompletedPayload = {\n      id: 'cs_test_123',\n      object: 'checkout.session',\n      customer_email: 'user@example.com'\n    }\n    await expect(handle(payload, { hubspotAccessToken: 't', stripeSecretKey: 's', fetch })).rejects.toThrow('HubSpot API error: 401 Unauthorized for POST https://api.hubapi.com/contacts/v1/contact/createOrUpdate/email/user%40example.com')\n  })\n\n  it('includes client_reference_id in payload but does not use it', async () => {\n    const { fetch, calls } = fakeFetch((req) => jsonResponse({ vid: 1, isNew: false }))\n    const payload: StripeCheckoutSessionCompletedPayload = {\n      id: 'cs_test_123',\n      object: 'checkout.session',\n      customer_email: 'user@example.com',\n      client_reference_id: 'order_123'\n    }\n    await handle(payload, { hubspotAccessToken: 't', stripeSecretKey: 's', fetch })\n    expect(calls[0].json).toEqual({\n      properties: [\n        { property: 'email', value: 'user@example.com' },\n        { property: 'stripe_session_id', value: 'cs_test_123' }\n      ]\n    })\n  })\n})\n"
         },
         {
           "path": "README.md",
-          "content": "# Stripe → HubSpot Contact Sync\n\nCreates or updates a HubSpot contact when a Stripe `checkout.session.completed` webhook is received. Uses the customer email from the Stripe session as the HubSpot contact identifier and the Stripe session ID as an `Idempotency-Key` to guarantee idempotent upserts.\n\n## What it does\n\n1. Receives a Stripe `checkout.session.completed` webhook payload.\n2. Validates that `id` (session ID) and `customer.email` are present.\n3. Calls HubSpot's **Create or Update Contact by Email** endpoint:\n   - `POST https://api.hubapi.com/contacts/v1/contact/createOrUpdate/email/{contact_email}`\n   - Body: `{ \"properties\": [{ \"property\": \"email\", \"value\": \"<customer.email>\" }] }`\n   - Header: `Authorization: Bearer <HUBSPOT_ACCESS_TOKEN>`\n   - Header: `Idempotency-Key: <Stripe session id>`\n4. Returns the HubSpot contact `vid` and whether it was newly created.\n\n## Configuration\n\n| Config key | Environment variable | Required | Description |\n|------------|---------------------|----------|-------------|\n| `hubspotAccessToken` | `HUBSPOT_ACCESS_TOKEN` | Yes | HubSpot private app access token or OAuth token with `crm.objects.contacts.write` scope. |\n\nThe connector accepts an optional `fetch` implementation in the config for testing; in production it uses the global `fetch`.\n\n## Usage example\n\n```ts\nimport { handle } from './connector'\n\n// In your webhook handler (e.g., Express, Fastify, Cloudflare Worker)\napp.post('/webhook/stripe', async (req, res) => {\n  try {\n    const result = await handle(req.body, {\n      hubspotAccessToken: process.env.HUBSPOT_ACCESS_TOKEN!\n    })\n    res.json({ ok: true, ...result })\n  } catch (err) {\n    console.error(err)\n    res.status(500).json({ ok: false, error: err.message })\n  }\n})\n```\n\n## Assumptions\n\n- The Stripe webhook payload includes `customer.email` and `id` (session ID).\n- The HubSpot contact can be identified and updated by the `email` property.\n- Passing the Stripe session ID as `Idempotency-Key` ensures the HubSpot upsert is idempotent across retries.\n- The HubSpot API base URL is `https://api.hubapi.com` (as documented in the legacy v1 contacts endpoint).\n- Only the `email` property is sent; additional contact properties can be added by extending the `properties` array.\n"
+          "content": "# Stripe Checkout Session Completed → HubSpot Contact Sync\n\nThis connector processes Stripe `checkout.session.completed` webhooks and creates or updates a HubSpot contact using the customer's email address. The Stripe session ID is used as an `Idempotency-Key` header for the HubSpot API call and is also stored as a custom contact property `stripe_session_id`.\n\n## What it does\n\n1. Receives a Stripe webhook payload for `checkout.session.completed`\n2. Extracts the session ID (`id`) and customer email (`customer_email`)\n3. Calls HubSpot's \"create or update contact by email\" endpoint:\n   - URL: `POST https://api.hubapi.com/contacts/v1/contact/createOrUpdate/email/{contact_email}`\n   - Body: `properties` array with `email` and `stripe_session_id`\n   - Headers: `Authorization: Bearer <HUBSPOT_ACCESS_TOKEN>`, `Idempotency-Key: <stripe_session_id>`\n4. Returns the HubSpot contact ID (`vid`), whether it was newly created, and the Stripe session ID\n\n## Configuration / Environment Variables\n\n| Config Property | Environment Variable | Description |\n|-----------------|---------------------|-------------|\n| `hubspotAccessToken` | `HUBSPOT_ACCESS_TOKEN` | HubSpot private app access token or OAuth token with `contacts` scope |\n| `stripeSecretKey` | `STRIPE_SECRET_KEY` | Stripe secret key (required by config but not used in the primary flow) |\n| `fetch` | (injected) | Fetch implementation — tests provide a fake; production uses global `fetch` |\n\n## Usage Example\n\n```typescript\nimport { handle, ConnectorConfig } from './connector'\n\nconst config: ConnectorConfig = {\n  hubspotAccessToken: process.env.HUBSPOT_ACCESS_TOKEN!,\n  stripeSecretKey: process.env.STRIPE_SECRET_KEY!,\n  fetch: globalThis.fetch\n}\n\n// Stripe webhook handler\napp.post('/stripe/webhook', async (req, res) => {\n  if (req.body.type === 'checkout.session.completed') {\n    const result = await handle(req.body.data.object, config)\n    console.log('Synced contact:', result.hubspotContactId, 'isNew:', result.isNewContact)\n  }\n  res.sendStatus(200)\n})\n```\n\n## Assumptions\n\n- The HubSpot contact is identified and updated by the `email` property.\n- A custom contact property named `stripe_session_id` exists in HubSpot (or will be created) to store the Stripe session identifier.\n- The webhook payload includes a top-level `customer_email` field and `id` representing the session ID (per Stripe's documented `checkout.session` object).\n- Idempotency handling is managed by the HubSpot API using the provided `Idempotency-Key` header.\n- The Stripe \"create checkout session\" endpoint (additional target) is not called in this flow because the session already exists when the webhook fires.\n"
         },
         {
           "path": "src/fixtures.ts",
-          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://docs.stripe.com/api/checkout/sessions/object\n// Source: https://developers.hubspot.com/docs/api-reference/legacy/crm/objects/contacts/v1/post-contacts-v1-contact-create-OrUpdate-email-contact-email\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"id\": \"cs_test_a1b2c3d4e5f6g7h8i9j0\",\n  \"customer\": {\n    \"email\": \"customer@example.com\"\n  },\n  \"client_reference_id\": \"optional_internal_id\"\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://api.hubapi.com/contacts/v1/contact/createOrUpdate/email/{contact_email}\",\n    \"response\": {\n      \"vid\": 3234574,\n      \"isNew\": false\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://docs.stripe.com/api/checkout/sessions/object\n// Source: https://developers.hubspot.com/docs/api-reference/legacy/crm/objects/contacts/v1/post-contacts-v1-contact-create-OrUpdate-email-contact-email\n// Source: https://docs.stripe.com/api/checkout/sessions/create\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"id\": \"cs_test_a11YYufWQzNY63zpQ6QSNRQhkUpVph4WRmzW0zWJO2znZKdVujZ0N0S22u\",\n  \"object\": \"checkout.session\",\n  \"customer_email\": \"user@example.com\",\n  \"client_reference_id\": \"order_123\"\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://api.hubapi.com/contacts/v1/contact/createOrUpdate/email/{contact_email}\",\n    \"response\": {\n      \"vid\": 3234574,\n      \"isNew\": false\n    }\n  },\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://api.stripe.com/v1/checkout/sessions\",\n    \"response\": {\n      \"id\": \"cs_test_a11YYufWQzNY63zpQ6QSNRQhkUpVph4WRmzW0zWJO2znZKdVujZ0N0S22u\",\n      \"object\": \"checkout.session\"\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
         }
       ]
     },
@@ -209,12 +269,7 @@
     {
       "type": "log",
       "step": "verify",
-      "message": "Checkpoint ready: 2ba89015"
-    },
-    {
-      "type": "log",
-      "step": "verify",
-      "message": "Forking checkpoint 2ba89015 with 4 files, network off"
+      "message": "Forking checkpoint 19719fef with 4 files, network off"
     },
     {
       "type": "tests",
@@ -222,21 +277,19 @@
       "report": {
         "typecheckOk": true,
         "typecheckOutput": "",
-        "passed": 8,
+        "passed": 6,
         "failed": 0,
-        "total": 8,
+        "total": 6,
         "failures": [],
-        "durationMs": 286.383544921875,
-        "ranOn": "nebius-sandbox:01a10b02-32e6-7607-b9a3-343c6779c887",
+        "durationMs": 286.435546875,
+        "ranOn": "nebius-sandbox:01a15dc2-b17a-7788-b3a7-0db7ad1759e2",
         "passedNames": [
           "contract handles the documented example payload",
-          "handle maps customer.email to HubSpot email property and uses session id as Idempotency-Key",
-          "handle throws when customer.email is missing",
+          "handle maps fields correctly and sends Idempotency-Key header",
           "handle throws when id is missing",
-          "handle throws when payload is not an object",
+          "handle throws when customer_email is missing",
           "handle throws on non-2xx HubSpot response with status and endpoint",
-          "handle throws when hubspotAccessToken is missing from config",
-          "handle URL-encodes email with special characters"
+          "handle includes client_reference_id in payload but does not use it"
         ],
         "contract": "passed"
       }
@@ -245,7 +298,7 @@
       "type": "step",
       "step": "verify",
       "status": "done",
-      "detail": "8/8 tests after 1 attempt"
+      "detail": "6/6 tests after 1 attempt"
     },
     {
       "type": "step",
@@ -257,21 +310,21 @@
       "usage": [
         {
           "model": "nvidia/Nemotron-3_5-Lightning",
-          "promptTokens": 437,
-          "completionTokens": 289,
-          "costUsd": 0.00009557999999999999
+          "promptTokens": 806,
+          "completionTokens": 360,
+          "costUsd": 0.00013476
         },
         {
           "model": "nvidia/nemotron-3-super-120b-a12b",
-          "promptTokens": 10734,
-          "completionTokens": 537,
-          "costUsd": 0.0037034999999999998
+          "promptTokens": 21972,
+          "completionTokens": 864,
+          "costUsd": 0.007369199999999999
         },
         {
           "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
-          "promptTokens": 3185,
-          "completionTokens": 2796,
-          "costUsd": 0.011573
+          "promptTokens": 4077,
+          "completionTokens": 2875,
+          "costUsd": 0.012702000000000001
         }
       ]
     },
@@ -282,39 +335,37 @@
       "files": [
         {
           "path": "src/connector.ts",
-          "content": "export interface ConnectorConfig {\n  /** HubSpot API access token (Bearer). */\n  hubspotAccessToken: string\n  /** Injected fetch for testing; defaults to global fetch. */\n  fetch?: typeof fetch\n}\n\nexport interface StripeCheckoutSessionCompletedPayload {\n  id: string\n  customer: {\n    email: string\n  }\n  client_reference_id?: string\n}\n\nexport interface HandleResult {\n  /** HubSpot contact vid from the response. */\n  vid: number\n  /** Whether the contact was newly created. */\n  isNew: boolean\n  /** The email used for the upsert. */\n  email: string\n}\n\nfunction validatePayload(payload: unknown): asserts payload is StripeCheckoutSessionCompletedPayload {\n  if (!payload || typeof payload !== 'object') {\n    throw new Error('Payload must be an object')\n  }\n  const p = payload as Record<string, unknown>\n  if (typeof p.id !== 'string' || !p.id) {\n    throw new Error('Missing required field: id (Stripe session ID)')\n  }\n  if (!p.customer || typeof p.customer !== 'object') {\n    throw new Error('Missing required field: customer')\n  }\n  const customer = p.customer as Record<string, unknown>\n  if (typeof customer.email !== 'string' || !customer.email) {\n    throw new Error('Missing required field: customer.email')\n  }\n}\n\nexport async function handle(\n  payload: StripeCheckoutSessionCompletedPayload,\n  config: ConnectorConfig\n): Promise<HandleResult> {\n  validatePayload(payload)\n\n  const { hubspotAccessToken, fetch = globalThis.fetch } = config\n  if (!hubspotAccessToken) {\n    throw new Error('Missing required config: hubspotAccessToken')\n  }\n\n  const email = payload.customer.email\n  const encodedEmail = encodeURIComponent(email)\n  const url = `https://api.hubapi.com/contacts/v1/contact/createOrUpdate/email/${encodedEmail}`\n\n  const body = {\n    properties: [\n      { property: 'email', value: email }\n    ]\n  }\n\n  const response = await fetch(url, {\n    method: 'POST',\n    headers: {\n      'Authorization': `Bearer ${hubspotAccessToken}`,\n      'Content-Type': 'application/json',\n      'Idempotency-Key': payload.id\n    },\n    body: JSON.stringify(body)\n  })\n\n  if (!response.ok) {\n    throw new Error(`HubSpot API error: ${response.status} ${response.statusText} for POST ${url}`)\n  }\n\n  const data = await response.json() as { vid: number; isNew: boolean }\n  return { vid: data.vid, isNew: data.isNew, email }\n}\n"
+          "content": "export interface ConnectorConfig {\n  hubspotAccessToken: string\n  stripeSecretKey: string\n  fetch: typeof fetch\n}\n\nexport interface StripeCheckoutSessionCompletedPayload {\n  id: string\n  object: string\n  customer_email: string\n  client_reference_id?: string\n}\n\nexport interface HubSpotContactResponse {\n  vid: number\n  isNew: boolean\n}\n\nexport interface HandleResult {\n  hubspotContactId: number\n  isNewContact: boolean\n  stripeSessionId: string\n}\n\nasync function handle(\n  payload: StripeCheckoutSessionCompletedPayload,\n  config: ConnectorConfig\n): Promise<HandleResult> {\n  if (!payload.id) {\n    throw new Error('Missing required field: id (Stripe session ID)')\n  }\n  if (!payload.customer_email) {\n    throw new Error('Missing required field: customer_email')\n  }\n\n  const hubspotUrl = `https://api.hubapi.com/contacts/v1/contact/createOrUpdate/email/${encodeURIComponent(payload.customer_email)}`\n\n  const hubspotBody = {\n    properties: [\n      { property: 'email', value: payload.customer_email },\n      { property: 'stripe_session_id', value: payload.id }\n    ]\n  }\n\n  const hubspotHeaders: Record<string, string> = {\n    'Authorization': `Bearer ${config.hubspotAccessToken}`,\n    'Content-Type': 'application/json',\n    'Idempotency-Key': payload.id\n  }\n\n  const hubspotResponse = await config.fetch(hubspotUrl, {\n    method: 'POST',\n    headers: hubspotHeaders,\n    body: JSON.stringify(hubspotBody)\n  })\n\n  if (!hubspotResponse.ok) {\n    throw new Error(`HubSpot API error: ${hubspotResponse.status} ${hubspotResponse.statusText} for POST ${hubspotUrl}`)\n  }\n\n  const hubspotResult = await hubspotResponse.json() as HubSpotContactResponse\n\n  return {\n    hubspotContactId: hubspotResult.vid,\n    isNewContact: hubspotResult.isNew,\n    stripeSessionId: payload.id\n  }\n}\n\nexport { handle }\n"
         },
         {
           "path": "src/connector.test.ts",
-          "content": "import { describe, it, expect, vi } from 'vitest'\nimport { handle, ConnectorConfig, StripeCheckoutSessionCompletedPayload } from './connector'\nimport { SOURCE_EXAMPLE, contractFetch, fakeFetch, jsonResponse } from './fixtures'\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch()\n    const config: ConnectorConfig = {\n      hubspotAccessToken: 'test-token',\n      fetch\n    }\n    const result = await handle(SOURCE_EXAMPLE as unknown as StripeCheckoutSessionCompletedPayload, config)\n    expect(calls.length).toBeGreaterThan(0)\n    expect(result.vid).toBe(3234574)\n    expect(result.isNew).toBe(false)\n    expect(result.email).toBe('customer@example.com')\n  })\n})\n\ndescribe('handle', () => {\n  it('maps customer.email to HubSpot email property and uses session id as Idempotency-Key', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      expect(req.url).toBe('https://api.hubapi.com/contacts/v1/contact/createOrUpdate/email/customer%40example.com')\n      expect(req.method).toBe('POST')\n      expect(req.headers.get('authorization')).toBe('Bearer test-token')\n      expect(req.headers.get('idempotency-key')).toBe('cs_test_a1b2c3d4e5f6g7h8i9j0')\n      expect(req.json).toEqual({\n        properties: [{ property: 'email', value: 'customer@example.com' }]\n      })\n      return jsonResponse({ vid: 12345, isNew: true })\n    })\n\n    const payload: StripeCheckoutSessionCompletedPayload = {\n      id: 'cs_test_a1b2c3d4e5f6g7h8i9j0',\n      customer: { email: 'customer@example.com' }\n    }\n\n    const result = await handle(payload, { hubspotAccessToken: 'test-token', fetch })\n    expect(result).toEqual({ vid: 12345, isNew: true, email: 'customer@example.com' })\n    expect(calls.length).toBe(1)\n  })\n\n  it('throws when customer.email is missing', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n    const payload = { id: 'cs_123', customer: {} } as unknown as StripeCheckoutSessionCompletedPayload\n    await expect(handle(payload, { hubspotAccessToken: 'token', fetch })).rejects.toThrow('Missing required field: customer.email')\n  })\n\n  it('throws when id is missing', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n    const payload = { customer: { email: 'test@example.com' } } as unknown as StripeCheckoutSessionCompletedPayload\n    await expect(handle(payload, { hubspotAccessToken: 'token', fetch })).rejects.toThrow('Missing required field: id')\n  })\n\n  it('throws when payload is not an object', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n    await expect(handle(null as unknown as StripeCheckoutSessionCompletedPayload, { hubspotAccessToken: 'token', fetch })).rejects.toThrow('Payload must be an object')\n  })\n\n  it('throws on non-2xx HubSpot response with status and endpoint', async () => {\n    const { fetch, calls } = fakeFetch(() => jsonResponse({ error: 'unauthorized' }, 401))\n    const payload: StripeCheckoutSessionCompletedPayload = {\n      id: 'cs_123',\n      customer: { email: 'test@example.com' }\n    }\n    await expect(handle(payload, { hubspotAccessToken: 'token', fetch })).rejects.toThrow('HubSpot API error: 401 Unauthorized for POST https://api.hubapi.com/contacts/v1/contact/createOrUpdate/email/test%40example.com')\n    expect(calls.length).toBe(1)\n  })\n\n  it('throws when hubspotAccessToken is missing from config', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n    const payload: StripeCheckoutSessionCompletedPayload = {\n      id: 'cs_123',\n      customer: { email: 'test@example.com' }\n    }\n    await expect(handle(payload, { hubspotAccessToken: '', fetch })).rejects.toThrow('Missing required config: hubspotAccessToken')\n  })\n\n  it('URL-encodes email with special characters', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      expect(req.url).toBe('https://api.hubapi.com/contacts/v1/contact/createOrUpdate/email/user%2Btag%40example.com')\n      return jsonResponse({ vid: 999, isNew: false })\n    })\n\n    const payload: StripeCheckoutSessionCompletedPayload = {\n      id: 'cs_456',\n      customer: { email: 'user+tag@example.com' }\n    }\n\n    const result = await handle(payload, { hubspotAccessToken: 'token', fetch })\n    expect(result.email).toBe('user+tag@example.com')\n    expect(calls.length).toBe(1)\n  })\n})\n"
+          "content": "import { describe, it, expect, vi } from 'vitest'\nimport { handle, StripeCheckoutSessionCompletedPayload, ConnectorConfig } from './connector'\nimport { SOURCE_EXAMPLE, contractFetch, fakeFetch, jsonResponse, TARGET_ENDPOINTS } from './fixtures'\n\ndescribe('contract', () => {\n  it('handles the documented example payload', async () => {\n    const { fetch, calls } = contractFetch()\n    const config: ConnectorConfig = {\n      hubspotAccessToken: 'test-hubspot-token',\n      stripeSecretKey: 'test-stripe-key',\n      fetch\n    }\n    const result = await handle(SOURCE_EXAMPLE as unknown as StripeCheckoutSessionCompletedPayload, config)\n    expect(calls.length).toBeGreaterThan(0)\n    expect(result.hubspotContactId).toBe(3234574)\n    expect(result.isNewContact).toBe(false)\n    expect(result.stripeSessionId).toBe(SOURCE_EXAMPLE.id)\n  })\n})\n\ndescribe('handle', () => {\n  it('maps fields correctly and sends Idempotency-Key header', async () => {\n    const { fetch, calls } = fakeFetch((req) => {\n      expect(req.method).toBe('POST')\n      expect(req.url).toBe('https://api.hubapi.com/contacts/v1/contact/createOrUpdate/email/user%40example.com')\n      expect(req.headers.get('authorization')).toBe('Bearer test-hubspot-token')\n      expect(req.headers.get('idempotency-key')).toBe('cs_test_123')\n      expect(req.json).toEqual({\n        properties: [\n          { property: 'email', value: 'user@example.com' },\n          { property: 'stripe_session_id', value: 'cs_test_123' }\n        ]\n      })\n      return jsonResponse({ vid: 999, isNew: true })\n    })\n\n    const payload: StripeCheckoutSessionCompletedPayload = {\n      id: 'cs_test_123',\n      object: 'checkout.session',\n      customer_email: 'user@example.com'\n    }\n\n    const result = await handle(payload, {\n      hubspotAccessToken: 'test-hubspot-token',\n      stripeSecretKey: 'test-stripe-key',\n      fetch\n    })\n\n    expect(result.hubspotContactId).toBe(999)\n    expect(result.isNewContact).toBe(true)\n    expect(result.stripeSessionId).toBe('cs_test_123')\n    expect(calls.length).toBe(1)\n  })\n\n  it('throws when id is missing', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n    const payload = { object: 'checkout.session', customer_email: 'user@example.com' } as unknown as StripeCheckoutSessionCompletedPayload\n    await expect(handle(payload, { hubspotAccessToken: 't', stripeSecretKey: 's', fetch })).rejects.toThrow('Missing required field: id')\n  })\n\n  it('throws when customer_email is missing', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({}, 200))\n    const payload = { id: 'cs_test_123', object: 'checkout.session' } as unknown as StripeCheckoutSessionCompletedPayload\n    await expect(handle(payload, { hubspotAccessToken: 't', stripeSecretKey: 's', fetch })).rejects.toThrow('Missing required field: customer_email')\n  })\n\n  it('throws on non-2xx HubSpot response with status and endpoint', async () => {\n    const { fetch } = fakeFetch(() => jsonResponse({ error: 'unauthorized' }, 401))\n    const payload: StripeCheckoutSessionCompletedPayload = {\n      id: 'cs_test_123',\n      object: 'checkout.session',\n      customer_email: 'user@example.com'\n    }\n    await expect(handle(payload, { hubspotAccessToken: 't', stripeSecretKey: 's', fetch })).rejects.toThrow('HubSpot API error: 401 Unauthorized for POST https://api.hubapi.com/contacts/v1/contact/createOrUpdate/email/user%40example.com')\n  })\n\n  it('includes client_reference_id in payload but does not use it', async () => {\n    const { fetch, calls } = fakeFetch((req) => jsonResponse({ vid: 1, isNew: false }))\n    const payload: StripeCheckoutSessionCompletedPayload = {\n      id: 'cs_test_123',\n      object: 'checkout.session',\n      customer_email: 'user@example.com',\n      client_reference_id: 'order_123'\n    }\n    await handle(payload, { hubspotAccessToken: 't', stripeSecretKey: 's', fetch })\n    expect(calls[0].json).toEqual({\n      properties: [\n        { property: 'email', value: 'user@example.com' },\n        { property: 'stripe_session_id', value: 'cs_test_123' }\n      ]\n    })\n  })\n})\n"
         },
         {
           "path": "README.md",
-          "content": "# Stripe → HubSpot Contact Sync\n\nCreates or updates a HubSpot contact when a Stripe `checkout.session.completed` webhook is received. Uses the customer email from the Stripe session as the HubSpot contact identifier and the Stripe session ID as an `Idempotency-Key` to guarantee idempotent upserts.\n\n## What it does\n\n1. Receives a Stripe `checkout.session.completed` webhook payload.\n2. Validates that `id` (session ID) and `customer.email` are present.\n3. Calls HubSpot's **Create or Update Contact by Email** endpoint:\n   - `POST https://api.hubapi.com/contacts/v1/contact/createOrUpdate/email/{contact_email}`\n   - Body: `{ \"properties\": [{ \"property\": \"email\", \"value\": \"<customer.email>\" }] }`\n   - Header: `Authorization: Bearer <HUBSPOT_ACCESS_TOKEN>`\n   - Header: `Idempotency-Key: <Stripe session id>`\n4. Returns the HubSpot contact `vid` and whether it was newly created.\n\n## Configuration\n\n| Config key | Environment variable | Required | Description |\n|------------|---------------------|----------|-------------|\n| `hubspotAccessToken` | `HUBSPOT_ACCESS_TOKEN` | Yes | HubSpot private app access token or OAuth token with `crm.objects.contacts.write` scope. |\n\nThe connector accepts an optional `fetch` implementation in the config for testing; in production it uses the global `fetch`.\n\n## Usage example\n\n```ts\nimport { handle } from './connector'\n\n// In your webhook handler (e.g., Express, Fastify, Cloudflare Worker)\napp.post('/webhook/stripe', async (req, res) => {\n  try {\n    const result = await handle(req.body, {\n      hubspotAccessToken: process.env.HUBSPOT_ACCESS_TOKEN!\n    })\n    res.json({ ok: true, ...result })\n  } catch (err) {\n    console.error(err)\n    res.status(500).json({ ok: false, error: err.message })\n  }\n})\n```\n\n## Assumptions\n\n- The Stripe webhook payload includes `customer.email` and `id` (session ID).\n- The HubSpot contact can be identified and updated by the `email` property.\n- Passing the Stripe session ID as `Idempotency-Key` ensures the HubSpot upsert is idempotent across retries.\n- The HubSpot API base URL is `https://api.hubapi.com` (as documented in the legacy v1 contacts endpoint).\n- Only the `email` property is sent; additional contact properties can be added by extending the `properties` array.\n"
+          "content": "# Stripe Checkout Session Completed → HubSpot Contact Sync\n\nThis connector processes Stripe `checkout.session.completed` webhooks and creates or updates a HubSpot contact using the customer's email address. The Stripe session ID is used as an `Idempotency-Key` header for the HubSpot API call and is also stored as a custom contact property `stripe_session_id`.\n\n## What it does\n\n1. Receives a Stripe webhook payload for `checkout.session.completed`\n2. Extracts the session ID (`id`) and customer email (`customer_email`)\n3. Calls HubSpot's \"create or update contact by email\" endpoint:\n   - URL: `POST https://api.hubapi.com/contacts/v1/contact/createOrUpdate/email/{contact_email}`\n   - Body: `properties` array with `email` and `stripe_session_id`\n   - Headers: `Authorization: Bearer <HUBSPOT_ACCESS_TOKEN>`, `Idempotency-Key: <stripe_session_id>`\n4. Returns the HubSpot contact ID (`vid`), whether it was newly created, and the Stripe session ID\n\n## Configuration / Environment Variables\n\n| Config Property | Environment Variable | Description |\n|-----------------|---------------------|-------------|\n| `hubspotAccessToken` | `HUBSPOT_ACCESS_TOKEN` | HubSpot private app access token or OAuth token with `contacts` scope |\n| `stripeSecretKey` | `STRIPE_SECRET_KEY` | Stripe secret key (required by config but not used in the primary flow) |\n| `fetch` | (injected) | Fetch implementation — tests provide a fake; production uses global `fetch` |\n\n## Usage Example\n\n```typescript\nimport { handle, ConnectorConfig } from './connector'\n\nconst config: ConnectorConfig = {\n  hubspotAccessToken: process.env.HUBSPOT_ACCESS_TOKEN!,\n  stripeSecretKey: process.env.STRIPE_SECRET_KEY!,\n  fetch: globalThis.fetch\n}\n\n// Stripe webhook handler\napp.post('/stripe/webhook', async (req, res) => {\n  if (req.body.type === 'checkout.session.completed') {\n    const result = await handle(req.body.data.object, config)\n    console.log('Synced contact:', result.hubspotContactId, 'isNew:', result.isNewContact)\n  }\n  res.sendStatus(200)\n})\n```\n\n## Assumptions\n\n- The HubSpot contact is identified and updated by the `email` property.\n- A custom contact property named `stripe_session_id` exists in HubSpot (or will be created) to store the Stripe session identifier.\n- The webhook payload includes a top-level `customer_email` field and `id` representing the session ID (per Stripe's documented `checkout.session` object).\n- Idempotency handling is managed by the HubSpot API using the provided `Idempotency-Key` header.\n- The Stripe \"create checkout session\" endpoint (additional target) is not called in this flow because the session already exists when the webhook fires.\n"
         },
         {
           "path": "src/fixtures.ts",
-          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://docs.stripe.com/api/checkout/sessions/object\n// Source: https://developers.hubspot.com/docs/api-reference/legacy/crm/objects/contacts/v1/post-contacts-v1-contact-create-OrUpdate-email-contact-email\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"id\": \"cs_test_a1b2c3d4e5f6g7h8i9j0\",\n  \"customer\": {\n    \"email\": \"customer@example.com\"\n  },\n  \"client_reference_id\": \"optional_internal_id\"\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://api.hubapi.com/contacts/v1/contact/createOrUpdate/email/{contact_email}\",\n    \"response\": {\n      \"vid\": 3234574,\n      \"isNew\": false\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
+          "content": "// Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.\n// Source: https://docs.stripe.com/api/checkout/sessions/object\n// Source: https://developers.hubspot.com/docs/api-reference/legacy/crm/objects/contacts/v1/post-contacts-v1-contact-create-OrUpdate-email-contact-email\n// Source: https://docs.stripe.com/api/checkout/sessions/create\n\n/** Example payload of the source event, as documented. */\nexport const SOURCE_EXAMPLE = {\n  \"id\": \"cs_test_a11YYufWQzNY63zpQ6QSNRQhkUpVph4WRmzW0zWJO2znZKdVujZ0N0S22u\",\n  \"object\": \"checkout.session\",\n  \"customer_email\": \"user@example.com\",\n  \"client_reference_id\": \"order_123\"\n}\n\nexport interface DocumentedEndpoint {\n  method: string\n  /** As documented; may contain placeholders such as {id}, :id, <id> or a region host like usX. */\n  url: string\n  response: unknown\n}\n\n/** Target endpoints the connector may call, in the documented order, with their documented responses. */\nexport const TARGET_ENDPOINTS: DocumentedEndpoint[] = [\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://api.hubapi.com/contacts/v1/contact/createOrUpdate/email/{contact_email}\",\n    \"response\": {\n      \"vid\": 3234574,\n      \"isNew\": false\n    }\n  },\n  {\n    \"method\": \"POST\",\n    \"url\": \"https://api.stripe.com/v1/checkout/sessions\",\n    \"response\": {\n      \"id\": \"cs_test_a11YYufWQzNY63zpQ6QSNRQhkUpVph4WRmzW0zWJO2znZKdVujZ0N0S22u\",\n      \"object\": \"checkout.session\"\n    }\n  }\n]\n\nexport interface RecordedCall {\n  method: string\n  url: string\n  /** The request body exactly as sent (usually a JSON string). */\n  body: string | undefined\n  /** The body parsed as JSON, or undefined when it is not JSON. */\n  json: unknown\n  headers: Headers\n}\n\n/** The documented endpoint a request matches, placeholders and region subdomains included. */\nexport function findEndpoint(method: string, url: string): DocumentedEndpoint | undefined {\n  return TARGET_ENDPOINTS.find((endpoint) => endpoint.method === method.toUpperCase() && urlMatches(endpoint.url, url))\n}\n\n/**\n * A fake fetch that answers every documented endpoint with its documented response and\n * rejects anything else. Use it in the contract test:\n *\n *   const { fetch, calls } = contractFetch()\n *   await handle(SOURCE_EXAMPLE as MyInput, { ...config, fetch })\n *   expect(calls.length).toBeGreaterThan(0)\n */\nexport function contractFetch(): { fetch: typeof fetch; calls: RecordedCall[] } {\n  return fakeFetch((request) => {\n    const endpoint = findEndpoint(request.method, request.url)\n    if (!endpoint) throw new Error(`contract: ${request.method} ${request.url} is not a documented endpoint`)\n    return jsonResponse(endpoint.response)\n  })\n}\n\n/**\n * A correctly typed fake fetch for every other test. The handler receives the recorded\n * request: { method, url, body (string as sent), json (parsed body), headers (Headers) }.\n *\n *   const { fetch, calls } = fakeFetch((req) => req.url.endsWith('/deals') ? jsonResponse({ id: 1 }, 201) : jsonResponse({}, 404))\n */\nexport function fakeFetch(\n  handler: (request: RecordedCall) => Response | Promise<Response>,\n): { fetch: typeof fetch; calls: RecordedCall[] } {\n  const calls: RecordedCall[] = []\n  const fake = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {\n    const url = input instanceof Request ? input.url : String(input)\n    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()\n    const body = typeof init.body === 'string' ? init.body : init.body == null ? undefined : String(init.body)\n    const call: RecordedCall = { method, url, body, json: parseJson(body), headers: new Headers(init.headers) }\n    calls.push(call)\n    return handler(call)\n  }\n  return { fetch: fake as typeof fetch, calls }\n}\n\nconst STATUS_TEXT: Record<number, string> = {\n  200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',\n  400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',\n  422: 'Unprocessable Entity', 429: 'Too Many Requests',\n  500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',\n}\n\n/** A JSON Response with the standard status text, e.g. jsonResponse({ error: 'nope' }, 401) -> \"401 Unauthorized\". */\nexport function jsonResponse(body: unknown, status = 200): Response {\n  const init = { status, statusText: STATUS_TEXT[status] ?? '', headers: { 'Content-Type': 'application/json' } }\n  return new Response(status === 204 ? null : JSON.stringify(body), init)\n}\n\nfunction parseJson(raw: string | undefined): unknown {\n  if (raw === undefined) return undefined\n  try {\n    return JSON.parse(raw)\n  } catch {\n    return undefined\n  }\n}\n\nfunction urlMatches(template: string, actual: string): boolean {\n  const t = splitUrl(template)\n  const a = splitUrl(actual)\n  if (!t || !a) return false\n  const tHost = t.host.split('.')\n  const aHost = a.host.split('.')\n  if (tHost.slice(-2).join('.') !== aHost.slice(-2).join('.')) return false\n  const tPath = t.path.replace(/\\/+$/, '').split('/')\n  const aPath = a.path.replace(/\\/+$/, '').split('/')\n  if (tPath.length !== aPath.length) return false\n  return tPath.every((segment, i) => isPlaceholder(segment) || segment === aPath[i])\n}\n\nfunction splitUrl(url: string): { host: string; path: string } | null {\n  const match = url.match(/^https?:\\/\\/([^/?#]+)([^?#]*)/i)\n  return match ? { host: (match[1] ?? '').toLowerCase(), path: match[2] || '/' } : null\n}\n\nfunction isPlaceholder(segment: string): boolean {\n  return /^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$/.test(segment)\n}\n"
         }
       ],
       "report": {
         "typecheckOk": true,
         "typecheckOutput": "",
-        "passed": 8,
+        "passed": 6,
         "failed": 0,
-        "total": 8,
+        "total": 6,
         "failures": [],
-        "durationMs": 286.383544921875,
-        "ranOn": "nebius-sandbox:01a10b02-32e6-7607-b9a3-343c6779c887",
+        "durationMs": 286.435546875,
+        "ranOn": "nebius-sandbox:01a15dc2-b17a-7788-b3a7-0db7ad1759e2",
         "passedNames": [
           "contract handles the documented example payload",
-          "handle maps customer.email to HubSpot email property and uses session id as Idempotency-Key",
-          "handle throws when customer.email is missing",
+          "handle maps fields correctly and sends Idempotency-Key header",
           "handle throws when id is missing",
-          "handle throws when payload is not an object",
+          "handle throws when customer_email is missing",
           "handle throws on non-2xx HubSpot response with status and endpoint",
-          "handle throws when hubspotAccessToken is missing from config",
-          "handle URL-encodes email with special characters"
+          "handle includes client_reference_id in payload but does not use it"
         ],
         "contract": "passed"
       }

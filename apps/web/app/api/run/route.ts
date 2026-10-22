@@ -1,4 +1,4 @@
-import { loadConfig, missingLiveKeys, replayRun, startRun, type RunEvent } from '@patchbay/agent'
+import { loadConfig, missingLiveKeys, replayRun, startRun, type RunEvent } from '@patchbay-nebius/agent'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'

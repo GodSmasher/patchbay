@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import type { GeneratedFile, TestReport } from '@patchbay/agent'
+import type { GeneratedFile, TestReport } from '@patchbay-nebius/agent'
 
 interface Draft {
   attempt: number

@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useReducer, useRef } from 'react'
-import type { ApiSpec, GeneratedFile, Plan, RunEvent, Source, StepId, TestReport, Usage } from '@patchbay/agent'
+import type { ApiSpec, GeneratedFile, Plan, RunEvent, Source, StepId, TestReport, Usage } from '@patchbay-nebius/agent'
 
 export type StepStatus = 'idle' | 'running' | 'done' | 'error'
 

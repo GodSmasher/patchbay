@@ -7,7 +7,7 @@ if (existsSync(rootEnv)) process.loadEnvFile(rootEnv)
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // @patchbay/agent now ships compiled ESM in dist/, so transpilePackages is no
+  // @patchbay-nebius/agent now ships compiled ESM in dist/, so transpilePackages is no
   // longer necessary. Keeping it would pull esbuild (a runtime dep of the preflight
   // syntax check) through webpack's loaders and crash the build.
   poweredByHeader: false,
@@ -15,11 +15,11 @@ const nextConfig = {
   // which the Docker image copies as its only runtime payload. ~90 MB instead of ~500 MB.
   output: 'standalone',
   experimental: {
-    serverComponentsExternalPackages: ['esbuild', '@patchbay/agent'],
+    serverComponentsExternalPackages: ['esbuild', '@patchbay-nebius/agent'],
     outputFileTracingRoot: fileURLToPath(new URL('../../', import.meta.url)),
   },
   webpack: (config, { isServer }) => {
-    // esbuild is a Node binary dep of @patchbay/agent; webpack must leave it as a
+    // esbuild is a Node binary dep of @patchbay-nebius/agent; webpack must leave it as a
     // runtime import or it tries to bundle the native platform fallbacks.
     if (isServer) {
       const externals = Array.isArray(config.externals) ? config.externals : [config.externals].filter(Boolean)

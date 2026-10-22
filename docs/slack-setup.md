@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://img.shields.io/badge/-Slack-4A154B?style=for-the-badge&logo=slack&logoColor=white" alt="Slack" height="36"/>
+</p>
+
 # patchbay in Slack
 
 patchbay also runs as a Slack slash-command. Type the integration in any

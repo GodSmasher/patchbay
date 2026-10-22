@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { RunEvent } from '@patchbay/agent'
+import type { RunEvent } from '@patchbay-nebius/agent'
 
 export interface SharedRun {
   prompt: string

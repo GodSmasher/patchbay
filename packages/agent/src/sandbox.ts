@@ -76,10 +76,30 @@ export function createNebiusSandbox(opts: {
   })
 
   async function request<T>(path: string, init: RequestInit = {}): Promise<{ body: T; location: string | null }> {
-    const res = await doFetch(`${opts.baseUrl}${path}`, { ...init, headers: headers(init.headers as Record<string, string>) })
-    const text = await res.text()
-    if (!res.ok) throw new Error(`Sandbox ${init.method ?? 'GET'} ${path}: HTTP ${res.status} ${text.slice(0, 300)}`)
-    return { body: (text ? JSON.parse(text) : {}) as T, location: res.headers.get('location') }
+    const method = (init.method ?? 'GET').toUpperCase()
+    // Retry 5xx and transient network errors on idempotent calls. POST /instances is retried too
+    // because our body is deterministic (same files, same command) — a duplicate instance costs
+    // one wasted sandbox, which is cheaper than burning a whole plan+research+generate run.
+    const maxTries = 3
+    let lastError: unknown
+    for (let attempt = 0; attempt < maxTries; attempt++) {
+      try {
+        const res = await doFetch(`${opts.baseUrl}${path}`, { ...init, headers: headers(init.headers as Record<string, string>) })
+        const text = await res.text()
+        if (res.status >= 500 && res.status < 600 && attempt < maxTries - 1) {
+          lastError = new Error(`HTTP ${res.status} ${text.slice(0, 120)}`)
+          await sleep(500 * Math.pow(2, attempt))
+          continue
+        }
+        if (!res.ok) throw new Error(`Sandbox ${method} ${path}: HTTP ${res.status} ${text.slice(0, 300)}`)
+        return { body: (text ? JSON.parse(text) : {}) as T, location: res.headers.get('location') }
+      } catch (error) {
+        lastError = error
+        if (attempt >= maxTries - 1) break
+        await sleep(500 * Math.pow(2, attempt))
+      }
+    }
+    throw lastError instanceof Error ? lastError : new Error(`Sandbox ${method} ${path}: ${String(lastError)}`)
   }
 
   async function uploadFile(content: string): Promise<string> {

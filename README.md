@@ -21,7 +21,7 @@
   <a href=".github/workflows/patchbay-pr.yml"><img src="https://img.shields.io/badge/-GitHub%20PR-181717?style=for-the-badge&logo=github&logoColor=white" alt="GitHub Actions" height="28"/></a>
   <a href="Dockerfile"><img src="https://img.shields.io/badge/-Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker" height="28"/></a>
   <a href="https://patchbay-nebius.vercel.app"><img src="https://img.shields.io/badge/-Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white" alt="Vercel" height="28"/></a>
-  <a href="https://www.npmjs.com/package/@patchbay/agent"><img src="https://img.shields.io/badge/-npm-CB3837?style=for-the-badge&logo=npm&logoColor=white" alt="npm" height="28"/></a>
+  <a href="https://www.npmjs.com/package/@patchbay-nebius/agent"><img src="https://img.shields.io/badge/-npm-CB3837?style=for-the-badge&logo=npm&logoColor=white" alt="npm" height="28"/></a>
 </p>
 
 **Describe an integration in one sentence. Get a tested TypeScript connector.**
@@ -42,23 +42,23 @@ Every endpoint in the spec comes with an example payload taken from the document
 
 ## Three ways to call it
 
-**CLI** – [`@patchbay/agent`](https://www.npmjs.com/package/@patchbay/agent) on npm
+**CLI** – [`@patchbay-nebius/agent`](https://www.npmjs.com/package/@patchbay-nebius/agent) on npm
 
 ```
-npx -y @patchbay/agent build "When a Stripe payment succeeds, add the customer to a Mailchimp audience"
+npx -y @patchbay-nebius/agent build "When a Stripe payment succeeds, add the customer to a Mailchimp audience"
 # or
-npm install -g @patchbay/agent
+npm install -g @patchbay-nebius/agent
 patchbay build   [--record] "<one-sentence integration>"
 patchbay research           "<one-sentence integration>"
 patchbay verify  <directory>
 ```
 
-**MCP server** – [`@patchbay/mcp`](https://www.npmjs.com/package/@patchbay/mcp) on npm, stdio transport.
+**MCP server** – [`@patchbay-nebius/mcp`](https://www.npmjs.com/package/@patchbay-nebius/mcp) on npm, stdio transport.
 
 Three tools (`build_connector`, `research_api`, `verify_code`) with live progress and logging notifications.
 
 ```
-claude mcp add patchbay -- npx -y @patchbay/mcp
+claude mcp add patchbay -- npx -y @patchbay-nebius/mcp
 ```
 
 Full setup for Claude Code, Codex and Cursor in [docs/mcp-setup.md](docs/mcp-setup.md).
@@ -84,7 +84,7 @@ Same connector, same requirements. Rough per-connector cost:
 
 The agent in your IDE is a generalist. For integration connectors — read the docs, map fields, write the thing, prove it works — that's work with hard structure, and a specialized pipeline on cheap models beats a general-purpose agent on expensive ones. Same reason you don't ask Opus to format JSON.
 
-**patchbay sits inside your editor as an MCP server** (`claude mcp add patchbay -- npx -y @patchbay/mcp`), so you keep using Claude Code / Cursor / Codex for everything else — architecture, refactors, bug hunts — and offload connector work to patchbay. Your Claude usage bill goes down for the task Claude is slowest *and* most expensive at.
+**patchbay sits inside your editor as an MCP server** (`claude mcp add patchbay -- npx -y @patchbay-nebius/mcp`), so you keep using Claude Code / Cursor / Codex for everything else — architecture, refactors, bug hunts — and offload connector work to patchbay. Your Claude usage bill goes down for the task Claude is slowest *and* most expensive at.
 
 The generated connector is **plain TypeScript in your repo**, no runtime dependency on patchbay — read it, change it, ship it.
 

@@ -97,7 +97,7 @@ docs, not guesses.
 
 **Six ways to call it** — the same pipeline is exposed as:
 - A CLI (`patchbay build / research / verify / add / push`)
-- An MCP server for Claude Code, Codex and Cursor (`npx -y @patchbay/mcp`)
+- An MCP server for Claude Code, Codex and Cursor (`npx -y @patchbay-nebius/mcp`)
 - A Next.js web demo with a live timeline
 - A Slack slash command (`/patchbay build "..."`)
 - A GitHub Action that reacts to `/patchbay build` in PR comments
@@ -105,7 +105,7 @@ docs, not guesses.
   finished connector
 
 **Operations** — Docker + docker-compose for selfhost, published to npm as
-`@patchbay/agent` and `@patchbay/mcp`, GitHub Actions CI on every push,
+`@patchbay-nebius/agent` and `@patchbay-nebius/mcp`, GitHub Actions CI on every push,
 openstatus.dev watches the web demo and the Nebius + Tavily upstreams, badge
 on the README refreshes live.
 

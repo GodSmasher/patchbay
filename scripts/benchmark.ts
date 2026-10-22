@@ -43,7 +43,7 @@ const PROMPTS = [
   'When a Shopify order is paid, deduplicate against prior webhook deliveries by order id + hmac, then enqueue an Airtable upsert that key-matches on Order Number.',
   'When a Stripe charge.refunded webhook arrives, send an idempotent POST to Mailchimp add-tag using the charge id as Idempotency-Key, and skip when the tag already exists.',
   'When a Typeform submission arrives, upload the first file answer to S3 using a presigned URL request, then store the public URL in an Airtable attachment field.',
-  'When a Zendesk ticket is updated, open a WebSocket to Pusher Channels and push the status change to channel presence-ticket-<id> as event ticket.updated.',
+  'When a Zendesk ticket is updated, forward the status change to Pusher Channels using the server event API (POST https://api-<cluster>.pusher.com/apps/<app_id>/events with HMAC-SHA256-signed body) on channel presence-ticket-<id> as event ticket.updated.',
   'When a GitHub pull_request is opened, call OpenAI with a structured output schema requesting {summary, risks[], suggestedReviewers[]} and post the summary as a PR comment.',
   'When an Intercom conversation ends, fetch its full transcript via pagination, redact emails and phone numbers with regex, then store the cleaned transcript in Notion with rich-text formatting.',
   'When a Calendly meeting is cancelled, find the matching HubSpot engagement by invitee email + start time, delete it, and log the cancellation reason to a Google Sheets audit log.',
