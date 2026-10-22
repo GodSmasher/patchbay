@@ -110,7 +110,7 @@ Every patchbay benchmark run is a record of the agent failing and then fixing it
 
 So we're fine-tuning a repair-focused **Nemotron 3.5 Lightning** on patchbay's own repair history. If it matches **Nemotron 3 Ultra 550B** (patchbay's current repair model) on the held-out eval set, we close the loop: patchbay generates benchmark runs → runs train its own repair model → next benchmark's repair cost drops ~50× while the green rate holds. The dataset, launcher and eval harness are all in-repo:
 
-- `bench/training-data.jsonl` — 68 real red→green repair pairs, extracted from committed benchmark runs
+- `bench/training-data.jsonl` — 68 real red→green repair pairs, extracted from committed benchmark runs. Also mirrored on HuggingFace as [patchbay-nebius/connector-repair-dataset](https://huggingface.co/datasets/patchbay-nebius/connector-repair-dataset) together with 111 synthetic perturbations and a train/eval split
 - `scripts/finetune.ts` — upload / start / watch Nebius fine-tune jobs
 - `scripts/eval-repair.ts` — format, file-coverage and line-overlap metrics against a held-out eval split
 - Full plan + numbers (as they come in): [docs/finetune.md](docs/finetune.md)
