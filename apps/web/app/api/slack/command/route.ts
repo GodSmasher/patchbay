@@ -58,7 +58,7 @@ export async function POST(request: Request) {
     // don't rely on fire-and-forget surviving Vercel's lambda-kill-on-return.
     const summary = await collectReplaySummary(prompt)
     const note = slackReplay && liveAvailable
-      ? `_Replay from the recorded Typeform → Pipedrive run. Live demo at ${liveLink()}._`
+      ? `_Replay from the recorded Typeform → Pipedrive run. <${liveLink()}|Open the live demo>._`
       : `_Live mode is off here, replaying the recorded run._`
     return slackJson(`${header(userName, prompt)}\n${note}\n\n${summary}`)
   }
