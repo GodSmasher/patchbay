@@ -12,6 +12,7 @@ Usage:
   patchbay build   [--record] "<one-sentence integration>"
   patchbay research           "<one-sentence integration>"
   patchbay verify  [--watch] <directory>
+  patchbay scan    <directory> [--build-top=<n>] [--json]
   patchbay add     <run-dir> [--target=<dir>]
   patchbay push    <run-dir> --repo=owner/name [--path=connectors/<name>] [--branch=<branch>] [--dry-run]
   patchbay help
@@ -20,18 +21,21 @@ Commands:
   build     Full pipeline: plan → research → generate → verify (with repair). Default if you pass a prompt.
   research  Plan + API research only. Prints the spec, no code.
   verify    Type-check and vitest an existing connector folder (needs src/connector.ts + tests).
+  scan      Walk a repo and report integration opportunities patchbay could build.
   add       Drop a recorded run's connector files into another project.
   push      Open a pull request on a GitHub repo with the generated files.
   help      Show this message.
 
 Flags:
-  --record  build only. Writes runs/<timestamp>/ with generated files and the event log.
-  --watch   verify only. Re-runs the sandbox verify whenever a .ts file in <directory> changes.
-  --target  add only. Where to drop the files, defaults to ./connectors/<run-name>.
-  --repo    push only. owner/name of the target GitHub repo.
-  --path    push only. Where to drop the files inside the repo, defaults to connectors/<run-name>.
-  --branch  push only. Branch name to create, defaults to patchbay/<run-name>.
-  --dry-run push only. Print the plan without hitting the GitHub API.
+  --record     build only. Writes runs/<timestamp>/ with generated files and the event log.
+  --watch      verify only. Re-runs the sandbox verify whenever a .ts file in <directory> changes.
+  --build-top  scan only. After reporting, build the top-N opportunities (full pipeline each).
+  --json       scan only. Emit the raw opportunity list as JSON instead of the formatted report.
+  --target     add only. Where to drop the files, defaults to ./connectors/<run-name>.
+  --repo       push only. owner/name of the target GitHub repo.
+  --path       push only. Where to drop the files inside the repo, defaults to connectors/<run-name>.
+  --branch     push only. Branch name to create, defaults to patchbay/<run-name>.
+  --dry-run    push only. Print the plan without hitting the GitHub API.
 
 Environment:
   NEBIUS_API_KEY, NEBIUS_AI_PROJECT, TAVILY_API_KEY  – required for live runs.
@@ -56,6 +60,7 @@ async function main() {
 
   if (first === 'add') return add(argv.slice(1))
   if (first === 'push') return push(argv.slice(1))
+  if (first === 'scan') return scan(argv.slice(1))
 
   switch (cmd) {
     case 'build':
@@ -64,6 +69,32 @@ async function main() {
       return research(rest)
     case 'verify':
       return verify(rest)
+  }
+}
+
+async function scan(args: string[]) {
+  const positional = args.filter((a) => !a.startsWith('--'))
+  const dir = positional[0] ? resolve(positional[0]) : process.cwd()
+  if (!existsSync(dir)) return usageError(`No such directory: ${dir}`)
+  const asJson = args.includes('--json')
+  const buildTopArg = args.find((a) => a.startsWith('--build-top='))
+  const buildTop = buildTopArg ? Math.max(0, Number(buildTopArg.slice('--build-top='.length))) : 0
+
+  const { scanRepo, formatReport } = await import('./scanner')
+  const opportunities = scanRepo(dir)
+  if (asJson) {
+    console.log(JSON.stringify(opportunities, null, 2))
+  } else {
+    console.log(formatReport(opportunities, dir))
+  }
+
+  if (buildTop > 0 && opportunities.length) {
+    const top = opportunities.slice(0, buildTop)
+    console.log(`\nBuilding top ${top.length} opportunit${top.length === 1 ? 'y' : 'ies'}…\n`)
+    for (const [i, op] of top.entries()) {
+      console.log(`\n──── (${i + 1}/${top.length}) ${op.file}:${op.line} ────`)
+      await build(['--record', op.prompt])
+    }
   }
 }
 

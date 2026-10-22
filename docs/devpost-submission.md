@@ -139,6 +139,18 @@ on the README refreshes live.
 Full post-mortems with the exact diffs live in
 [docs/build-log.md](https://github.com/GodSmasher/patchbay/blob/main/docs/build-log.md).
 
+### Autonomous mode — `patchbay scan .`
+
+patchbay doesn't wait for you to describe an integration. Point it at a repo:
+
+```
+patchbay scan .
+```
+
+and it walks the codebase for integration opportunities: webhook handlers with empty bodies or `TODO: implement`, `.env.example` entries that point at Stripe / Mailchimp / Shopify / Slack / Twilio / Pipedrive / HubSpot / … with no corresponding code, TODO comments naming a vendor and an action, vendor SDKs that are imported but barely used. Each opportunity gets a priority score, a ready-to-run `patchbay build "…"` prompt, and `--build-top=N` runs the pipeline on the top N without you typing a sentence.
+
+Agent-engineering judges, this is the part. It's one thing to turn a sentence into code. It's another to turn a codebase into a to-do list of integrations and then execute them. The vendor catalogue is 30+ names and the heuristics are regex-only, so there's no LLM cost until the user actually says "build the top 3".
+
 ### We fine-tune our own repair model on our own benchmark runs
 
 Every patchbay benchmark run is a record of the agent failing and then fixing itself. 68 of those `(red draft + failing test) → green draft` moments across five benchmark passes make a perfectly-domain-matched training set — and Nebius Token Factory ships an OpenAI-compatible fine-tune endpoint that eats exactly this format. So we fine-tune a repair-focused **Nemotron 3.5 Lightning** on patchbay's own repair history.

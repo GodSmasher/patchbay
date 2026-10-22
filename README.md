@@ -51,7 +51,10 @@ npm install -g @patchbay-nebius/agent
 patchbay build   [--record] "<one-sentence integration>"
 patchbay research           "<one-sentence integration>"
 patchbay verify  <directory>
+patchbay scan    <directory> [--build-top=<n>]
 ```
+
+**`patchbay scan .` — autonomous repo scanner.** Walks any repository and reports the integration opportunities patchbay could build: webhook handlers that only contain `TODO` or `throw not implemented`, `.env.example` entries pointing at vendor APIs that have no implementation, TODO/FIXME comments mentioning Stripe/Mailchimp/Shopify/… and vendor SDKs that are imported but barely used. Each opportunity ships with a ready-to-run prompt and a priority score; `--build-top=N` runs the full pipeline on the top N automatically.
 
 **MCP server** – [`@patchbay-nebius/mcp`](https://www.npmjs.com/package/@patchbay-nebius/mcp) on npm, stdio transport.
 
