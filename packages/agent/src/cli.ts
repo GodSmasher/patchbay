@@ -93,10 +93,11 @@ async function scan(args: string[]) {
 
   const { scanRepo, formatReport } = await import('./scanner')
   const opportunities = scanRepo(dir)
+  const showAll = args.includes('--all')
   if (asJson) {
     console.log(JSON.stringify(opportunities, null, 2))
   } else {
-    console.log(formatReport(opportunities, dir))
+    console.log(formatReport(opportunities, dir, showAll ? opportunities.length : undefined))
   }
 
   if (buildTop > 0 && opportunities.length) {

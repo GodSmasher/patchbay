@@ -25,6 +25,9 @@ const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', '.next', 'out', 'buil
 const SCAN_EXTS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.py', '.go', '.rb', '.env', '.example'])
 const SCAN_MAX_BYTES = 500_000
 
+/** Default cap on the formatted report so a template repo doesn't produce 100 lines. */
+const DEFAULT_REPORT_LIMIT = 15
+
 const INTEGRATION_KEYWORDS = /\b(webhook|sync|notify|integrate|forward|post\s+to|send\s+to|push\s+to|pull\s+from|fetch\s+from|subscribe|publish|route\s+to|hook\s+into)\b/i
 
 /** Vendor name → canonical title case for the prompt. */
@@ -162,8 +165,13 @@ function scanWebhookHandlers(file: string, lines: string[], content: string): Op
   return found
 }
 
+/** SDK import specifiers that are frameworks (not integrations) — skip entirely. */
+const FRAMEWORK_IMPORT_HINTS = /\/(hydrogen|remix-oxygen|next|nuxt|express|fastify|koa|hono|svelte|solid|qwik|astro|react|vue|polaris|themes|plugin|cli)(\/|$)/i
+
 function scanVendorImports(file: string, lines: string[]): Opportunity[] {
   const found: Opportunity[] = []
+  // Skip declaration files and generated code — these are types, not business logic.
+  if (file.endsWith('.d.ts') || file.includes('.generated.') || file.includes('/generated/')) return found
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]!
     const match = line.match(/(?:from\s+|require\(\s*)['"]([^'"\n]+)['"]/)
@@ -171,6 +179,8 @@ function scanVendorImports(file: string, lines: string[]): Opportunity[] {
     const spec = match[1]!
     // Only real npm packages: skip relative imports (./x, ../x) and node builtins (node:x).
     if (spec.startsWith('.') || spec.startsWith('/') || spec.startsWith('node:')) continue
+    // Skip framework/toolkit imports that happen to contain a vendor name (e.g. @shopify/hydrogen is a framework not Shopify as an integration target).
+    if (FRAMEWORK_IMPORT_HINTS.test(spec)) continue
     const vendor = detectVendor(spec.replace(/^@/, '').toLowerCase())
     if (!vendor) continue
     // Count how many times the vendor name shows up in the file to tell "imported-and-used" from "imported-but-stubbed".
@@ -225,13 +235,28 @@ function rankAndDedupe(opportunities: Opportunity[]): Opportunity[] {
     const existing = map.get(key)
     if (!existing || op.score > existing.score) map.set(key, op)
   }
-  return [...map.values()].sort((a, b) => b.score - a.score)
+  // Second pass: cap vendor-sdk-import to 3 per (vendor, kind) so one framework/template
+  // repo can't flood the report with 90 Shopify entries. Keep the highest-scoring 3.
+  const perVendorKind = new Map<string, number>()
+  const all = [...map.values()].sort((a, b) => b.score - a.score)
+  const kept: Opportunity[] = []
+  for (const op of all) {
+    if (op.kind !== 'vendor-sdk-import') { kept.push(op); continue }
+    const key = `${op.vendors[0] ?? '?'}::${op.kind}`
+    const seen = perVendorKind.get(key) ?? 0
+    if (seen >= 3) continue
+    perVendorKind.set(key, seen + 1)
+    kept.push(op)
+  }
+  return kept
 }
 
-export function formatReport(opportunities: Opportunity[], root: string): string {
+export function formatReport(opportunities: Opportunity[], root: string, limit = DEFAULT_REPORT_LIMIT): string {
   if (!opportunities.length) return `No integration opportunities found under ${root}.`
-  const header = `patchbay scan found ${opportunities.length} integration opportunit${opportunities.length === 1 ? 'y' : 'ies'} under ${root}\n`
-  const body = opportunities
+  const total = opportunities.length
+  const shown = opportunities.slice(0, limit)
+  const header = `patchbay scan found ${total} integration opportunit${total === 1 ? 'y' : 'ies'} under ${root}` + (total > shown.length ? ` (showing top ${shown.length}; pass --all to see them all)` : '') + '\n'
+  const body = shown
     .map((op, i) => `#${i + 1}  score ${op.score}  ${op.kind}  ${op.file}:${op.line}\n    ${op.evidence}\n    build: patchbay build "${op.prompt}"`)
     .join('\n\n')
   const footer = `\n\nRun one directly:\n  patchbay build "${opportunities[0]!.prompt}"\nOr let patchbay build the top N for you:\n  patchbay scan ${root} --build-top=1`
