@@ -180,12 +180,11 @@ patchbay sits inside Claude Code / Cursor / Codex as an MCP server, so you keep 
 ### Accomplishments we're proud of
 
 - **Two benchmarks, both committed:** The 20-prompt core (easier integrations
-  like Typeform → Pipedrive, Shopify → Airtable) runs at **90% green** over 5 passes
-  (2026-10-06). The extended 30-prompt bench adds a **brutal 10** — WebSocket to
-  Pusher, OAuth2 refresh, chained flows, S3 presigned URLs, GraphQL nested
-  mutations, HMAC-signed server events — and runs at **80% core / 69% brutal /
-  77% overall** across 53 runs (2026-10-21), ≈ $0.13/connector. Reproduce via
-  `npm run bench -- --passes=3`.
+  like Typeform → Pipedrive, Shopify → Airtable) runs at **90.2% green · 52% first-try ·
+  $0.07/connector** over 5 passes = 92 runs (2026-10-06). The extended **brutal 10**
+  (WebSocket to Pusher, OAuth2 refresh, chained flows, S3 presigned URLs, GraphQL
+  nested mutations, HMAC-signed server events) runs at **69% green · 23% first-try ·
+  $0.17/connector** (2026-10-21). Reproduce via `npm run bench -- --passes=5`.
 - Six distinct distribution channels for one agent — the first time I've seen
   a hackathon project ship a CLI, an MCP server, a web demo, a Slack bot, a
   GitHub Action *and* a "push PR to your repo" command in the same submission.

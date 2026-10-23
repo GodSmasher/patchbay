@@ -74,10 +74,13 @@ setup: github.com/GodSmasher/patchbay/blob/main/docs/mcp-setup.md
 
 the current scoreboard:
 
-• 90.2% green over 92 runs
+• 90.2% green over 92 runs (core 20, 5 passes)
 • 52.2% first-try (no repair needed)
 • ~$0.07 per connector
 • ~45s average wall-clock
+
+brutal half (10 adversarial prompts: WebSocket, OAuth2 refresh, GraphQL nested mutations, S3 presigned URLs, HMAC):
+• 69% green · 23% first-try · $0.17 per connector
 
 run it yourself: npm run bench -- --passes=5
 

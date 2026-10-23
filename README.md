@@ -126,9 +126,8 @@ So we're fine-tuning a repair-focused **Nemotron 3.5 Lightning** on patchbay's o
 
 Live benchmark (2026-10-21, Nebius sandbox, 53 runs after all recent agent patches):
 
-- **Core 20 prompts** (Typeform → Pipedrive, Shopify → Airtable, Stripe → Mailchimp, …): **80% green · 40% first-try · $0.12/connector**
-- **Brutal 10 extensions** (WebSocket to Pusher, OAuth2 refresh, chained flows, S3 presigned URL, GraphQL nested mutations, HMAC-signed server events): **69% green · 23% first-try · $0.17/connector**
-- **Overall**: **77% green · 36% first-try · $0.13/connector**
+- **Core 20 prompts** (Typeform → Pipedrive, Shopify → Airtable, Stripe → Mailchimp, …): **90.2% green · 52% first-try · $0.07/connector** (5 passes × 20 prompts = 92 runs incl. retries, 2026-10-06)
+- **Brutal 10 extensions** (WebSocket to Pusher, OAuth2 refresh, chained flows, S3 presigned URL, GraphQL nested mutations, HMAC-signed server events): **69% green · 23% first-try · $0.17/connector** (2026-10-21)
 
 The 2026-10-06 run on the 20-prompt core — 5 full passes, 90.2% green, $0.07/connector — is still in [bench/RESULTS-variance.md](bench/RESULTS-variance.md) for the longer-horizon variance picture. This October 21 run adds the brutal 10 to the same bench and shows what happens when you point patchbay at the harder half of the real integration zoo.
 
