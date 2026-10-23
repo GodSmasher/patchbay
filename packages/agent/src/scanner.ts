@@ -43,29 +43,45 @@ const VENDOR_HINTS: Record<string, string> = {
 
 const VENDOR_PATTERN = new RegExp(`\\b(${Object.keys(VENDOR_HINTS).join('|')})\\b`, 'gi')
 
-export function scanRepo(root: string): Opportunity[] {
-  const files = walk(root)
+export interface ScanInputFile {
+  /** Repo-relative path, forward slashes. */
+  path: string
+  content: string
+}
+
+/**
+ * Scan a list of in-memory files. Used by both the CLI (which populates it by walking
+ * disk) and the web scanner (which populates it from the GitHub REST API).
+ */
+export function scanFiles(files: ScanInputFile[]): Opportunity[] {
   const opportunities: Opportunity[] = []
-  for (const file of files) {
-    let content: string
-    try {
-      const size = statSync(file).size
-      if (size > SCAN_MAX_BYTES) continue
-      content = readFileSync(file, 'utf8')
-    } catch { continue }
-
-    const rel = relative(root, file).replace(/\\/g, '/')
-    const name = basename(file).toLowerCase()
+  const contentByPath = new Map<string, string>()
+  for (const f of files) contentByPath.set(f.path, f.content)
+  for (const { path, content } of files) {
+    if (content.length > SCAN_MAX_BYTES) continue
+    const name = basename(path).toLowerCase()
     const lines = content.split('\n')
-
     if (name.endsWith('.env') || name.endsWith('.env.example') || name === '.env.example' || name === '.env.sample') {
-      opportunities.push(...scanEnvFile(rel, lines))
+      opportunities.push(...scanEnvFile(path, lines))
     }
-    opportunities.push(...scanTodos(rel, lines))
-    opportunities.push(...scanWebhookHandlers(rel, lines, content))
-    opportunities.push(...scanVendorImports(rel, lines))
+    opportunities.push(...scanTodos(path, lines))
+    opportunities.push(...scanWebhookHandlers(path, lines, content))
+    opportunities.push(...scanVendorImportsFromMemory(path, lines, contentByPath))
   }
   return rankAndDedupe(opportunities)
+}
+
+export function scanRepo(root: string): Opportunity[] {
+  const paths = walk(root)
+  const files: ScanInputFile[] = []
+  for (const abs of paths) {
+    try {
+      const size = statSync(abs).size
+      if (size > SCAN_MAX_BYTES) continue
+      files.push({ path: relative(root, abs).replace(/\\/g, '/'), content: readFileSync(abs, 'utf8') })
+    } catch { /* skip */ }
+  }
+  return scanFiles(files)
 }
 
 function walk(dir: string, out: string[] = []): string[] {
@@ -202,6 +218,35 @@ function scanVendorImports(file: string, lines: string[]): Opportunity[] {
 
 function readSafe(file: string): string {
   try { return readFileSync(file, 'utf8') } catch { return '' }
+}
+
+function scanVendorImportsFromMemory(file: string, lines: string[], contentByPath: Map<string, string>): Opportunity[] {
+  const found: Opportunity[] = []
+  if (file.endsWith('.d.ts') || file.includes('.generated.') || file.includes('/generated/')) return found
+  const fileContent = contentByPath.get(file) ?? ''
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!
+    const match = line.match(/(?:from\s+|require\(\s*)['"]([^'"\n]+)['"]/)
+    if (!match) continue
+    const spec = match[1]!
+    if (spec.startsWith('.') || spec.startsWith('/') || spec.startsWith('node:')) continue
+    if (FRAMEWORK_IMPORT_HINTS.test(spec)) continue
+    const vendor = detectVendor(spec.replace(/^@/, '').toLowerCase())
+    if (!vendor) continue
+    const vendorUses = (fileContent.match(new RegExp(`\\b${vendor}`, 'gi')) || []).length
+    if (vendorUses > 6) continue
+    const title = VENDOR_HINTS[vendor]!
+    found.push({
+      score: 40 + (vendorUses < 3 ? 15 : 0),
+      kind: 'vendor-sdk-import',
+      file,
+      line: i + 1,
+      evidence: `imports '${spec}' but only uses "${vendor}" ${vendorUses}× in this file`,
+      vendors: [title],
+      prompt: `Write a ${title} integration — the ${title} SDK is already a dependency but there's no handler wired up.`,
+    })
+  }
+  return found
 }
 
 function detectVendor(text: string): string | null {

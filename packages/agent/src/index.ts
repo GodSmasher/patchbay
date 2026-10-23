@@ -12,6 +12,7 @@ export { loadConfig, missingLiveKeys } from './config'
 export { REPLAY_RUN, replayRun, type RecordedRun } from './replay'
 export { runAgent, researchAgent, verifyAgent, makePlan, research, generate, repair, repairParallel, type AgentDeps } from './run'
 export { isGreen, parseTestOutput } from './report'
+export { scanRepo, scanFiles, formatReport, type Opportunity, type ScanInputFile } from './scanner'
 
 /** Live run when keys are configured and mock mode is off, otherwise the recorded replay. */
 export function startRun(prompt: string, config: AgentConfig = loadConfig()): AsyncGenerator<RunEvent> {

@@ -6,6 +6,7 @@ import { PlanCard } from '@/components/plan-card'
 import { Timeline } from '@/components/timeline'
 import { GitHubBadge, useGhUser } from '@/components/github-badge'
 import { GitHubPush } from '@/components/github-push'
+import { ScanPanel } from '@/components/scan-panel'
 import { useRun } from '@/lib/use-run'
 
 const RECORDED_PROMPT =
@@ -111,7 +112,8 @@ export default function Home() {
               <span className="text-xs text-ink-mute">Live mode is off here, you will see a recorded run.</span>
             )}
           </div>
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="mt-4 flex flex-wrap gap-2 items-center">
+            <span className="text-[11px] uppercase tracking-wide text-ink-mute">Examples:</span>
             {EXAMPLES.map((example) => (
               <button
                 key={example.label}
@@ -125,6 +127,8 @@ export default function Home() {
             ))}
           </div>
         </form>
+
+        <ScanPanel onPick={(p) => { setPrompt(p); window.scrollTo({ top: 0, behavior: 'smooth' }) }} />
       </section>
 
       {started && (
