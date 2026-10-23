@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import { CodePanel } from '@/components/code-panel'
 import { PlanCard } from '@/components/plan-card'
 import { Timeline } from '@/components/timeline'
+import { GitHubBadge, useGhUser } from '@/components/github-badge'
+import { GitHubPush } from '@/components/github-push'
 import { useRun } from '@/lib/use-run'
 
 const RECORDED_PROMPT =
@@ -22,6 +24,7 @@ const EXAMPLES: { label: string; prompt: string }[] = [
 
 export default function Home() {
   const { state, start, share } = useRun()
+  const { user: ghUser } = useGhUser()
   const [prompt, setPrompt] = useState(RECORDED_PROMPT)
   const [live, setLive] = useState<boolean | null>(null)
   const [showMcp, setShowMcp] = useState(false)
@@ -64,7 +67,8 @@ export default function Home() {
           >
             Open in Claude Code
           </button>
-          <a href="https://github.com/GodSmasher/patchbay" className="hover:text-ink">GitHub</a>
+          <GitHubBadge user={ghUser} />
+          <a href="https://github.com/GodSmasher/patchbay" className="hover:text-ink">Source</a>
         </nav>
       </header>
       {showMcp && <McpModal prompt={prompt} onClose={() => setShowMcp(false)} />}
@@ -174,6 +178,13 @@ export default function Home() {
               </div>
             )}
             {state.drafts.length > 0 && <CodePanel drafts={state.drafts} finalOk={state.result?.ok ?? null} />}
+            {state.result?.ok && !state.running && state.drafts.length > 0 && (
+              <GitHubPush
+                user={ghUser}
+                prompt={prompt}
+                files={state.drafts[state.drafts.length - 1]?.files ?? []}
+              />
+            )}
             {state.plan && <PlanCard plan={state.plan} spec={state.spec} sources={state.sources} />}
           </div>
         </section>
