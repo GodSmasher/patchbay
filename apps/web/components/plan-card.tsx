@@ -1,9 +1,8 @@
 import type { ApiSpec, Plan, Source } from '@patchbay-nebius/agent'
 
-export function PlanCard({ plan, spec, sources }: { plan: Plan; spec: ApiSpec | null; sources: Source[] }) {
-  return (
-    <section className="rounded-xl border border-paper-line bg-paper-card p-5">
-      <h2 className="text-xs font-semibold uppercase tracking-wide text-ink-mute">Plan</h2>
+export function PlanCard({ plan, spec, sources, collapsible = false }: { plan: Plan; spec: ApiSpec | null; sources: Source[]; collapsible?: boolean }) {
+  const body = (
+    <>
       <p className="mt-2 text-sm leading-relaxed">{plan.summary}</p>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -71,6 +70,27 @@ export function PlanCard({ plan, spec, sources }: { plan: Plan; spec: ApiSpec | 
           </ul>
         </details>
       )}
+    </>
+  )
+
+  if (collapsible) {
+    return (
+      <details className="rounded-xl border border-paper-line bg-paper-card p-5">
+        <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wide text-ink-mute hover:text-ink">
+          Plan, endpoints &amp; sources
+          <span className="ml-2 font-normal normal-case tracking-normal text-ink-soft">
+            — {plan.source.app} → {plan.target.app}
+          </span>
+        </summary>
+        {body}
+      </details>
+    )
+  }
+
+  return (
+    <section className="rounded-xl border border-paper-line bg-paper-card p-5">
+      <h2 className="text-xs font-semibold uppercase tracking-wide text-ink-mute">Plan</h2>
+      {body}
     </section>
   )
 }

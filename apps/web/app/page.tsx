@@ -162,6 +162,17 @@ export default function Home() {
             {state.error && (
               <div className="rounded-xl border border-warn/30 bg-warn-soft px-4 py-3 text-sm text-warn">{state.error}</div>
             )}
+            {/* When a build finishes green, the push action is what the user
+                came here to do — show it first, above the code, so it fits in
+                one viewport with the "all tests pass" banner. Plan details
+                collapse below the code so they don't force a long scroll. */}
+            {state.result?.ok && !state.running && state.drafts.length > 0 && (
+              <GitHubPush
+                user={ghUser}
+                prompt={prompt}
+                files={state.drafts[state.drafts.length - 1]?.files ?? []}
+              />
+            )}
             {state.result && !state.running && (
               <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-paper-line bg-paper-card px-4 py-2 text-xs">
                 <span className="text-ink-soft">Share this run so someone else can see what the model did.</span>
@@ -182,14 +193,14 @@ export default function Home() {
               </div>
             )}
             {state.drafts.length > 0 && <CodePanel drafts={state.drafts} finalOk={state.result?.ok ?? null} />}
-            {state.result?.ok && !state.running && state.drafts.length > 0 && (
-              <GitHubPush
-                user={ghUser}
-                prompt={prompt}
-                files={state.drafts[state.drafts.length - 1]?.files ?? []}
+            {state.plan && (
+              <PlanCard
+                plan={state.plan}
+                spec={state.spec}
+                sources={state.sources}
+                collapsible={state.result?.ok === true && !state.running}
               />
             )}
-            {state.plan && <PlanCard plan={state.plan} spec={state.spec} sources={state.sources} />}
           </div>
         </section>
       )}

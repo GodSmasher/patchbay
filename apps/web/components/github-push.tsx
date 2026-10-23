@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import type { GeneratedFile } from '@patchbay-nebius/agent'
 import type { GhUser } from './github-badge'
 
+const STOP = new Set(['when', 'then', 'the', 'and', 'for', 'with', 'from', 'into', 'that', 'this', 'our', 'add', 'send', 'create', 'push', 'post', 'get', 'put', 'make', 'update', 'build', 'open', 'receive', 'submit', 'webhook'])
+
 interface Repo {
   fullName: string
   owner: string
@@ -36,15 +38,19 @@ export function GitHubPush({ user, prompt, files }: { user: GhUser | null; promp
   }, [connected])
 
   useEffect(() => {
-    // Default a readable target path from the prompt.
-    const slug = prompt
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '')
-      .split('-')
-      .slice(0, 4)
-      .join('-')
-    if (slug) setTargetPath(`connectors/${slug.slice(0, 48)}`)
+    // Default a readable target path: pick the vendor-ish words from the
+    // prompt (first app name → "to" → second app name), falling back to a
+    // short slug if we can't find any. Avoids "connectors/when-something".
+    const vendors = Array.from(prompt.matchAll(/\b([A-Z][a-zA-Z]{2,})\b/g)).map((m) => m[1]!.toLowerCase())
+    const uniq = Array.from(new Set(vendors)).filter((v) => !STOP.has(v)).slice(0, 2)
+    if (uniq.length >= 2) {
+      setTargetPath(`connectors/${uniq.join('-')}`)
+    } else if (uniq.length === 1) {
+      setTargetPath(`connectors/${uniq[0]}`)
+    } else {
+      const slug = prompt.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').split('-').slice(0, 3).join('-')
+      if (slug) setTargetPath(`connectors/${slug.slice(0, 48)}`)
+    }
   }, [prompt])
 
   if (!user) return null
@@ -92,73 +98,75 @@ export function GitHubPush({ user, prompt, files }: { user: GhUser | null; promp
     }
   }
 
+  // Once the PR is open, collapse the whole thing to a success chip so it
+  // doesn't keep taking a quarter of the screen while the user reads code.
+  if (result?.prUrl) {
+    return (
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-signal/30 bg-signal-soft px-4 py-2.5 text-xs">
+        <span className="text-ink">✓ PR opened on <span className="code">{selected}</span></span>
+        <a href={result.prUrl} target="_blank" rel="noreferrer" className="text-signal hover:underline">{result.prUrl} ↗</a>
+      </div>
+    )
+  }
+
   return (
-    <div className="rounded-xl border border-paper-line bg-paper-card p-4">
-      <div className="flex items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold">Push to your GitHub</h3>
+    <div className="rounded-xl border border-paper-line bg-paper-card p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-sm font-semibold">Push to GitHub</span>
         <span className="text-[11px] text-ink-mute">as @{user.login}</span>
-      </div>
-      <p className="mt-1 text-xs text-ink-soft">Opens a pull request on your repo with the generated connector files.</p>
-
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <label className="flex flex-col gap-1 text-xs">
-          <span className="text-ink-mute">Repository</span>
-          <input
-            type="text"
-            value={repoFilter}
-            onChange={(e) => setRepoFilter(e.target.value)}
-            placeholder="Filter repos…"
-            className="rounded-md border border-paper-line bg-paper px-2 py-1.5 outline-none focus:border-ink-mute"
-          />
-          <select
-            value={selected}
-            onChange={(e) => setSelected(e.target.value)}
-            className="mt-1 rounded-md border border-paper-line bg-paper px-2 py-1.5 outline-none focus:border-ink-mute"
+        <div className="ml-auto flex items-center gap-2">
+          {result?.error && <span className="text-[11px] text-warn">{result.error}</span>}
+          <button
+            onClick={push}
+            disabled={pushing || !selected || files.length === 0}
+            className="rounded-md bg-ink px-3 py-1.5 text-xs text-white disabled:opacity-40"
           >
-            {!repos && <option>Loading…</option>}
-            {repos && repos.length === 0 && <option>No pushable repos found</option>}
-            {filtered.map((r) => (
-              <option key={r.fullName} value={r.fullName}>
-                {r.fullName}{r.private ? ' · private' : ''}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1 text-xs">
-          <span className="text-ink-mute">Target path in repo</span>
-          <input
-            type="text"
-            value={targetPath}
-            onChange={(e) => setTargetPath(e.target.value)}
-            placeholder="connectors/stripe-mailchimp"
-            className="rounded-md border border-paper-line bg-paper px-2 py-1.5 outline-none focus:border-ink-mute"
-          />
-          <span className="mt-1 text-ink-mute">Branch (optional)</span>
-          <input
-            type="text"
-            value={branch}
-            onChange={(e) => setBranch(e.target.value)}
-            placeholder="patchbay/stripe-mailchimp"
-            className="rounded-md border border-paper-line bg-paper px-2 py-1.5 outline-none focus:border-ink-mute"
-          />
-        </label>
+            {pushing ? 'Opening PR…' : 'Open pull request'}
+          </button>
+        </div>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-3">
-        <button
-          onClick={push}
-          disabled={pushing || !selected || files.length === 0}
-          className="rounded-md bg-ink px-3 py-1.5 text-xs text-white disabled:opacity-40"
+      <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+        <select
+          value={selected}
+          onChange={(e) => setSelected(e.target.value)}
+          className="min-w-0 rounded-md border border-paper-line bg-paper px-2 py-1.5 text-xs outline-none focus:border-ink-mute"
+          aria-label="Repository"
         >
-          {pushing ? 'Opening PR…' : 'Open pull request'}
-        </button>
-        {result?.prUrl && (
-          <a href={result.prUrl} target="_blank" rel="noreferrer" className="text-xs text-signal hover:underline">
-            {result.prUrl} ↗
-          </a>
-        )}
-        {result?.error && <span className="text-xs text-warn">{result.error}</span>}
+          {!repos && <option>Loading repos…</option>}
+          {repos && repos.length === 0 && <option>No pushable repos found</option>}
+          {filtered.map((r) => (
+            <option key={r.fullName} value={r.fullName}>
+              {r.fullName}{r.private ? ' · private' : ''}
+            </option>
+          ))}
+        </select>
+        <input
+          type="text"
+          value={targetPath}
+          onChange={(e) => setTargetPath(e.target.value)}
+          placeholder="connectors/path"
+          className="min-w-0 rounded-md border border-paper-line bg-paper px-2 py-1.5 text-xs outline-none focus:border-ink-mute"
+          aria-label="Target path"
+        />
+        <input
+          type="text"
+          value={branch}
+          onChange={(e) => setBranch(e.target.value)}
+          placeholder="branch (optional)"
+          className="w-full rounded-md border border-paper-line bg-paper px-2 py-1.5 text-xs outline-none focus:border-ink-mute sm:w-44"
+          aria-label="Branch"
+        />
       </div>
+      {repos && repos.length > 6 && (
+        <input
+          type="text"
+          value={repoFilter}
+          onChange={(e) => setRepoFilter(e.target.value)}
+          placeholder="Filter repos…"
+          className="mt-2 w-full rounded-md border border-paper-line bg-paper px-2 py-1 text-[11px] outline-none focus:border-ink-mute"
+        />
+      )}
     </div>
   )
 }
