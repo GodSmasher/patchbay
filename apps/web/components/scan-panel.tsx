@@ -7,7 +7,7 @@ export function ScanPanel({ onPick }: { onPick: (prompt: string) => void }) {
   const [repo, setRepo] = useState('')
   const [scanning, setScanning] = useState(false)
   const [result, setResult] = useState<{
-    repo: string; ref: string; scanned: number; truncated: boolean; private: boolean; opportunities: Opportunity[]
+    repo: string; ref: string; scanned: number; totalCandidates?: number; truncated: boolean; private: boolean; opportunities: Opportunity[]
   } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [showAll, setShowAll] = useState(false)
@@ -75,7 +75,10 @@ export function ScanPanel({ onPick }: { onPick: (prompt: string) => void }) {
               <span className="code">{result.repo}</span>
               <span className="mx-1.5 text-paper-line">·</span>
               {result.opportunities.length} opportunit{result.opportunities.length === 1 ? 'y' : 'ies'} across {result.scanned} files
-              {result.truncated && ' (tree truncated by GitHub)'}
+              {result.totalCandidates && result.totalCandidates > result.scanned
+                ? ` (ranked from ${result.totalCandidates} candidates)`
+                : ''}
+              {result.truncated && ' · tree truncated by GitHub'}
             </span>
             {result.opportunities.length > 8 && (
               <button onClick={() => setShowAll((s) => !s)} className="text-ink-mute hover:text-ink">

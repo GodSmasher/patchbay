@@ -139,6 +139,15 @@ function scanTodos(file: string, lines: string[]): Opportunity[] {
     if (text.length < 15) continue
     if (!INTEGRATION_KEYWORDS.test(text) && !VENDOR_PATTERN.test(text)) continue
     const vendors = detectVendors(text)
+    // Guard against false positives like "colored square like list" where the
+    // vendor pattern matches a plain English word. If the ONLY signal is a
+    // vendor name AND that name is also a common English word AND there's no
+    // integration keyword, skip it.
+    if (vendors.length > 0 && !INTEGRATION_KEYWORDS.test(text)) {
+      const vendorText = vendors.join(' ').toLowerCase()
+      const AMBIGUOUS = /^(square|monday|discord|notion|linear|slack|resend|pipeline|hook|paypal)$/
+      if (vendors.length === 1 && AMBIGUOUS.test(vendorText.split(' ')[0]!)) continue
+    }
     found.push({
       score: 50 + vendors.length * 10 + (INTEGRATION_KEYWORDS.test(text) ? 10 : 0),
       kind: 'todo',

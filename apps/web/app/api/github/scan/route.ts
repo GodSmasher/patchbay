@@ -13,9 +13,31 @@ export const maxDuration = 60
  */
 const SCAN_EXTS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.py', '.go', '.rb'])
 const SCAN_ENV_BASENAMES = new Set(['.env', '.env.example', '.env.sample', '.env.local'])
-const MAX_FILES = 400          // hard cap so a monorepo doesn't blow the lambda budget
+const MAX_FILES = 600          // hard cap on files we actually fetch content for
 const MAX_FILE_BYTES = 300_000
 const SKIP_DIR_RE = /(^|\/)(node_modules|\.git|dist|\.next|out|build|\.turbo|\.vercel|coverage|__generated__)(\/|$)/
+
+// Dirs that produce noise (fixtures, demos, docs code) — we only scan them if
+// nothing more useful filled the budget.
+const NOISE_DIR_RE = /(^|\/)(__fixtures__|fixtures|__tests__|tests?|spec|specs|e2e|examples?|demo|demos|docs?|stories|storybook|scripts|benchmark|fixtures?)(\/|$)/i
+
+/**
+ * Score a file path by how likely it is to carry a real integration signal.
+ * Higher score = fetched first and more likely to make the budget.
+ */
+function pathSignal(path: string): number {
+  const p = path.toLowerCase()
+  const base = p.split('/').pop() ?? ''
+  let score = 0
+  if (SCAN_ENV_BASENAMES.has(base)) score += 100
+  if (/(webhook|hook|integration|connector|callback|handler)/.test(p)) score += 40
+  if (/(^|\/)(api|routes|server|handlers|webhooks|integrations)(\/|$)/.test(p)) score += 20
+  if (/\.(ts|tsx|py|go|rb)$/.test(p)) score += 5
+  if (/\.(js|jsx|mjs|cjs)$/.test(p)) score += 2
+  if (NOISE_DIR_RE.test(p)) score -= 30
+  if (/\.d\.ts$/.test(p)) score -= 50
+  return score
+}
 
 interface GhTreeEntry { path: string; type: string; size?: number; sha: string }
 
@@ -53,8 +75,11 @@ export async function POST(request: Request) {
     }
     const tree = (await treeRes.json()) as { tree: GhTreeEntry[]; truncated: boolean }
 
-    // 2. Pick the files worth scanning.
-    const picked = tree.tree.filter((e) => {
+    // 2. Pick the files worth scanning — rank by path signal, keep the top N.
+    // This replaces "first 400 files in tree order" (which gave template repos a
+    // view full of fixtures) with "the 600 paths most likely to carry a real
+    // integration hint".
+    const candidates = tree.tree.filter((e) => {
       if (e.type !== 'blob') return false
       if (SKIP_DIR_RE.test(e.path)) return false
       if ((e.size ?? 0) > MAX_FILE_BYTES) return false
@@ -62,7 +87,12 @@ export async function POST(request: Request) {
       if (SCAN_ENV_BASENAMES.has(base)) return true
       const ext = base.includes('.') ? '.' + base.split('.').pop() : ''
       return SCAN_EXTS.has(ext)
-    }).slice(0, MAX_FILES)
+    })
+    const picked = candidates
+      .map((e) => ({ e, s: pathSignal(e.path) }))
+      .sort((a, b) => b.s - a.s)
+      .slice(0, MAX_FILES)
+      .map((x) => x.e)
 
     // 3. Fetch the content via raw.githubusercontent — one GET per file, in parallel.
     const files: ScanInputFile[] = []
@@ -89,6 +119,7 @@ export async function POST(request: Request) {
       repo,
       ref,
       scanned: files.length,
+      totalCandidates: candidates.length,
       truncated: tree.truncated,
       private: repoInfo.private,
       opportunities,
