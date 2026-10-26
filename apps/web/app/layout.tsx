@@ -4,7 +4,7 @@ import './globals.css'
 const SITE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://patchbay-nebius.vercel.app'
 const TITLE = 'patchbay — describe an integration, get a tested connector'
 const DESCRIPTION =
-  'An agent that plans an API integration, reads the docs, writes a TypeScript connector with tests and proves it in an isolated sandbox. 90% green over 92 real runs on Nebius Token Factory.'
+  'One sentence in. Tested TypeScript connector out. 90% green over 92 real runs on Nemotron + Nebius sandboxes.'
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
