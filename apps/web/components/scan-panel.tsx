@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Opportunity } from '@patchbay-nebius/agent'
 
 export function ScanPanel({ onPick }: { onPick: (prompt: string) => void }) {
@@ -11,10 +11,11 @@ export function ScanPanel({ onPick }: { onPick: (prompt: string) => void }) {
   } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [showAll, setShowAll] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const autoScanned = useRef(false)
 
-  async function scan(e: React.FormEvent) {
-    e.preventDefault()
-    const parsed = parseRepo(repo)
+  async function scanRepo(input: string) {
+    const parsed = parseRepo(input)
     if (!parsed) { setError('Enter a GitHub URL or "owner/name".'); return }
     setScanning(true); setError(null); setResult(null); setShowAll(false)
     try {
@@ -28,12 +29,46 @@ export function ScanPanel({ onPick }: { onPick: (prompt: string) => void }) {
         setError(data.error ?? `Scan failed (${res.status})`)
       } else {
         setResult(data)
+        // Deep-link the scanned repo into the URL so it's shareable, without
+        // reloading the page. Someone pasting ?scan=owner/name lands on the
+        // same results instantly.
+        const url = new URL(window.location.href)
+        url.searchParams.set('scan', parsed)
+        window.history.replaceState({}, '', url.toString())
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
       setScanning(false)
     }
+  }
+
+  async function scan(e: React.FormEvent) {
+    e.preventDefault()
+    await scanRepo(repo)
+  }
+
+  // Auto-scan when ?scan=owner/name is in the URL — makes the whole result
+  // page shareable: tweet the link, the recipient sees the same scan.
+  useEffect(() => {
+    if (autoScanned.current) return
+    const params = new URLSearchParams(window.location.search)
+    const q = params.get('scan')
+    if (q && parseRepo(q)) {
+      autoScanned.current = true
+      setRepo(q)
+      void scanRepo(q)
+    }
+  }, [])
+
+  function copyShareLink() {
+    if (!result) return
+    const url = new URL(window.location.href)
+    url.searchParams.set('scan', result.repo)
+    void navigator.clipboard.writeText(url.toString()).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
   }
 
   const shown = result ? (showAll ? result.opportunities : result.opportunities.slice(0, 8)) : []
@@ -80,11 +115,20 @@ export function ScanPanel({ onPick }: { onPick: (prompt: string) => void }) {
                 : ''}
               {result.truncated && ' · tree truncated by GitHub'}
             </span>
-            {result.opportunities.length > 8 && (
-              <button onClick={() => setShowAll((s) => !s)} className="text-ink-mute hover:text-ink">
-                {showAll ? 'Show top 8' : `Show all ${result.opportunities.length}`}
+            <div className="flex items-center gap-3">
+              {result.opportunities.length > 8 && (
+                <button onClick={() => setShowAll((s) => !s)} className="text-ink-mute hover:text-ink">
+                  {showAll ? 'Show top 8' : `Show all ${result.opportunities.length}`}
+                </button>
+              )}
+              <button
+                onClick={copyShareLink}
+                className="text-ink-mute hover:text-ink"
+                title="Copy a link to this scan"
+              >
+                {copied ? '✓ copied' : 'Share scan ↗'}
               </button>
-            )}
+            </div>
           </div>
 
           {result.opportunities.length === 0 ? (
