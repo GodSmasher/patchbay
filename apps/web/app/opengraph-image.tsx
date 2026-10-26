@@ -36,12 +36,11 @@ export default function Image() {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-          <div style={{ fontSize: 68, fontWeight: 600, letterSpacing: '-0.02em', lineHeight: 1.05 }}>
-            Describe an integration.
-            <br />
-            Get a connector that already passed its tests.
+          <div style={{ display: 'flex', flexDirection: 'column', fontSize: 68, fontWeight: 600, letterSpacing: '-0.02em', lineHeight: 1.05 }}>
+            <span>Describe an integration.</span>
+            <span>Get a connector that already passed its tests.</span>
           </div>
-          <div style={{ fontSize: 26, color: '#4a4238', lineHeight: 1.4, maxWidth: 980 }}>
+          <div style={{ display: 'flex', fontSize: 26, color: '#4a4238', lineHeight: 1.4, maxWidth: 980 }}>
             Plans the integration, reads real API docs, writes TypeScript with tests, verifies in a Nebius sandbox with the network off.
           </div>
         </div>
@@ -71,11 +70,11 @@ function Stat({ label, value, detail }: { label: string; value: string; detail: 
         minWidth: 240,
       }}
     >
-      <div style={{ fontSize: 14, color: '#8d8372', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+      <div style={{ display: 'flex', fontSize: 14, color: '#8d8372', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
         {label}
       </div>
-      <div style={{ fontSize: 44, fontWeight: 600, letterSpacing: '-0.02em' }}>{value}</div>
-      <div style={{ fontSize: 16, color: '#766d5e' }}>{detail}</div>
+      <div style={{ display: 'flex', fontSize: 44, fontWeight: 600, letterSpacing: '-0.02em' }}>{value}</div>
+      <div style={{ display: 'flex', fontSize: 16, color: '#766d5e' }}>{detail}</div>
     </div>
   )
 }
