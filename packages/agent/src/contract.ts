@@ -292,6 +292,9 @@ FetchHandler = Callable[[RecordedCall], FakeResponse | Awaitable[FakeResponse]]
 def _parse_json(raw: Any) -> Any:
     if raw is None:
         return None
+    # dict / list already parsed — most connectors pass body=<dict>, not body=json.dumps(dict)
+    if isinstance(raw, (dict, list)):
+        return raw
     if isinstance(raw, (bytes, bytearray)):
         try:
             return _json.loads(raw.decode('utf-8'))
