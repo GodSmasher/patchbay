@@ -154,6 +154,8 @@ describe('renderFixturesPy', () => {
     expect(file.content).toContain('evt_123')
     expect(file.content).toContain('slack.com/api/chat.postMessage')
     expect(file.content).toContain('# Source: https://stripe.com/docs/webhooks')
+    // No stray double-hash from the docs header substitution.
+    expect(file.content).not.toMatch(/^# # Source:/m)
   })
 
   it('escapes JSON correctly so Python can import it', () => {

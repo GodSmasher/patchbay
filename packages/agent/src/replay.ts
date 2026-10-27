@@ -12,7 +12,7 @@ export const REPLAY_RUN = recorded as RecordedRun
 
 /** Streams a recorded run with short pauses so the UI shows the same progression as a live run. */
 export async function* replayRun(run: RecordedRun = REPLAY_RUN, pace = 1): AsyncGenerator<RunEvent> {
-  yield { type: 'mode', mode: 'replay' }
+  yield { type: 'mode', mode: 'replay', lang: 'ts' }
   for (const event of run.events) {
     if (event.type === 'mode') continue
     await sleep(delayFor(event) * pace)

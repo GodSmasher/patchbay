@@ -46,7 +46,7 @@ export async function* runAgent(prompt: string, deps: AgentDeps): AsyncGenerator
     while (queue.length) yield queue.shift() as RunEvent
   }
 
-  yield { type: 'mode', mode: 'live' }
+  yield { type: 'mode', mode: 'live', lang }
   let current: StepId = 'plan'
   try {
     yield { type: 'step', step: 'plan', status: 'start' }
@@ -141,7 +141,8 @@ export async function* runAgent(prompt: string, deps: AgentDeps): AsyncGenerator
 /** plan → research only, ends with the spec. No code generation, no sandbox. */
 export async function* researchAgent(prompt: string, deps: Omit<AgentDeps, 'sandbox'>): AsyncGenerator<RunEvent> {
   const { config, llm, search } = deps
-  yield { type: 'mode', mode: 'live' }
+  const lang: Lang = config.lang ?? 'ts'
+  yield { type: 'mode', mode: 'live', lang }
   let current: StepId = 'plan'
   try {
     yield { type: 'step', step: 'plan', status: 'start' }
@@ -174,7 +175,7 @@ export async function* verifyAgent(
 ): AsyncGenerator<RunEvent> {
   const { config, llm, sandbox } = deps
   const lang: Lang = config.lang ?? 'ts'
-  yield { type: 'mode', mode: 'live' }
+  yield { type: 'mode', mode: 'live', lang }
   const queue: RunEvent[] = []
   const log = (message: string) => queue.push({ type: 'log', step: 'verify', message })
   const drain = function* () {

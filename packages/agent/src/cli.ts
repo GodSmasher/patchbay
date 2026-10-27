@@ -31,6 +31,8 @@ Flags:
   --lang=ts|py build/research only. Target language. Default ts (TypeScript+vitest); py writes
                Python 3.12 + pytest. Also settable via PATCHBAY_LANG=python.
   --watch      verify only. Re-runs the sandbox verify whenever a source file in <directory> changes.
+               verify auto-detects the language from the directory (src/connector.ts → TypeScript,
+               connector.py → Python). Pass --lang= to override if both are present.
   --build-top  scan only. After reporting, build the top-N opportunities (full pipeline each).
                Combine with --lang=python to build the top-N in Python.
   --json       scan only. Emit the raw opportunity list as JSON instead of the formatted report.
@@ -218,13 +220,24 @@ async function research(args: string[]) {
 
 async function verify(args: string[]) {
   const watchMode = args.includes('--watch')
+  const langFlag = flagValue(args, '--lang')
   const positional = args.filter((a) => !a.startsWith('--'))
   const dir = positional[0] ? resolve(positional[0]) : ''
   if (!dir) return usageError('verify needs a directory')
-  if (!collectFiles(dir).some((f) => f.path === 'src/connector.ts')) {
-    return usageError(`No src/connector.ts under ${dir}`)
+  const dirFiles = collectFiles(dir)
+  const hasTs = dirFiles.some((f) => f.path === 'src/connector.ts')
+  const hasPy = dirFiles.some((f) => f.path === 'connector.py')
+  if (!hasTs && !hasPy) {
+    return usageError(`No connector found under ${dir} (expected src/connector.ts for TypeScript or connector.py for Python)`)
   }
-  const config = loadConfig()
+  // Auto-detect: a Python connector.py beats the TS fallback.
+  // Explicit --lang overrides detection in case someone has both.
+  const detectedLang = hasPy && !hasTs ? 'py' : hasPy && hasTs ? undefined : 'ts'
+  const effectiveLangFlag = langFlag ?? detectedLang
+  if (!effectiveLangFlag) {
+    return usageError(`${dir} contains both src/connector.ts and connector.py; pass --lang=ts or --lang=py to pick one`)
+  }
+  const config = loadConfig(withLangEnv(process.env, effectiveLangFlag))
   const missing = missingLiveKeys(config)
   if (config.mock || missing.length) {
     console.error(`verify needs live keys. Set PATCHBAY_MOCK=false and provide ${missing.join(', ') || 'the missing env vars'}.`)

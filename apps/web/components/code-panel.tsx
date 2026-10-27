@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import type { GeneratedFile, TestReport } from '@patchbay-nebius/agent'
+import type { GeneratedFile, Lang, TestReport } from '@patchbay-nebius/agent'
 
 interface Draft {
   attempt: number
@@ -10,16 +10,12 @@ interface Draft {
 }
 
 // The main source file in each language — used as the default tab when the panel first renders.
-const DEFAULT_PATH_BY_LANG: Record<'ts' | 'py', string> = {
+const DEFAULT_PATH_BY_LANG: Record<Lang, string> = {
   ts: 'src/connector.ts',
   py: 'connector.py',
 }
 
-function detectLang(files: { path: string }[]): 'ts' | 'py' {
-  return files.some((f) => f.path.endsWith('.py')) ? 'py' : 'ts'
-}
-
-export function CodePanel({ drafts, finalOk }: { drafts: Draft[]; finalOk: boolean | null }) {
+export function CodePanel({ drafts, finalOk, lang }: { drafts: Draft[]; finalOk: boolean | null; lang: Lang }) {
   const [attempt, setAttempt] = useState(1)
   const [path, setPath] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
@@ -31,7 +27,6 @@ export function CodePanel({ drafts, finalOk }: { drafts: Draft[]; finalOk: boole
 
   const draft = drafts.find((d) => d.attempt === attempt) ?? drafts.at(-1)
   if (!draft) return null
-  const lang = detectLang(draft.files)
   const effectivePath = path ?? DEFAULT_PATH_BY_LANG[lang]
   const file = draft.files.find((f) => f.path === effectivePath) ?? draft.files.find((f) => f.path === DEFAULT_PATH_BY_LANG[lang]) ?? draft.files[0]
   const fixturesPath = lang === 'py' ? 'fixtures.py' : 'src/fixtures.ts'
@@ -62,7 +57,7 @@ export function CodePanel({ drafts, finalOk }: { drafts: Draft[]; finalOk: boole
 
   return (
     <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-paper-line bg-paper-card">
-      {drafts.length > 1 && <Trajectory drafts={drafts} activeAttempt={draft.attempt} onPick={setAttempt} />}
+      {drafts.length > 1 && <Trajectory drafts={drafts} activeAttempt={draft.attempt} onPick={setAttempt} lang={lang} />}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-paper-line px-3 py-2">
         <div className="flex gap-1">
           {drafts.map((d) => (
@@ -118,7 +113,8 @@ export function CodePanel({ drafts, finalOk }: { drafts: Draft[]; finalOk: boole
  * code viewer to that draft), hover shows the first failing test so the viewer
  * sees *why* the model took another swing without expanding anything.
  */
-function Trajectory({ drafts, activeAttempt, onPick }: { drafts: Draft[]; activeAttempt: number; onPick: (n: number) => void }) {
+function Trajectory({ drafts, activeAttempt, onPick, lang }: { drafts: Draft[]; activeAttempt: number; onPick: (n: number) => void; lang: Lang }) {
+  const checkLabel = lang === 'py' ? 'syntax check' : 'typecheck'
   return (
     <div className="flex items-center gap-2 border-b border-paper-line bg-paper px-3 py-2 text-[11px]">
       <span className="text-ink-mute">Repair trajectory</span>
@@ -127,7 +123,6 @@ function Trajectory({ drafts, activeAttempt, onPick }: { drafts: Draft[]; active
           const r = d.report
           const green = r?.typecheckOk && r.failed === 0 && (r.contract === undefined || r.contract === 'passed')
           const label = r ? `${r.passed}/${r.total}` : '…'
-          const checkLabel = drafts.some((dd) => dd.files.some((f) => f.path.endsWith('.py'))) ? 'syntax check' : 'typecheck'
           const why = r?.failures[0]
             ? `attempt ${d.attempt}: ${r.passed}/${r.total}, ${r.typecheckOk ? `${checkLabel} ok` : `${checkLabel} failed`}, ${r.contract ?? 'no contract'}\nfirst failure: ${r.failures[0].name}`
             : `attempt ${d.attempt}`

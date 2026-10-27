@@ -1,13 +1,16 @@
 'use client'
 
 import { useCallback, useReducer, useRef } from 'react'
-import type { ApiSpec, GeneratedFile, Plan, RunEvent, Source, StepId, TestReport, Usage } from '@patchbay-nebius/agent'
+import type { ApiSpec, GeneratedFile, Lang, Plan, RunEvent, Source, StepId, TestReport, Usage } from '@patchbay-nebius/agent'
 
 export type StepStatus = 'idle' | 'running' | 'done' | 'error'
 
 export interface RunState {
   running: boolean
   mode: 'live' | 'replay' | null
+  /** The language the agent is building in, surfaced on the first `mode` event. UI reads this
+   * directly instead of inferring from file extensions. */
+  lang: Lang
   notice: string | null
   steps: Record<StepId, { status: StepStatus; detail?: string; logs: string[] }>
   plan: Plan | null
@@ -25,7 +28,7 @@ const emptySteps = () =>
   Object.fromEntries(STEPS.map((s) => [s, { status: 'idle' as StepStatus, logs: [] as string[] }])) as RunState['steps']
 
 const initial: RunState = {
-  running: false, mode: null, notice: null, steps: emptySteps(), plan: null, sources: [], spec: null,
+  running: false, mode: null, lang: 'ts', notice: null, steps: emptySteps(), plan: null, sources: [], spec: null,
   drafts: [], usage: [], result: null, error: null,
 }
 
@@ -39,7 +42,7 @@ function reducer(state: RunState, action: Action): RunState {
     case 'notice':
       return { ...state, notice: e.message }
     case 'mode':
-      return { ...state, mode: e.mode }
+      return { ...state, mode: e.mode, lang: e.lang ?? state.lang }
     case 'step': {
       const prev = state.steps[e.step]
       const status: StepStatus = e.status === 'start' ? 'running' : e.status

@@ -91,7 +91,7 @@ export interface Usage {
 }
 
 export type RunEvent =
-  | { type: 'mode'; mode: 'live' | 'replay' }
+  | { type: 'mode'; mode: 'live' | 'replay'; lang?: Lang }
   | { type: 'step'; step: StepId; status: 'start' | 'done' | 'error'; detail?: string }
   | { type: 'log'; step: StepId; message: string }
   | { type: 'plan'; plan: Plan }

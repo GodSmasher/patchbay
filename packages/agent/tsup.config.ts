@@ -19,5 +19,8 @@ export default defineConfig({
     // next to the compiled output so `import ./fixtures/typeform-pipedrive/run.json`
     // in dist resolves.
     cpSync(resolve('src/fixtures'), resolve('dist/fixtures'), { recursive: true })
+    // The python fixtures runtime is a template file read at render time (not a
+    // module); copy it alongside the bundle so renderFixturesPy can find it.
+    cpSync(resolve('src/fixtures-py.template.py'), resolve('dist/fixtures-py.template.py'))
   },
 })

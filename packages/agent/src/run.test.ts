@@ -140,7 +140,7 @@ describe('monotonic repair', () => {
 describe('replay fixture', () => {
   it('shows a failing first draft and a green repair', async () => {
     const events = await collect(replayRun(REPLAY_RUN, 0))
-    expect(events[0]).toEqual({ type: 'mode', mode: 'replay' })
+    expect(events[0]).toEqual({ type: 'mode', mode: 'replay', lang: 'ts' })
     const tests = events.flatMap((e) => (e.type === 'tests' ? [e.report] : []))
     expect(tests[0]?.failed).toBeGreaterThan(0)
     expect(tests.at(-1)).toMatchObject({ failed: 0, typecheckOk: true })

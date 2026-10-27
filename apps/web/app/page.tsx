@@ -229,7 +229,7 @@ export default function Home() {
                 </div>
               </div>
             )}
-            {state.drafts.length > 0 && <CodePanel drafts={state.drafts} finalOk={state.result?.ok ?? null} />}
+            {state.drafts.length > 0 && <CodePanel drafts={state.drafts} finalOk={state.result?.ok ?? null} lang={state.lang} />}
             {state.plan && (
               <PlanCard
                 plan={state.plan}
