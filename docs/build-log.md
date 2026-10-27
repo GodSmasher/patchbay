@@ -20,7 +20,7 @@ version of each decision is one scroll away.
 
 | Metric | Value |
 |---|---|
-| Green runs across 92-run variance benchmark | **90.2%** |
+| Green runs across Core 20 variance benchmark (5 passes, 92 runs) | **90.2%** |
 | First-try green (no repair needed) | **52.2%** |
 | Average cost per connector | **~$0.07** |
 | Average wall-clock per connector | **~45s** |

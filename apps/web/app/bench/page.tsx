@@ -48,31 +48,25 @@ function loadVariance(): Variance {
   const data = JSON.parse(raw) as RawVariance
   // New shape: summary.{greenRate,firstTryRate,costPerPassUsd,passes,prompts}
   if (data.summary) {
-    const passes = data.summary.passes ?? 1
-    const promptCount = data.summary.prompts ?? (data.prompts?.length ?? 0)
-    const totalRuns = passes * promptCount
-    const greenRate = data.summary.greenRate ?? 0
-    const firstTryRate = data.summary.firstTryRate ?? 0
     const prompts = (data.prompts ?? []).map((p, i) => ({
       index: p.index ?? i + 1,
       prompt: p.prompt ?? '',
-      passes: p.passes ?? passes,
+      passes: p.passes ?? 0,
       greenRuns: p.greenRuns ?? 0,
       firstTryRuns: p.firstTryRuns ?? 0,
       costMean: p.costMean ?? 0,
       costStd: p.costStd ?? 0,
       attemptsMean: p.attemptsMean ?? 0,
     }))
-    const totalCostMean = (data.summary.costPerPassUsd ?? 0) * passes
-    const totalCostStd = (data.summary.costPerPassStdUsd ?? 0) * passes
-    return {
-      totalRuns,
-      totalGreen: Math.round(totalRuns * greenRate),
-      totalFirstTry: Math.round(totalRuns * firstTryRate),
-      totalCostMean,
-      totalCostStd,
-      prompts,
-    }
+    // Totals come from the actual rows, not passes×prompts — the Core 20 ran
+    // 5-pass and the Brutal 10 ran 2-pass, so there's no single "passes"
+    // number to multiply with.
+    const totalRuns = prompts.reduce((s, p) => s + p.passes, 0) || 1
+    const totalGreen = prompts.reduce((s, p) => s + p.greenRuns, 0)
+    const totalFirstTry = prompts.reduce((s, p) => s + p.firstTryRuns, 0)
+    const totalCostMean = prompts.reduce((s, p) => s + p.costMean, 0)
+    const totalCostStd = Math.sqrt(prompts.reduce((s, p) => s + p.costStd * p.costStd, 0))
+    return { totalRuns, totalGreen, totalFirstTry, totalCostMean, totalCostStd, prompts }
   }
   // Legacy flat shape fallback.
   return {

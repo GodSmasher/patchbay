@@ -87,7 +87,7 @@ Same connector, same requirements. Rough per-connector cost:
 | Claude Code with Sonnet 5.5 | ~$0.35 | 5× |
 | Claude Code with Opus 4.7 | ~$1.90 | **27×** |
 
-**$0.07 vs ~$1.90 for the same connector. And the tests actually run before you see the file.**
+**$0.07 vs ~$1.90 for the same connector. The tests run before you see the file.**
 
 The agent in your IDE is a generalist. For integration connectors — read the docs, map fields, write the thing, prove it works — that's work with hard structure, and a specialized pipeline on cheap models beats a general-purpose agent on expensive ones. Same reason you don't ask Opus to format JSON.
 
@@ -113,7 +113,7 @@ What broke this week and how it got fixed is in [docs/build-log.md](docs/build-l
 
 ## Training a repair model on our own benchmark runs
 
-Every patchbay benchmark run is a record of the agent failing and then fixing itself. 68 of those `(red draft + failing test report) → green draft` moments across five benchmark passes make a tiny but perfectly-domain-matched training set — and Nebius Token Factory ships an OpenAI-compatible fine-tune endpoint that eats exactly this format.
+Every patchbay benchmark run is a record of the agent failing and then fixing itself. 68 of those `(red draft + failing test report) → green draft` moments across five benchmark passes make a tiny domain-matched training set — and Nebius Token Factory ships an OpenAI-compatible fine-tune endpoint that eats exactly this format.
 
 So we're fine-tuning a repair-focused **Nemotron 3.5 Lightning** on patchbay's own repair history. If it matches **Nemotron 3 Ultra 550B** (patchbay's current repair model) on the held-out eval set, we close the loop: patchbay generates benchmark runs → runs train its own repair model → next benchmark's repair cost drops ~50× while the green rate holds. The dataset, launcher and eval harness are all in-repo:
 
@@ -124,7 +124,7 @@ So we're fine-tuning a repair-focused **Nemotron 3.5 Lightning** on patchbay's o
 
 ## Status
 
-Live benchmark (2026-10-21, Nebius sandbox, 53 runs after all recent agent patches):
+Live benchmark (Core 20 at 5 passes on 2026-10-06 + Brutal 10 at 2 passes on 2026-10-21, Nebius sandbox):
 
 - **Core 20 prompts** (Typeform → Pipedrive, Shopify → Airtable, Stripe → Mailchimp, …): **90.2% green · 52% first-try · $0.07/connector** (5 passes × 20 prompts = 92 runs incl. retries, 2026-10-06)
 - **Brutal 10 extensions** (WebSocket to Pusher, OAuth2 refresh, chained flows, S3 presigned URL, GraphQL nested mutations, HMAC-signed server events): **69% green · 23% first-try · $0.17/connector** (2026-10-21)

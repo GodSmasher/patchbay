@@ -57,19 +57,19 @@ export default function Home() {
 
   return (
     <main className="mx-auto max-w-6xl px-4 pb-16 sm:px-6">
-      <header className="flex items-center justify-between py-5">
+      <header className="flex flex-wrap items-center justify-between gap-y-2 py-5">
         <span className="text-[15px] font-semibold tracking-tight">patchbay</span>
-        <nav className="flex items-center gap-4 text-xs text-ink-soft">
+        <nav className="flex items-center gap-2 overflow-x-auto whitespace-nowrap text-xs text-ink-soft sm:gap-4">
           <ModeBadge live={live} />
           <button
             type="button"
             onClick={() => setShowMcp(true)}
-            className="rounded-full border border-paper-line bg-paper-card px-3 py-1 text-xs text-ink hover:border-ink-mute"
+            className="whitespace-nowrap rounded-full border border-paper-line bg-paper-card px-3 py-1 text-xs text-ink hover:border-ink-mute"
           >
             Open in Claude Code
           </button>
           <GitHubBadge user={ghUser} />
-          <a href="https://github.com/GodSmasher/patchbay" className="hover:text-ink">Source</a>
+          <a href="https://github.com/GodSmasher/patchbay" className="whitespace-nowrap hover:text-ink">Source</a>
         </nav>
       </header>
       {showMcp && <McpModal prompt={prompt} onClose={() => setShowMcp(false)} />}

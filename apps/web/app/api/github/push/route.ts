@@ -28,6 +28,19 @@ export async function POST(request: Request) {
   if (!targetPath || !Array.isArray(files) || files.length === 0) {
     return Response.json({ error: 'nothing_to_push' }, { status: 400 })
   }
+  // Reject path traversal before we join it with a filename and ask GitHub to
+  // commit it. GitHub rejects most of these upstream, but trusting that is
+  // the kind of defence-in-depth miss that owns you later.
+  const normalizedTargetPath = targetPath.replace(/\\/g, '/').replace(/\/+/g, '/').replace(/^\/+|\/+$/g, '')
+  if (!normalizedTargetPath || normalizedTargetPath.split('/').some(seg => seg === '..' || seg === '.')) {
+    return Response.json({ error: 'bad_target_path' }, { status: 400 })
+  }
+  for (const f of files) {
+    const p = f.path.replace(/\\/g, '/').replace(/\/+/g, '/')
+    if (p.startsWith('/') || p.split('/').some(seg => seg === '..' || seg === '.')) {
+      return Response.json({ error: 'bad_file_path', detail: f.path }, { status: 400 })
+    }
+  }
 
   const [owner, name] = repo.split('/')
   const token = session.accessToken

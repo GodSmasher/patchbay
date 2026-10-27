@@ -5,6 +5,14 @@ export const dynamic = 'force-dynamic'
 export const maxDuration = 300
 
 const MAX_PROMPT = 400
+
+/**
+ * In-memory rate-limit map. Serverless lambdas don't share memory, so this
+ * cap is per-instance, not global — a cold start resets the counter, and
+ * concurrent lambdas each enforce their own copy. Good enough for the demo
+ * (where we want to protect against one tab hammering the Live path);
+ * NOT a hard cost guarantee. Swap for Vercel KV or Upstash if you need that.
+ */
 const hits = new Map<string, number[]>()
 
 export async function POST(request: Request) {

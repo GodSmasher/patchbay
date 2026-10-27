@@ -11,6 +11,7 @@ import { SignJWT, jwtVerify } from 'jose'
  */
 
 export const SESSION_COOKIE = 'patchbay_gh'
+export const OAUTH_STATE_COOKIE = 'patchbay_gh_state'
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 30 // 30 days
 
 export interface GhSession {

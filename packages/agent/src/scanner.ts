@@ -38,7 +38,7 @@ const VENDOR_HINTS: Record<string, string> = {
   zendesk: 'Zendesk', intercom: 'Intercom', twilio: 'Twilio', sendgrid: 'SendGrid', brevo: 'Brevo',
   resend: 'Resend', postmark: 'Postmark', mailgun: 'Mailgun', calendly: 'Calendly', jotform: 'Jotform',
   pusher: 'Pusher', zoom: 'Zoom', trello: 'Trello', freshdesk: 'Freshdesk', monday: 'Monday',
-  pipeline: 'Pipedrive', quickbooks: 'QuickBooks', xero: 'Xero', paypal: 'PayPal', square: 'Square',
+  quickbooks: 'QuickBooks', xero: 'Xero', paypal: 'PayPal', square: 'Square',
 }
 
 const VENDOR_PATTERN = new RegExp(`\\b(${Object.keys(VENDOR_HINTS).join('|')})\\b`, 'gi')

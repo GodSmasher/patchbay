@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
-import { createSessionCookie, SESSION_COOKIE, sessionCookieOptions } from '@/lib/github-session'
+import { createSessionCookie, OAUTH_STATE_COOKIE, SESSION_COOKIE, sessionCookieOptions } from '@/lib/github-session'
+import { verifyState } from '@/lib/oauth-state'
 
-const CLIENT_ID = 'Ov23lizixaGvJ8OTZXMy'
+const CLIENT_ID = process.env.GITHUB_OAUTH_CLIENT_ID || 'Ov23lizixaGvJ8OTZXMy'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -11,24 +12,31 @@ export const dynamic = 'force-dynamic'
  * one-time `code` for a long-lived user access token, fetch the user's
  * profile, and drop both into an HTTP-only cookie. Then bounce the user
  * back to wherever they started (default: home).
+ *
+ * The `state` echoed by GitHub must match the HttpOnly cookie we set when
+ * the flow began — that's the CSRF defence. The `next` redirect target is
+ * verified to be a same-origin relative path to prevent open redirects.
  */
 export async function GET(request: Request) {
   const url = new URL(request.url)
   const code = url.searchParams.get('code')
-  const stateRaw = url.searchParams.get('state')
+  const state = url.searchParams.get('state') ?? ''
+  const stateCookie = request.headers.get('cookie')?.split(';').map(c => c.trim()).find(c => c.startsWith(`${OAUTH_STATE_COOKIE}=`))?.slice(OAUTH_STATE_COOKIE.length + 1)
+
   if (!code) {
     return NextResponse.redirect(new URL('/?gh=cancelled', url.origin))
   }
+
+  const verified = verifyState(state, stateCookie)
+  if (!verified.ok) {
+    return NextResponse.redirect(new URL('/?gh=failed&reason=state_mismatch', url.origin))
+  }
+  const next = verified.next
+
   const secret = process.env.GITHUB_OAUTH_CLIENT_SECRET
   if (!secret) {
     return NextResponse.json({ error: 'GITHUB_OAUTH_CLIENT_SECRET not configured' }, { status: 500 })
   }
-
-  let next = '/'
-  try {
-    const state = JSON.parse(Buffer.from(stateRaw ?? '', 'base64url').toString('utf8')) as { next?: string }
-    if (state.next && state.next.startsWith('/')) next = state.next
-  } catch {}
 
   const tokenRes = await fetch('https://github.com/login/oauth/access_token', {
     method: 'POST',
@@ -57,5 +65,7 @@ export async function GET(request: Request) {
 
   const redirect = NextResponse.redirect(new URL(`${next}?gh=connected`, url.origin))
   redirect.cookies.set(SESSION_COOKIE, cookie, sessionCookieOptions())
+  // State cookie is single-use.
+  redirect.cookies.set(OAUTH_STATE_COOKIE, '', { httpOnly: true, path: '/', maxAge: 0 })
   return redirect
 }

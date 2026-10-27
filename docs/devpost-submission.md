@@ -149,11 +149,11 @@ patchbay scan .
 
 and it walks the codebase for integration opportunities: webhook handlers with empty bodies or `TODO: implement`, `.env.example` entries that point at Stripe / Mailchimp / Shopify / Slack / Twilio / Pipedrive / HubSpot / … with no corresponding code, TODO comments naming a vendor and an action, vendor SDKs that are imported but barely used. Each opportunity gets a priority score, a ready-to-run `patchbay build "…"` prompt, and `--build-top=N` runs the pipeline on the top N without you typing a sentence.
 
-Agent-engineering judges, this is the part. It's one thing to turn a sentence into code. It's another to turn a codebase into a to-do list of integrations and then execute them. The vendor catalogue is 30+ names and the heuristics are regex-only, so there's no LLM cost until the user actually says "build the top 3".
+It's one thing to turn a sentence into code. It's another to turn a codebase into a to-do list of integrations and then execute them. The vendor catalogue is 30+ names and the heuristics are regex-only, so there's no LLM cost until the user actually says "build the top 3".
 
 ### We fine-tune our own repair model on our own benchmark runs
 
-Every patchbay benchmark run is a record of the agent failing and then fixing itself. 68 of those `(red draft + failing test) → green draft` moments across five benchmark passes make a perfectly-domain-matched training set — and Nebius Token Factory ships an OpenAI-compatible fine-tune endpoint that eats exactly this format. So we fine-tune a repair-focused **Nemotron 3.5 Lightning** on patchbay's own repair history.
+Every patchbay benchmark run is a record of the agent failing and then fixing itself. 68 of those `(red draft + failing test) → green draft` moments across five benchmark passes make a domain-matched training set — and Nebius Token Factory ships an OpenAI-compatible fine-tune endpoint that eats exactly this format. So we fine-tune a repair-focused **Nemotron 3.5 Lightning** on patchbay's own repair history.
 
 If it matches **Nemotron 3 Ultra 550B** (patchbay's current repair model) on the held-out eval set, we close the loop: patchbay generates benchmark runs → runs train its own repair model → next benchmark's repair cost drops ~50× while the green rate holds. All in-repo:
 
@@ -162,7 +162,7 @@ If it matches **Nemotron 3 Ultra 550B** (patchbay's current repair model) on the
 - `scripts/eval-repair.ts` — format, file-coverage and line-overlap metrics against a held-out eval split
 - Full plan + results: `docs/finetune.md`
 
-This is also the only part of the submission that uses **two Nebius services** (Token Factory inference + Token Factory fine-tuning) in one project — and the training data doesn't exist anywhere else, because it's the self-referential closure of 90+ live benchmark runs on Nebius' own sandboxes.
+This loop uses Token Factory for both inference and fine-tuning, and the dataset is the committed benchmark runs — not scraped from anywhere else.
 
 ### Why not just ask Claude Code / Cursor / Codex yourself?
 
@@ -185,15 +185,16 @@ patchbay sits inside Claude Code / Cursor / Codex as an MCP server, so you keep 
   (WebSocket to Pusher, OAuth2 refresh, chained flows, S3 presigned URLs, GraphQL
   nested mutations, HMAC-signed server events) runs at **69% green · 23% first-try ·
   $0.17/connector** (2026-10-21). Reproduce via `npm run bench -- --passes=5`.
-- Six distinct distribution channels for one agent — the first time I've seen
-  a hackathon project ship a CLI, an MCP server, a web demo, a Slack bot, a
-  GitHub Action *and* a "push PR to your repo" command in the same submission.
-- Public uptime monitoring on day 13 — most Hackathon demos don't survive the
-  judging window. patchbay has a status page that watches its own web app and
-  its Nebius / Tavily upstreams. If anything flaps, judges see it before I do.
-- Build-in-public from day 1 — every red case has a committed post-mortem
-  with the diff that fixed it. No "sprinkle emojis on the README" step at the
-  end.
+- Six distribution surfaces for one agent: a CLI (`patchbay build`), an MCP
+  server (`claude mcp add patchbay`), a web demo with live-streamed pipeline,
+  a Slack slash command, a GitHub Action and a `patchbay push` subcommand
+  that opens a PR with the generated connector.
+- Public uptime monitoring from day 13. The web app and both upstreams
+  (Nebius Token Factory, Tavily) are watched by openstatus. The public
+  status page is linked from the README; green or red is visible without
+  logging in.
+- Build-in-public from day 1 — every red benchmark case has a committed
+  post-mortem in `docs/build-log.md` with the diff that fixed it.
 
 ### What we learned
 
