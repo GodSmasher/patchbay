@@ -17,7 +17,7 @@ patchbay
 ## Tagline (elevator pitch, 200 chars)
 
 ```
-One sentence in, tested TypeScript connector out. $0.07 per run — 27× cheaper than Claude Opus for the same thing, with tests that actually run before you see the file.
+One sentence in, tested TypeScript connector out. $0.07 per run — 27× cheaper than Claude Opus for the same thing, with tests that run before you see the file.
 ```
 
 (168 characters — well under the Devpost 200-char limit.)

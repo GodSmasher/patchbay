@@ -2,7 +2,7 @@
 
 Every one of patchbay's benchmark runs is a record of the agent failing
 and then fixing itself. 68 of those failure-to-fix moments across five
-benchmark passes make a tiny but perfectly-domain-matched training set
+benchmark passes make a tiny domain-matched training set
 for a repair-focused model.
 
 This document is the plan — and once the model is trained, the result.
