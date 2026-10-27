@@ -75,7 +75,7 @@ export function useRun() {
   const abort = useRef<AbortController | null>(null)
   const events = useRef<RunEvent[]>([])
 
-  const start = useCallback(async (prompt: string, replay = false) => {
+  const start = useCallback(async (prompt: string, options: { replay?: boolean; lang?: 'ts' | 'py' } = {}) => {
     abort.current?.abort()
     const controller = new AbortController()
     abort.current = controller
@@ -85,7 +85,7 @@ export function useRun() {
       const res = await fetch('/api/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, replay }),
+        body: JSON.stringify({ prompt, replay: options.replay === true, lang: options.lang }),
         signal: controller.signal,
       })
       if (!res.ok || !res.body) {

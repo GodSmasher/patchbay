@@ -31,6 +31,7 @@ export default function Home() {
   const [showMcp, setShowMcp] = useState(false)
   const [shareUrl, setShareUrl] = useState<string | null>(null)
   const [sharing, setSharing] = useState(false)
+  const [lang, setLang] = useState<'ts' | 'py'>('ts')
 
   async function onShare() {
     setSharing(true)
@@ -79,15 +80,16 @@ export default function Home() {
           Describe an integration. Get a connector that already passed its tests.
         </h1>
         <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-ink-soft">
-          patchbay plans the integration, reads the real API docs, writes a TypeScript connector with tests and runs them in an
-          isolated Nebius sandbox with the network switched off. When a test fails, it reads the failure and fixes the code.
+          patchbay plans the integration, reads the real API docs, writes a {lang === 'py' ? 'Python' : 'TypeScript'} connector
+          with tests and runs them in an isolated Nebius sandbox with the network switched off. When a test fails, it reads the
+          failure and fixes the code.
         </p>
 
         <form
           className="mt-8 max-w-3xl"
           onSubmit={(e) => {
             e.preventDefault()
-            if (!state.running) void start(prompt)
+            if (!state.running) void start(prompt, { lang })
           }}
         >
           <label htmlFor="prompt" className="sr-only">Integration</label>
@@ -100,7 +102,7 @@ export default function Home() {
             className="w-full resize-none rounded-xl border border-paper-line bg-paper-card px-4 py-3 text-[15px] leading-relaxed shadow-sm outline-none focus:border-ink-mute"
             placeholder="When X happens in app A, do Y in app B."
           />
-          <div className="mt-3 flex flex-wrap items-center gap-2">
+          <div className="mt-3 flex flex-wrap items-center gap-3">
             <button
               type="submit"
               disabled={state.running || prompt.trim().length < 12}
@@ -108,8 +110,40 @@ export default function Home() {
             >
               {state.running ? 'Building…' : 'Build connector'}
             </button>
+            <div
+              role="radiogroup"
+              aria-label="Target language"
+              className="inline-flex rounded-lg border border-paper-line bg-paper-card p-0.5 text-xs"
+            >
+              {(
+                [
+                  { v: 'ts' as const, label: 'TypeScript', hint: 'vitest + fetch' },
+                  { v: 'py' as const, label: 'Python', hint: 'pytest + httpx-style' },
+                ]
+              ).map((opt) => (
+                <button
+                  key={opt.v}
+                  type="button"
+                  role="radio"
+                  aria-checked={lang === opt.v}
+                  onClick={() => setLang(opt.v)}
+                  title={opt.hint}
+                  className={
+                    'rounded-md px-3 py-1 transition-colors ' +
+                    (lang === opt.v ? 'bg-ink text-white' : 'text-ink-soft hover:text-ink')
+                  }
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
             {live === false && (
               <span className="text-xs text-ink-mute">Live mode is off here, you will see a recorded run.</span>
+            )}
+            {live && lang === 'py' && (
+              <span className="text-xs text-ink-mute">
+                Python mode: first live run may take ~90s while the sandbox image warms up.
+              </span>
             )}
           </div>
           <div className="mt-4 flex flex-wrap gap-2 items-center">

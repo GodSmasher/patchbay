@@ -16,19 +16,28 @@ const MAX_PROMPT = 400
 const hits = new Map<string, number[]>()
 
 export async function POST(request: Request) {
-  const body = (await request.json().catch(() => ({}))) as { prompt?: unknown; replay?: unknown }
+  const body = (await request.json().catch(() => ({}))) as { prompt?: unknown; replay?: unknown; lang?: unknown }
   const prompt = typeof body.prompt === 'string' ? body.prompt.trim().slice(0, MAX_PROMPT) : ''
   if (prompt.length < 12) {
     return Response.json({ error: 'Describe the integration in one sentence, e.g. "When X happens in A, do Y in B".' }, { status: 400 })
   }
+  const lang: 'ts' | 'py' = body.lang === 'py' || body.lang === 'python' ? 'py' : 'ts'
 
-  const config = loadConfig()
+  const baseConfig = loadConfig()
+  const config = lang === 'py' ? { ...baseConfig, lang } as typeof baseConfig : baseConfig
   const liveAvailable = !config.mock && missingLiveKeys(config).length === 0
   const wantsReplay = body.replay === true
+  // Replay is recorded TypeScript-only. If a user picked Python but has no live, we still
+  // play the TS replay rather than erroring out — the UI shows this with a note below.
   const limited = liveAvailable && !wantsReplay && !allow(clientKey(request), Number(process.env.PATCHBAY_MAX_RUNS_PER_HOUR || 6))
 
-  const events: AsyncGenerator<RunEvent> = !liveAvailable || wantsReplay || limited ? replayRun() : startRun(prompt, config)
-  const notice = limited ? 'Hourly live-run limit reached for this address, showing the recorded run instead.' : null
+  const useReplay = !liveAvailable || wantsReplay || limited
+  const events: AsyncGenerator<RunEvent> = useReplay ? replayRun() : startRun(prompt, config)
+  const notice = limited
+    ? 'Hourly live-run limit reached for this address, showing the recorded run instead.'
+    : useReplay && lang === 'py'
+      ? 'Python mode needs live keys; showing the recorded TypeScript run instead.'
+      : null
 
   const encoder = new TextEncoder()
   const stream = new ReadableStream<Uint8Array>({
