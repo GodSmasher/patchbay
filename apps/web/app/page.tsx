@@ -80,9 +80,10 @@ export default function Home() {
           Describe an integration. Get a connector that already passed its tests.
         </h1>
         <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-ink-soft">
-          patchbay plans the integration, reads the real API docs, writes a {lang === 'py' ? 'Python' : 'TypeScript'} connector
-          with tests and runs them in an isolated Nebius sandbox with the network switched off. When a test fails, it reads the
-          failure and fixes the code.
+          patchbay plans the integration, reads the real API docs, writes a
+          <span className="whitespace-nowrap"> {lang === 'py' ? 'Python 3.12' : 'TypeScript'}</span> connector with tests,
+          and runs them in an isolated Nebius sandbox with the network switched off. When a test fails, it reads the failure
+          and fixes the code. <span className="text-ink-mute">Toggle TypeScript or Python below — the plan and research steps are the same, only the generated code and the test harness swap.</span>
         </p>
 
         <form

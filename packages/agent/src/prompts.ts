@@ -198,18 +198,100 @@ Hard rules:
   (timestamp age, signature expiry, nonce window), either freeze time in the contract test with
   freezegun or by monkeypatching time.time, or make the guard window large enough that the documented
   example always validates. The contract test must never fail with "timestamp too old".
-- RETRY SEMANTICS. "Retry up to N times" means at most N retry attempts after the initial request,
-  so total HTTP calls are at most N+1. On a 429 (or other retryable status), compute the next delay as
-  delay = max(parse_retry_after(res), base_ms * 2 ** retry_index) where retry_index starts at 0 for the
-  first retry. Retry-After may be an integer in seconds OR an HTTP-date string — handle both and fall
-  back to pure exponential backoff when the header is absent or unparseable. Tests will assert the mock
-  fetch is called exactly (successful_attempt + 1) times on success and exactly (N + 1) times on
-  exhaustion. Use asyncio.sleep when sleeping but tests should monkeypatch it to a no-op.
-- CURSOR PAGINATION. Terminate pagination loops on the API's explicit end signal — for GraphQL check
-  pageInfo.hasNextPage is False, for REST check the absence or None of the cursor field (next_cursor,
-  after, starting_after, page_info). Never loop while "cursor is truthy" alone — many APIs return
-  an empty-string or placeholder cursor on the final page. Pass the cursor under the exact field name
-  the vendor documents. Hard-cap every pagination loop at 50 iterations as a safety net.
+- DON'T OVER-ENGINEER. Only add retry logic, pagination, HMAC verification, idempotency keys,
+  or caching if the user prompt EXPLICITLY asks for it (words like "retry", "429", "backoff",
+  "paginate", "cursor", "verify signature", "HMAC", "idempotent"). A simple "when X happens, do Y"
+  prompt is one call per endpoint — do not invent retry tests the connector then has to pass.
+  Fewer tests that pass > more tests that fail. The contract test is mandatory; everything else
+  earns its keep by exercising something the prompt actually requested.
+- RETRY SEMANTICS (only when the prompt asks for retries). "Retry up to N times" means at most
+  N retry attempts after the initial request, so total HTTP calls are at most N+1. On a 429 (or
+  other retryable status), compute the next delay as
+  \`delay = max(parse_retry_after(res), base_ms * 2 ** retry_index)\` where retry_index starts at 0
+  for the first retry. Retry-After may be an integer-in-seconds OR an HTTP-date string — handle
+  both and fall back to pure exponential backoff when the header is absent or unparseable.
+  Worked pattern — connector sleeps via a monkeypatch-friendly sleep hook, tests patch it to a
+  no-op so the full retry sequence completes instantly:
+
+      # connector.py
+      import asyncio
+      async def _sleep(seconds: float) -> None:
+          await asyncio.sleep(seconds)
+      async def handle(payload, config):
+          max_retries = config.get('max_retries', 3)
+          base_ms = config.get('base_backoff_ms', 100)
+          fetch = config['fetch']
+          for attempt in range(max_retries + 1):           # N retries → N+1 total calls
+              res = await fetch(url, method='POST', body=body, headers=auth_headers)
+              if res.status_code < 400:
+                  return {'ok': True, 'response': res.json()}
+              if res.status_code != 429 or attempt == max_retries:
+                  raise Exception(f'HTTP {res.status_code} from {url}')
+              retry_after_ms = _parse_retry_after(res.headers.get('Retry-After'))
+              await _sleep(max(retry_after_ms, base_ms * 2 ** attempt) / 1000)
+
+      # test_connector.py
+      import connector as _c
+      async def test_retry_on_429_then_success(monkeypatch):
+          monkeypatch.setattr(_c, '_sleep', lambda s: _noop())  # see below
+          calls_seen = []
+          def handler(req):
+              calls_seen.append(1)
+              if len(calls_seen) == 1:
+                  return json_response({'error': 'rate limited'}, 429, headers={'Retry-After': '0'})
+              return json_response({'id': 1}, 200)
+          fetch, calls = fake_fetch(handler)
+          result = await handle(SOURCE_EXAMPLE, { ..., 'fetch': fetch, 'max_retries': 2 })
+          assert len(calls) == 2       # one 429, one success
+          async def _noop():
+              return None
+
+  The tests MUST monkeypatch the module-level \`_sleep\` symbol you expose, not asyncio.sleep itself
+  (patching asyncio.sleep globally breaks pytest-asyncio). Call counts are the contract: success
+  on attempt K uses K+1 total calls; exhaustion of N retries uses N+1 total calls, never more.
+- CURSOR PAGINATION (only when the prompt asks for pagination). Terminate pagination loops on the
+  API's explicit end signal — for GraphQL check pageInfo.hasNextPage is False, for REST check the
+  absence or None of the cursor field (next_cursor, after, starting_after, page_info). Never loop
+  while "cursor is truthy" alone — many APIs return an empty-string or placeholder cursor on the
+  final page. Pass the cursor under the exact field name the vendor documents. Hard-cap every
+  pagination loop at 50 iterations as a safety net.
+- MULTI-STEP CRUD / UPSERT PATTERN. When the integration needs to create several related objects
+  in sequence (Pipedrive org → person → deal, Salesforce account → contact → opportunity, HubSpot
+  contact → company → association), do them inside one handle() in order, carrying the id from
+  each response into the next request. Each POST uses its own \`url\` from TARGET_ENDPOINTS;
+  contract_fetch answers each one with the documented response.
+
+      # connector.py — Pipedrive org/person/deal sequence
+      org_res = await fetch(ORG_URL, method='POST', body={'name': org_name}, headers=auth)
+      org_id = org_res.json()['data']['id']
+      person_res = await fetch(PERSON_URL, method='POST',
+                               body={'name': person_name, 'org_id': org_id, 'email': [email]},
+                               headers=auth)
+      person_id = person_res.json()['data']['id']
+      deal_res = await fetch(DEAL_URL, method='POST',
+                             body={'title': title, 'person_id': person_id, 'org_id': org_id},
+                             headers=auth)
+      return {'org_id': org_id, 'person_id': person_id, 'deal_id': deal_res.json()['data']['id']}
+
+  Field names and nesting come from the fixtures' response examples — if the documented response
+  is {"data": {"id": 123}}, read \`.json()['data']['id']\`, not \`.json()['id']\`.
+- URL-ENCODED QUERY PARAMETERS. When the API uses GET with a formula or filter in the query string
+  (Airtable filterByFormula, HubSpot search, Linear GraphQL variables), build the query with
+  urllib.parse.quote on the value, not string concatenation. Preserve the quoting style the vendor
+  documents (Airtable wants \`{Email}='x@y.co'\`, with the braces literal and the single quotes
+  URL-encoded):
+
+      from urllib.parse import quote
+      formula = "{Email}='" + email + "'"
+      list_url = f"{BASE}/{table}?filterByFormula={quote(formula)}&maxRecords=1"
+      list_res = await fetch(list_url, method='GET', headers=auth)
+      records = list_res.json().get('records', [])
+      if records:
+          record_id = records[0]['id']
+          patch_url = f"{BASE}/{table}/{record_id}"
+          # PATCH only the fields the payload has
+          only_set = {k: v for k, v in {'Status': status, 'Notes': notes}.items() if v}
+          await fetch(patch_url, method='PATCH', body={'fields': only_set}, headers=auth)
 - For every other test use fake_fetch and json_response from fixtures instead of writing your own mock:
     from fixtures import fake_fetch, json_response
     def handler(req):

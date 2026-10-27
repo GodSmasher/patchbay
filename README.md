@@ -24,12 +24,17 @@
   <a href="https://www.npmjs.com/package/@patchbay-nebius/agent"><img src="https://img.shields.io/badge/-npm-CB3837?style=for-the-badge&logo=npm&logoColor=white" alt="npm" height="28"/></a>
 </p>
 
-**Describe an integration in one sentence. Get a tested TypeScript — or Python — connector.**
+**Describe an integration in one sentence. Get a tested connector — in TypeScript or Python.**
 
 ```
+# TypeScript (vitest + injected fetch)
 patchbay build "When a Stripe payment succeeds, add the customer to a Mailchimp audience with the plan as a tag"
+
+# Python 3.12 (pytest + injected async transport)
 patchbay build --lang=python "When a Stripe payment succeeds, add the customer to a Mailchimp audience with the plan as a tag"
 ```
+
+Same prompt in → tested connector out, in either language. The plan + research steps are language-agnostic (one LLM call budget serves both); only the generate step and the sandbox swap.
 
 patchbay runs five steps:
 
@@ -104,7 +109,7 @@ Everything through plan + research is language-agnostic. `--lang=python` swaps t
 patchbay build --lang=python "When a Stripe payment succeeds, add the customer to a Mailchimp audience with the plan as a tag"
 ```
 
-A variance pass over 10 different-shape prompts × 2 passes = **20 live builds**: **13/20 green (65%), $0.07 per green build, 5/20 first-try.** The straightforward REST + GraphQL shapes transfer cleanly (6 prompts at 2/2 green); two Python-specific gaps (multi-step upserts and `filterByFormula`-style URL-encoded lookups) still trip the model today. Full table and the honest post-mortem in [bench/RESULTS-variance.md](bench/RESULTS-variance.md#python-variance-pass-2026-10-27).
+A variance pass over 10 different-shape prompts × 2 passes = **20 live builds**: **16/20 green (80%), $0.10 per build.** The straightforward REST + GraphQL shapes transfer cleanly (8 of 10 prompts at ≥1/2 green, 6 at 2/2). The one remaining consistently-red prompt is the three-step Zendesk↔GitHub chained flow — also the hardest shape on the TypeScript side (3/4 on the TS core table). Full table and the per-prompt breakdown in [bench/RESULTS-variance.md](bench/RESULTS-variance.md#python-variance-pass-2026-10-27).
 
 **Not supported for Python:** the local runner (`PATCHBAY_RUNNER=local`), which only runs TS. Live replay runs on the hosted demo are also TS-only recordings, so without live keys the Python toggle shows the TS replay with a note.
 

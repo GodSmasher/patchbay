@@ -11,35 +11,40 @@ Overall: **87.6% green** · **48.6% first-try green** · **$0.0696 per connector
 + pytest sandbox, 4 attempts max, 2 parallel repair branches — same budget as
 the TS core table).
 
-Overall: **13/20 green (65.0%)** · **5/20 first-try (25.0%)** · **$0.129 per build**
+Overall: **16/20 green (80.0%)** · **4/20 first-try (20.0%)** · **$0.100 per build**
 
 | # | Prompt shape | Green | First-try | Cost (mean) | Attempts (avg) |
 | --- | --- | --- | --- | --- | --- |
-| 1 | Stripe webhook → Slack chat.postMessage (REST+bearer) | 2/2 | 1/2 | $0.045 | 1.5 |
-| 2 | Shopify orders/paid → Airtable append (REST+bearer) | 2/2 | 0/2 | $0.115 | 3.0 |
-| 3 | GitHub issue → Linear GraphQL (REST→GraphQL target) | 2/2 | 2/2 | $0.022 | 1.0 |
-| 4 | HubSpot contact → Mailchimp subscriber upsert | 1/2 | 1/2 | $0.062 | 1.5 |
-| 5 | Zendesk ticket → GitHub issue → Zendesk comment (chained) | 1/2 | 0/2 | $0.268 | 3.5 |
-| 6 | Shopify HMAC-SHA256 verify → Discord forward | 2/2 | 0/2 | $0.081 | 2.0 |
-| 7 | Mailchimp retry on 429 with Retry-After + backoff | 1/2 | 0/2 | $0.133 | 3.0 |
-| 8 | Typeform → Pipedrive (org + person + deal, chained) | 0/2 | 0/2 | $0.211 | 4.0 |
-| 9 | Jotform → Airtable update via filterByFormula + PATCH | 0/2 | 0/2 | $0.262 | 4.0 |
-| 10 | Calendly booking → Slack post + Asana task (chained) | 2/2 | 1/2 | $0.086 | 2.0 |
+| 1 | Stripe webhook → Slack chat.postMessage (REST+bearer) | 2/2 | 0/2 | $0.082 | 2.5 |
+| 2 | Shopify orders/paid → Airtable append (REST+bearer) | 2/2 | 1/2 | $0.078 | 1.5 |
+| 3 | GitHub issue → Linear GraphQL (REST→GraphQL target) | 1/2 | 1/2 | $0.022 | 0.5 |
+| 4 | HubSpot contact → Mailchimp subscriber upsert | 1/2 | 0/2 | $0.115 | 3.0 |
+| 5 | Zendesk ticket → GitHub issue → Zendesk comment (chained) | 0/2 | 0/2 | $0.355 | 4.0 |
+| 6 | Shopify HMAC-SHA256 verify → Discord forward | 2/2 | 1/2 | $0.042 | 1.5 |
+| 7 | Mailchimp retry on 429 with Retry-After + backoff | 2/2 | 0/2 | $0.052 | 1.5 |
+| 8 | Typeform → Pipedrive (org + person + deal, chained) | 2/2 | 0/2 | $0.070 | 2.0 |
+| 9 | Jotform → Airtable update via filterByFormula + PATCH | 2/2 | 0/2 | $0.118 | 2.0 |
+| 10 | Calendly booking → Slack post + Asana task (chained) | 2/2 | 1/2 | $0.070 | 2.0 |
 
-What this run surfaces honestly:
-- **The straightforward REST + GraphQL shapes transfer cleanly from TS to Python** —
-  prompts 1, 2, 3, 6, 10 are all 2/2 green. GraphQL (prompt 3) was first-try both passes.
-- **Chained flows improved after the chained-flow prompt was hardened** — prompt 5
-  (Zendesk↔GitHub) went 0/1 → 1/2, and prompt 10 (Calendly fan-out to Slack + Asana)
-  went clean 2/2 first time out.
-- **The two consistent 0/2 prompts** (Typeform→Pipedrive multi-step upsert, Jotform
-  filterByFormula+PATCH) are TS-easy cases on the core table (both 4/5 and 4/5 there).
-  The Python model is missing specific idioms — Pipedrive org/person/deal sequencing
-  and Airtable's URL-encoded formula lookups — that the TS generate prompt happens to
-  nudge the model toward. Follow-up: either add explicit per-vendor hints or lift the
-  TS prompt's SDK-pattern discipline into the Python prompt.
-- **Cost per build is ~2× TS** mostly because the 0/2 prompts burn all 4 attempts.
-  Green builds average $0.07 — within noise of the TS mean.
+How we got from a messy first pass (13/20 green, two 0/2 fails) to 16/20:
+
+- The first variance showed the Python model was writing elaborate retry /
+  pagination tests the user prompt never asked for, then failing against its
+  own test machinery. The generate prompt now has an explicit DON'T
+  OVER-ENGINEER rule — only add retry / pagination / HMAC / idempotency when
+  the prompt uses the keyword — plus a WORKED PATTERN for 429 retries with a
+  monkeypatch-friendly sleep hook. Prompts 7, 8 and 9 all went 0/2 → 2/2.
+- Multi-step upserts (prompt 8: Pipedrive org → person → deal) got a
+  concrete code sketch showing id carry-forward.
+- URL-encoded query parameters (prompt 9: Airtable
+  `filterByFormula`+`PATCH`) got an `urllib.parse.quote` worked example and
+  "only PATCH fields the payload has" guidance.
+- The remaining red is prompt 5 (Zendesk→GitHub→Zendesk comment, chained):
+  this is the hardest shape on both tables (prompt 19 on TS went 3/4, so
+  it's not a Python-specific problem — adversarial chained flow with two
+  distinct auth headers).
+- Cost per build dropped from $0.129 to $0.100 as retry-burning repair
+  attempts stopped happening.
 
 
 Core 20 (common integrations): 83/92 green (90.2%) · 48/92 first-try (52.2%) · $0.0696/connector

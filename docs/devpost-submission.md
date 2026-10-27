@@ -17,10 +17,10 @@ patchbay
 ## Tagline (elevator pitch, 200 chars)
 
 ```
-One sentence in, tested TypeScript connector out. $0.07 per run — 27× cheaper than Claude Opus for the same thing, with tests that run before you see the file.
+One sentence in, tested connector out — in TypeScript or Python. $0.07 per run, 27× cheaper than Claude Opus, with tests that run before you see the file.
 ```
 
-(168 characters — well under the Devpost 200-char limit.)
+(166 characters — well under the Devpost 200-char limit.)
 
 ## Try it out URLs (one line each)
 
@@ -57,7 +57,7 @@ branches each.
 ### What it does
 
 You type one sentence: `When a Stripe payment succeeds, add the customer to a
-Mailchimp audience with the plan as a tag.`
+Mailchimp audience with the plan as a tag.` — and pick TypeScript or Python.
 
 patchbay runs a five-step pipeline:
 
@@ -225,10 +225,10 @@ patchbay sits inside Claude Code / Cursor / Codex as an MCP server, so you keep 
 
 - **More target languages.** TypeScript (vitest) and Python 3.12 (pytest) ship
   today, both behind the `--lang` flag and sharing one plan+research step.
-  Python's variance pass is in `bench/RESULTS-variance.md` (13/20 green,
-  $0.07 per green build) with a short post-mortem on the Python-specific gaps
-  still open — multi-step upserts and `filterByFormula`-style lookups. Go
-  is next: same prompts, swap the sandbox image and the test harness template.
+  Python's variance pass is in `bench/RESULTS-variance.md` (16/20 green at
+  $0.10 per build) — same budget as the TS core run, within reach of its 90%
+  core green rate. Go is next: same prompts, swap the sandbox image and the
+  test harness template.
 - **Hosted service** at `patchbay.dev` with managed API keys so the demo
   isn't rate-limited to replay mode after six runs per IP.
 - **Fine-tuned repair model** trained on the committed benchmark runs —
