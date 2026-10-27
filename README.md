@@ -106,6 +106,8 @@ patchbay build --lang=python "When a Stripe payment succeeds, add the customer t
 
 A single-pass mini-benchmark on five different-shape prompts (Stripe→Slack, Shopify→Airtable, GitHub→Linear GraphQL, HubSpot→Mailchimp upsert, Zendesk↔GitHub chained flow): **4/5 green, $0.065 per connector, average 2 attempts.** Full table in [bench/RESULTS-variance.md](bench/RESULTS-variance.md#python-mini-pass-2026-10-27).
 
+**Not supported for Python:** the local runner (`PATCHBAY_RUNNER=local`), which only runs TS. Live replay runs on the hosted demo are also TS-only recordings, so without live keys the Python toggle shows the TS replay with a note.
+
 ## Selfhost
 
 ```bash

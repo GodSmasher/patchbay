@@ -9,9 +9,19 @@ interface Draft {
   report: TestReport | null
 }
 
+// The main source file in each language — used as the default tab when the panel first renders.
+const DEFAULT_PATH_BY_LANG: Record<'ts' | 'py', string> = {
+  ts: 'src/connector.ts',
+  py: 'connector.py',
+}
+
+function detectLang(files: { path: string }[]): 'ts' | 'py' {
+  return files.some((f) => f.path.endsWith('.py')) ? 'py' : 'ts'
+}
+
 export function CodePanel({ drafts, finalOk }: { drafts: Draft[]; finalOk: boolean | null }) {
   const [attempt, setAttempt] = useState(1)
-  const [path, setPath] = useState('src/connector.ts')
+  const [path, setPath] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
@@ -21,7 +31,10 @@ export function CodePanel({ drafts, finalOk }: { drafts: Draft[]; finalOk: boole
 
   const draft = drafts.find((d) => d.attempt === attempt) ?? drafts.at(-1)
   if (!draft) return null
-  const file = draft.files.find((f) => f.path === path) ?? draft.files[0]
+  const lang = detectLang(draft.files)
+  const effectivePath = path ?? DEFAULT_PATH_BY_LANG[lang]
+  const file = draft.files.find((f) => f.path === effectivePath) ?? draft.files.find((f) => f.path === DEFAULT_PATH_BY_LANG[lang]) ?? draft.files[0]
+  const fixturesPath = lang === 'py' ? 'fixtures.py' : 'src/fixtures.ts'
   const previous = drafts.find((d) => d.attempt === draft.attempt - 1)
   const changed = new Set(
     previous ? draft.files.filter((f) => previous.files.find((p) => p.path === f.path)?.content !== f.content).map((f) => f.path) : [],
@@ -85,8 +98,8 @@ export function CodePanel({ drafts, finalOk }: { drafts: Draft[]; finalOk: boole
             onClick={() => setPath(f.path)}
             className={`-mb-px rounded-t-md border px-2.5 py-1.5 text-xs ${f.path === file?.path ? 'border-paper-line border-b-paper-card bg-paper-card text-ink' : 'border-transparent text-ink-mute hover:text-ink'}`}
           >
-            {f.path.replace('src/', '')}
-            {f.path === 'src/fixtures.ts' && <span className="ml-1 text-ink-mute">(from docs)</span>}
+            {f.path.replace(/^src\//, '')}
+            {f.path === fixturesPath && <span className="ml-1 text-ink-mute">(from docs)</span>}
             {changed.has(f.path) && <span className="ml-1 text-signal">●</span>}
           </button>
         ))}
@@ -94,7 +107,7 @@ export function CodePanel({ drafts, finalOk }: { drafts: Draft[]; finalOk: boole
 
       <pre className="code min-h-[320px] flex-1 overflow-auto p-4 text-ink">{file?.content}</pre>
 
-      {draft.report && <Report report={draft.report} />}
+      {draft.report && <Report report={draft.report} lang={lang} />}
     </section>
   )
 }
@@ -114,8 +127,9 @@ function Trajectory({ drafts, activeAttempt, onPick }: { drafts: Draft[]; active
           const r = d.report
           const green = r?.typecheckOk && r.failed === 0 && (r.contract === undefined || r.contract === 'passed')
           const label = r ? `${r.passed}/${r.total}` : '…'
+          const checkLabel = drafts.some((dd) => dd.files.some((f) => f.path.endsWith('.py'))) ? 'syntax check' : 'typecheck'
           const why = r?.failures[0]
-            ? `attempt ${d.attempt}: ${r.passed}/${r.total}, ${r.typecheckOk ? 'typecheck ok' : 'typecheck failed'}, ${r.contract ?? 'no contract'}\nfirst failure: ${r.failures[0].name}`
+            ? `attempt ${d.attempt}: ${r.passed}/${r.total}, ${r.typecheckOk ? `${checkLabel} ok` : `${checkLabel} failed`}, ${r.contract ?? 'no contract'}\nfirst failure: ${r.failures[0].name}`
             : `attempt ${d.attempt}`
           return (
             <span key={d.attempt} className="flex items-center gap-1">
@@ -142,18 +156,20 @@ function Trajectory({ drafts, activeAttempt, onPick }: { drafts: Draft[]; active
   )
 }
 
-function Report({ report }: { report: TestReport }) {
+function Report({ report, lang }: { report: TestReport; lang: 'ts' | 'py' }) {
   const green = report.typecheckOk && report.failed === 0
+  const typecheckLabel = lang === 'py' ? 'syntax check' : 'typecheck'
+  const fixturesPath = lang === 'py' ? 'fixtures.py' : 'src/fixtures.ts'
   return (
     <div className={`border-t border-paper-line px-4 py-3 text-xs ${green ? 'bg-signal-soft' : 'bg-warn-soft'}`}>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
         <span className={`font-semibold ${green ? 'text-signal' : 'text-warn'}`}>
           {green ? 'All tests pass' : `${report.failed} of ${report.total} tests fail`}
         </span>
-        <span className="text-ink-soft">typecheck {report.typecheckOk ? 'clean' : 'failed'}</span>
+        <span className="text-ink-soft">{typecheckLabel} {report.typecheckOk ? 'clean' : 'failed'}</span>
         {report.contract && (
           <span
-            title="The suite ran the connector against the example payload and responses from the official docs (src/fixtures.ts), which patchbay writes and the model cannot change."
+            title={`The suite ran the connector against the example payload and responses from the official docs (${fixturesPath}), which patchbay writes and the model cannot change.`}
             className={report.contract === 'passed' ? 'text-signal' : 'text-warn'}
           >
             docs contract {report.contract === 'passed' ? 'passed' : report.contract === 'missing' ? 'missing' : 'failed'}

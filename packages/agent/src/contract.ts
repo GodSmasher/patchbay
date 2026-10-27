@@ -223,7 +223,7 @@ Exports:
   TARGET_ENDPOINTS list  — endpoints the connector may call, in documented order
   contract_fetch()       — fake async transport answering documented endpoints, raising otherwise
   fake_fetch(handler)    — fake async transport driven by a user handler
-  json_response(body, status=200)
+  json_response(body, status=200, headers=None)
 """
 from __future__ import annotations
 
@@ -396,9 +396,16 @@ _STATUS_TEXT: dict[int, str] = {
 }
 
 
-def json_response(body: Any, status: int = 200) -> FakeResponse:
-    """A JSON FakeResponse with the standard status text, e.g. json_response({'error': 'x'}, 401)."""
-    return FakeResponse(body, status, headers={'Content-Type': 'application/json'})
+def json_response(body: Any, status: int = 200, headers: dict[str, str] | None = None) -> FakeResponse:
+    """A JSON FakeResponse with the standard status text and content-type.
+
+    Extra response headers (Retry-After for 429 tests, Location for redirects, etc.) can be passed via
+    the headers= kwarg and are merged on top of the content-type header.
+    """
+    merged: dict[str, str] = {'Content-Type': 'application/json'}
+    if headers:
+        merged.update(headers)
+    return FakeResponse(body, status, headers=merged)
 `
   return { path: FIXTURES_PATH_PY, content }
 }

@@ -22,6 +22,11 @@ const TSCONFIG = {
  * Fallback runner for development: typecheck + vitest in a temp folder on this machine.
  * Same command and parser as the Nebius sandbox, but NOT isolated, so it is opt-in via
  * PATCHBAY_RUNNER=local and never used by the hosted demo.
+ *
+ * TypeScript only. `--lang=python` requires the Nebius sandbox because the local runner
+ * can't guarantee the host has python 3.12 + pytest + pytest-asyncio + pytest-json-report
+ * at the right versions; attempting to prepare a Python run through here throws so the
+ * mistake is loud rather than silently running tests against whatever the host has.
  */
 export function createLocalRunner(opts: { root?: string; timeoutMs?: number } = {}): SandboxRunner {
   const root = opts.root ?? findRepoRoot(process.cwd())
@@ -31,11 +36,17 @@ export function createLocalRunner(opts: { root?: string; timeoutMs?: number } = 
 
   return {
     async prepare(log) {
+      if (anyFile(opts, 'py')) {
+        throw new Error('Local runner does not support --lang=python. Use PATCHBAY_RUNNER=nebius (default).')
+      }
       log('Local runner: typecheck and tests run on this machine, not in an isolated sandbox')
       return 'local'
     },
 
     async runTests(_base, files, log) {
+      if (files.some((f) => f.path.endsWith('.py'))) {
+        throw new Error('Local runner cannot run Python tests. Use PATCHBAY_RUNNER=nebius for --lang=python.')
+      }
       const workRoot = join(root, '.fixture-tmp')
       mkdirSync(workRoot, { recursive: true })
       const work = mkdtempSync(join(workRoot, 'run-'))
@@ -75,6 +86,12 @@ function run(entry: string, args: string[], cwd: string, timeout: number): Promi
 async function readText(path: string): Promise<string> {
   const { readFile } = await import('node:fs/promises')
   return readFile(path, 'utf8')
+}
+
+// Placeholder — prepare() doesn't actually have access to files, so this is only ever
+// invoked by runTests. Kept as a hook in case we grow a "detect language from opts" later.
+function anyFile(_opts: unknown, _ext: string): boolean {
+  return false
 }
 
 function findRepoRoot(start: string): string {

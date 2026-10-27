@@ -112,3 +112,15 @@ the cost per connector.
 - The dataset itself (`bench/training-data.jsonl`) is a tiny new
   open-source contribution: 68 real-world LLM repair pairs for TypeScript
   API connectors.
+
+## What about Python?
+
+The `--lang=python` code path emits its own `(red draft → green diff)`
+pairs with every repair attempt, same shape as the TS pairs but with
+pytest output instead of vitest. Each run goes through `bench/runs/pass-*`
+tagged with its language, so the next time we rebuild
+`bench/training-data.jsonl` we can either hold Python out as a second
+eval set (does a TS-trained repair model transfer to Python?) or fold it
+in and fine-tune one bilingual repair head. The current fine-tune job
+(TS only) is the baseline to beat; the Python runs that accumulate from
+here on grow a second training set for free.

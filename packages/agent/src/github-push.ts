@@ -37,7 +37,9 @@ const API = 'https://api.github.com'
  */
 export async function pushToGitHub(opts: PushOptions): Promise<PushResult> {
   const files = collectRunFiles(opts.runDir)
-  if (files.length === 0) throw new Error(`${opts.runDir} has no files to push (expected src/* and README.md).`)
+  if (files.length === 0) {
+    throw new Error(`${opts.runDir} has no files to push (expected src/* and README.md for TS, or connector.py + test_connector.py + fixtures.py + README.md for Python).`)
+  }
 
   const [owner, name] = opts.repo.split('/')
   if (!owner || !name) throw new Error(`Expected --repo=owner/name, got "${opts.repo}"`)

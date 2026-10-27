@@ -79,17 +79,20 @@ registerTool(
     title: 'Build a connector',
     description:
       'Describe an integration in one sentence ("When X happens in A, do Y in B"). ' +
-      'patchbay plans it, researches both APIs, generates a TypeScript connector ' +
-      'with tests and a README, then verifies it in a sandbox with up to N repair attempts. ' +
-      'Falls back to the recorded replay run when live API keys are missing.',
+      'patchbay plans it, researches both APIs, generates a connector with tests and a README, ' +
+      'then verifies it in a sandbox with up to N repair attempts. Default language is TypeScript ' +
+      '(vitest); set lang: "py" for Python 3.12 (pytest). Falls back to the recorded TypeScript ' +
+      'replay run when live API keys are missing.',
     inputSchema: {
       prompt: z.string().min(4).describe('One-sentence integration description'),
+      lang: z.enum(['ts', 'py']).optional().describe('Target language. "ts" (default) emits TypeScript+vitest; "py" emits Python 3.12+pytest. Live keys required for "py".'),
       maxAttempts: z.number().int().min(1).max(5).optional().describe('Repair attempts, default from PATCHBAY_MAX_ATTEMPTS'),
     },
   },
   async (args, extra) => {
-    const { prompt, maxAttempts } = args as { prompt: string; maxAttempts?: number }
+    const { prompt, lang, maxAttempts } = args as { prompt: string; lang?: 'ts' | 'py'; maxAttempts?: number }
     const config = loadConfig()
+    if (lang) config.lang = lang
     if (maxAttempts) config.maxAttempts = maxAttempts
     return runToolStream(extra, startRun(prompt, config), { includeFiles: true })
   },
@@ -118,18 +121,23 @@ registerTool(
   {
     title: 'Verify a connector',
     description:
-      'Type-check and vitest an existing connector (files you provide as {path, content}) ' +
-      'in an isolated Nebius sandbox, with up to N repair attempts from the strong model. ' +
-      'Requires live keys (NEBIUS_API_KEY, NEBIUS_AI_PROJECT); returns the final test report ' +
-      'and the (possibly repaired) files.',
+      'Type-check and test an existing connector (files you provide as {path, content}) in an isolated ' +
+      'Nebius sandbox, with up to N repair attempts from the strong model. For TypeScript (default) ' +
+      'the gate is tsc + vitest; for Python (lang: "py") it is compileall + pytest. ' +
+      'Requires live keys (NEBIUS_API_KEY, NEBIUS_AI_PROJECT); returns the final test report and ' +
+      'the (possibly repaired) files.',
     inputSchema: {
-      files: z.array(fileSchema).min(1).describe('Connector files. Must include src/connector.ts and at least one *.test.ts'),
+      files: z.array(fileSchema).min(1).describe('Connector files. For TS, include src/connector.ts + a *.test.ts; for Python, include connector.py + test_connector.py.'),
+      lang: z.enum(['ts', 'py']).optional().describe('Target language the files are in. "ts" (default) or "py". If omitted, auto-detected from file extensions.'),
       maxAttempts: z.number().int().min(1).max(5).optional().describe('Repair attempts, default from PATCHBAY_MAX_ATTEMPTS'),
     },
   },
   async (args, extra) => {
-    const { files, maxAttempts } = args as { files: GeneratedFile[]; maxAttempts?: number }
+    const { files, lang, maxAttempts } = args as { files: GeneratedFile[]; lang?: 'ts' | 'py'; maxAttempts?: number }
     const config = loadConfig()
+    // Auto-detect from file extensions when the caller didn't say — a connector.py means Python.
+    const resolvedLang = lang ?? (files.some((f) => f.path.endsWith('.py')) ? 'py' : 'ts')
+    config.lang = resolvedLang
     if (maxAttempts) config.maxAttempts = maxAttempts
     const missing = missingLiveKeys(config)
     if (config.mock || missing.length) {

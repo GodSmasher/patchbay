@@ -219,8 +219,20 @@ Hard rules:
     fetch, calls = fake_fetch(handler)
   Each recorded call is a dict: {'method', 'url', 'body' (bytes/str as sent), 'json' (parsed body or None),
   'headers' (dict)}. Assert on calls[i]['json'], do not json.loads it again.
+  json_response signature is \`json_response(body, status=200, headers=None)\`. Pass response headers
+  via the \`headers=\` kwarg when a retry test needs Retry-After or when the connector reads a header
+  off the response (e.g. \`json_response({'ok': True}, 200, headers={'Retry-After': '2'})\`).
 - Code must be clean Python 3.12: type hints on every function signature, no unused imports, no
   bare except. Standard library modules only in top-level imports.
+- CHAINED FLOWS. When spec.target has MORE THAN ONE endpoint, call them in the documented order
+  inside handle(), using data from one response to shape the next request. The contract test must
+  exercise every documented endpoint — contract_fetch answers each one with its documented response,
+  so a chained flow like "Zendesk ticket -> GitHub issue -> Zendesk ticket comment" means handle()
+  POSTs the GitHub issue, reads its html_url (or id) from the response, then POSTs the Zendesk
+  comment carrying that URL. One auth header per vendor — read each vendor's env var / secret from
+  config under distinct keys (github_token vs zendesk_api_token). The response-example fields the
+  fixtures hand you are the ONLY fields you may assume present; a documented field missing from the
+  response example is fine to read with .get(... , None).
 - README.md: what it does, config/env vars, a usage example (async code), and the assumptions from the plan.`
 
 export function generateUser(plan: Plan, spec: ApiSpec, fixtures: string, lang: Lang = 'ts'): string {

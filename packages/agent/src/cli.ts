@@ -32,6 +32,7 @@ Flags:
                Python 3.12 + pytest. Also settable via PATCHBAY_LANG=python.
   --watch      verify only. Re-runs the sandbox verify whenever a source file in <directory> changes.
   --build-top  scan only. After reporting, build the top-N opportunities (full pipeline each).
+               Combine with --lang=python to build the top-N in Python.
   --json       scan only. Emit the raw opportunity list as JSON instead of the formatted report.
   --target     add only. Where to drop the files, defaults to ./connectors/<run-name>.
   --repo       push only. owner/name of the target GitHub repo.
@@ -76,6 +77,7 @@ async function main() {
 
 async function scan(args: string[]) {
   const positional = args.filter((a) => !a.startsWith('--'))
+  const langFlag = flagValue(args, '--lang')
   let dir = positional[0] ? resolve(positional[0]) : process.cwd()
   // Accept GitHub URLs: shallow-clone into a tmp dir so judges can scan a
   // random repo without cloning it themselves.
@@ -104,10 +106,12 @@ async function scan(args: string[]) {
 
   if (buildTop > 0 && opportunities.length) {
     const top = opportunities.slice(0, buildTop)
-    console.log(`\nBuilding top ${top.length} opportunit${top.length === 1 ? 'y' : 'ies'}…\n`)
+    const langLabel = langFlag ? ` as ${/^py/i.test(langFlag) ? 'Python' : 'TypeScript'}` : ''
+    console.log(`\nBuilding top ${top.length} opportunit${top.length === 1 ? 'y' : 'ies'}${langLabel}…\n`)
     for (const [i, op] of top.entries()) {
       console.log(`\n──── (${i + 1}/${top.length}) ${op.file}:${op.line} ────`)
-      await build(['--record', op.prompt])
+      // Pass --lang through to the inner build; it comes from this scan's --lang flag.
+      await build(langFlag ? ['--record', `--lang=${langFlag}`, op.prompt] : ['--record', op.prompt])
     }
   }
 }
@@ -123,26 +127,44 @@ async function add(args: string[]) {
   const runDir = positional[0] ? resolve(positional[0]) : ''
   if (!runDir) return usageError('add needs a run directory (e.g. runs/<timestamp>)')
   if (!existsSync(runDir)) return usageError(`No such directory: ${runDir}`)
-  const srcDir = join(runDir, 'src')
-  if (!existsSync(join(srcDir, 'connector.ts'))) {
-    return usageError(`${runDir} does not look like a patchbay run (no src/connector.ts)`)
-  }
+  // TS runs ship src/connector.ts + src/connector.test.ts + src/fixtures.ts + README.md at the top.
+  // Python runs ship connector.py + test_connector.py + fixtures.py + README.md at the top (no src/).
+  const tsConnector = join(runDir, 'src', 'connector.ts')
+  const pyConnector = join(runDir, 'connector.py')
+  const kind: 'ts' | 'py' = existsSync(pyConnector) ? 'py' : existsSync(tsConnector) ? 'ts' : (() => { usageError(`${runDir} does not look like a patchbay run (no src/connector.ts and no connector.py)`); throw new Error('unreachable') })()
   const target = flag ? resolve(flag.slice('--target='.length)) : resolve(process.cwd(), 'connectors', basename(runDir))
   if (existsSync(target)) {
     console.error(`Refusing to overwrite ${target}. Pass --target=<fresh-dir> or move the existing folder out of the way.`)
     process.exit(1)
   }
   mkdirSync(target, { recursive: true })
-  // src/ is self-contained (connector.ts + connector.test.ts + fixtures.ts).
-  cpSync(srcDir, join(target, 'src'), { recursive: true })
+  let copiedList: string[] = []
+  if (kind === 'ts') {
+    const srcDir = join(runDir, 'src')
+    cpSync(srcDir, join(target, 'src'), { recursive: true })
+    copiedList = readdirSync(join(target, 'src')).map((f) => `src/${f}`)
+  } else {
+    // Python files live at the run-dir root alongside README.md.
+    for (const name of ['connector.py', 'test_connector.py', 'fixtures.py']) {
+      const abs = join(runDir, name)
+      if (existsSync(abs)) {
+        cpSync(abs, join(target, name))
+        copiedList.push(name)
+      }
+    }
+  }
   const readme = join(runDir, 'README.md')
   if (existsSync(readme)) cpSync(readme, join(target, 'README.md'))
-  const copied = readdirSync(join(target, 'src'))
-  console.log(`✔ Copied ${copied.length + (existsSync(readme) ? 1 : 0)} files to ${target}`)
-  console.log('  src/' + copied.join('\n  src/'))
+  const totalCopied = copiedList.length + (existsSync(readme) ? 1 : 0)
+  console.log(`✔ Copied ${totalCopied} ${kind === 'py' ? 'Python' : 'TypeScript'} files to ${target}`)
+  for (const name of copiedList) console.log(`  ${name}`)
   if (existsSync(readme)) console.log('  README.md')
-  console.log(`\nTests should already pass unchanged — the connector is self-contained and uses an injected fetch.`)
-  console.log(`Add vitest and typescript as dev deps where you'll run them, or wire this into your existing suite.`)
+  console.log(`\nTests should already pass unchanged — the connector is self-contained and uses an injected ${kind === 'py' ? 'async transport' : 'fetch'}.`)
+  if (kind === 'py') {
+    console.log(`Make sure pytest + pytest-asyncio are available where you run the tests (or wire them into your existing suite).`)
+  } else {
+    console.log(`Add vitest and typescript as dev deps where you'll run them, or wire this into your existing suite.`)
+  }
 }
 
 async function build(args: string[]) {

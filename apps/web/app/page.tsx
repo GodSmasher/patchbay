@@ -138,7 +138,9 @@ export default function Home() {
               ))}
             </div>
             {live === false && (
-              <span className="text-xs text-ink-mute">Live mode is off here, you will see a recorded run.</span>
+              <span className="text-xs text-ink-mute">
+                Live mode is off here, you will see a recorded TypeScript run{lang === 'py' ? ' (the Python replay is only reachable with live keys).' : '.'}
+              </span>
             )}
             {live && lang === 'py' && (
               <span className="text-xs text-ink-mute">
