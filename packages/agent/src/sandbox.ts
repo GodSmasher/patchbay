@@ -1,8 +1,8 @@
-import { parseTestOutput, TEST_COMMAND } from './report'
-import type { GeneratedFile, TestReport } from './types'
+import { parsePytestOutput, parseTestOutput, TEST_COMMAND, TEST_COMMAND_PY } from './report'
+import type { GeneratedFile, Lang, TestReport } from './types'
 
 export interface SandboxRunner {
-  /** Returns an image id that has node, typescript and vitest installed under /work. */
+  /** Returns an image id prepared for the configured language (node+vitest, or python+pytest). */
   prepare(log: (message: string) => void): Promise<string>
   /** Runs typecheck + tests for the given files on a fresh branch of the prepared image. */
   runTests(baseImage: string, files: GeneratedFile[], log: (message: string) => void): Promise<TestReport>
@@ -26,11 +26,32 @@ interface Operation {
 const NODE_IMAGE_TAG = 'patchbay-node:22'
 const NODE_IMAGE_REGISTRY = 'docker://docker.io/library/node:22-slim'
 
+const PY_IMAGE_TAG = 'patchbay-python:3.12'
+const PY_IMAGE_REGISTRY = 'docker://docker.io/library/python:3.12-slim'
+
 const PREPARE_COMMAND = [
   'mkdir -p /work/src',
   'cd /work',
   `printf '%s' '{"name":"connector","private":true,"type":"module"}' > package.json`,
   'npm install --no-audit --no-fund --loglevel=error -D vitest@3.2.4 typescript@5.6.3 @types/node@22',
+].join(' && ')
+
+/**
+ * Prepare Python 3.12 with the exact test deps we rely on. Keep the surface tiny:
+ *   - pytest (test runner)
+ *   - pytest-asyncio (async def test support, auto mode)
+ *   - pytest-json-report (machine-readable output for parsePytestOutput)
+ *   - httpx is NOT installed — generated code must use an injected fake transport, same
+ *     invariant as TS where fetch is injected and `node-fetch` is never pulled in.
+ * conftest.py sets asyncio_mode = auto so bare `async def test_...` work without decorators.
+ */
+const PREPARE_COMMAND_PY = [
+  'mkdir -p /work',
+  'cd /work',
+  'pip install --quiet --no-cache-dir pytest==8.3.3 pytest-asyncio==0.24.0 pytest-json-report==1.5.0',
+  // printf '%b' interprets \n as a real newline; '%s' would write the literal \n characters
+  // and pytest.ini would be a one-line garble ("unexpected value continuation").
+  `printf '%b' '[pytest]\\nasyncio_mode = auto\\n' > pytest.ini`,
 ].join(' && ')
 
 const TSCONFIG = JSON.stringify(
@@ -53,20 +74,24 @@ const TSCONFIG = JSON.stringify(
 /**
  * Nebius Token Factory Sandboxes (ConTree REST API).
  *
- * The expensive part — pulling node and installing vitest — happens once and produces an
- * image checkpoint. Every test attempt forks from that checkpoint with networking disabled,
- * so generated code can never reach the real APIs and each retry starts from the same state.
+ * The expensive part — pulling the base image and installing test deps — happens once and
+ * produces an image checkpoint. Every test attempt forks from that checkpoint with networking
+ * disabled, so generated code can never reach the real APIs and each retry starts from the
+ * same state. One checkpoint per language.
  */
 export function createNebiusSandbox(opts: {
   apiKey: string
   project: string
   baseUrl: string
   preparedImage?: string
+  /** Target language — `ts` (default) uses node:22-slim + vitest, `py` uses python:3.12-slim + pytest. */
+  lang?: Lang
   fetch?: typeof fetch
   pollIntervalMs?: number
 }): SandboxRunner {
   const doFetch = opts.fetch ?? fetch
   const pollMs = opts.pollIntervalMs ?? 1500
+  const lang: Lang = opts.lang ?? 'ts'
   let cachedImage = opts.preparedImage
 
   const headers = (extra: Record<string, string> = {}) => ({
@@ -77,9 +102,6 @@ export function createNebiusSandbox(opts: {
 
   async function request<T>(path: string, init: RequestInit = {}): Promise<{ body: T; location: string | null }> {
     const method = (init.method ?? 'GET').toUpperCase()
-    // Retry 5xx and transient network errors on idempotent calls. POST /instances is retried too
-    // because our body is deterministic (same files, same command) — a duplicate instance costs
-    // one wasted sandbox, which is cheaper than burning a whole plan+research+generate run.
     const maxTries = 3
     let lastError: unknown
     for (let attempt = 0; attempt < maxTries; attempt++) {
@@ -128,20 +150,43 @@ export function createNebiusSandbox(opts: {
     return id
   }
 
-  async function ensureNodeImage(log: (m: string) => void): Promise<string> {
+  async function ensureBaseImage(log: (m: string) => void): Promise<string> {
+    const tag = lang === 'py' ? PY_IMAGE_TAG : NODE_IMAGE_TAG
+    const registry = lang === 'py' ? PY_IMAGE_REGISTRY : NODE_IMAGE_REGISTRY
     const { body } = await request<{ images?: { uuid: string; tag?: string | null }[] }>('/images?tagged=1&limit=200')
-    const existing = (body.images ?? []).find((image) => image.tag === NODE_IMAGE_TAG)
+    const existing = (body.images ?? []).find((image) => image.tag === tag)
     if (existing) return existing.uuid
-    log('Importing node:22-slim into the sandbox registry (one-time)')
+    log(`Importing ${registry.replace('docker://', '')} into the sandbox registry (one-time)`)
     const started = await request<{ uuid?: string }>('/images/import', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ registry: { url: NODE_IMAGE_REGISTRY }, tag: NODE_IMAGE_TAG, timeout: 600 }),
+      body: JSON.stringify({ registry: { url: registry }, tag, timeout: 600 }),
     })
     const op = await waitFor(operationIdFrom(started.location, started.body), 660_000)
     const image = op.result?.image ?? op.result_image_uuid
     if (op.status !== 'SUCCESS' || !image) throw new Error(`Image import failed: ${op.error ?? op.status}`)
     return image
+  }
+
+  function prepareCommand(): string {
+    return lang === 'py' ? PREPARE_COMMAND_PY : PREPARE_COMMAND
+  }
+
+  function testCommand(): string {
+    return lang === 'py' ? TEST_COMMAND_PY : TEST_COMMAND
+  }
+
+  function filesForRun(files: GeneratedFile[]): GeneratedFile[] {
+    if (lang === 'py') {
+      return files.filter((f) => f.path.endsWith('.py'))
+    }
+    return [{ path: 'tsconfig.json', content: TSCONFIG }, ...files.filter((f) => f.path.endsWith('.ts'))]
+  }
+
+  function parse(stdout: string, operationId: string): TestReport {
+    return lang === 'py'
+      ? parsePytestOutput(stdout, `nebius-sandbox:${operationId}`)
+      : parseTestOutput(stdout, `nebius-sandbox:${operationId}`)
   }
 
   return {
@@ -150,12 +195,12 @@ export function createNebiusSandbox(opts: {
         log(`Reusing prepared sandbox image ${cachedImage.slice(0, 8)}`)
         return cachedImage
       }
-      const nodeImage = await ensureNodeImage(log)
-      log('Installing typescript + vitest in a sandbox checkpoint')
+      const baseImage = await ensureBaseImage(log)
+      log(`Installing ${lang === 'py' ? 'pytest + pytest-asyncio + pytest-json-report' : 'typescript + vitest'} in a sandbox checkpoint`)
       const started = await request<{ uuid?: string }>('/instances', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: nodeImage, command: PREPARE_COMMAND, shell: true, timeout: 300, networking: { enabled: true } }),
+        body: JSON.stringify({ image: baseImage, command: prepareCommand(), shell: true, timeout: 300, networking: { enabled: true } }),
       })
       const op = await waitFor(operationIdFrom(started.location, started.body), 330_000)
       const exit = op.metadata?.result?.state?.exit_code
@@ -168,7 +213,7 @@ export function createNebiusSandbox(opts: {
     },
 
     async runTests(baseImage, files, log) {
-      const all: GeneratedFile[] = [{ path: 'tsconfig.json', content: TSCONFIG }, ...files.filter((f) => f.path.endsWith('.ts'))]
+      const all = filesForRun(files)
       const mapped: Record<string, { uuid: string; mode: string }> = {}
       for (const file of all) {
         mapped[`/work/${file.path}`] = { uuid: await uploadFile(file.content), mode: '0644' }
@@ -179,7 +224,7 @@ export function createNebiusSandbox(opts: {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           image: baseImage,
-          command: TEST_COMMAND,
+          command: testCommand(),
           shell: true,
           disposable: true,
           timeout: 120,
@@ -192,7 +237,7 @@ export function createNebiusSandbox(opts: {
       if (op.status !== 'SUCCESS' && !op.metadata?.result) {
         throw new Error(`Sandbox test run ${op.status}: ${op.error ?? 'no result'}`)
       }
-      return parseTestOutput(decode(op.metadata?.result?.stdout), `nebius-sandbox:${operationId}`)
+      return parse(decode(op.metadata?.result?.stdout), operationId)
     },
   }
 }

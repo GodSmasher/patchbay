@@ -11,7 +11,8 @@ export * from './types'
 export { loadConfig, missingLiveKeys } from './config'
 export { REPLAY_RUN, replayRun, type RecordedRun } from './replay'
 export { runAgent, researchAgent, verifyAgent, makePlan, research, generate, repair, repairParallel, type AgentDeps } from './run'
-export { isGreen, parseTestOutput } from './report'
+export { isGreen, parseTestOutput, parsePytestOutput } from './report'
+export { renderFixtures, renderFixturesPy, renderFixturesFor, contractMissing, contractMissingPy, contractMissingFor, withContract, withContractFor, withFixtures, FIXTURES_PATH, FIXTURES_PATH_PY } from './contract'
 export { scanRepo, scanFiles, formatReport, type Opportunity, type ScanInputFile } from './scanner'
 
 /** Live run when keys are configured and mock mode is off, otherwise the recorded replay. */
@@ -29,6 +30,7 @@ export function startRun(prompt: string, config: AgentConfig = loadConfig()): As
             project: config.nebiusProject,
             baseUrl: config.sandboxUrl,
             preparedImage: config.baseImage,
+            lang: config.lang,
           }),
   })
 }
@@ -59,6 +61,7 @@ export function startVerify(files: GeneratedFile[], config: AgentConfig = loadCo
             project: config.nebiusProject,
             baseUrl: config.sandboxUrl,
             preparedImage: config.baseImage,
+            lang: config.lang,
           }),
   })
 }

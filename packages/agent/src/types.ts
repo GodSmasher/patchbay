@@ -1,5 +1,13 @@
 export type StepId = 'plan' | 'research' | 'generate' | 'verify' | 'package'
 
+/**
+ * Target language the connector is written in. TypeScript is the original path and the
+ * default; Python is a second code path with its own prompts, sandbox image, fixtures
+ * file and pytest report parser. The plan + research steps are language-agnostic — only
+ * generation + verification + fixtures diverge.
+ */
+export type Lang = 'ts' | 'py'
+
 export interface Plan {
   summary: string
   source: { app: string; trigger: string; docsQuery: string }

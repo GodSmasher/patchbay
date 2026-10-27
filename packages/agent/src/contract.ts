@@ -1,6 +1,11 @@
-import type { ApiSpec, GeneratedFile, TestReport } from './types'
+import type { ApiSpec, GeneratedFile, Lang, TestReport } from './types'
 
 export const FIXTURES_PATH = 'src/fixtures.ts'
+export const FIXTURES_PATH_PY = 'fixtures.py'
+
+export function fixturesPathFor(lang: Lang): string {
+  return lang === 'py' ? FIXTURES_PATH_PY : FIXTURES_PATH
+}
 
 /**
  * The model writes the connector and most of its tests, so those tests share its
@@ -187,5 +192,295 @@ export function withContract(report: TestReport, files: GeneratedFile[]): TestRe
 
 /** Keeps the model's files and puts the authoritative fixtures next to them. */
 export function withFixtures(files: GeneratedFile[], fixtures: GeneratedFile): GeneratedFile[] {
-  return [...files.filter((f) => f.path !== FIXTURES_PATH), fixtures]
+  return [...files.filter((f) => f.path !== fixtures.path), fixtures]
+}
+
+/**
+ * Python counterpart of renderFixtures. Same contract: patchbay writes fixtures.py from
+ * the researched API spec, the model writes a connector + test file that imports from it,
+ * and the test suite must run a contract test (name starts with `test_contract`) that
+ * passes SOURCE_EXAMPLE through handle() with contract_fetch injected.
+ *
+ * The URL matcher is a Python port of the TS one — placeholders ({id}, :id, <id>) and
+ * region subdomains both match the documented endpoint.
+ */
+export function renderFixturesPy(spec: ApiSpec): GeneratedFile {
+  const endpoints = spec.target.map((target) => ({
+    method: target.method.toUpperCase(),
+    url: target.url,
+    response: target.responseExample ?? {},
+  }))
+  const docs = [spec.source.docsUrl, ...spec.target.map((t) => t.docsUrl)].filter(Boolean)
+  const sourceExample = pythonRepr(spec.source.example ?? {}, 0)
+  const targetEndpoints = pythonRepr(endpoints, 0)
+  const content = `# Written by patchbay from the API documentation. Regenerated on every attempt, do not edit.
+${[...new Set(docs)].map((url) => `# Source: ${url}`).join('\n')}
+
+"""Contract fixtures for the connector under test.
+
+Exports:
+  SOURCE_EXAMPLE   dict  — documented event payload
+  TARGET_ENDPOINTS list  — endpoints the connector may call, in documented order
+  contract_fetch()       — fake async transport answering documented endpoints, raising otherwise
+  fake_fetch(handler)    — fake async transport driven by a user handler
+  json_response(body, status=200)
+"""
+from __future__ import annotations
+
+import json as _json
+import re as _re
+from typing import Any, Awaitable, Callable, TypedDict
+
+#: Example payload of the source event, as documented.
+SOURCE_EXAMPLE: dict[str, Any] = ${sourceExample}
+
+
+class DocumentedEndpoint(TypedDict):
+    method: str
+    url: str
+    response: Any
+
+
+#: Target endpoints the connector may call, in the documented order, with documented responses.
+TARGET_ENDPOINTS: list[DocumentedEndpoint] = ${targetEndpoints}
+
+
+class RecordedCall(TypedDict):
+    method: str
+    url: str
+    body: Any
+    json: Any
+    headers: dict[str, str]
+
+
+class FakeResponse:
+    """Minimal response object: status_code, headers (dict), text, json(), raise_for_status()."""
+
+    def __init__(self, body: Any, status: int = 200, headers: dict[str, str] | None = None) -> None:
+        self.status_code = status
+        self.status = status  # alias
+        self.headers = dict(headers or {})
+        if status == 204:
+            self._raw = b''
+        elif isinstance(body, (bytes, bytearray)):
+            self._raw = bytes(body)
+        elif isinstance(body, str):
+            self._raw = body.encode('utf-8')
+        else:
+            self._raw = _json.dumps(body).encode('utf-8')
+            self.headers.setdefault('Content-Type', 'application/json')
+
+    @property
+    def content(self) -> bytes:
+        return self._raw
+
+    @property
+    def text(self) -> str:
+        return self._raw.decode('utf-8', errors='replace')
+
+    def json(self) -> Any:
+        return _json.loads(self._raw.decode('utf-8')) if self._raw else None
+
+    def raise_for_status(self) -> None:
+        if self.status_code >= 400:
+            raise Exception(f"HTTP {self.status_code}")
+
+
+FetchHandler = Callable[[RecordedCall], FakeResponse | Awaitable[FakeResponse]]
+
+
+def _parse_json(raw: Any) -> Any:
+    if raw is None:
+        return None
+    if isinstance(raw, (bytes, bytearray)):
+        try:
+            return _json.loads(raw.decode('utf-8'))
+        except Exception:
+            return None
+    if isinstance(raw, str):
+        try:
+            return _json.loads(raw)
+        except Exception:
+            return None
+    return None
+
+
+_URL = _re.compile(r'^https?://([^/?#]+)([^?#]*)', _re.IGNORECASE)
+_PLACEHOLDER = _re.compile(r'^\\{[^}]+\\}$|^:[A-Za-z_]\\w*$|^<[^>]+>$')
+
+
+def _split_url(url: str) -> tuple[str, str] | None:
+    m = _URL.match(url)
+    if not m:
+        return None
+    host = m.group(1).lower()
+    path = m.group(2) or '/'
+    return host, path
+
+
+def _url_matches(template: str, actual: str) -> bool:
+    t, a = _split_url(template), _split_url(actual)
+    if not t or not a:
+        return False
+    t_host, t_path = t
+    a_host, a_path = a
+    if '.'.join(t_host.split('.')[-2:]) != '.'.join(a_host.split('.')[-2:]):
+        return False
+    t_segs = t_path.rstrip('/').split('/')
+    a_segs = a_path.rstrip('/').split('/')
+    if len(t_segs) != len(a_segs):
+        return False
+    for ts, as_ in zip(t_segs, a_segs):
+        if _PLACEHOLDER.match(ts):
+            continue
+        if ts != as_:
+            return False
+    return True
+
+
+def find_endpoint(method: str, url: str) -> DocumentedEndpoint | None:
+    for ep in TARGET_ENDPOINTS:
+        if ep['method'] == method.upper() and _url_matches(ep['url'], url):
+            return ep
+    return None
+
+
+def fake_fetch(handler: FetchHandler) -> tuple[Callable[..., Awaitable[FakeResponse]], list[RecordedCall]]:
+    """A correctly-typed fake async fetch for every non-contract test.
+
+    The handler receives the recorded request dict: method, url, body, json, headers.
+    It may return a FakeResponse directly or an awaitable.
+    """
+    calls: list[RecordedCall] = []
+
+    async def fetch(url: str, method: str = 'GET', body: Any = None, headers: dict[str, str] | None = None, **_: Any) -> FakeResponse:
+        call: RecordedCall = {
+            'method': method.upper(),
+            'url': url,
+            'body': body,
+            'json': _parse_json(body),
+            'headers': dict(headers or {}),
+        }
+        calls.append(call)
+        result = handler(call)
+        if hasattr(result, '__await__'):
+            return await result  # type: ignore[return-value]
+        return result  # type: ignore[return-value]
+
+    return fetch, calls
+
+
+def contract_fetch() -> tuple[Callable[..., Awaitable[FakeResponse]], list[RecordedCall]]:
+    """Fake async fetch that answers every documented endpoint with its documented response
+    and raises on anything else. Use it in the contract test:
+
+        fetch, calls = contract_fetch()
+        await handle(SOURCE_EXAMPLE, { 'fetch': fetch, ... })
+        assert len(calls) > 0
+    """
+
+    def _handler(req: RecordedCall) -> FakeResponse:
+        ep = find_endpoint(req['method'], req['url'])
+        if not ep:
+            raise AssertionError(f"contract: {req['method']} {req['url']} is not a documented endpoint")
+        return json_response(ep['response'])
+
+    return fake_fetch(_handler)
+
+
+_STATUS_TEXT: dict[int, str] = {
+    200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',
+    400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',
+    422: 'Unprocessable Entity', 429: 'Too Many Requests',
+    500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',
+}
+
+
+def json_response(body: Any, status: int = 200) -> FakeResponse:
+    """A JSON FakeResponse with the standard status text, e.g. json_response({'error': 'x'}, 401)."""
+    return FakeResponse(body, status, headers={'Content-Type': 'application/json'})
+`
+  return { path: FIXTURES_PATH_PY, content }
+}
+
+/**
+ * Convert a JSON-safe value to its Python literal form. The spec examples come from the LLM
+ * as JSON, so the only type-mismatch between JS and Python is: true/false/null → True/False/None.
+ * Everything else is a 1:1 lift. Strings keep their JSON escapes, which Python also understands.
+ */
+function pythonRepr(value: unknown, indent: number): string {
+  const pad = (n: number) => '  '.repeat(n)
+  if (value === null || value === undefined) return 'None'
+  if (typeof value === 'boolean') return value ? 'True' : 'False'
+  if (typeof value === 'number') return Number.isFinite(value) ? String(value) : 'None'
+  if (typeof value === 'string') return JSON.stringify(value)
+  if (Array.isArray(value)) {
+    if (value.length === 0) return '[]'
+    const items = value.map((v) => `${pad(indent + 1)}${pythonRepr(v, indent + 1)}`).join(',\n')
+    return `[\n${items},\n${pad(indent)}]`
+  }
+  if (typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>)
+    if (entries.length === 0) return '{}'
+    const items = entries
+      .map(([k, v]) => `${pad(indent + 1)}${JSON.stringify(k)}: ${pythonRepr(v, indent + 1)}`)
+      .join(',\n')
+    return `{\n${items},\n${pad(indent)}}`
+  }
+  return 'None'
+}
+
+/** Static half of the Python contract check: the suite must actually use fixtures.py. */
+export function contractMissingPy(files: GeneratedFile[]): string | null {
+  const tests = files.find((f) => f.path === 'test_connector.py')?.content ?? ''
+  if (!/from\s+fixtures\s+import/.test(tests) && !/import\s+fixtures/.test(tests)) {
+    return 'test_connector.py does not import from fixtures'
+  }
+  if (!/\bdef\s+test_contract/.test(tests)) {
+    return 'test_connector.py has no test_contract* function running handle on SOURCE_EXAMPLE'
+  }
+  if (!tests.includes('SOURCE_EXAMPLE')) {
+    return 'the contract tests never pass SOURCE_EXAMPLE to handle'
+  }
+  return null
+}
+
+/** Dispatch: pick the right static contract check for the connector's language. */
+export function contractMissingFor(lang: Lang, files: GeneratedFile[]): string | null {
+  return lang === 'py' ? contractMissingPy(files) : contractMissing(files)
+}
+
+/** Dispatch: render fixtures for the connector's language. */
+export function renderFixturesFor(lang: Lang, spec: ApiSpec): GeneratedFile {
+  return lang === 'py' ? renderFixturesPy(spec) : renderFixtures(spec)
+}
+
+/** Language-aware fold of the static check + contract test results into the report. */
+export function withContractFor(lang: Lang, report: TestReport, files: GeneratedFile[]): TestReport {
+  const missing = contractMissingFor(lang, files)
+  if (missing) {
+    return {
+      ...report,
+      contract: 'missing',
+      failed: report.failed + 1,
+      total: report.total + 1,
+      failures: [...report.failures, { name: 'contract (static check)', message: missing }],
+    }
+  }
+  const failed = report.failures.some((f) => /\bcontract\b/i.test(f.name) || /test_contract/.test(f.name))
+  if (failed) return { ...report, contract: 'failed' }
+  const ran = (report.passedNames ?? []).some((name) => /\bcontract\b/i.test(name) || /test_contract/.test(name))
+  if (!ran) {
+    return {
+      ...report,
+      contract: 'failed',
+      failed: report.failed + 1,
+      total: report.total + 1,
+      failures: [
+        ...report.failures,
+        { name: 'contract (did not run)', message: 'The contract test never passed; the test file probably failed to load.' },
+      ],
+    }
+  }
+  return { ...report, contract: 'passed' }
 }

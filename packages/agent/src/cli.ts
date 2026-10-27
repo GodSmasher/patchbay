@@ -28,7 +28,9 @@ Commands:
 
 Flags:
   --record     build only. Writes runs/<timestamp>/ with generated files and the event log.
-  --watch      verify only. Re-runs the sandbox verify whenever a .ts file in <directory> changes.
+  --lang=ts|py build/research only. Target language. Default ts (TypeScript+vitest); py writes
+               Python 3.12 + pytest. Also settable via PATCHBAY_LANG=python.
+  --watch      verify only. Re-runs the sandbox verify whenever a source file in <directory> changes.
   --build-top  scan only. After reporting, build the top-N opportunities (full pipeline each).
   --json       scan only. Emit the raw opportunity list as JSON instead of the formatted report.
   --target     add only. Where to drop the files, defaults to ./connectors/<run-name>.
@@ -145,10 +147,11 @@ async function add(args: string[]) {
 
 async function build(args: string[]) {
   const record = args.includes('--record')
-  const prompt = args.filter((a) => a !== '--record').join(' ').trim()
+  const langFlag = flagValue(args, '--lang')
+  const prompt = args.filter((a) => a !== '--record' && !a.startsWith('--lang')).join(' ').trim()
   if (!prompt) return usageError('build needs a prompt')
 
-  const config = loadConfig()
+  const config = loadConfig(withLangEnv(process.env, langFlag))
   const missing = missingLiveKeys(config)
   if (config.mock || missing.length) {
     console.log(`Replay mode (${config.mock ? 'PATCHBAY_MOCK is not "false"' : `missing ${missing.join(', ')}`})`)
@@ -174,9 +177,10 @@ async function build(args: string[]) {
 }
 
 async function research(args: string[]) {
-  const prompt = args.join(' ').trim()
+  const langFlag = flagValue(args, '--lang')
+  const prompt = args.filter((a) => !a.startsWith('--lang')).join(' ').trim()
   if (!prompt) return usageError('research needs a prompt')
-  const config = loadConfig()
+  const config = loadConfig(withLangEnv(process.env, langFlag))
   const missing = missingLiveKeys(config)
   if (config.mock || missing.length) {
     console.log(`Replay mode (${config.mock ? 'PATCHBAY_MOCK is not "false"' : `missing ${missing.join(', ')}`}) – returning cached research`)
@@ -273,6 +277,11 @@ function flagValue(args: string[], flag: string): string | undefined {
   return match?.slice(flag.length + 1)
 }
 
+function withLangEnv(env: NodeJS.ProcessEnv, langFlag: string | undefined): NodeJS.ProcessEnv {
+  if (!langFlag) return env
+  return { ...env, PATCHBAY_LANG: langFlag }
+}
+
 function collectFiles(root: string): GeneratedFile[] {
   const out: GeneratedFile[] = []
   const walk = (dir: string) => {
@@ -281,7 +290,7 @@ function collectFiles(root: string): GeneratedFile[] {
       const abs = join(dir, entry)
       const st = statSync(abs)
       if (st.isDirectory()) walk(abs)
-      else if (entry.endsWith('.ts') || entry === 'README.md') {
+      else if (entry.endsWith('.ts') || entry.endsWith('.py') || entry === 'README.md') {
         out.push({ path: relative(root, abs).replace(/\\/g, '/'), content: readFileSync(abs, 'utf8') })
       }
     }
@@ -306,7 +315,12 @@ function printEvent(event: RunEvent) {
       break
     case 'tests':
       console.log(`    attempt ${event.attempt}: ${event.report.passed}/${event.report.total} passed, typecheck ${event.report.typecheckOk ? 'ok' : 'failed'}`)
-      for (const f of event.report.failures) console.log(`      ✖ ${f.name}`)
+      for (const f of event.report.failures) {
+        console.log(`      ✖ ${f.name}`)
+        if (process.env.PATCHBAY_VERBOSE === '1' && f.message) {
+          for (const line of f.message.split('\n').slice(0, 20)) console.log(`         ${line}`)
+        }
+      }
       break
     case 'usage':
       for (const u of event.usage) console.log(`    ${u.model}: ${u.promptTokens} in / ${u.completionTokens} out, $${u.costUsd.toFixed(4)}`)

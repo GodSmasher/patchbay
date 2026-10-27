@@ -1,4 +1,4 @@
-import type { ApiSpec, Plan, TestReport } from './types'
+import type { ApiSpec, Lang, Plan, TestReport } from './types'
 
 export const PLAN_SYSTEM = `You are the planning step of patchbay, an agent that builds API integrations.
 Turn the user's request into a precise integration plan. Answer with a single JSON object and nothing else:
@@ -154,8 +154,82 @@ export function specUser(plan: Plan, docs: { url: string; content: string }[]): 
   return `Plan:\n${JSON.stringify(plan, null, 2)}\n\nDocumentation pages:\n${pages}`
 }
 
-export function generateUser(plan: Plan, spec: ApiSpec, fixtures: string): string {
-  return `Plan:\n${JSON.stringify(plan, null, 2)}\n\nAPI spec:\n${JSON.stringify(spec, null, 2)}\n\nsrc/fixtures.ts (provided by patchbay, read-only):\n${fixtures}\n\nWrite the three files now.`
+export const GENERATE_SYSTEM_PY = `You are the code-generation step of patchbay. Write a production-quality Python 3.12 connector and its tests.
+
+Hard rules:
+- Exactly three files: connector.py, test_connector.py, README.md. Output each as
+  <file path="connector.py">
+  ...code...
+  </file>
+  with no markdown fences and no prose outside the file blocks.
+- No third-party runtime dependencies beyond the Python standard library — use httpx ONLY
+  via dependency injection, never imported at module scope. Accept an injected transport in
+  the config so tests can pass a fake.
+- Secrets come from the config dict, never hard-coded. Document the env var names from the spec in the README.
+- connector.py exports: a typed \`ConnectorConfig\` TypedDict (or dataclass), a typed \`SourcePayload\`
+  TypedDict for the event, and one async function named \`handle(payload, config)\` that returns
+  a typed result dict with the created ids. Prefer async def throughout — the fake transport is async.
+- Validate the input: raise a descriptive ValueError when a required field is missing.
+- Non-2xx responses from the target must raise an Exception that includes the status code and the endpoint URL.
+- Follow the spec exactly for URLs, HTTP methods, auth header/query names and body shapes.
+- test_connector.py uses pytest with \`pytest.mark.asyncio\` for async tests (import pytest; the
+  sandbox has pytest-asyncio installed in auto mode so no decorator is strictly required but you
+  may use it). Use a fake transport callable that records calls. Cover at least: happy path with
+  the exact request bodies, the auth mechanism, the field mapping, a missing required field,
+  and a non-2xx target response. Tests must be hermetic: no network, no sleeps, no real env vars.
+- fixtures.py is provided by patchbay, read-only, do not output it. It exports SOURCE_EXAMPLE (the
+  documented source payload), TARGET_ENDPOINTS and contract_fetch(), a fake async transport that
+  answers documented endpoints (URL placeholders like {id} or region hosts are handled) and raises on anything else.
+  test_connector.py MUST contain this block, adapted to your types and config. Put it at the TOP LEVEL
+  (not nested inside a class) and keep the function name starting with 'test_contract' so patchbay can detect it:
+    import pytest
+    from fixtures import SOURCE_EXAMPLE, contract_fetch
+    from connector import handle
+
+    @pytest.mark.asyncio
+    async def test_contract_handles_documented_example():
+        fetch, calls = contract_fetch()
+        result = await handle(SOURCE_EXAMPLE, { <a valid config dict>, 'fetch': fetch })
+        assert len(calls) > 0
+  Configure the connector in that test so the documented example is valid input. If the example lacks
+  a field the connector needs, make the connector handle that case (skip, fallback or clear error)
+  rather than editing the example.
+- Do NOT reject SOURCE_EXAMPLE based on wall-clock time. If the connector guards against stale webhooks
+  (timestamp age, signature expiry, nonce window), either freeze time in the contract test with
+  freezegun or by monkeypatching time.time, or make the guard window large enough that the documented
+  example always validates. The contract test must never fail with "timestamp too old".
+- RETRY SEMANTICS. "Retry up to N times" means at most N retry attempts after the initial request,
+  so total HTTP calls are at most N+1. On a 429 (or other retryable status), compute the next delay as
+  delay = max(parse_retry_after(res), base_ms * 2 ** retry_index) where retry_index starts at 0 for the
+  first retry. Retry-After may be an integer in seconds OR an HTTP-date string — handle both and fall
+  back to pure exponential backoff when the header is absent or unparseable. Tests will assert the mock
+  fetch is called exactly (successful_attempt + 1) times on success and exactly (N + 1) times on
+  exhaustion. Use asyncio.sleep when sleeping but tests should monkeypatch it to a no-op.
+- CURSOR PAGINATION. Terminate pagination loops on the API's explicit end signal — for GraphQL check
+  pageInfo.hasNextPage is False, for REST check the absence or None of the cursor field (next_cursor,
+  after, starting_after, page_info). Never loop while "cursor is truthy" alone — many APIs return
+  an empty-string or placeholder cursor on the final page. Pass the cursor under the exact field name
+  the vendor documents. Hard-cap every pagination loop at 50 iterations as a safety net.
+- For every other test use fake_fetch and json_response from fixtures instead of writing your own mock:
+    from fixtures import fake_fetch, json_response
+    def handler(req):
+        if req['url'].endswith('/deals'):
+            return json_response({'id': 2}, 201)
+        return json_response({'error': 'x'}, 500)
+    fetch, calls = fake_fetch(handler)
+  Each recorded call is a dict: {'method', 'url', 'body' (bytes/str as sent), 'json' (parsed body or None),
+  'headers' (dict)}. Assert on calls[i]['json'], do not json.loads it again.
+- Code must be clean Python 3.12: type hints on every function signature, no unused imports, no
+  bare except. Standard library modules only in top-level imports.
+- README.md: what it does, config/env vars, a usage example (async code), and the assumptions from the plan.`
+
+export function generateUser(plan: Plan, spec: ApiSpec, fixtures: string, lang: Lang = 'ts'): string {
+  const fixturesLabel = lang === 'py' ? 'fixtures.py' : 'src/fixtures.ts'
+  return `Plan:\n${JSON.stringify(plan, null, 2)}\n\nAPI spec:\n${JSON.stringify(spec, null, 2)}\n\n${fixturesLabel} (provided by patchbay, read-only):\n${fixtures}\n\nWrite the three files now.`
+}
+
+export function generateSystemFor(lang: Lang): string {
+  return lang === 'py' ? GENERATE_SYSTEM_PY : GENERATE_SYSTEM
 }
 
 export interface RepairContext {
@@ -167,8 +241,12 @@ export interface RepairContext {
   previousAttempts?: Array<{ attempt: number; summary: string }>
 }
 
-export function repairUser(filesBlock: string, report: TestReport, context?: RepairContext): string {
-  const tsc = report.typecheckOk ? 'Typecheck passed.' : `Typecheck failed:\n${report.typecheckOutput.slice(0, 4000)}`
+export function repairUser(filesBlock: string, report: TestReport, context?: RepairContext, lang: Lang = 'ts'): string {
+  const tcLabel = lang === 'py' ? 'py_compile' : 'tsc --noEmit'
+  const runnerLabel = lang === 'py' ? 'pytest' : 'vitest'
+  const tcPass = lang === 'py' ? 'Static check passed.' : 'Typecheck passed.'
+  const tcFail = lang === 'py' ? 'Static check failed:' : 'Typecheck failed:'
+  const tcLine = report.typecheckOk ? tcPass : `${tcFail}\n${report.typecheckOutput.slice(0, 4000)}`
   const failures = report.failures.map((f) => `- ${f.name}\n${f.message}`).join('\n\n')
   const header = context
     ? `This is repair attempt ${context.attempt} of ${context.maxAttempts}. Produce something materially different from the earlier attempts${context.previousAttempts?.length ? ' listed below' : ''}.`
@@ -176,9 +254,9 @@ export function repairUser(filesBlock: string, report: TestReport, context?: Rep
   const history = context?.previousAttempts?.length
     ? `\nPrevious attempts:\n${context.previousAttempts.map((a) => `  attempt ${a.attempt}: ${a.summary}`).join('\n')}\n`
     : ''
-  return `These files were run in an isolated sandbox (tsc --noEmit, then vitest).
+  return `These files were run in an isolated sandbox (${tcLabel}, then ${runnerLabel}).
 ${header ? `\n${header}\n` : ''}
-${tsc}
+${tcLine}
 
 Tests: ${report.passed} passed, ${report.failed} failed of ${report.total}.
 ${failures ? `Failures:\n${failures}` : ''}

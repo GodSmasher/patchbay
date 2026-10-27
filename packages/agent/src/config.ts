@@ -5,8 +5,12 @@ export interface ModelTier {
   outputPrice: number
 }
 
+import type { Lang } from './types'
+
 export interface AgentConfig {
   mock: boolean
+  /** Target language of the generated connector. Default `ts`; `py` writes Python with pytest. */
+  lang: Lang
   /** `nebius` (isolated sandbox, default) or `local` (dev fallback, not isolated). */
   runner: 'nebius' | 'local'
   nebiusApiKey: string
@@ -45,6 +49,7 @@ export function loadConfig(env: Env = process.env): AgentConfig {
       : { fast: 'nvidia/Nemotron-3_5-Lightning', mid: 'nvidia/nemotron-3-super-120b-a12b', strong: 'nvidia/Nemotron-3-Ultra-550b-a55b' }
   return {
     mock: env.PATCHBAY_MOCK !== 'false',
+    lang: parseLang(env.PATCHBAY_LANG),
     runner: env.PATCHBAY_RUNNER === 'local' ? 'local' : 'nebius',
     nebiusApiKey: apiKey,
     nebiusProject: env.NEBIUS_AI_PROJECT ?? '',
@@ -66,6 +71,12 @@ export function loadConfig(env: Env = process.env): AgentConfig {
 function parseProvider(raw: string | undefined): AgentConfig['llmProvider'] {
   if (raw === 'openai' || raw === 'generic') return raw
   return 'nebius'
+}
+
+function parseLang(raw: string | undefined): Lang {
+  const normalized = (raw ?? '').toLowerCase().trim()
+  if (normalized === 'py' || normalized === 'python') return 'py'
+  return 'ts'
 }
 
 function clamp(n: number, min: number, max: number): number {

@@ -2,6 +2,8 @@ import type { TestFailure, TestReport } from './types'
 
 export const TSC_MARKER = '@@PATCHBAY_TSC@@'
 export const VITEST_MARKER = '@@PATCHBAY_VITEST@@'
+export const PYC_MARKER = '@@PATCHBAY_PYC@@'
+export const PYTEST_MARKER = '@@PATCHBAY_PYTEST@@'
 
 /**
  * Shell run inside the sandbox. Type-checks, runs vitest with the JSON reporter and
@@ -16,6 +18,22 @@ export const TEST_COMMAND = [
   'head -c 6000 /tmp/tsc.txt',
   `echo "${VITEST_MARKER}"`,
   'cat /tmp/vitest.json 2>/dev/null || tail -c 6000 /tmp/vitest.log',
+].join('; ')
+
+/**
+ * Python counterpart of TEST_COMMAND. Compile every .py file with py_compile first (cheap
+ * static check: syntax, undefined-name imports fail at module load), then pytest with the
+ * JSON reporter. Both results print between markers so one stdout stream carries everything.
+ */
+export const TEST_COMMAND_PY = [
+  'cd /work',
+  'python -m compileall -q . > /tmp/pyc.txt 2>&1; echo $? > /tmp/pyc.code',
+  'python -m pytest -q --json-report --json-report-file=/tmp/pytest.json > /tmp/pytest.log 2>&1',
+  `echo "${PYC_MARKER}"`,
+  'cat /tmp/pyc.code',
+  'head -c 6000 /tmp/pyc.txt',
+  `echo "${PYTEST_MARKER}"`,
+  'cat /tmp/pytest.json 2>/dev/null || tail -c 6000 /tmp/pytest.log',
 ].join('; ')
 
 interface VitestJson {
@@ -90,6 +108,95 @@ export function parseTestOutput(stdout: string, ranOn: string): TestReport {
     total: Math.max(total, failed),
     failures,
     durationMs: json.startTime && endTime ? Math.max(0, endTime - json.startTime) : 0,
+    ranOn,
+    passedNames,
+  }
+}
+
+interface PytestJson {
+  created?: number
+  duration?: number
+  exitcode?: number
+  summary?: { passed?: number; failed?: number; error?: number; skipped?: number; total?: number; collected?: number }
+  tests?: {
+    nodeid?: string
+    outcome?: 'passed' | 'failed' | 'skipped' | 'error' | 'xfailed' | 'xpassed'
+    call?: { longrepr?: string }
+    setup?: { longrepr?: string }
+    teardown?: { longrepr?: string }
+  }[]
+  collectors?: { nodeid?: string; outcome?: string; longrepr?: string }[]
+}
+
+/**
+ * Parse the two-section Python output: py_compile exit code + pytest JSON report.
+ * typecheckOk here means `python -m compileall` printed exit 0 — every .py file parsed.
+ * A collection error (e.g. import failure in test_connector.py) still produces a report
+ * with failed > 0 so the repair loop reacts to it.
+ */
+export function parsePytestOutput(stdout: string, ranOn: string): TestReport {
+  const pycStart = stdout.indexOf(PYC_MARKER)
+  const pytestStart = stdout.indexOf(PYTEST_MARKER)
+  const pycSection = pycStart >= 0 ? stdout.slice(pycStart + PYC_MARKER.length, pytestStart >= 0 ? pytestStart : undefined).trim() : ''
+  const pytestSection = pytestStart >= 0 ? stdout.slice(pytestStart + PYTEST_MARKER.length).trim() : stdout.trim()
+
+  const [codeLine = '1', ...pycLines] = pycSection.split('\n')
+  const typecheckOk = codeLine.trim() === '0'
+  const typecheckOutput = pycLines.join('\n').trim()
+
+  let json: PytestJson | null = null
+  try {
+    const start = pytestSection.indexOf('{')
+    json = start >= 0 ? (JSON.parse(pytestSection.slice(start)) as PytestJson) : null
+  } catch {
+    json = null
+  }
+
+  if (!json) {
+    return {
+      typecheckOk,
+      typecheckOutput,
+      passed: 0,
+      failed: 1,
+      total: 1,
+      failures: [{ name: 'pytest', message: truncate(pytestSection || 'pytest produced no output', 4000) }],
+      durationMs: 0,
+      ranOn,
+    }
+  }
+
+  const failures: TestFailure[] = []
+  const passedNames: string[] = []
+  for (const collector of json.collectors ?? []) {
+    if (collector.outcome === 'failed' && collector.longrepr) {
+      failures.push({ name: `collection: ${collector.nodeid ?? 'unknown'}`, message: truncate(stripAnsi(collector.longrepr), 2000) })
+    }
+  }
+  for (const test of json.tests ?? []) {
+    const name = test.nodeid ?? 'unnamed test'
+    if (test.outcome === 'passed' || test.outcome === 'xpassed') {
+      passedNames.push(name)
+      continue
+    }
+    if (test.outcome === 'failed' || test.outcome === 'error') {
+      const detail = test.call?.longrepr ?? test.setup?.longrepr ?? test.teardown?.longrepr ?? '(no detail)'
+      failures.push({ name, message: truncate(stripAnsi(detail), 2000) })
+    }
+  }
+
+  const summary = json.summary ?? {}
+  const passed = summary.passed ?? passedNames.length
+  const summaryFailed = (summary.failed ?? 0) + (summary.error ?? 0)
+  const failed = Math.max(summaryFailed, failures.length)
+  const total = Math.max(summary.total ?? summary.collected ?? 0, passed + failed)
+  return {
+    typecheckOk,
+    typecheckOutput,
+    passed,
+    failed,
+    total,
+    failures,
+    durationMs: json.duration ? Math.round(json.duration * 1000) : 0,
     ranOn,
     passedNames,
   }

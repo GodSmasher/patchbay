@@ -1,5 +1,5 @@
 import { transform } from 'esbuild'
-import type { GeneratedFile, TestReport } from './types'
+import type { GeneratedFile, Lang, TestReport } from './types'
 
 /**
  * The strong model occasionally produces TypeScript that fails to parse: a stray paren,
@@ -10,8 +10,12 @@ import type { GeneratedFile, TestReport } from './types'
  *
  * Returns null when every .ts file parses cleanly; otherwise a synthetic TestReport
  * the loop can treat as a failed attempt.
+ *
+ * For Python, we have no equivalent offline parser bundled, so the preflight is a no-op
+ * and py_compile in the sandbox catches syntax errors on the first run instead.
  */
-export async function preflightSyntax(files: GeneratedFile[]): Promise<TestReport | null> {
+export async function preflightSyntax(files: GeneratedFile[], lang: Lang = 'ts'): Promise<TestReport | null> {
+  if (lang === 'py') return null
   const tsFiles = files.filter((f) => f.path.endsWith('.ts'))
   const failures: { file: string; message: string; line?: number }[] = []
   await Promise.all(

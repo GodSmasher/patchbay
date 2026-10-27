@@ -1,12 +1,12 @@
 import type { AgentConfig } from './config'
-import { renderFixtures, withContract, withFixtures } from './contract'
+import { renderFixturesFor, withContractFor, withFixtures } from './contract'
 import { preflightSyntax } from './syntax-check'
 import type { LlmClient } from './llm'
 import { extractJson, parseFileBlocks, renderFileBlocks } from './parse'
 import {
-  GENERATE_SYSTEM,
   PLAN_SYSTEM,
   SPEC_SYSTEM,
+  generateSystemFor,
   generateUser,
   planUser,
   repairUser,
@@ -17,7 +17,7 @@ import { isGreen } from './report'
 import type { SandboxRunner } from './sandbox'
 import { isOfficial, rankOfficial } from './sources'
 import type { SearchClient } from './tavily'
-import type { ApiSpec, GeneratedFile, Plan, RunEvent, Source, StepId, TestReport } from './types'
+import type { ApiSpec, GeneratedFile, Lang, Plan, RunEvent, Source, StepId, TestReport } from './types'
 
 export interface AgentDeps {
   config: AgentConfig
@@ -26,7 +26,12 @@ export interface AgentDeps {
   sandbox: SandboxRunner
 }
 
-const REQUIRED_FILES = ['src/connector.ts', 'src/connector.test.ts', 'README.md']
+const REQUIRED_FILES_TS = ['src/connector.ts', 'src/connector.test.ts', 'README.md']
+const REQUIRED_FILES_PY = ['connector.py', 'test_connector.py', 'README.md']
+
+function requiredFilesFor(lang: Lang): string[] {
+  return lang === 'py' ? REQUIRED_FILES_PY : REQUIRED_FILES_TS
+}
 
 /**
  * plan (fast model) → research (Tavily + mid model) → generate (strong model)
@@ -34,6 +39,7 @@ const REQUIRED_FILES = ['src/connector.ts', 'src/connector.test.ts', 'README.md'
  */
 export async function* runAgent(prompt: string, deps: AgentDeps): AsyncGenerator<RunEvent> {
   const { config, llm, search, sandbox } = deps
+  const lang: Lang = config.lang ?? 'ts'
   const queue: RunEvent[] = []
   const log = (step: StepId) => (message: string) => queue.push({ type: 'log', step, message })
   const drain = function* () {
@@ -59,7 +65,7 @@ export async function* runAgent(prompt: string, deps: AgentDeps): AsyncGenerator
 
     current = 'generate'
     yield { type: 'step', step: 'generate', status: 'start' }
-    const fixtures = renderFixtures(spec)
+    const fixtures = renderFixturesFor(lang, spec)
     let files = withFixtures(await generate(plan, spec, fixtures.content, llm, config), fixtures)
     yield { type: 'files', attempt: 1, files }
     yield { type: 'step', step: 'generate', status: 'done', detail: files.map((f) => f.path).join(', ') }
@@ -78,12 +84,12 @@ export async function* runAgent(prompt: string, deps: AgentDeps): AsyncGenerator
     const history: Array<{ attempt: number; summary: string }> = []
     for (;;) {
       if (!skipInitialTest) {
-        const preflight = await preflightSyntax(files)
+        const preflight = await preflightSyntax(files, lang)
         if (preflight) {
-          report = withContract(preflight, files)
+          report = withContractFor(lang, preflight, files)
           queue.push({ type: 'log', step: 'verify', message: `Preflight parse failed (${preflight.failed} file${preflight.failed > 1 ? 's' : ''}), skipping sandbox` })
         } else {
-          report = withContract(await sandbox.runTests(baseImage, files, log('verify')), files)
+          report = withContractFor(lang, await sandbox.runTests(baseImage, files, log('verify')), files)
         }
         yield* drain()
         yield { type: 'tests', attempt, report: report! }
@@ -98,7 +104,7 @@ export async function* runAgent(prompt: string, deps: AgentDeps): AsyncGenerator
       const repairCtx: RepairContext = { attempt, maxAttempts: config.maxAttempts, previousAttempts: history.slice() }
       if (config.parallelRepairs > 1) {
         const r = await repairParallel(files, report, {
-          llm, sandbox, config, baseImage,
+          llm, sandbox, config, baseImage, lang,
           withFixtures: (next) => withFixtures(next, fixtures),
           context: repairCtx,
         }, log('verify'))
@@ -167,6 +173,7 @@ export async function* verifyAgent(
   deps: Omit<AgentDeps, 'search'>,
 ): AsyncGenerator<RunEvent> {
   const { config, llm, sandbox } = deps
+  const lang: Lang = config.lang ?? 'ts'
   yield { type: 'mode', mode: 'live' }
   const queue: RunEvent[] = []
   const log = (message: string) => queue.push({ type: 'log', step: 'verify', message })
@@ -188,7 +195,7 @@ export async function* verifyAgent(
     const history: Array<{ attempt: number; summary: string }> = []
     for (;;) {
       if (!skipInitialTest) {
-        const preflight = await preflightSyntax(current)
+        const preflight = await preflightSyntax(current, lang)
         if (preflight) {
           report = preflight
           queue.push({ type: 'log', step: 'verify', message: `Preflight parse failed (${preflight.failed} file${preflight.failed > 1 ? 's' : ''}), skipping sandbox` })
@@ -208,7 +215,7 @@ export async function* verifyAgent(
       const repairCtx: RepairContext = { attempt, maxAttempts: config.maxAttempts, previousAttempts: history.slice() }
       if (config.parallelRepairs > 1) {
         const r = await repairParallel(current, report, {
-          llm, sandbox, config, baseImage,
+          llm, sandbox, config, baseImage, lang,
           withFixtures: (next) => next,
           context: repairCtx,
         }, log)
@@ -292,11 +299,12 @@ export async function research(
 }
 
 export async function generate(plan: Plan, spec: ApiSpec, fixtures: string, llm: LlmClient, config: AgentConfig): Promise<GeneratedFile[]> {
+  const lang: Lang = config.lang ?? 'ts'
   const answer = await llm.chat(config.models.strong, [
-    { role: 'system', content: GENERATE_SYSTEM },
-    { role: 'user', content: generateUser(plan, spec, fixtures) },
+    { role: 'system', content: generateSystemFor(lang) },
+    { role: 'user', content: generateUser(plan, spec, fixtures, lang) },
   ], { maxTokens: 32_000, temperature: 0.1 })
-  return requireFiles(parseFileBlocks(answer))
+  return requireFiles(parseFileBlocks(answer), lang)
 }
 
 export async function repair(
@@ -306,14 +314,15 @@ export async function repair(
   config: AgentConfig,
   options: { temperature?: number; context?: RepairContext } = {},
 ): Promise<GeneratedFile[]> {
+  const lang: Lang = config.lang ?? 'ts'
   const answer = await llm.chat(config.models.strong, [
-    { role: 'system', content: GENERATE_SYSTEM },
-    { role: 'user', content: repairUser(renderFileBlocks(files), report, options.context) },
+    { role: 'system', content: generateSystemFor(lang) },
+    { role: 'user', content: repairUser(renderFileBlocks(files), report, options.context, lang) },
   ], { maxTokens: 32_000, temperature: options.temperature ?? 0.1 })
   const repaired = parseFileBlocks(answer)
   const merged = new Map(files.map((f) => [f.path, f]))
   for (const file of repaired) merged.set(file.path, file)
-  return requireFiles([...merged.values()])
+  return requireFiles([...merged.values()], lang)
 }
 
 /** Varied temperatures so N parallel repair calls diverge instead of returning near-identical output. */
@@ -332,11 +341,13 @@ export async function repairParallel(
     sandbox: SandboxRunner
     config: AgentConfig
     baseImage: string
+    lang?: Lang
     withFixtures: (files: GeneratedFile[]) => GeneratedFile[]
     context?: RepairContext
   },
   log: (m: string) => void,
 ): Promise<{ files: GeneratedFile[]; report: TestReport; branches: Array<{ branch: number; passed: number; total: number; typecheckOk: boolean; green: boolean }> }> {
+  const lang: Lang = deps.lang ?? deps.config.lang ?? 'ts'
   const n = Math.max(1, Math.min(REPAIR_TEMPERATURES.length, deps.config.parallelRepairs))
   const temperatures = REPAIR_TEMPERATURES.slice(0, n)
   log(`Repairing with ${n} parallel branch${n > 1 ? 'es' : ''} (temperatures ${temperatures.join(', ')})`)
@@ -350,12 +361,13 @@ export async function repairParallel(
 
   const results = await Promise.all(
     candidates.map(async (c) => {
-      const preflight = await preflightSyntax(c.files)
+      const preflight = await preflightSyntax(c.files, lang)
       if (preflight) {
         log(`[branch ${c.branch}] preflight parse failed (${preflight.failed}), skipping sandbox`)
-        return { ...c, report: withContract(preflight, c.files) }
+        return { ...c, report: withContractFor(lang, preflight, c.files) }
       }
-      const branchReport = withContract(
+      const branchReport = withContractFor(
+        lang,
         await deps.sandbox.runTests(deps.baseImage, c.files, (m) => log(`[branch ${c.branch}] ${m}`)),
         c.files,
       )
@@ -389,10 +401,11 @@ export async function repairParallel(
   }
 }
 
-function requireFiles(files: GeneratedFile[]): GeneratedFile[] {
-  const missing = REQUIRED_FILES.filter((path) => !files.some((f) => f.path === path))
+function requireFiles(files: GeneratedFile[], lang: Lang = 'ts'): GeneratedFile[] {
+  const required = requiredFilesFor(lang)
+  const missing = required.filter((path) => !files.some((f) => f.path === path))
   if (missing.length) throw new Error(`Model output is missing ${missing.join(', ')}`)
-  return REQUIRED_FILES.map((path) => files.find((f) => f.path === path) as GeneratedFile)
+  return required.map((path) => files.find((f) => f.path === path) as GeneratedFile)
 }
 
 /** One retry for structured steps: invalid JSON goes back to the same model once to be fixed. */
