@@ -4,24 +4,42 @@
 
 Overall: **87.6% green** · **48.6% first-try green** · **$0.0696 per connector on the core set**
 
-### Python mini-pass (2026-10-27)
+### Python variance pass (2026-10-27)
 
-A separate single-pass run against the Python code path (same plan+research prompts,
-Python generate+repair prompts, `python:3.12-slim` + pytest sandbox) on five
-different-shape integrations. The pipeline matches the TS run's cost almost exactly:
+10 Python prompts × 2 passes = 20 live builds against the Python code path
+(same plan+research prompts, Python generate+repair prompts, `python:3.12-slim`
++ pytest sandbox, 4 attempts max, 2 parallel repair branches — same budget as
+the TS core table).
 
-| Prompt shape | Attempts | Tests | Cost | Time |
-| --- | --- | --- | --- | --- |
-| Stripe webhook → Slack chat.postMessage (REST+bearer) | 2 | 10/10 | $0.0509 | ~45s |
-| Shopify orders/paid → Airtable append row (REST+bearer) | 2 | 16/16 | $0.0543 | 48s |
-| GitHub issue → Linear GraphQL (REST→GraphQL target) | 1 | 11/11 | $0.0227 | 29s |
-| HubSpot contact → Mailchimp subscriber upsert (REST+idempotency) | 2 | 9/9 | $0.0382 | 45s |
-| Zendesk ticket → GitHub issue → Zendesk comment (chained flow) | 3 | 7/10 (not green) | $0.1572 | 143s |
-| **Totals** | avg 2.0 | **4/5 green** | **$0.0647 / prompt** | avg 62s |
+Overall: **13/20 green (65.0%)** · **5/20 first-try (25.0%)** · **$0.129 per build**
 
-Same hard-case profile as the TS set: the chained-flow prompt is the single not-green,
-same shape as prompt #19 in the core table (Zendesk → GitHub → Zendesk comment) which
-hit 3/4 on the TS side. Everything that was green went green in ≤2 attempts.
+| # | Prompt shape | Green | First-try | Cost (mean) | Attempts (avg) |
+| --- | --- | --- | --- | --- | --- |
+| 1 | Stripe webhook → Slack chat.postMessage (REST+bearer) | 2/2 | 1/2 | $0.045 | 1.5 |
+| 2 | Shopify orders/paid → Airtable append (REST+bearer) | 2/2 | 0/2 | $0.115 | 3.0 |
+| 3 | GitHub issue → Linear GraphQL (REST→GraphQL target) | 2/2 | 2/2 | $0.022 | 1.0 |
+| 4 | HubSpot contact → Mailchimp subscriber upsert | 1/2 | 1/2 | $0.062 | 1.5 |
+| 5 | Zendesk ticket → GitHub issue → Zendesk comment (chained) | 1/2 | 0/2 | $0.268 | 3.5 |
+| 6 | Shopify HMAC-SHA256 verify → Discord forward | 2/2 | 0/2 | $0.081 | 2.0 |
+| 7 | Mailchimp retry on 429 with Retry-After + backoff | 1/2 | 0/2 | $0.133 | 3.0 |
+| 8 | Typeform → Pipedrive (org + person + deal, chained) | 0/2 | 0/2 | $0.211 | 4.0 |
+| 9 | Jotform → Airtable update via filterByFormula + PATCH | 0/2 | 0/2 | $0.262 | 4.0 |
+| 10 | Calendly booking → Slack post + Asana task (chained) | 2/2 | 1/2 | $0.086 | 2.0 |
+
+What this run surfaces honestly:
+- **The straightforward REST + GraphQL shapes transfer cleanly from TS to Python** —
+  prompts 1, 2, 3, 6, 10 are all 2/2 green. GraphQL (prompt 3) was first-try both passes.
+- **Chained flows improved after the chained-flow prompt was hardened** — prompt 5
+  (Zendesk↔GitHub) went 0/1 → 1/2, and prompt 10 (Calendly fan-out to Slack + Asana)
+  went clean 2/2 first time out.
+- **The two consistent 0/2 prompts** (Typeform→Pipedrive multi-step upsert, Jotform
+  filterByFormula+PATCH) are TS-easy cases on the core table (both 4/5 and 4/5 there).
+  The Python model is missing specific idioms — Pipedrive org/person/deal sequencing
+  and Airtable's URL-encoded formula lookups — that the TS generate prompt happens to
+  nudge the model toward. Follow-up: either add explicit per-vendor hints or lift the
+  TS prompt's SDK-pattern discipline into the Python prompt.
+- **Cost per build is ~2× TS** mostly because the 0/2 prompts burn all 4 attempts.
+  Green builds average $0.07 — within noise of the TS mean.
 
 
 Core 20 (common integrations): 83/92 green (90.2%) · 48/92 first-try (52.2%) · $0.0696/connector

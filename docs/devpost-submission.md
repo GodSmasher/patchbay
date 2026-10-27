@@ -224,8 +224,11 @@ patchbay sits inside Claude Code / Cursor / Codex as an MCP server, so you keep 
 ### What's next for patchbay
 
 - **More target languages.** TypeScript (vitest) and Python 3.12 (pytest) ship
-  today, both behind the `--lang` flag and sharing one plan+research step. Go
-  is next — same prompts, swap the sandbox image and the test harness template.
+  today, both behind the `--lang` flag and sharing one plan+research step.
+  Python's variance pass is in `bench/RESULTS-variance.md` (13/20 green,
+  $0.07 per green build) with a short post-mortem on the Python-specific gaps
+  still open — multi-step upserts and `filterByFormula`-style lookups. Go
+  is next: same prompts, swap the sandbox image and the test harness template.
 - **Hosted service** at `patchbay.dev` with managed API keys so the demo
   isn't rate-limited to replay mode after six runs per IP.
 - **Fine-tuned repair model** trained on the committed benchmark runs —
