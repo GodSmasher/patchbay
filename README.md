@@ -24,18 +24,19 @@
   <a href="https://www.npmjs.com/package/@patchbay-nebius/agent"><img src="https://img.shields.io/badge/-npm-CB3837?style=for-the-badge&logo=npm&logoColor=white" alt="npm" height="28"/></a>
 </p>
 
-**Describe an integration in one sentence. Get a tested TypeScript connector.**
+**Describe an integration in one sentence. Get a tested TypeScript — or Python — connector.**
 
 ```
 patchbay build "When a Stripe payment succeeds, add the customer to a Mailchimp audience with the plan as a tag"
+patchbay build --lang=python "When a Stripe payment succeeds, add the customer to a Mailchimp audience with the plan as a tag"
 ```
 
 patchbay runs five steps:
 
 1. **Plan** – a fast model turns the sentence into source/target apps, trigger, action, docs queries, field mapping. Nemotron 3.5 Lightning.
 2. **Research** – Tavily search + extract, biased toward each vendor's own domain, feeding a mid-tier model that produces a normalized API spec (endpoints, auth, example payloads). Nemotron 3 Super.
-3. **Generate** – a strong model writes `src/connector.ts`, `src/connector.test.ts` and `README.md`. Nemotron 3 Ultra, 32k tokens, temperature 0.1.
-4. **Verify** – a Nebius Token Factory sandbox installs TypeScript + vitest once (checkpointed), then every attempt forks that checkpoint with the generated files and networking disabled. `tsc --noEmit` and `vitest run` are the gate.
+3. **Generate** – a strong model writes the connector, its tests and a README. TypeScript (`src/connector.ts` + vitest) by default; `--lang=python` writes `connector.py` + pytest. Nemotron 3 Ultra, 32k tokens, temperature 0.1.
+4. **Verify** – a Nebius Token Factory sandbox pulls the right base image once and installs the test deps (vitest + typescript, or pytest + pytest-asyncio + pytest-json-report) into a checkpointed image. Every attempt forks that checkpoint with the generated files and networking disabled. For TS the gate is `tsc --noEmit` then `vitest run`; for Python it is `python -m compileall` then `pytest -q --json-report`.
 5. **Repair** – when a run is red, the strong model gets the file blocks and the failed test output, and tries again. Up to `PATCHBAY_MAX_ATTEMPTS` times (default 3). Optional parallel mode generates N variants at once, verifies them in parallel sandbox forks, keeps the first green.
 
 Every endpoint in the spec comes with an example payload taken from the documentation; the generated test harness runs the connector against that payload (the "contract" check), so a run only counts as green when the generated code actually works with the shape the real API returns.
@@ -93,7 +94,17 @@ The agent in your IDE is a generalist. For integration connectors — read the d
 
 **patchbay sits inside your editor as an MCP server** (`claude mcp add patchbay -- npx -y @patchbay-nebius/mcp`), so you keep using Claude Code / Cursor / Codex for everything else — architecture, refactors, bug hunts — and offload connector work to patchbay. Your Claude usage bill goes down for the task Claude is slowest *and* most expensive at.
 
-The generated connector is **plain TypeScript in your repo**, no runtime dependency on patchbay — read it, change it, ship it.
+The generated connector is **plain TypeScript — or Python 3.12 — in your repo**, no runtime dependency on patchbay. Read it, change it, ship it.
+
+## Python target (`--lang=python`)
+
+Everything through plan + research is language-agnostic. `--lang=python` swaps the generate / repair prompts and the sandbox: `python:3.12-slim` + `pytest` + `pytest-asyncio` + `pytest-json-report`, with `python -m compileall` + `pytest -q --json-report` as the gate. The connector shape mirrors the TypeScript one — an async `handle(payload, config)`, an injected async transport in `config['fetch']` (so tests stay hermetic), a `fixtures.py` written by patchbay from the researched spec with `SOURCE_EXAMPLE`, `TARGET_ENDPOINTS`, `contract_fetch()`, `fake_fetch()` and `json_response()`.
+
+```
+patchbay build --lang=python "When a Stripe payment succeeds, add the customer to a Mailchimp audience with the plan as a tag"
+```
+
+A single-pass mini-benchmark on five different-shape prompts (Stripe→Slack, Shopify→Airtable, GitHub→Linear GraphQL, HubSpot→Mailchimp upsert, Zendesk↔GitHub chained flow): **4/5 green, $0.065 per connector, average 2 attempts.** Full table in [bench/RESULTS-variance.md](bench/RESULTS-variance.md#python-mini-pass-2026-10-27).
 
 ## Selfhost
 

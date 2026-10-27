@@ -4,6 +4,26 @@
 
 Overall: **87.6% green** · **48.6% first-try green** · **$0.0696 per connector on the core set**
 
+### Python mini-pass (2026-10-27)
+
+A separate single-pass run against the Python code path (same plan+research prompts,
+Python generate+repair prompts, `python:3.12-slim` + pytest sandbox) on five
+different-shape integrations. The pipeline matches the TS run's cost almost exactly:
+
+| Prompt shape | Attempts | Tests | Cost | Time |
+| --- | --- | --- | --- | --- |
+| Stripe webhook → Slack chat.postMessage (REST+bearer) | 2 | 10/10 | $0.0509 | ~45s |
+| Shopify orders/paid → Airtable append row (REST+bearer) | 2 | 16/16 | $0.0543 | 48s |
+| GitHub issue → Linear GraphQL (REST→GraphQL target) | 1 | 11/11 | $0.0227 | 29s |
+| HubSpot contact → Mailchimp subscriber upsert (REST+idempotency) | 2 | 9/9 | $0.0382 | 45s |
+| Zendesk ticket → GitHub issue → Zendesk comment (chained flow) | 3 | 7/10 (not green) | $0.1572 | 143s |
+| **Totals** | avg 2.0 | **4/5 green** | **$0.0647 / prompt** | avg 62s |
+
+Same hard-case profile as the TS set: the chained-flow prompt is the single not-green,
+same shape as prompt #19 in the core table (Zendesk → GitHub → Zendesk comment) which
+hit 3/4 on the TS side. Everything that was green went green in ≤2 attempts.
+
+
 Core 20 (common integrations): 83/92 green (90.2%) · 48/92 first-try (52.2%) · $0.0696/connector
 
 Brutal 10 (adversarial: WebSocket to Pusher, OAuth2 refresh, GraphQL nested mutations, S3 presigned URLs, HMAC-signed server events): 9/13 green (69.2%) · 3/13 first-try (23.1%) · $0.1771/connector

@@ -67,13 +67,17 @@ patchbay runs a five-step pipeline:
 2. **Research** — Tavily searches the vendors' own documentation and extracts
    the real endpoints. A mid-tier Nemotron (3 Super) distills them into a spec
    with example payloads taken straight from the docs.
-3. **Generate** — Nemotron 3 Ultra writes `src/connector.ts`,
-   `src/connector.test.ts` and `README.md`.
-4. **Verify** — a Nebius Token Factory sandbox installs TypeScript + vitest
-   once (checkpointed), then every attempt forks the checkpoint with the
-   generated files and networking disabled. `tsc --noEmit` + `vitest run` is
-   the gate. A pre-sandbox `esbuild` parse catches syntax breaks in
-   milliseconds so they don't burn a full sandbox round.
+3. **Generate** — Nemotron 3 Ultra writes the connector, its tests and a
+   README. TypeScript (`src/connector.ts` + vitest) by default, Python 3.12
+   (`connector.py` + pytest, hermetic async transport injected into the
+   handler) when you pass `--lang=python`.
+4. **Verify** — a Nebius Token Factory sandbox pulls the right base image
+   once and installs the test deps into a checkpointed image. Every attempt
+   forks that checkpoint with the generated files and networking disabled.
+   For TS the gate is `tsc --noEmit` then `vitest run`; for Python it is
+   `python -m compileall` then `pytest -q --json-report`. A pre-sandbox
+   `esbuild` parse (TS) catches syntax breaks in milliseconds so they don't
+   burn a full sandbox round.
 5. **Repair** — when a run is red, two parallel branches of the strong model
    get the failing output at different temperatures (0.1 and 0.4). The first
    one that lands green wins. Monotonic — the agent never hands back a draft
@@ -219,8 +223,9 @@ patchbay sits inside Claude Code / Cursor / Codex as an MCP server, so you keep 
 
 ### What's next for patchbay
 
-- **Multi-language targets.** Python and Go generators behind a `--lang` flag.
-  Same prompts, swap the test harness template.
+- **More target languages.** TypeScript (vitest) and Python 3.12 (pytest) ship
+  today, both behind the `--lang` flag and sharing one plan+research step. Go
+  is next — same prompts, swap the sandbox image and the test harness template.
 - **Hosted service** at `patchbay.dev` with managed API keys so the demo
   isn't rate-limited to replay mode after six runs per IP.
 - **Fine-tuned repair model** trained on the committed benchmark runs —
@@ -238,6 +243,7 @@ patchbay sits inside Claude Code / Cursor / Codex as an MCP server, so you keep 
 
 ```
 typescript
+python
 next.js
 nebius
 nemotron
@@ -248,6 +254,7 @@ vercel
 docker
 openstatus
 vitest
+pytest
 esbuild
 slack
 github-actions
