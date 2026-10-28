@@ -54,6 +54,37 @@ describe('scanner / webhook-handler stub detection', () => {
     expect(hook!.vendors).toContain('Stripe')
   })
 
+  it('flags a FastAPI decorator-style stripe webhook with a pass body', () => {
+    const content = `
+from fastapi import FastAPI, Request
+app = FastAPI()
+
+@app.post("/webhook/stripe")
+async def stripe_webhook(req: Request):
+    # TODO: verify stripe signature and forward to Slack
+    pass
+`
+    const ops = scanFiles([f('server.py', content)])
+    const hook = ops.find(o => o.kind === 'webhook-handler')
+    expect(hook).toBeDefined()
+    expect(hook!.vendors).toContain('Stripe')
+  })
+
+  it('flags a Flask @app.route stripe webhook with raise NotImplementedError', () => {
+    const content = `
+from flask import Flask, request
+app = Flask(__name__)
+
+@app.route("/webhooks/stripe", methods=["POST"])
+def stripe_hook():
+    raise NotImplementedError("wire up stripe + slack")
+`
+    const ops = scanFiles([f('app.py', content)])
+    const hook = ops.find(o => o.kind === 'webhook-handler')
+    expect(hook).toBeDefined()
+    expect(hook!.vendors).toContain('Stripe')
+  })
+
   it('does not flag a webhook route with a real implementation', () => {
     const content = `
       router.post('/webhook/stripe', async (req, res) => {

@@ -163,30 +163,52 @@ function scanTodos(file: string, lines: string[]): Opportunity[] {
 
 function scanWebhookHandlers(file: string, lines: string[], content: string): Opportunity[] {
   const found: Opportunity[] = []
-  // Node/TS: look for Express/Next route handlers that are near-empty or throw.
-  const routeRe = /(?:router|app)\.(?:post|put|patch)\s*\(\s*['"`]([^'"`]*(?:webhook|hook|callback|notify|event)[^'"`]*)['"`]/gi
-  let m: RegExpExecArray | null
-  while ((m = routeRe.exec(content))) {
-    const path = m[1]!
-    const upto = content.slice(0, m.index)
-    const lineNo = upto.split('\n').length
-    const windowStart = Math.max(0, lineNo - 1)
-    const window = lines.slice(windowStart, Math.min(lines.length, windowStart + 20)).join('\n')
-    const stubby = /(TODO|FIXME|not\s+implemented|throw\s+new\s+Error)/i.test(window) || window.replace(/[^{}]/g, '').length < 4
-    if (!stubby) continue
-    const vendors = detectVendors(path + ' ' + window)
-    found.push({
-      score: 70 + vendors.length * 10,
-      kind: 'webhook-handler',
-      file,
-      line: lineNo,
-      evidence: `${path} — route body is empty / TODO / not-implemented`,
-      vendors,
-      prompt: vendors.length
-        ? `When a ${vendors[0]} webhook hits ${path}, handle the payload and ${inferAction(vendors)}.`
-        : `When an incoming webhook hits ${path}, verify the signature, parse the payload and forward the result to the configured target.`,
-    })
+  const isPy = file.endsWith('.py')
+
+  // Node/TS: Express / Next / FastAPI (same `app.post(...)` shape) route handlers.
+  // We also catch FastAPI's decorator form `@app.post("/webhook")` with the same regex.
+  const tsRouteRe = /@?(?:router|app|bp)\.(?:post|put|patch|get)\s*\(\s*['"`]([^'"`]*(?:webhook|hook|callback|notify|event)[^'"`]*)['"`]/gi
+  // Flask decorator: @app.route("/webhook", methods=["POST"]) — route goes through methods arg
+  const pyFlaskRouteRe = /@(?:app|bp)\.route\s*\(\s*['"]([^'"]*(?:webhook|hook|callback|notify|event)[^'"]*)['"]/gi
+
+  // Try both patterns; dedupe by starting offset so FastAPI decorator catches once.
+  const seen = new Set<number>()
+  const runRe = (re: RegExp) => {
+    let m: RegExpExecArray | null
+    while ((m = re.exec(content))) {
+      if (seen.has(m.index)) continue
+      seen.add(m.index)
+      const path = m[1]!
+      const upto = content.slice(0, m.index)
+      const lineNo = upto.split('\n').length
+      const windowStart = Math.max(0, lineNo - 1)
+      const window = lines.slice(windowStart, Math.min(lines.length, windowStart + 20)).join('\n')
+      // Stubby signals:
+      //   TS: TODO/FIXME, "not implemented", `throw new Error`, tiny brace body
+      //   Py: `raise NotImplementedError`, bare `pass`, body is just a docstring, empty def body
+      const stubby =
+        /(TODO|FIXME|not\s+implemented|throw\s+new\s+Error|raise\s+NotImplementedError|raise\s+Exception\s*\(\s*['"]not\s+implemented)/i.test(window) ||
+        // TS: fewer than two matched braces means empty function body
+        (!isPy && window.replace(/[^{}]/g, '').length < 4) ||
+        // Py: body is literally `pass` on its own line after the signature
+        (isPy && /\bdef\s+\w+[^)]*\)[^:]*:\s*(?:#[^\n]*\n\s*)*pass\s*(?:\n|$)/.test(window))
+      if (!stubby) continue
+      const vendors = detectVendors(path + ' ' + window)
+      found.push({
+        score: 70 + vendors.length * 10,
+        kind: 'webhook-handler',
+        file,
+        line: lineNo,
+        evidence: `${path} — route body is empty / TODO / not-implemented`,
+        vendors,
+        prompt: vendors.length
+          ? `When a ${vendors[0]} webhook hits ${path}, handle the payload and ${inferAction(vendors)}.`
+          : `When an incoming webhook hits ${path}, verify the signature, parse the payload and forward the result to the configured target.`,
+      })
+    }
   }
+  runRe(tsRouteRe)
+  if (isPy) runRe(pyFlaskRouteRe)
   return found
 }
 
