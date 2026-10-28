@@ -44,9 +44,13 @@ interface RawVariance {
 }
 
 type Lang = 'ts' | 'py'
+type BenchSet = 'core' | 'brutal'
 
-function loadVariance(lang: Lang): Variance {
-  const file = lang === 'py' ? 'variance-py.json' : 'variance.json'
+function loadVariance(lang: Lang, set: BenchSet): Variance {
+  const file =
+    lang === 'py' && set === 'brutal' ? 'variance-py-brutal.json' :
+    lang === 'py' ? 'variance-py.json' :
+    'variance.json'
   const raw = readFileSync(join(process.cwd(), 'public', file), 'utf8')
   const data = JSON.parse(raw) as RawVariance
   // New shape: summary.{greenRate,firstTryRate,costPerPassUsd,passes,prompts}
@@ -82,14 +86,16 @@ function loadVariance(lang: Lang): Variance {
   }
 }
 
-export default async function BenchPage({ searchParams }: { searchParams: Promise<{ lang?: string }> }) {
+export default async function BenchPage({ searchParams }: { searchParams: Promise<{ lang?: string; set?: string }> }) {
   const resolved = await searchParams
   const lang: Lang = resolved?.lang === 'py' ? 'py' : 'ts'
-  const v = loadVariance(lang)
+  const set: BenchSet = lang === 'py' && resolved?.set === 'brutal' ? 'brutal' : 'core'
+  const v = loadVariance(lang, set)
   const greenPct = v.totalGreen / v.totalRuns
   const firstTryPct = v.totalFirstTry / v.totalRuns
   const perConnector = v.totalCostMean / v.prompts.length
   const langLabel = lang === 'py' ? 'Python 3.12 (pytest)' : 'TypeScript (vitest)'
+  const setLabel = set === 'brutal' ? ' — Brutal 20 (adversarial)' : ''
 
   return (
     <main className="mx-auto max-w-6xl px-4 pb-16 sm:px-6">
@@ -106,32 +112,58 @@ export default async function BenchPage({ searchParams }: { searchParams: Promis
           The benchmark that keeps patchbay honest.
         </h1>
         <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-ink-soft">
-          {v.prompts.length} integrations across common and adversarial APIs, run as {langLabel}. Every run goes
+          {v.prompts.length} integrations across common and adversarial APIs, run as {langLabel}{setLabel}. Every run goes
           through the full pipeline — plan, research, generate, verify in a Nebius sandbox, repair with parallel
           branches. Green means typecheck ok, zero failing tests, and the documented-example contract test passed.
         </p>
 
-        <div
-          role="radiogroup"
-          aria-label="Target language"
-          className="mt-5 inline-flex rounded-lg border border-paper-line bg-paper-card p-0.5 text-xs"
-        >
-          <Link
-            href="/bench"
-            aria-checked={lang === 'ts'}
-            role="radio"
-            className={`rounded-md px-3 py-1 transition-colors ${lang === 'ts' ? 'bg-ink text-white' : 'text-ink-soft hover:text-ink'}`}
+        <div className="mt-5 flex flex-wrap items-center gap-3">
+          <div
+            role="radiogroup"
+            aria-label="Target language"
+            className="inline-flex rounded-lg border border-paper-line bg-paper-card p-0.5 text-xs"
           >
-            TypeScript
-          </Link>
-          <Link
-            href="/bench?lang=py"
-            aria-checked={lang === 'py'}
-            role="radio"
-            className={`rounded-md px-3 py-1 transition-colors ${lang === 'py' ? 'bg-ink text-white' : 'text-ink-soft hover:text-ink'}`}
-          >
-            Python
-          </Link>
+            <Link
+              href="/bench"
+              aria-checked={lang === 'ts'}
+              role="radio"
+              className={`rounded-md px-3 py-1 transition-colors ${lang === 'ts' ? 'bg-ink text-white' : 'text-ink-soft hover:text-ink'}`}
+            >
+              TypeScript
+            </Link>
+            <Link
+              href="/bench?lang=py"
+              aria-checked={lang === 'py'}
+              role="radio"
+              className={`rounded-md px-3 py-1 transition-colors ${lang === 'py' ? 'bg-ink text-white' : 'text-ink-soft hover:text-ink'}`}
+            >
+              Python
+            </Link>
+          </div>
+          {lang === 'py' && (
+            <div
+              role="radiogroup"
+              aria-label="Benchmark set"
+              className="inline-flex rounded-lg border border-paper-line bg-paper-card p-0.5 text-xs"
+            >
+              <Link
+                href="/bench?lang=py"
+                aria-checked={set === 'core'}
+                role="radio"
+                className={`rounded-md px-3 py-1 transition-colors ${set === 'core' ? 'bg-ink text-white' : 'text-ink-soft hover:text-ink'}`}
+              >
+                Core 20
+              </Link>
+              <Link
+                href="/bench?lang=py&set=brutal"
+                aria-checked={set === 'brutal'}
+                role="radio"
+                className={`rounded-md px-3 py-1 transition-colors ${set === 'brutal' ? 'bg-ink text-white' : 'text-ink-soft hover:text-ink'}`}
+              >
+                Brutal 20
+              </Link>
+            </div>
+          )}
         </div>
       </section>
 
