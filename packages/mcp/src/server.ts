@@ -25,8 +25,9 @@ import { z } from 'zod'
 // wiring; the credentials just need to live in the checkout like for the CLI.
 loadRepoEnv()
 
-const { loadConfig, missingLiveKeys, startResearch, startRun, startVerify } = await import('@patchbay-nebius/agent')
+const { loadConfig, missingLiveKeys, scanRepo, startResearch, startRun, startVerify } = await import('@patchbay-nebius/agent')
 type GeneratedFile = import('@patchbay-nebius/agent').GeneratedFile
+type Opportunity = import('@patchbay-nebius/agent').Opportunity
 type RunEvent = import('@patchbay-nebius/agent').RunEvent
 
 function loadRepoEnv(): void {
@@ -113,6 +114,72 @@ registerTool(
   async (args, extra) => {
     const { prompt } = args as { prompt: string }
     return runToolStream(extra, startResearch(prompt, loadConfig()), { includeSpec: true })
+  },
+)
+
+registerTool(
+  'scan_repo',
+  {
+    title: 'Scan a repo for integration opportunities',
+    description:
+      'Walk a repository (local directory or shallow-cloned GitHub URL) and report the integration ' +
+      'opportunities patchbay could build: webhook handlers with TODO/empty bodies, .env.example ' +
+      'entries pointing at vendor APIs with no implementation, TODO/FIXME comments mentioning vendors, ' +
+      'and vendor SDKs imported but barely used. Understands TypeScript/JavaScript (Express/Next/Fastify ' +
+      'routes) AND Python (FastAPI/Flask routes, pass bodies, raise NotImplementedError). Returns a ' +
+      'ranked list, each item with a ready-to-run prompt the agent can hand straight to build_connector. ' +
+      'Instant, free (no LLM / sandbox), auditable regex-only output.',
+    inputSchema: {
+      path: z.string().min(1).describe('Absolute path to a repo directory on disk, or a GitHub URL (https://github.com/<owner>/<repo> — shallow-cloned to a tempdir and scanned).'),
+      topN: z.number().int().min(1).max(50).optional().describe('How many top-ranked opportunities to return. Default 15.'),
+    },
+  },
+  async (args, extra) => {
+    const { path, topN } = args as { path: string; topN?: number }
+    let scanPath = path
+    let cleanup: (() => Promise<void>) | null = null
+    try {
+      // Accept GitHub URLs: shallow-clone into a tmpdir so clients can scan any public repo
+      // without having it checked out locally.
+      if (/^https?:\/\/github\.com\//i.test(path) || /^git@github\.com:/i.test(path)) {
+        const { tmpdir } = await import('node:os')
+        const { execSync } = await import('node:child_process')
+        const { rm } = await import('node:fs/promises')
+        const { join } = await import('node:path')
+        const target = join(tmpdir(), `patchbay-mcp-scan-${Date.now()}`)
+        execSync(`git clone --depth=1 "${path}" "${target}"`, { stdio: 'pipe' })
+        scanPath = target
+        cleanup = async () => { await rm(target, { recursive: true, force: true }) }
+      }
+      await extra.sendNotification({
+        method: 'notifications/message',
+        params: { level: 'info', logger: 'patchbay', data: `scanning ${path}` },
+      }).catch(() => undefined)
+      const opportunities = scanRepo(scanPath)
+      const picked = opportunities.slice(0, topN ?? 15)
+      const vendors = [...new Set(picked.flatMap((o) => o.vendors))].sort()
+      const summary = `${opportunities.length} opportunities found (${picked.length} shown)${vendors.length ? ` across ${vendors.length} vendors: ${vendors.slice(0, 10).join(', ')}${vendors.length > 10 ? ', …' : ''}` : ''}`
+      return {
+        content: [{ type: 'text' as const, text: summary + '\n\n' + picked.map((o, i) => `${i + 1}. [${o.kind}] ${o.file}:${o.line} (score ${o.score})\n   ${o.prompt}`).join('\n\n') }],
+        structuredContent: {
+          scanned: path,
+          total: opportunities.length,
+          opportunities: picked.map((o: Opportunity) => ({
+            kind: o.kind,
+            file: o.file,
+            line: o.line,
+            score: o.score,
+            vendors: o.vendors,
+            evidence: o.evidence,
+            prompt: o.prompt,
+          })),
+        },
+      }
+    } catch (error) {
+      return errorResult(error instanceof Error ? error.message : String(error))
+    } finally {
+      if (cleanup) await cleanup().catch(() => undefined)
+    }
   },
 )
 
