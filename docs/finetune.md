@@ -50,10 +50,36 @@ on repair while keeping the green rate up.
 - **Base model**: `Qwen/Qwen3-30B-A3B-Instruct-2507`
 - **Method**: full fine-tune (Nebius Token Factory decides; LoRA was
   not required for this model/dataset size)
-- **Hyperparameters**: 3 epochs, batch size 16, context length 16384,
+- **Hyperparameters**: 3 epochs, batch size 16, context length 8192,
   LR 1e-5, packing on
-- **Job**: `ftjob-cba43bc57fc04546bb4d8d7e4b86eb28`
-- **Started**: 2026-10-19
+- **Job**: `ftjob-b528503f760b487391cca9bb152a13ac`
+- **Started**: 2026-10-28
+- **Training data**: 98 train / 11 held-out eval (109 total repair pairs,
+  grew from 68 as more benchmark passes committed)
+
+### The deployment path
+
+Nebius Support confirmed (2026-10-28) that `profile_mode` in the fine-tune
+job response is a cosmetic analytics field, not a real blocker — training
+runs fine. Deploying the trained weights BACK through Token Factory for
+inference requires their invitation-only Custom Weights beta. We're not in
+that beta, but checkpoints can be retrieved via the `/checkpoints` API and
+served anywhere.
+
+patchbay's full-circle setup:
+
+1. **Fine-tune on Token Factory.** 98 (red draft → green diff) pairs from
+   our own benchmark runs, Qwen3-30B base.
+2. **Download the checkpoint** via Token Factory's checkpoints API.
+3. **Deploy on Nebius AI Cloud GPU** (H100 or H200) with vLLM behind an
+   OpenAI-compatible endpoint. Our `PATCHBAY_LLM_BASE_URL` points patchbay
+   at the self-hosted model.
+4. **Benchmark fine-tuned vs base** on the same TS Core 20 prompts, measuring
+   repair-attempt green rate.
+
+This closes the loop using THREE Nebius products in sequence — Token Factory
+Inference (for the live agent), Token Factory Post-training (fine-tune) and
+AI Cloud GPU (deployment of the fine-tuned weights).
 
 Launch script: `scripts/finetune.ts`.
 
