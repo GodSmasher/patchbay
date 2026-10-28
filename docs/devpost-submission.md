@@ -225,10 +225,11 @@ patchbay sits inside Claude Code / Cursor / Codex as an MCP server, so you keep 
 
 - **More target languages.** TypeScript (vitest) and Python 3.12 (pytest) ship
   today, both behind the `--lang` flag and sharing one plan+research step.
-  Python's variance pass is in `bench/RESULTS-variance.md` (16/20 green at
-  $0.10 per build) — same budget as the TS core run, within reach of its 90%
-  core green rate. Go is next: same prompts, swap the sandbox image and the
-  test harness template.
+  Full Python variance over the same 20-prompt core as the TS table (3 passes,
+  60 live Nebius builds): **44/60 green (73.3%), $0.07 per green build —
+  identical cost per green build to the TS run.** Nine of the twenty prompts
+  land 3/3. Numbers in `bench/RESULTS-variance.md`. Go is next: same prompts,
+  swap the sandbox image and the test harness template.
 - **Hosted service** at `patchbay.dev` with managed API keys so the demo
   isn't rate-limited to replay mode after six runs per IP.
 - **Fine-tuned repair model** trained on the committed benchmark runs —

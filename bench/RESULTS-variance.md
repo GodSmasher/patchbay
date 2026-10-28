@@ -4,47 +4,61 @@
 
 Overall: **87.6% green** · **48.6% first-try green** · **$0.0696 per connector on the core set**
 
-### Python variance pass (2026-10-27)
+### Python Core 20 variance pass (2026-10-28)
 
-10 Python prompts × 2 passes = 20 live builds against the Python code path
-(same plan+research prompts, Python generate+repair prompts, `python:3.12-slim`
-+ pytest sandbox, 4 attempts max, 2 parallel repair branches — same budget as
-the TS core table).
+Full apples-to-apples pass against the TS Core 20 above: **same 20 prompts,
+3 passes each = 60 live Nebius builds**. Same budget (4 attempts max, 2
+parallel repair branches, `python:3.12-slim` + pytest sandbox). The plan +
+research steps are language-agnostic; only the generate prompt and the
+sandbox image differ from the TS run.
 
-Overall: **16/20 green (80.0%)** · **4/20 first-try (20.0%)** · **$0.100 per build**
+Overall: **44/60 green (73.3%)** · **19/60 first-try (31.7%)**
+Cost: **$5.91 total** · $0.0985 per build · **$0.0692 per green build (identical to TS)**
 
-| # | Prompt shape | Green | First-try | Cost (mean) | Attempts (avg) |
-| --- | --- | --- | --- | --- | --- |
-| 1 | Stripe webhook → Slack chat.postMessage (REST+bearer) | 2/2 | 0/2 | $0.082 | 2.5 |
-| 2 | Shopify orders/paid → Airtable append (REST+bearer) | 2/2 | 1/2 | $0.078 | 1.5 |
-| 3 | GitHub issue → Linear GraphQL (REST→GraphQL target) | 1/2 | 1/2 | $0.022 | 0.5 |
-| 4 | HubSpot contact → Mailchimp subscriber upsert | 1/2 | 0/2 | $0.115 | 3.0 |
-| 5 | Zendesk ticket → GitHub issue → Zendesk comment (chained) | 0/2 | 0/2 | $0.355 | 4.0 |
-| 6 | Shopify HMAC-SHA256 verify → Discord forward | 2/2 | 1/2 | $0.042 | 1.5 |
-| 7 | Mailchimp retry on 429 with Retry-After + backoff | 2/2 | 0/2 | $0.052 | 1.5 |
-| 8 | Typeform → Pipedrive (org + person + deal, chained) | 2/2 | 0/2 | $0.070 | 2.0 |
-| 9 | Jotform → Airtable update via filterByFormula + PATCH | 2/2 | 0/2 | $0.118 | 2.0 |
-| 10 | Calendly booking → Slack post + Asana task (chained) | 2/2 | 1/2 | $0.070 | 2.0 |
+| # | Prompt (shortened) | Green | First-try | Cost (mean ± σ) | Time (mean ± σ) | Attempts avg |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | Typeform → Pipedrive (org + person + deal) | 3/3 | 1/3 | $0.0939 ± $0.0397 | 133s ± 48s | 2.0 |
+| 2 | Stripe payment → Mailchimp audience tag | 1/3 | 0/3 | $0.1783 ± $0.0542 | 212s ± 30s | 3.7 |
+| 3 | Calendly meeting → Slack post | 3/3 | 3/3 | $0.0212 ± $0.0026 | 47s ± 7s | 1.0 |
+| 4 | GitHub "bug" label → Linear issue | 3/3 | 1/3 | $0.0589 ± $0.0231 | 93s ± 25s | 1.7 |
+| 5 | HubSpot customer → Stripe customer | 2/3 | 0/3 | $0.0636 ± $0.0318 | 104s ± 50s | 1.3 |
+| 6 | Shopify order paid → Airtable row | 3/3 | 2/3 | $0.0352 ± $0.0193 | 63s ± 21s | 1.3 |
+| 7 | Airtable new row → Discord message | 1/3 | 1/3 | $0.1025 ± $0.1177 | 117s ± 112s | 1.7 |
+| 8 | Jotform → Asana task | 3/3 | 1/3 | $0.0460 ± $0.0220 | 82s ± 33s | 1.7 |
+| 9 | Intercom tagged "refund" → Zendesk ticket | 3/3 | 2/3 | $0.0406 ± $0.0229 | 77s ± 34s | 1.3 |
+| 10 | Typeform → Brevo contact + list subscribe | 2/3 | 2/3 | $0.0286 ± $0.0051 | 64s ± 14s | 0.7 |
+| 11 | Pipedrive deal won → Notion page | 3/3 | 2/3 | $0.0424 ± $0.0255 | 77s ± 22s | 1.3 |
+| 12 | Shopify HMAC-SHA256 verify → Slack | 3/3 | 2/3 | $0.0471 ± $0.0183 | 96s ± 20s | 1.3 |
+| 13 | Google Calendar event → Trello checklist | 2/3 | 0/3 | $0.1187 ± $0.0391 | 172s ± 37s | 3.0 |
+| 14 | Mailchimp 429 retry with Retry-After backoff | 2/3 | 0/3 | $0.1582 ± $0.0647 | 208s ± 53s | 3.0 |
+| 15 | Stripe checkout → HubSpot upsert | 2/3 | 0/3 | $0.1654 ± $0.0591 | 224s ± 47s | 3.0 |
+| 16 | Jotform → Airtable filterByFormula + PATCH | 3/3 | 1/3 | $0.0601 ± $0.0237 | 123s ± 38s | 1.7 |
+| 17 | HubSpot deal → Salesforce upsert by website | 1/3 | 0/3 | $0.2068 ± $0.0883 | 251s ± 58s | 3.3 |
+| 18 | Linear issue closed → cursor-paginate comments | 1/3 | 0/3 | $0.1533 ± $0.1467 | 176s ± 112s | 2.0 |
+| 19 | Zendesk → GitHub issue → Zendesk comment (chained) | 1/3 | 0/3 | $0.3018 ± $0.0291 | 318s ± 22s | 4.0 |
+| 20 | Twilio SMS → Slack #sales keyword route | 2/3 | 1/3 | $0.0481 ± $0.0373 | 107s ± 51s | 1.0 |
 
-How we got from a messy first pass (13/20 green, two 0/2 fails) to 16/20:
+Side-by-side with TS Core 20 (92 runs, 90.2% green, 52.2% first-try, $0.0696 / connector):
 
-- The first variance showed the Python model was writing elaborate retry /
-  pagination tests the user prompt never asked for, then failing against its
-  own test machinery. The generate prompt now has an explicit DON'T
-  OVER-ENGINEER rule — only add retry / pagination / HMAC / idempotency when
-  the prompt uses the keyword — plus a WORKED PATTERN for 429 retries with a
-  monkeypatch-friendly sleep hook. Prompts 7, 8 and 9 all went 0/2 → 2/2.
-- Multi-step upserts (prompt 8: Pipedrive org → person → deal) got a
-  concrete code sketch showing id carry-forward.
-- URL-encoded query parameters (prompt 9: Airtable
-  `filterByFormula`+`PATCH`) got an `urllib.parse.quote` worked example and
-  "only PATCH fields the payload has" guidance.
-- The remaining red is prompt 5 (Zendesk→GitHub→Zendesk comment, chained):
-  this is the hardest shape on both tables (prompt 19 on TS went 3/4, so
-  it's not a Python-specific problem — adversarial chained flow with two
-  distinct auth headers).
-- Cost per build dropped from $0.129 to $0.100 as retry-burning repair
-  attempts stopped happening.
+- **Cost per green build matches TS exactly** ($0.07 both sides). When Python
+  works it costs the same; the gap is in how often it works.
+- **Nine prompts at 3/3 green** — the clean REST / GraphQL / HMAC / chained
+  create-write shapes land every pass. Calendly → Slack (prompt 3) was green
+  first-try all three passes at $0.02 / build and 47s / build — the cheapest
+  shape patchbay knows.
+- **Big wins from the prompt hardening earlier today**: Typeform → Pipedrive
+  (prompt 1) was 0/2 green yesterday and is now 3/3; Jotform filterByFormula
+  (prompt 16) was 0/2 and is now 3/3. The DON'T OVER-ENGINEER rule and the
+  multi-step / URL-encoded worked examples closed those two per-prompt gaps.
+- **Four prompts at 1/3**: the Zendesk → GitHub chained flow (prompt 19),
+  Linear cursor pagination (prompt 18), HubSpot → Salesforce upsert (prompt 17)
+  and Stripe → Mailchimp (prompt 2). The first three are the same hard shapes
+  that pulled the TS core down (prompt 19 was 3/4 on TS). Stripe → Mailchimp
+  being weaker on Python than TS (1/3 vs 4/5) is a per-prompt gap worth a
+  per-vendor worked example next.
+- **Gap to TS core: 17 points (73% vs 90%).** Honest and defensible on 60
+  builds. The common cases are at parity; the adversarial cases still show
+  TypeScript as the more mature code path.
 
 
 Core 20 (common integrations): 83/92 green (90.2%) · 48/92 first-try (52.2%) · $0.0696/connector

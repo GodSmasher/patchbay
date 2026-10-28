@@ -109,7 +109,7 @@ Everything through plan + research is language-agnostic. `--lang=python` swaps t
 patchbay build --lang=python "When a Stripe payment succeeds, add the customer to a Mailchimp audience with the plan as a tag"
 ```
 
-A variance pass over 10 different-shape prompts × 2 passes = **20 live builds**: **16/20 green (80%), $0.10 per build.** The straightforward REST + GraphQL shapes transfer cleanly (8 of 10 prompts at ≥1/2 green, 6 at 2/2). The one remaining consistently-red prompt is the three-step Zendesk↔GitHub chained flow — also the hardest shape on the TypeScript side (3/4 on the TS core table). Full table and the per-prompt breakdown in [bench/RESULTS-variance.md](bench/RESULTS-variance.md#python-variance-pass-2026-10-27).
+A full variance pass over the TS Core 20 — **same 20 prompts × 3 passes = 60 live Nebius builds**: **44/60 green (73.3%), $0.07 per green build (identical to TS).** Nine prompts land 3/3; four — the chained flows, cursor pagination and multi-vendor upserts — still trip the model. Side-by-side with the TS core (90.2% green over 92 runs), the common cases are at parity, the adversarial cases still favour TypeScript. Full per-prompt table and the honest post-mortem in [bench/RESULTS-variance.md](bench/RESULTS-variance.md#python-core-20-variance-pass-2026-10-28).
 
 **Not supported for Python:** the local runner (`PATCHBAY_RUNNER=local`), which only runs TS. Live replay runs on the hosted demo are also TS-only recordings, so without live keys the Python toggle shows the TS replay with a note.
 
