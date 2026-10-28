@@ -85,7 +85,24 @@ Every patchbay benchmark run is a record of the agent failing and then fixing it
 
 ## Evidence export
 
-Every live build offers a one-click Evidence download — the generated files, every repair attempt, the sandbox operation IDs you can look up on Nebius, model usage, timestamps and SHA-256 hashes. Trust but verify.
+Every live build offers a one-click **Evidence .zip** download on the site. Trust but verify — the whole run is auditable without re-executing anything:
+
+```
+connector/          final files (ready to drop into a repo)
+trajectory/
+  attempt-1/
+    <files>
+    report.json     the test report for that attempt
+  attempt-2/ …      every repair attempt the agent made
+prompt.txt          the one-sentence prompt
+plan.json           source app, target app, field mapping
+spec.json           researched API spec (endpoints, auth, example payloads)
+usage.json          per-call model usage + cost + total
+manifest.json       issuedAt, finalResult, sandbox operation IDs, SHA-256 of every file, verify instructions
+README.md           what each file is + how to recompute hashes
+```
+
+The `sandboxOperationIds` in `manifest.json` are Nebius Token Factory operation IDs — your project's operation history retains the exact command patchbay ran, its exit code, and its stdout for each one. Recompute hashes locally with `shasum -a 256`; mismatch means somebody edited the artifact after export.
 
 ## Three ways to call it
 
