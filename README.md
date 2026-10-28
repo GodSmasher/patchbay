@@ -109,7 +109,7 @@ Everything through plan + research is language-agnostic. `--lang=python` swaps t
 patchbay build --lang=python "When a Stripe payment succeeds, add the customer to a Mailchimp audience with the plan as a tag"
 ```
 
-A full variance pass over the TS Core 20 — **same 20 prompts × 3 passes = 60 live Nebius builds**: **44/60 green (73.3%), $0.07 per green build (identical to TS).** Nine prompts land 3/3; four — the chained flows, cursor pagination and multi-vendor upserts — still trip the model. Side-by-side with the TS core (90.2% green over 92 runs), the common cases are at parity, the adversarial cases still favour TypeScript. Full per-prompt table and the honest post-mortem in [bench/RESULTS-variance.md](bench/RESULTS-variance.md#python-core-20-variance-pass-2026-10-28).
+A full variance pass over the TS Core 20 — **same 20 prompts × 3 passes = 60 live Nebius builds**: **44/60 green (73.3%), $0.07 per green build (identical to TS).** Nine prompts land 3/3 green. A separate adversarial Brutal-20 pass (OAuth refresh, GraphQL federation, HMAC verification, cursor pagination, SOAP, WebSocket, long-poll) runs **28/40 green (70%) — at parity with the TS Brutal (69%)**. The 17-point gap on common cases closes on hard cases. Both tables in [bench/RESULTS-variance.md](bench/RESULTS-variance.md#python-core-20-variance-pass-2026-10-28).
 
 **Not supported for Python:** the local runner (`PATCHBAY_RUNNER=local`), which only runs TS. Live replay runs on the hosted demo are also TS-only recordings, so without live keys the Python toggle shows the TS replay with a note.
 
