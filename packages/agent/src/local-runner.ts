@@ -1,9 +1,9 @@
 import { execFile } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { parseTestOutput, TSC_MARKER, VITEST_MARKER } from './report'
+import { parsePytestOutput, parseTestOutput, PYC_MARKER, PYTEST_MARKER, TSC_MARKER, VITEST_MARKER } from './report'
 import type { SandboxRunner } from './sandbox'
-import type { GeneratedFile } from './types'
+import type { GeneratedFile, TestReport } from './types'
 
 const TSCONFIG = {
   compilerOptions: {
@@ -19,51 +19,122 @@ const TSCONFIG = {
 }
 
 /**
- * Fallback runner for development: typecheck + vitest in a temp folder on this machine.
- * Same command and parser as the Nebius sandbox, but NOT isolated, so it is opt-in via
- * PATCHBAY_RUNNER=local and never used by the hosted demo.
+ * Fallback runner for development: typecheck + vitest OR py_compile + pytest in a temp
+ * folder on this machine. Same commands and parsers as the Nebius sandbox, but NOT
+ * isolated, so it is opt-in via PATCHBAY_RUNNER=local and never used by the hosted demo.
  *
- * TypeScript only. `--lang=python` requires the Nebius sandbox because the local runner
- * can't guarantee the host has python 3.12 + pytest + pytest-asyncio + pytest-json-report
- * at the right versions; attempting to prepare a Python run through here throws so the
- * mistake is loud rather than silently running tests against whatever the host has.
+ * TS builds use `tsc --noEmit` + `vitest run` from the repo's own node_modules.
+ * Python builds probe the host for python 3.12+ and the three pytest-* deps; when
+ * everything is present we run the same compileall + pytest --json-report sequence as
+ * the sandbox and reuse parsePytestOutput. Missing deps raise a clear error with the
+ * exact `pip install` line.
  */
-export function createLocalRunner(opts: { root?: string; timeoutMs?: number } = {}): SandboxRunner {
+export function createLocalRunner(opts: { root?: string; timeoutMs?: number; pythonBin?: string } = {}): SandboxRunner {
   const root = opts.root ?? findRepoRoot(process.cwd())
   const tscEntry = join(root, 'node_modules', 'typescript', 'bin', 'tsc')
   const vitestEntry = join(root, 'node_modules', 'vitest', 'vitest.mjs')
   const timeout = opts.timeoutMs ?? 120_000
+  const pythonBin = opts.pythonBin ?? (process.platform === 'win32' ? 'python' : 'python3')
 
   return {
     async prepare(log) {
-      if (anyFile(opts, 'py')) {
-        throw new Error('Local runner does not support --lang=python. Use PATCHBAY_RUNNER=nebius (default).')
-      }
-      log('Local runner: typecheck and tests run on this machine, not in an isolated sandbox')
+      log('Local runner: tests run on this machine, not in an isolated sandbox')
+      // We don't know the language at prepare() time (prepare is called before any
+      // files exist). The language-specific probe happens on first runTests call
+      // when we actually see which files are coming in.
       return 'local'
     },
 
     async runTests(_base, files, log) {
-      if (files.some((f) => f.path.endsWith('.py'))) {
-        throw new Error('Local runner cannot run Python tests. Use PATCHBAY_RUNNER=nebius for --lang=python.')
-      }
-      const workRoot = join(root, '.fixture-tmp')
-      mkdirSync(workRoot, { recursive: true })
-      const work = mkdtempSync(join(workRoot, 'run-'))
-      try {
-        for (const file of files.filter((f) => f.path.endsWith('.ts'))) write(work, file)
-        writeFileSync(join(work, 'tsconfig.json'), JSON.stringify(TSCONFIG))
-        writeFileSync(join(work, 'vitest.config.mjs'), 'export default { test: { include: ["src/**/*.test.ts"] } }\n')
-        log(`Running tsc and vitest in ${work.replace(root, '.')}`)
-        const tsc = await run(tscEntry, ['--noEmit', '-p', 'tsconfig.json'], work, timeout)
-        await run(vitestEntry, ['run', '--reporter=json', '--outputFile=result.json'], work, timeout)
-        const json = existsSync(join(work, 'result.json')) ? await readText(join(work, 'result.json')) : ''
-        const stdout = `${TSC_MARKER}\n${tsc.code}\n${tsc.output}\n${VITEST_MARKER}\n${json}`
-        return parseTestOutput(stdout, 'local')
-      } finally {
-        rmSync(work, { recursive: true, force: true })
-      }
+      const isPy = files.some((f) => f.path.endsWith('.py'))
+      return isPy
+        ? runPythonTests(files, log, { root, pythonBin, timeout })
+        : runTypeScriptTests(files, log, { root, tscEntry, vitestEntry, timeout })
     },
+  }
+}
+
+interface TsCtx {
+  root: string
+  tscEntry: string
+  vitestEntry: string
+  timeout: number
+}
+
+async function runTypeScriptTests(files: GeneratedFile[], log: (m: string) => void, ctx: TsCtx): Promise<TestReport> {
+  const workRoot = join(ctx.root, '.fixture-tmp')
+  mkdirSync(workRoot, { recursive: true })
+  const work = mkdtempSync(join(workRoot, 'run-'))
+  try {
+    for (const file of files.filter((f) => f.path.endsWith('.ts'))) write(work, file)
+    writeFileSync(join(work, 'tsconfig.json'), JSON.stringify(TSCONFIG))
+    writeFileSync(join(work, 'vitest.config.mjs'), 'export default { test: { include: ["src/**/*.test.ts"] } }\n')
+    log(`Running tsc and vitest in ${work.replace(ctx.root, '.')}`)
+    const tsc = await runNodeEntry(ctx.tscEntry, ['--noEmit', '-p', 'tsconfig.json'], work, ctx.timeout)
+    await runNodeEntry(ctx.vitestEntry, ['run', '--reporter=json', '--outputFile=result.json'], work, ctx.timeout)
+    const json = existsSync(join(work, 'result.json')) ? await readText(join(work, 'result.json')) : ''
+    const stdout = `${TSC_MARKER}\n${tsc.code}\n${tsc.output}\n${VITEST_MARKER}\n${json}`
+    return parseTestOutput(stdout, 'local')
+  } finally {
+    rmSync(work, { recursive: true, force: true })
+  }
+}
+
+interface PyCtx {
+  root: string
+  pythonBin: string
+  timeout: number
+}
+
+async function runPythonTests(files: GeneratedFile[], log: (m: string) => void, ctx: PyCtx): Promise<TestReport> {
+  await probePythonEnv(ctx.pythonBin)
+  const workRoot = join(ctx.root, '.fixture-tmp')
+  mkdirSync(workRoot, { recursive: true })
+  const work = mkdtempSync(join(workRoot, 'py-'))
+  try {
+    for (const file of files.filter((f) => f.path.endsWith('.py'))) write(work, file)
+    writeFileSync(join(work, 'pytest.ini'), '[pytest]\nasyncio_mode = auto\n')
+    log(`Running py_compile and pytest in ${work.replace(ctx.root, '.')}`)
+    const pyc = await runCmd(ctx.pythonBin, ['-m', 'compileall', '-q', '.'], work, ctx.timeout)
+    await runCmd(ctx.pythonBin, ['-m', 'pytest', '-q', '--json-report', '--json-report-file=result.json'], work, ctx.timeout)
+    const json = existsSync(join(work, 'result.json')) ? await readText(join(work, 'result.json')) : ''
+    const stdout = `${PYC_MARKER}\n${pyc.code}\n${pyc.output}\n${PYTEST_MARKER}\n${json}`
+    return parsePytestOutput(stdout, 'local')
+  } finally {
+    rmSync(work, { recursive: true, force: true })
+  }
+}
+
+/**
+ * Verify the host has python >=3.12 and the three test deps we rely on
+ * (pytest, pytest-asyncio, pytest-json-report). Throws with a precise error +
+ * `pip install` line listing exactly which deps are missing.
+ */
+export async function probePythonEnv(pythonBin: string): Promise<void> {
+  const versionOut = await runCmd(pythonBin, ['--version'], process.cwd(), 10_000).catch(() => ({ code: 1, output: '' }))
+  if (versionOut.code !== 0 || !/^Python\s+(\d+)\.(\d+)/.test(versionOut.output)) {
+    throw new Error(`Local runner (python): '${pythonBin}' not found on PATH. Install Python 3.12+ or set PATCHBAY_RUNNER=nebius.`)
+  }
+  const m = /^Python\s+(\d+)\.(\d+)/.exec(versionOut.output)
+  const major = Number(m?.[1] ?? 0)
+  const minor = Number(m?.[2] ?? 0)
+  if (major < 3 || (major === 3 && minor < 12)) {
+    throw new Error(`Local runner (python): found Python ${major}.${minor}, need >=3.12. Upgrade python or set PATCHBAY_RUNNER=nebius.`)
+  }
+  const missing: string[] = []
+  const probe = async (mod: string, pkg: string) => {
+    const res = await runCmd(pythonBin, ['-c', `import ${mod}`], process.cwd(), 10_000).catch(() => ({ code: 1, output: '' }))
+    if (res.code !== 0) missing.push(pkg)
+  }
+  await probe('pytest', 'pytest')
+  await probe('pytest_asyncio', 'pytest-asyncio')
+  await probe('pytest_jsonreport', 'pytest-json-report')
+  if (missing.length) {
+    throw new Error(
+      `Local runner (python): missing ${missing.join(', ')}. Install with:\n` +
+        `  ${pythonBin} -m pip install ${missing.join(' ')}\n` +
+        `Or set PATCHBAY_RUNNER=nebius to use the hosted sandbox.`,
+    )
   }
 }
 
@@ -74,9 +145,19 @@ function write(dir: string, file: GeneratedFile) {
 }
 
 /** Runs a JS entry point with the current node binary, so no shell and no platform-specific wrappers. */
-function run(entry: string, args: string[], cwd: string, timeout: number): Promise<{ code: number; output: string }> {
+function runNodeEntry(entry: string, args: string[], cwd: string, timeout: number): Promise<{ code: number; output: string }> {
   return new Promise((resolve) => {
     execFile(process.execPath, [entry, ...args], { cwd, timeout, maxBuffer: 10_000_000 }, (error, stdout, stderr) => {
+      const code = error ? (typeof error.code === 'number' ? error.code : 1) : 0
+      resolve({ code, output: `${stdout}${stderr}`.slice(0, 6000) })
+    })
+  })
+}
+
+/** Runs an arbitrary external command (python, pytest, …) and captures combined stdout + stderr. */
+function runCmd(bin: string, args: string[], cwd: string, timeout: number): Promise<{ code: number; output: string }> {
+  return new Promise((resolve) => {
+    execFile(bin, args, { cwd, timeout, maxBuffer: 10_000_000 }, (error, stdout, stderr) => {
       const code = error ? (typeof error.code === 'number' ? error.code : 1) : 0
       resolve({ code, output: `${stdout}${stderr}`.slice(0, 6000) })
     })
@@ -86,12 +167,6 @@ function run(entry: string, args: string[], cwd: string, timeout: number): Promi
 async function readText(path: string): Promise<string> {
   const { readFile } = await import('node:fs/promises')
   return readFile(path, 'utf8')
-}
-
-// Placeholder — prepare() doesn't actually have access to files, so this is only ever
-// invoked by runTests. Kept as a hook in case we grow a "detect language from opts" later.
-function anyFile(_opts: unknown, _ext: string): boolean {
-  return false
 }
 
 function findRepoRoot(start: string): string {
