@@ -43,8 +43,11 @@ interface RawVariance {
   totalCostStd?: number
 }
 
-function loadVariance(): Variance {
-  const raw = readFileSync(join(process.cwd(), 'public', 'variance.json'), 'utf8')
+type Lang = 'ts' | 'py'
+
+function loadVariance(lang: Lang): Variance {
+  const file = lang === 'py' ? 'variance-py.json' : 'variance.json'
+  const raw = readFileSync(join(process.cwd(), 'public', file), 'utf8')
   const data = JSON.parse(raw) as RawVariance
   // New shape: summary.{greenRate,firstTryRate,costPerPassUsd,passes,prompts}
   if (data.summary) {
@@ -79,11 +82,14 @@ function loadVariance(): Variance {
   }
 }
 
-export default function BenchPage() {
-  const v = loadVariance()
+export default async function BenchPage({ searchParams }: { searchParams: Promise<{ lang?: string }> }) {
+  const resolved = await searchParams
+  const lang: Lang = resolved?.lang === 'py' ? 'py' : 'ts'
+  const v = loadVariance(lang)
   const greenPct = v.totalGreen / v.totalRuns
   const firstTryPct = v.totalFirstTry / v.totalRuns
   const perConnector = v.totalCostMean / v.prompts.length
+  const langLabel = lang === 'py' ? 'Python 3.12 (pytest)' : 'TypeScript (vitest)'
 
   return (
     <main className="mx-auto max-w-6xl px-4 pb-16 sm:px-6">
@@ -100,10 +106,33 @@ export default function BenchPage() {
           The benchmark that keeps patchbay honest.
         </h1>
         <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-ink-soft">
-          {v.prompts.length} integrations across common and adversarial APIs. Every run goes through the full pipeline
-          — plan, research, generate, verify in a Nebius sandbox, repair with parallel branches. Green means
-          typecheck ok, zero failing tests, and the documented-example contract test passed.
+          {v.prompts.length} integrations across common and adversarial APIs, run as {langLabel}. Every run goes
+          through the full pipeline — plan, research, generate, verify in a Nebius sandbox, repair with parallel
+          branches. Green means typecheck ok, zero failing tests, and the documented-example contract test passed.
         </p>
+
+        <div
+          role="radiogroup"
+          aria-label="Target language"
+          className="mt-5 inline-flex rounded-lg border border-paper-line bg-paper-card p-0.5 text-xs"
+        >
+          <Link
+            href="/bench"
+            aria-checked={lang === 'ts'}
+            role="radio"
+            className={`rounded-md px-3 py-1 transition-colors ${lang === 'ts' ? 'bg-ink text-white' : 'text-ink-soft hover:text-ink'}`}
+          >
+            TypeScript
+          </Link>
+          <Link
+            href="/bench?lang=py"
+            aria-checked={lang === 'py'}
+            role="radio"
+            className={`rounded-md px-3 py-1 transition-colors ${lang === 'py' ? 'bg-ink text-white' : 'text-ink-soft hover:text-ink'}`}
+          >
+            Python
+          </Link>
+        </div>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-4">
@@ -149,7 +178,7 @@ export default function BenchPage() {
       <section className="mt-8 rounded-xl border border-paper-line bg-paper px-4 py-3 text-xs text-ink-soft">
         Reproduce it yourself:{' '}
         <code className="code rounded bg-paper-card px-1.5 py-0.5">
-          git clone github.com/GodSmasher/patchbay && cd patchbay && npm install && npm run bench -- --passes=5
+          git clone github.com/GodSmasher/patchbay && cd patchbay && npm install && npm run bench {lang === 'py' ? '-- --lang=python ' : ''}-- --passes=5
         </code>
         . Needs live keys in <code className="code">.env.local</code> (<code>NEBIUS_API_KEY</code>,{' '}
         <code>NEBIUS_AI_PROJECT</code>, <code>TAVILY_API_KEY</code>). The raw per-run JSON lives in{' '}
