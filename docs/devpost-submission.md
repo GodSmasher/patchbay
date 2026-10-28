@@ -157,16 +157,15 @@ It's one thing to turn a sentence into code. It's another to turn a codebase int
 
 ### We fine-tune our own repair model on our own benchmark runs
 
-Every patchbay benchmark run is a record of the agent failing and then fixing itself. 68 of those `(red draft + failing test) → green draft` moments across five benchmark passes make a domain-matched training set — and Nebius Token Factory ships an OpenAI-compatible fine-tune endpoint that eats exactly this format. So we fine-tune a repair-focused **Nemotron 3.5 Lightning** on patchbay's own repair history.
+Every patchbay benchmark run is a record of the agent failing and then fixing itself. **109 of those `(red draft + failing test) → green draft` moments** across the committed benchmark passes make a domain-matched training set — and Nebius Token Factory ships an OpenAI-compatible fine-tune endpoint that eats exactly this format. So we fine-tune a repair-focused **Qwen3-30B-A3B-Instruct-2507** (the smallest instruction model Token Factory lets us fine-tune, active 3B parameters) on patchbay's own repair history.
 
-If it matches **Nemotron 3 Ultra 550B** (patchbay's current repair model) on the held-out eval set, we close the loop: patchbay generates benchmark runs → runs train its own repair model → next benchmark's repair cost drops ~50× while the green rate holds. All in-repo:
+The deployment side closes the loop with a second Nebius product. Token Factory serves fine-tunes behind an invitation-only Custom Weights beta we're not in, but the Nebius Support team confirmed (2026-10-28) that trained checkpoints come out via `/fine_tuning/jobs/{id}/checkpoints`. We pull the weights, deploy them on a **Nebius AI Cloud GPU** (H100 or H200) behind an OpenAI-compatible vLLM endpoint, and point patchbay at that endpoint via `PATCHBAY_LLM_BASE_URL=…`. **Three Nebius products in one closed loop:** Token Factory Inference (live agent) → Token Factory Post-training (fine-tune) → AI Cloud GPU (serve the fine-tune).
 
-- `bench/training-data.jsonl` — 68 real red→green repair pairs, extracted from committed benchmark runs. Also published on HuggingFace: [patchbay-nebius/connector-repair-dataset](https://huggingface.co/datasets/patchbay-nebius/connector-repair-dataset)
-- `scripts/finetune.ts` — Nebius Token Factory fine-tune job launcher
+- `bench/training-{train,eval}.jsonl` — 98 train + 11 eval real red→green repair pairs, extracted from committed benchmark runs. Also published on HuggingFace: [patchbay-nebius/connector-repair-dataset](https://huggingface.co/datasets/patchbay-nebius/connector-repair-dataset)
+- `scripts/finetune.ts` — Nebius Token Factory fine-tune job launcher (takes `--context=32768` to fit our 20k-token repair pairs)
+- `scripts/finetune-checkpoint.ts` — retrieve the finished checkpoint URL from Token Factory and print the AI Cloud deploy next steps
 - `scripts/eval-repair.ts` — format, file-coverage and line-overlap metrics against a held-out eval split
-- Full plan + results: `docs/finetune.md`
-
-This loop uses Token Factory for both inference and fine-tuning, and the dataset is the committed benchmark runs — not scraped from anywhere else.
+- Full plan + status: `docs/finetune.md`
 
 ### Why not just ask Claude Code / Cursor / Codex yourself?
 
@@ -179,7 +178,7 @@ Same connector, same requirements, rough per-connector cost:
 
 The agent in your editor is a generalist. For integration work — read the docs, map fields, write it, prove it — a specialized pipeline on cheap-but-capable Nemotron models beats a general-purpose agent on expensive ones.
 
-patchbay sits inside Claude Code / Cursor / Codex as an MCP server, so you keep the generalist for architecture and refactors, and hand off connector work to patchbay. Your Claude usage bill goes down for the task Claude is slowest *and* most expensive at. The generated connector is plain TypeScript in your repo — read it, change it, ship it.
+patchbay sits inside Claude Code / Cursor / Codex as an MCP server with four tools: `scan_repo` (walk any repo or GitHub URL, surface integration opportunities with ready-to-run prompts), `research_api` (plan + Tavily-backed API research, no code), `build_connector` (full pipeline, TypeScript or Python via a `lang` arg), and `verify_code` (verify + repair an existing connector). You keep the generalist for architecture and refactors, and hand off connector work to patchbay. Your Claude usage bill goes down for the task Claude is slowest *and* most expensive at. The generated connector is plain TypeScript or Python 3.12 in your repo — read it, change it, ship it.
 
 ### Accomplishments we're proud of
 
