@@ -9,9 +9,10 @@ Three tools exposed over stdio:
 
 | Tool | What it does |
 |---|---|
-| `build_connector` | Full pipeline: plan → research → generate → verify (with repair). Returns files. |
+| `scan_repo` | Walk a local directory or a GitHub URL, surface integration opportunities (webhook stubs, env-vars, TODOs, vendor SDK imports). Returns a ranked list with a ready-to-run prompt per opportunity. TypeScript + Python aware. |
+| `build_connector` | Full pipeline: plan → research → generate → verify (with repair). Returns files. `lang: "ts"` (default) or `lang: "py"`. |
 | `research_api` | Plan + Tavily research only. Returns the spec. Cheap and fast. |
-| `verify_code` | Type-check + vitest existing files in a Nebius sandbox, with repair. |
+| `verify_code` | Type-check + test existing files in a Nebius sandbox, with repair. Auto-detects language from file extensions. |
 
 Each tool streams `notifications/progress` and `notifications/message` while it runs, so clients show live progress through plan → research → generate → verify.
 
