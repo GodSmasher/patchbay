@@ -4,6 +4,29 @@
 
 Overall: **87.6% green** · **48.6% first-try green** · **$0.0696 per connector on the core set**
 
+### Model ablation: TS Core 20 × 3 passes with Super 120B as strong (2026-10-28)
+
+Same 20 prompts and same budget as the TS Core 20 run above, with
+`PATCHBAY_MODEL_STRONG=nvidia/nemotron-3-super-120b-a12b` instead of the
+Ultra 550B default. The question: does the mid-tier Nemotron get us the same
+green rate at a lower price?
+
+| | Ultra 550B (baseline) | Super 120B (ablation) |
+| --- | --- | --- |
+| green  | **90.2%** (83/92) | **46.7%** (28/60) |
+| first-try | 52.2% | 8.3% |
+| cost / build | $0.0696 | $0.0638 |
+
+Super runs 10% cheaper per call than Ultra on the raw numbers, but spends
+those savings on extra repair attempts (first-try drops from 52% → 8%), so
+cost per build lands essentially unchanged. **The green rate halves**:
+Super gets stuck on exactly the shapes Ultra solves on attempt 2–3 —
+multi-step upserts, chained flows, cursor pagination logic. Honest
+takeaway: Ultra isn't overkill for this task; the strong-step is where
+the agent's quality lives.
+
+Numbers in `scratchpad/variance_ts_super_out/summary.json`.
+
 ### Python Core 20 variance pass (2026-10-28)
 
 Full apples-to-apples pass against the TS Core 20 above: **same 20 prompts,
