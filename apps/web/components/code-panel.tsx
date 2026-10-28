@@ -1,12 +1,22 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import type { GeneratedFile, Lang, TestReport } from '@patchbay-nebius/agent'
+import type { ApiSpec, GeneratedFile, Lang, Plan, TestReport, Usage } from '@patchbay-nebius/agent'
 
 interface Draft {
   attempt: number
   files: GeneratedFile[]
   report: TestReport | null
+}
+
+export interface EvidenceContext {
+  /** The user's one-sentence prompt — the whole thing starts here. */
+  prompt?: string
+  plan?: Plan | null
+  spec?: ApiSpec | null
+  usage?: Usage[]
+  result?: { ok: boolean; attempts: number } | null
+  startedAt?: string
 }
 
 // The main source file in each language — used as the default tab when the panel first renders.
@@ -15,7 +25,7 @@ const DEFAULT_PATH_BY_LANG: Record<Lang, string> = {
   py: 'connector.py',
 }
 
-export function CodePanel({ drafts, finalOk, lang }: { drafts: Draft[]; finalOk: boolean | null; lang: Lang }) {
+export function CodePanel({ drafts, finalOk, lang, evidence }: { drafts: Draft[]; finalOk: boolean | null; lang: Lang; evidence?: EvidenceContext }) {
   const [attempt, setAttempt] = useState(1)
   const [path, setPath] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
@@ -48,6 +58,122 @@ export function CodePanel({ drafts, finalOk, lang }: { drafts: Draft[]; finalOk:
     URL.revokeObjectURL(url)
   }
 
+  async function downloadEvidence() {
+    const { default: JSZip } = await import('jszip')
+    const zip = new JSZip()
+    const timestamp = new Date().toISOString()
+    const sha256Hex = async (text: string): Promise<string> => {
+      const buf = new TextEncoder().encode(text)
+      const hash = await crypto.subtle.digest('SHA-256', buf)
+      return [...new Uint8Array(hash)].map((b) => b.toString(16).padStart(2, '0')).join('')
+    }
+
+    // Final deliverable — the connector files from the best attempt
+    const final = drafts[drafts.length - 1]
+    const finalDir = zip.folder('connector')!
+    const hashes: Record<string, string> = {}
+    for (const f of final?.files ?? []) {
+      finalDir.file(f.path, f.content)
+      hashes[`connector/${f.path}`] = await sha256Hex(f.content)
+    }
+
+    // Every attempt — files + report — so a judge can audit the repair trajectory
+    const trajDir = zip.folder('trajectory')!
+    for (const d of drafts) {
+      const attDir = trajDir.folder(`attempt-${d.attempt}`)!
+      for (const f of d.files) {
+        attDir.file(f.path, f.content)
+        hashes[`trajectory/attempt-${d.attempt}/${f.path}`] = await sha256Hex(f.content)
+      }
+      if (d.report) {
+        const reportJson = JSON.stringify(d.report, null, 2)
+        attDir.file('report.json', reportJson)
+        hashes[`trajectory/attempt-${d.attempt}/report.json`] = await sha256Hex(reportJson)
+      }
+    }
+
+    // Prompt + plan + spec — the research breadcrumb a reviewer can follow back to the vendor docs
+    if (evidence?.prompt) zip.file('prompt.txt', evidence.prompt)
+    if (evidence?.plan) zip.file('plan.json', JSON.stringify(evidence.plan, null, 2))
+    if (evidence?.spec) zip.file('spec.json', JSON.stringify(evidence.spec, null, 2))
+
+    // Model usage with cost — exactly what patchbay charged against the Nebius Token Factory account
+    if (evidence?.usage?.length) {
+      const costUsd = evidence.usage.reduce((s, u) => s + u.costUsd, 0)
+      const usageDoc = {
+        totalCostUsd: costUsd,
+        calls: evidence.usage.map((u) => ({
+          model: u.model,
+          promptTokens: u.promptTokens,
+          completionTokens: u.completionTokens,
+          costUsd: u.costUsd,
+        })),
+      }
+      zip.file('usage.json', JSON.stringify(usageDoc, null, 2))
+    }
+
+    // Sandbox operation IDs — the auditable breadcrumb inside Nebius
+    const sandboxOps = drafts
+      .map((d) => d.report?.ranOn)
+      .filter((x): x is string => !!x && x.startsWith('nebius-sandbox:'))
+      .map((s) => s.replace('nebius-sandbox:', ''))
+
+    const manifest = {
+      kind: 'patchbay-evidence',
+      version: 1,
+      issuedAt: timestamp,
+      prompt: evidence?.prompt ?? null,
+      lang,
+      attempts: drafts.length,
+      finalResult: evidence?.result ?? (final?.report ? { ok: final.report.failed === 0 && final.report.typecheckOk && (final.report.contract === undefined || final.report.contract === 'passed'), attempts: drafts.length } : null),
+      finalReport: final?.report ?? null,
+      sandboxOperationIds: sandboxOps,
+      sha256: hashes,
+      verify: {
+        hashAlgo: 'sha256',
+        notes: [
+          'Every file under connector/ and trajectory/ is listed in sha256{} with its hex digest.',
+          'Recompute locally: `shasum -a 256 connector/connector.py` (or sha256sum on linux). Must match this manifest.',
+          'The sandboxOperationIds are the Nebius Token Factory operations that ran the tests. They are retained in your project history for audit.',
+          'usage.json carries the per-call model usage billed against your Nebius account for this build.',
+        ],
+      },
+    }
+    zip.file('manifest.json', JSON.stringify(manifest, null, 2))
+
+    const readmeMd = [
+      '# patchbay — evidence export',
+      '',
+      '`manifest.json` is the single source of truth. Every artifact here is referenced from it, and every file has a SHA-256 in `manifest.sha256`.',
+      '',
+      '## Contents',
+      '- `connector/` — the final (green) connector files you can drop into a repo',
+      '- `trajectory/attempt-N/` — every attempt the agent made, including the files and the test report for that attempt',
+      '- `prompt.txt` — the one-sentence prompt that started it',
+      '- `plan.json` — the plan step (source app, target app, field mapping)',
+      '- `spec.json` — the researched API spec (endpoints, auth, example payloads) from the docs',
+      '- `usage.json` — model calls and cost (per call and total)',
+      '- `manifest.json` — issuedAt, prompt, final result, sandbox operation IDs, sha256 of every file, and verify instructions',
+      '',
+      '## Verify',
+      '```bash',
+      '# recompute every file hash and compare against manifest.sha256',
+      'jq -r \'.sha256 | to_entries[] | "\\(.value)  \\(.key)"\' manifest.json | shasum -a 256 -c',
+      '```',
+      '',
+      'The `sandboxOperationIds` in manifest.json are Nebius Token Factory operations that ran the tests inside an isolated sandbox with networking off. Your Nebius project retains them in its operation history.',
+    ].join('\n')
+    zip.file('README.md', readmeMd)
+
+    const blob = await zip.generateAsync({ type: 'blob' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `patchbay-evidence-${timestamp.replace(/[:.]/g, '-')}.zip`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   async function copy() {
     if (!file) return
     await navigator.clipboard.writeText(file.content)
@@ -74,6 +200,14 @@ export function CodePanel({ drafts, finalOk, lang }: { drafts: Draft[]; finalOk:
         <div className="flex gap-1">
           <button onClick={copy} className="rounded-md px-2.5 py-1 text-xs text-ink-soft hover:bg-paper">
             {copied ? 'Copied' : 'Copy file'}
+          </button>
+          <button
+            onClick={downloadEvidence}
+            disabled={drafts.length === 0}
+            title="Full audit bundle: every attempt, the final files, the plan/spec, model usage, sandbox op ids, and sha-256 hashes"
+            className="rounded-md border border-paper-line px-2.5 py-1 text-xs text-ink-soft hover:bg-paper disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Evidence .zip
           </button>
           <button
             onClick={download}

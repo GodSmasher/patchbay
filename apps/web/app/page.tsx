@@ -254,7 +254,18 @@ export default function Home() {
               <ShareBar sharing={sharing} shareUrl={shareUrl} onShare={onShare} />
             )}
             {activeRun.state.drafts.length > 0 && (
-              <CodePanel drafts={activeRun.state.drafts} finalOk={activeRun.state.result?.ok ?? null} lang={activeRun.state.lang} />
+              <CodePanel
+                drafts={activeRun.state.drafts}
+                finalOk={activeRun.state.result?.ok ?? null}
+                lang={activeRun.state.lang}
+                evidence={{
+                  prompt,
+                  plan: activeRun.state.plan,
+                  spec: activeRun.state.spec,
+                  usage: activeRun.state.usage,
+                  result: activeRun.state.result,
+                }}
+              />
             )}
             {activeRun.state.plan && (
               <PlanCard
@@ -298,8 +309,8 @@ export default function Home() {
           )}
 
           <div className="grid gap-5 lg:grid-cols-2">
-            <RunColumn label="TypeScript · vitest" state={tsRun.state} />
-            <RunColumn label="Python 3.12 · pytest" state={pyRun.state} />
+            <RunColumn label="TypeScript · vitest" state={tsRun.state} prompt={prompt} />
+            <RunColumn label="Python 3.12 · pytest" state={pyRun.state} prompt={prompt} />
           </div>
 
           {(tsRun.state.plan || pyRun.state.plan) && (
@@ -371,7 +382,7 @@ function ShareBar({ sharing, shareUrl, onShare }: { sharing: boolean; shareUrl: 
  * sidebar — too narrow in a two-column layout — so Timeline collapses into
  * the column header.
  */
-function RunColumn({ label, state }: { label: string; state: RunState }) {
+function RunColumn({ label, state, prompt }: { label: string; state: RunState; prompt?: string }) {
   const cost = state.usage.reduce((sum, u) => sum + u.costUsd, 0)
   const result = state.result
   const status = result
@@ -402,7 +413,18 @@ function RunColumn({ label, state }: { label: string; state: RunState }) {
         <div className="rounded-xl border border-warn/30 bg-warn-soft px-4 py-3 text-sm text-warn">{state.error}</div>
       )}
       {state.drafts.length > 0 && (
-        <CodePanel drafts={state.drafts} finalOk={state.result?.ok ?? null} lang={state.lang} />
+        <CodePanel
+          drafts={state.drafts}
+          finalOk={state.result?.ok ?? null}
+          lang={state.lang}
+          evidence={{
+            prompt,
+            plan: state.plan,
+            spec: state.spec,
+            usage: state.usage,
+            result: state.result,
+          }}
+        />
       )}
     </div>
   )
