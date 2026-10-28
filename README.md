@@ -5,8 +5,9 @@
 
 [![ci](https://github.com/GodSmasher/patchbay/actions/workflows/ci.yml/badge.svg)](https://github.com/GodSmasher/patchbay/actions/workflows/ci.yml)
 [![status](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fpatchbay.openstatus.dev%2Fapi%2Fstatus%2Fcurrent.json&query=%24.status.description&label=status&color=brightgreen)](https://patchbay.openstatus.dev)
-[![benchmark](https://img.shields.io/badge/benchmark-90%25%20green%20over%2092%20runs-brightgreen)](bench/RESULTS-variance.md)
-[![mcp](https://img.shields.io/badge/MCP-stdio-6938EF)](docs/mcp-setup.md)
+[![benchmark](https://img.shields.io/badge/benchmark-90%25%20TS%20%C2%B7%2073%25%20Py%20over%20192%20runs-brightgreen)](bench/RESULTS-variance.md)
+[![mcp](https://img.shields.io/badge/MCP-4%20tools-6938EF)](docs/mcp-setup.md)
+[![huggingface](https://img.shields.io/badge/%F0%9F%A4%97%20dataset-connector--repair-FF9D00)](https://huggingface.co/datasets/patchbay-nebius/connector-repair-dataset)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![nebius](https://img.shields.io/badge/powered%20by-Nebius%20Token%20Factory-0F172A)](https://tokenfactory.nebius.com)
 
@@ -24,7 +25,7 @@
   <a href="https://www.npmjs.com/package/@patchbay-nebius/agent"><img src="https://img.shields.io/badge/-npm-CB3837?style=for-the-badge&logo=npm&logoColor=white" alt="npm" height="28"/></a>
 </p>
 
-**Describe an integration in one sentence. Get a tested connector — in TypeScript or Python.**
+**Describe an integration in one sentence. Get a tested connector — TypeScript or Python — that already passed its own tests.**
 
 ```
 # TypeScript (vitest + injected fetch)
@@ -34,7 +35,23 @@ patchbay build "When a Stripe payment succeeds, add the customer to a Mailchimp 
 patchbay build --lang=python "When a Stripe payment succeeds, add the customer to a Mailchimp audience with the plan as a tag"
 ```
 
-Same prompt in → tested connector out, in either language. The plan + research steps are language-agnostic (one LLM call budget serves both); only the generate step and the sandbox swap.
+**90.2% green on TS Core 20 · 73.3% green on Python Core 20 · 70.0% on Python Brutal 20 — measured across 192 live Nebius Sandbox runs with per-run JSON committed to the repo.** Fine-tune running right now on Nebius Token Factory Post-training (Qwen3-30B-A3B on 109 of patchbay's own red→green repair pairs). Dual-language toggle on the live site at **https://patchbay-nebius.vercel.app**, public uptime at **https://patchbay.openstatus.dev**, open-source training dataset on [🤗 patchbay-nebius/connector-repair-dataset](https://huggingface.co/datasets/patchbay-nebius/connector-repair-dataset).
+
+## The numbers
+
+Every row is a live Nebius Sandbox run with the per-attempt files, test report and sandbox operation id committed under [`bench/runs/`](bench/runs/) — not cherry-picked cases. Full tables and per-prompt breakdowns in [bench/RESULTS-variance.md](bench/RESULTS-variance.md).
+
+| Set | Shape | Runs | Green | First-try | Cost / build |
+|---|---|---|---|---|---|
+| **TS Core 20** | common integrations (Stripe→Mailchimp, Shopify→Airtable, …) | 92 | **90.2%** | 52.2% | $0.07 |
+| **TS Brutal 10** | adversarial (OAuth refresh, WebSocket, HMAC, cursor paging) | 13 | 69.2% | 23.1% | $0.18 |
+| **Python Core 20** | same 20 prompts as TS Core, Python+pytest sandbox | 60 | **73.3%** | 31.7% | $0.07 / green build |
+| **Python Brutal 20** | adversarial (SOAP, GraphQL federation, long-poll, dedup) | 40 | **70.0%** | — | $0.16 |
+| TS × Nemotron Super ablation | strong-step downgraded 550B → 120B, same prompts | 60 | 46.7% | 8.3% | $0.06 |
+
+**Reading these:** the common-case Python gap (17 points vs TS Core) **closes on hard cases** — Python Brutal matches TS Brutal within one point. The Super ablation shows Ultra isn't overkill: dropping to the mid-tier halves the green rate because the saved per-call cost gets eaten by extra repair attempts.
+
+## How it works
 
 patchbay runs five steps:
 
@@ -46,6 +63,30 @@ patchbay runs five steps:
 
 Every endpoint in the spec comes with an example payload taken from the documentation; the generated test harness runs the connector against that payload (the "contract" check), so a run only counts as green when the generated code actually works with the shape the real API returns.
 
+## Dual-language, first-class
+
+TypeScript and Python share one plan + research step — only the generate prompt, the sandbox image and the test harness swap. The hosted demo at [patchbay-nebius.vercel.app](https://patchbay-nebius.vercel.app) has a **TypeScript · Python · Both** toggle; "Both" fires two live Nebius pipelines side-by-side so you watch the same prompt land in both languages at once.
+
+The Python target ships `fixtures.py` with the same shape as `src/fixtures.ts`: `SOURCE_EXAMPLE`, `TARGET_ENDPOINTS`, `contract_fetch()`, `fake_fetch()`, `json_response()`. Connectors export `async def handle(payload, config)` with an injected async transport in `config['fetch']`, so tests stay hermetic (no network, no real httpx client). URL matcher handles placeholder segments (`{id}`, `:id`, `<id>`) and region subdomains. See [bench/RESULTS-variance.md](bench/RESULTS-variance.md#python-core-20-variance-pass-2026-10-28) for the per-prompt breakdown.
+
+**Carve-outs:** `PATCHBAY_RUNNER=local` only runs TS. The hosted site's recorded replays are TS-only recordings, so without live keys the Python toggle shows the TS replay with a note.
+
+## Training our own repair model on our own benchmark runs
+
+Every patchbay benchmark run is a record of the agent failing and then fixing itself. **109** of those `(red draft + failing test report) → green draft` moments across the committed benchmark passes make a domain-matched training set — and Nebius Token Factory ships an OpenAI-compatible fine-tune endpoint that eats exactly this format. So we're fine-tuning **Qwen/Qwen3-30B-A3B-Instruct-2507** on patchbay's own repair history. The deployment path uses a second Nebius product: trained checkpoints come out via `/fine_tuning/jobs/{id}/checkpoints`, land on a Nebius AI Cloud GPU (H100 / H200) behind a vLLM OpenAI-compatible endpoint, and `PATCHBAY_LLM_BASE_URL` points patchbay at the self-hosted model. **Three Nebius products in one closed loop:** Token Factory Inference (live agent) → Token Factory Post-training (fine-tune) → AI Cloud GPU (serve the fine-tune).
+
+- [`bench/training-{train,eval}.jsonl`](bench/) — 98 train + 11 eval real red→green repair pairs, extracted from committed benchmark runs. Also mirrored on HuggingFace as [patchbay-nebius/connector-repair-dataset](https://huggingface.co/datasets/patchbay-nebius/connector-repair-dataset) with a train/eval split.
+- [`scripts/finetune.ts`](scripts/finetune.ts) — upload / start / watch Nebius fine-tune jobs (takes `--context=32768` to fit our 20k-token repair pairs).
+- [`scripts/finetune-checkpoint.ts`](scripts/finetune-checkpoint.ts) — poll a job to completion, fetch the checkpoint URL, print the exact AI Cloud deploy next steps.
+- [`scripts/vllm-deploy/`](scripts/vllm-deploy/) — Dockerfile + run.sh to serve the fine-tuned weights on an H100 / H200.
+- [`scripts/bench-finetuned-ablation.ts`](scripts/bench-finetuned-ablation.ts) — side-by-side fine-tuned vs Ultra-baseline over the TS Core 20.
+- [`scripts/eval-repair.ts`](scripts/eval-repair.ts) — format, file-coverage and line-overlap metrics against the held-out eval split.
+- Full plan + status (updated as the job progresses): [docs/finetune.md](docs/finetune.md).
+
+## Evidence export
+
+Every live build offers a one-click Evidence download — the generated files, every repair attempt, the sandbox operation IDs you can look up on Nebius, model usage, timestamps and SHA-256 hashes. Trust but verify.
+
 ## Three ways to call it
 
 **CLI** – [`@patchbay-nebius/agent`](https://www.npmjs.com/package/@patchbay-nebius/agent) on npm
@@ -54,13 +95,13 @@ Every endpoint in the spec comes with an example payload taken from the document
 npx -y @patchbay-nebius/agent build "When a Stripe payment succeeds, add the customer to a Mailchimp audience"
 # or
 npm install -g @patchbay-nebius/agent
-patchbay build   [--record] "<one-sentence integration>"
-patchbay research           "<one-sentence integration>"
-patchbay verify  <directory>
-patchbay scan    <directory> [--build-top=<n>]
+patchbay build   [--record] [--lang=python] "<one-sentence integration>"
+patchbay research [--lang=python]            "<one-sentence integration>"
+patchbay verify  [--lang=python] <directory>
+patchbay scan    <directory-or-github-url> [--build-top=<n>] [--lang=python]
 ```
 
-**`patchbay scan <dir-or-github-url>` — autonomous repo scanner.** Walks any repository (local directory OR a GitHub URL, which patchbay shallow-clones for you) and reports the integration opportunities patchbay could build: webhook handlers that only contain `TODO` or `throw not implemented`, `.env.example` entries pointing at vendor APIs that have no implementation, TODO/FIXME comments mentioning Stripe/Mailchimp/Shopify/… and vendor SDKs that are imported but barely used. Each opportunity ships with a ready-to-run prompt and a priority score; `--build-top=N` runs the full pipeline on the top N automatically.
+**`patchbay scan <dir-or-github-url>` — autonomous repo scanner.** Walks any repository (local directory OR a GitHub URL, which patchbay shallow-clones for you) and reports the integration opportunities patchbay could build: TypeScript Express/Next/Fastify webhook handlers that only contain `TODO` or `throw not implemented`, **Python FastAPI/Flask routes with `pass` bodies or `raise NotImplementedError`**, `.env.example` entries pointing at vendor APIs with no implementation, TODO/FIXME comments mentioning Stripe/Mailchimp/Shopify/… and vendor SDKs that are imported but barely used. Each opportunity ships with a ready-to-run prompt and a priority score; `--build-top=N` runs the full pipeline on the top N automatically.
 
 ```
 npx -y @patchbay-nebius/agent scan https://github.com/<some>/<repo>
@@ -68,7 +109,7 @@ npx -y @patchbay-nebius/agent scan https://github.com/<some>/<repo>
 
 **MCP server** – [`@patchbay-nebius/mcp`](https://www.npmjs.com/package/@patchbay-nebius/mcp) on npm, stdio transport.
 
-Three tools (`build_connector`, `research_api`, `verify_code`) with live progress and logging notifications.
+**Four tools** — `scan_repo` (any local path or GitHub URL, returns ranked opportunities with ready-to-run prompts; TS + Python aware), `build_connector` (full pipeline, `lang: "ts" | "py"`), `research_api` (plan + Tavily spec, no code), `verify_code` (sandbox verify + repair existing files, auto-detects language). Live progress + logging notifications.
 
 ```
 claude mcp add patchbay -- npx -y @patchbay-nebius/mcp
@@ -76,11 +117,11 @@ claude mcp add patchbay -- npx -y @patchbay-nebius/mcp
 
 Full setup for Claude Code, Codex and Cursor in [docs/mcp-setup.md](docs/mcp-setup.md).
 
-**Web app** – `apps/web`, Next.js 14 on port 3400. Live demo at **https://patchbay-nebius.vercel.app**. The same UI streams a live Nebius run or, past the 6/hour per-IP rate limit, the recorded replay. Public uptime at **https://patchbay.openstatus.dev**.
+**Web app** – `apps/web`, Next.js 14 on port 3400. Live demo at **https://patchbay-nebius.vercel.app**. The same UI streams a live Nebius run or, past the 6/hour per-IP rate limit, the recorded replay. Shareable scan URLs (`?scan=owner/name`) and shareable run URLs. Public uptime at **https://patchbay.openstatus.dev**.
 
 **Slack** – `/patchbay <one-sentence integration>` as a slash command. Setup in [docs/slack-setup.md](docs/slack-setup.md); the endpoint lives at `apps/web/app/api/slack/command/route.ts` on the same Vercel deploy.
 
-**GitHub PR** – comment `/patchbay build "<integration>"` on any PR and the workflow in `.github/workflows/patchbay-pr.yml` runs the full pipeline, attaches the generated connector as an artifact and replies with the test score. Needs the three Nebius / Tavily secrets configured in the repo.
+**GitHub PR** – comment `/patchbay build "<integration>"` on any PR and the workflow in [`.github/workflows/patchbay-pr.yml`](.github/workflows/patchbay-pr.yml) runs the full pipeline, attaches the generated connector as an artifact and replies with the test score. Needs the three Nebius / Tavily secrets configured in the repo.
 
 ## Why not just ask Claude Code / Cursor / Codex yourself?
 
@@ -101,18 +142,6 @@ The agent in your IDE is a generalist. For integration connectors — read the d
 
 The generated connector is **plain TypeScript — or Python 3.12 — in your repo**, no runtime dependency on patchbay. Read it, change it, ship it.
 
-## Python target (`--lang=python`)
-
-Everything through plan + research is language-agnostic. `--lang=python` swaps the generate / repair prompts and the sandbox: `python:3.12-slim` + `pytest` + `pytest-asyncio` + `pytest-json-report`, with `python -m compileall` + `pytest -q --json-report` as the gate. The connector shape mirrors the TypeScript one — an async `handle(payload, config)`, an injected async transport in `config['fetch']` (so tests stay hermetic), a `fixtures.py` written by patchbay from the researched spec with `SOURCE_EXAMPLE`, `TARGET_ENDPOINTS`, `contract_fetch()`, `fake_fetch()` and `json_response()`.
-
-```
-patchbay build --lang=python "When a Stripe payment succeeds, add the customer to a Mailchimp audience with the plan as a tag"
-```
-
-A full variance pass over the TS Core 20 — **same 20 prompts × 3 passes = 60 live Nebius builds**: **44/60 green (73.3%), $0.07 per green build (identical to TS).** Nine prompts land 3/3 green. A separate adversarial Brutal-20 pass (OAuth refresh, GraphQL federation, HMAC verification, cursor pagination, SOAP, WebSocket, long-poll) runs **28/40 green (70%) — at parity with the TS Brutal (69%)**. The 17-point gap on common cases closes on hard cases. Both tables in [bench/RESULTS-variance.md](bench/RESULTS-variance.md#python-core-20-variance-pass-2026-10-28).
-
-**Not supported for Python:** the local runner (`PATCHBAY_RUNNER=local`), which only runs TS. Live replay runs on the hosted demo are also TS-only recordings, so without live keys the Python toggle shows the TS replay with a note.
-
 ## Selfhost
 
 ```bash
@@ -127,29 +156,7 @@ The Dockerfile is a three-stage build (deps → build → runtime) producing a ~
 
 ## Build in public
 
-What broke this week and how it got fixed is in [docs/build-log.md](docs/build-log.md). Short version: nested-contract regex (+2 benchmark points), parallel-repair fiasco (reverted), monotonic repair (never regress past the best attempt), timestamp prompt (don't reject the documented example), esbuild preflight (first-try rate 33% → 52%), Vercel monorepo pain (three fixes, one deploy).
-
-## Training a repair model on our own benchmark runs
-
-Every patchbay benchmark run is a record of the agent failing and then fixing itself. 68 of those `(red draft + failing test report) → green draft` moments across five benchmark passes make a tiny domain-matched training set — and Nebius Token Factory ships an OpenAI-compatible fine-tune endpoint that eats exactly this format.
-
-So we're fine-tuning a repair-focused **Nemotron 3.5 Lightning** on patchbay's own repair history. If it matches **Nemotron 3 Ultra 550B** (patchbay's current repair model) on the held-out eval set, we close the loop: patchbay generates benchmark runs → runs train its own repair model → next benchmark's repair cost drops ~50× while the green rate holds. The dataset, launcher and eval harness are all in-repo:
-
-- `bench/training-data.jsonl` — 68 real red→green repair pairs, extracted from committed benchmark runs. Also mirrored on HuggingFace as [patchbay-nebius/connector-repair-dataset](https://huggingface.co/datasets/patchbay-nebius/connector-repair-dataset) together with 111 synthetic perturbations and a train/eval split
-- `scripts/finetune.ts` — upload / start / watch Nebius fine-tune jobs
-- `scripts/eval-repair.ts` — format, file-coverage and line-overlap metrics against a held-out eval split
-- Full plan + numbers (as they come in): [docs/finetune.md](docs/finetune.md)
-
-## Status
-
-Live benchmark (Core 20 at 5 passes on 2026-10-06 + Brutal 10 at 2 passes on 2026-10-21, Nebius sandbox):
-
-- **Core 20 prompts** (Typeform → Pipedrive, Shopify → Airtable, Stripe → Mailchimp, …): **90.2% green · 52% first-try · $0.07/connector** (5 passes × 20 prompts = 92 runs incl. retries, 2026-10-06)
-- **Brutal 10 extensions** (WebSocket to Pusher, OAuth2 refresh, chained flows, S3 presigned URL, GraphQL nested mutations, HMAC-signed server events): **69% green · 23% first-try · $0.17/connector** (2026-10-21)
-
-The 2026-10-06 run on the 20-prompt core — 5 full passes, 90.2% green, $0.07/connector — is still in [bench/RESULTS-variance.md](bench/RESULTS-variance.md) for the longer-horizon variance picture. This October 21 run adds the brutal 10 to the same bench and shows what happens when you point patchbay at the harder half of the real integration zoo.
-
-The pre-sandbox esbuild parse check, parallel repair branches (temperatures 0.1 / 0.4), monotonic repair (never regress past the best attempt so far), undici-level retry on `UND_ERR_SOCKET` / `fetch failed`, and the `RETRY SEMANTICS` + `CURSOR PAGINATION` rules in the generate prompt are what make the brutal 10 reach 69% instead of ~40%.
+What broke this week and how it got fixed is in [docs/build-log.md](docs/build-log.md). Short version: nested-contract regex (+2 benchmark points), parallel-repair fiasco (reverted), monotonic repair (never regress past the best attempt), timestamp prompt (don't reject the documented example), esbuild preflight (first-try rate 33% → 52%), Vercel monorepo pain (three fixes, one deploy), URL FIDELITY + idempotent-upsert worked examples for Python (closed 2 of the hardest TS→Python green-rate gaps).
 
 ## Dev
 
@@ -162,7 +169,7 @@ npm run typecheck                     # tsc across workspaces
 npm run check:nebius                  # auth probe for inference + sandboxes + Tavily
 npm run patchbay -- build "..."       # live run (needs keys)
 npm run patchbay -- help              # all commands and flags
-npm run bench                         # the 10-prompt benchmark
+npm run bench                         # the 20-prompt benchmark
 npm run dev                           # Next.js app on :3400
 npm run mcp                           # start the MCP server on stdio
 ```
@@ -174,23 +181,26 @@ See [`.env.example`](.env.example). Key knobs:
 | Variable | Default | What it does |
 |---|---|---|
 | `PATCHBAY_MOCK` | `true` | Replay mode. Set to `false` for live runs. |
-| `PATCHBAY_RUNNER` | `nebius` | `nebius` (isolated sandbox) or `local` (dev fallback). |
+| `PATCHBAY_LANG` | `ts` | `ts` (TypeScript+vitest) or `python` (Python 3.12+pytest). |
+| `PATCHBAY_RUNNER` | `nebius` | `nebius` (isolated sandbox) or `local` (dev fallback, TS only). |
 | `PATCHBAY_MAX_ATTEMPTS` | `3` | Repair-loop cap. |
 | `PATCHBAY_PARALLEL_REPAIRS` | `1` | N parallel repair branches per attempt (max 4). Best-of-N. |
 | `PATCHBAY_MODEL_FAST / MID / STRONG` | nvidia/Nemotron 3.5 Lightning / 3 Super / 3 Ultra | Model tiers. Any OpenAI-compatible base URL works. |
+| `PATCHBAY_LLM_BASE_URL` / `PATCHBAY_LLM_PROVIDER` | (unset) / `nebius` | Point patchbay at any OpenAI-compatible endpoint — including a self-hosted vLLM serving our fine-tuned Qwen3-30B. |
 
-The generated connector has **zero patchbay dependency** – it's a plain TypeScript file your project can drop in anywhere.
+The generated connector has **zero patchbay dependency** – it's a plain TypeScript or Python file your project can drop in anywhere.
 
 ## Repo layout
 
 ```
 packages/
-  agent/   # the pipeline (plan, research, generate, verify, repair) + CLI
-  mcp/     # MCP server exposing build_connector / research_api / verify_code
+  agent/   # the pipeline (plan, research, generate, verify, repair) + CLI + scanner
+  mcp/     # MCP server exposing scan_repo / build_connector / research_api / verify_code
 apps/
   web/     # Next.js demo
-bench/     # the 10-prompt benchmark + results
-docs/      # setup guides
+bench/     # the 20-prompt benchmark + results + training data
+docs/      # setup guides + build log + finetune plan
+scripts/   # finetune launcher, checkpoint fetch, vllm-deploy, ablation bench
 runs/      # recorded live runs (gitignored)
 ```
 
