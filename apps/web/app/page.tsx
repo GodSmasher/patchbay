@@ -7,7 +7,7 @@ import { Timeline } from '@/components/timeline'
 import { GitHubBadge, useGhUser } from '@/components/github-badge'
 import { GitHubPush } from '@/components/github-push'
 import { ScanPanel } from '@/components/scan-panel'
-import { useRun } from '@/lib/use-run'
+import { useRun, type RunState } from '@/lib/use-run'
 
 const RECORDED_PROMPT =
   'When someone submits our Typeform contact form, create the lead in Pipedrive as organization, person and deal.'
@@ -23,26 +23,48 @@ const EXAMPLES: { label: string; prompt: string }[] = [
   { label: 'Jotform → Airtable (filterByFormula)', prompt: 'When a Jotform submission arrives, update an Airtable record by looking it up with filterByFormula on the email field and PATCHing only the empty fields.' },
 ]
 
+type LangChoice = 'ts' | 'py' | 'both'
+
 export default function Home() {
-  const { state, start, share } = useRun()
+  // Two independent runs: picking "Both" fires both in parallel so the side-by-side
+  // comparison shows the same prompt producing both languages in one go.
+  const tsRun = useRun()
+  const pyRun = useRun()
   const { user: ghUser } = useGhUser()
   const [prompt, setPrompt] = useState(RECORDED_PROMPT)
   const [live, setLive] = useState<boolean | null>(null)
   const [showMcp, setShowMcp] = useState(false)
   const [shareUrl, setShareUrl] = useState<string | null>(null)
   const [sharing, setSharing] = useState(false)
-  const [lang, setLang] = useState<'ts' | 'py'>('ts')
+  const [lang, setLang] = useState<LangChoice>('ts')
+
+  const bothMode = lang === 'both'
+  const activeRun = lang === 'py' ? pyRun : tsRun
+  const anyRunning = bothMode ? tsRun.state.running || pyRun.state.running : activeRun.state.running
 
   async function onShare() {
     setSharing(true)
     try {
-      const url = await share(prompt)
+      // Share is a single-run concept; in Both mode we share the TS run (TypeScript is
+      // the recorded replay side, so it works even when live keys are missing).
+      const runForShare = bothMode ? tsRun : activeRun
+      const url = await runForShare.share(prompt)
       setShareUrl(url)
       await navigator.clipboard.writeText(url).catch(() => undefined)
     } catch (error) {
       setShareUrl(`error: ${error instanceof Error ? error.message : String(error)}`)
     } finally {
       setSharing(false)
+    }
+  }
+
+  function onSubmit() {
+    setShareUrl(null)
+    if (bothMode) {
+      void tsRun.start(prompt, { lang: 'ts' })
+      void pyRun.start(prompt, { lang: 'py' })
+    } else {
+      void activeRun.start(prompt, { lang })
     }
   }
 
@@ -53,8 +75,17 @@ export default function Home() {
       .catch(() => setLive(false))
   }, [])
 
-  const started = state.running || state.drafts.length > 0 || state.error !== null || state.plan !== null
-  const cost = state.usage.reduce((sum, u) => sum + u.costUsd, 0)
+  const isStarted = (s: RunState) => s.running || s.drafts.length > 0 || s.error !== null || s.plan !== null
+  const started = bothMode ? isStarted(tsRun.state) || isStarted(pyRun.state) : isStarted(activeRun.state)
+  const singleCost = activeRun.state.usage.reduce((sum, u) => sum + u.costUsd, 0)
+  const bothCost =
+    tsRun.state.usage.reduce((sum, u) => sum + u.costUsd, 0) +
+    pyRun.state.usage.reduce((sum, u) => sum + u.costUsd, 0)
+
+  const bothGreen = tsRun.state.result?.ok === true && pyRun.state.result?.ok === true
+  const bothFinished = !tsRun.state.running && !pyRun.state.running
+
+  const langLabel = lang === 'py' ? 'Python 3.12' : lang === 'ts' ? 'TypeScript' : 'TypeScript AND Python'
 
   return (
     <main className="mx-auto max-w-6xl px-4 pb-16 sm:px-6">
@@ -81,16 +112,20 @@ export default function Home() {
         </h1>
         <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-ink-soft">
           patchbay plans the integration, reads the real API docs, writes a
-          <span className="whitespace-nowrap"> {lang === 'py' ? 'Python 3.12' : 'TypeScript'}</span> connector with tests,
+          <span className="whitespace-nowrap"> {langLabel}</span> connector with tests,
           and runs them in an isolated Nebius sandbox with the network switched off. When a test fails, it reads the failure
-          and fixes the code. <span className="text-ink-mute">Toggle TypeScript or Python below — the plan and research steps are the same, only the generated code and the test harness swap.</span>
+          and fixes the code. <span className="text-ink-mute">
+            {bothMode
+              ? 'Both languages, same prompt, same plan+research — only the generated code and test harness differ.'
+              : 'Toggle TypeScript or Python below — or pick Both to run them side by side.'}
+          </span>
         </p>
 
         <form
           className="mt-8 max-w-3xl"
           onSubmit={(e) => {
             e.preventDefault()
-            if (!state.running) void start(prompt, { lang })
+            if (!anyRunning) onSubmit()
           }}
         >
           <label htmlFor="prompt" className="sr-only">Integration</label>
@@ -106,10 +141,10 @@ export default function Home() {
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <button
               type="submit"
-              disabled={state.running || prompt.trim().length < 12}
+              disabled={anyRunning || prompt.trim().length < 12}
               className="rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
             >
-              {state.running ? 'Building…' : 'Build connector'}
+              {anyRunning ? 'Building…' : bothMode ? 'Build both' : 'Build connector'}
             </button>
             <div
               role="radiogroup"
@@ -120,6 +155,7 @@ export default function Home() {
                 [
                   { v: 'ts' as const, label: 'TypeScript', hint: 'vitest + fetch' },
                   { v: 'py' as const, label: 'Python', hint: 'pytest + httpx-style' },
+                  { v: 'both' as const, label: 'Both', hint: 'TypeScript + Python side by side' },
                 ]
               ).map((opt) => (
                 <button
@@ -140,12 +176,13 @@ export default function Home() {
             </div>
             {live === false && (
               <span className="text-xs text-ink-mute">
-                Live mode is off here, you will see a recorded TypeScript run{lang === 'py' ? ' (the Python replay is only reachable with live keys).' : '.'}
+                Live mode is off here, you will see a recorded TypeScript run
+                {lang === 'py' ? ' (the Python replay is only reachable with live keys).' : lang === 'both' ? ' on each side.' : '.'}
               </span>
             )}
-            {live && lang === 'py' && (
+            {live && (lang === 'py' || lang === 'both') && (
               <span className="text-xs text-ink-mute">
-                Python mode: first live run may take ~90s while the sandbox image warms up.
+                {lang === 'both' ? 'Side-by-side' : 'Python mode'}: first live run may take ~90s while the sandbox image warms up.
               </span>
             )}
           </div>
@@ -168,77 +205,107 @@ export default function Home() {
         <ScanPanel onPick={(p) => { setPrompt(p); window.scrollTo({ top: 0, behavior: 'smooth' }) }} />
       </section>
 
-      {started && (
+      {started && !bothMode && (
         <section className="grid gap-5 lg:grid-cols-[320px_1fr]">
           <aside className="space-y-4">
             <div className="rounded-xl border border-paper-line bg-paper-card py-2">
-              <Timeline state={state} />
+              <Timeline state={activeRun.state} />
             </div>
-            {state.mode === 'replay' && (
+            {activeRun.state.mode === 'replay' && (
               <p className="rounded-lg bg-paper px-3 py-2 text-xs text-ink-soft">
-                {state.notice ?? 'Recorded run: the same events a live run streams, with the code and test results it produced.'}
+                {activeRun.state.notice ?? 'Recorded run: the same events a live run streams, with the code and test results it produced.'}
               </p>
             )}
-            {state.usage.length > 0 && (
+            {activeRun.state.usage.length > 0 && (
               <div className="rounded-xl border border-paper-line bg-paper-card p-4 text-xs">
                 <div className="font-semibold uppercase tracking-wide text-ink-mute">Model usage</div>
                 <ul className="mt-2 space-y-1">
-                  {state.usage.map((u) => (
+                  {activeRun.state.usage.map((u) => (
                     <li key={u.model} className="flex justify-between gap-2">
                       <span className="code truncate">{u.model.split('/').pop()}</span>
                       <span className="text-ink-soft">{(u.promptTokens + u.completionTokens).toLocaleString()} tok</span>
                     </li>
                   ))}
                 </ul>
-                <div className="mt-2 border-t border-paper-line pt-2 text-ink-soft">Total ≈ ${cost.toFixed(4)}</div>
+                <div className="mt-2 border-t border-paper-line pt-2 text-ink-soft">Total ≈ ${singleCost.toFixed(4)}</div>
               </div>
             )}
           </aside>
 
           <div className="min-w-0 space-y-5">
-            {state.error && (
-              <div className="rounded-xl border border-warn/30 bg-warn-soft px-4 py-3 text-sm text-warn">{state.error}</div>
+            {activeRun.state.error && (
+              <div className="rounded-xl border border-warn/30 bg-warn-soft px-4 py-3 text-sm text-warn">{activeRun.state.error}</div>
             )}
             {/* When a build finishes green, the push action is what the user
                 came here to do — show it first, above the code, so it fits in
-                one viewport with the "all tests pass" banner. Plan details
-                collapse below the code so they don't force a long scroll. */}
-            {state.result?.ok && !state.running && state.drafts.length > 0 && (
+                one viewport with the "all tests pass" banner. */}
+            {activeRun.state.result?.ok && !activeRun.state.running && activeRun.state.drafts.length > 0 && (
               <GitHubPush
                 user={ghUser}
                 prompt={prompt}
-                files={state.drafts[state.drafts.length - 1]?.files ?? []}
+                files={activeRun.state.drafts[activeRun.state.drafts.length - 1]?.files ?? []}
               />
             )}
-            {state.result && !state.running && (
-              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-paper-line bg-paper-card px-4 py-2 text-xs">
-                <span className="text-ink-soft">Share this run so someone else can see what the model did.</span>
-                <div className="flex items-center gap-2">
-                  {shareUrl && !shareUrl.startsWith('error') && (
-                    <code className="code max-w-[280px] truncate rounded bg-paper px-2 py-1 text-[11px]">{shareUrl}</code>
-                  )}
-                  {shareUrl?.startsWith('error') && <span className="text-warn">{shareUrl}</span>}
-                  <button
-                    type="button"
-                    onClick={onShare}
-                    disabled={sharing}
-                    className="rounded-md bg-ink px-3 py-1 text-xs text-white disabled:opacity-40"
-                  >
-                    {sharing ? 'Sharing…' : shareUrl ? 'Copy again' : 'Share run'}
-                  </button>
-                </div>
-              </div>
+            {activeRun.state.result && !activeRun.state.running && (
+              <ShareBar sharing={sharing} shareUrl={shareUrl} onShare={onShare} />
             )}
-            {state.drafts.length > 0 && <CodePanel drafts={state.drafts} finalOk={state.result?.ok ?? null} lang={state.lang} />}
-            {state.plan && (
+            {activeRun.state.drafts.length > 0 && (
+              <CodePanel drafts={activeRun.state.drafts} finalOk={activeRun.state.result?.ok ?? null} lang={activeRun.state.lang} />
+            )}
+            {activeRun.state.plan && (
               <PlanCard
-                plan={state.plan}
-                spec={state.spec}
-                sources={state.sources}
-                collapsible={state.result?.ok === true && !state.running}
+                plan={activeRun.state.plan}
+                spec={activeRun.state.spec}
+                sources={activeRun.state.sources}
+                collapsible={activeRun.state.result?.ok === true && !activeRun.state.running}
               />
             )}
           </div>
+        </section>
+      )}
+
+      {started && bothMode && (
+        <section className="space-y-5">
+          {bothFinished && bothGreen && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-signal/30 bg-signal-soft px-4 py-3 text-sm">
+              <span className="font-semibold text-signal">
+                Both green ✓ — same prompt, two languages, both pass their contract tests.
+              </span>
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <span className="text-ink-soft">Total spent across both runs ≈ ${bothCost.toFixed(4)}</span>
+                <button
+                  type="button"
+                  onClick={onShare}
+                  disabled={sharing}
+                  className="rounded-md bg-ink px-3 py-1 text-xs text-white disabled:opacity-40"
+                >
+                  {sharing ? 'Sharing…' : shareUrl ? 'Copy again' : 'Share TS run'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {bothFinished && bothGreen && (tsRun.state.drafts.length > 0 || pyRun.state.drafts.length > 0) && (
+            <GitHubPush
+              user={ghUser}
+              prompt={prompt}
+              files={(tsRun.state.drafts.at(-1)?.files ?? [])}
+            />
+          )}
+
+          <div className="grid gap-5 lg:grid-cols-2">
+            <RunColumn label="TypeScript · vitest" state={tsRun.state} />
+            <RunColumn label="Python 3.12 · pytest" state={pyRun.state} />
+          </div>
+
+          {(tsRun.state.plan || pyRun.state.plan) && (
+            <PlanCard
+              plan={(tsRun.state.plan ?? pyRun.state.plan)!}
+              spec={tsRun.state.spec ?? pyRun.state.spec}
+              sources={tsRun.state.sources.length ? tsRun.state.sources : pyRun.state.sources}
+              collapsible={bothFinished}
+            />
+          )}
         </section>
       )}
 
@@ -269,6 +336,71 @@ export default function Home() {
         </a>
       </footer>
     </main>
+  )
+}
+
+function ShareBar({ sharing, shareUrl, onShare }: { sharing: boolean; shareUrl: string | null; onShare: () => void }) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-paper-line bg-paper-card px-4 py-2 text-xs">
+      <span className="text-ink-soft">Share this run so someone else can see what the model did.</span>
+      <div className="flex items-center gap-2">
+        {shareUrl && !shareUrl.startsWith('error') && (
+          <code className="code max-w-[280px] truncate rounded bg-paper px-2 py-1 text-[11px]">{shareUrl}</code>
+        )}
+        {shareUrl?.startsWith('error') && <span className="text-warn">{shareUrl}</span>}
+        <button
+          type="button"
+          onClick={onShare}
+          disabled={sharing}
+          className="rounded-md bg-ink px-3 py-1 text-xs text-white disabled:opacity-40"
+        >
+          {sharing ? 'Sharing…' : shareUrl ? 'Copy again' : 'Share run'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * One side of the Both-mode comparison: shows a per-language header, inline
+ * timeline, model usage line, and the code panel. We don't duplicate the
+ * sidebar — too narrow in a two-column layout — so Timeline collapses into
+ * the column header.
+ */
+function RunColumn({ label, state }: { label: string; state: RunState }) {
+  const cost = state.usage.reduce((sum, u) => sum + u.costUsd, 0)
+  const result = state.result
+  const status = result
+    ? result.ok
+      ? `✓ ${result.attempts} attempt${result.attempts === 1 ? '' : 's'}`
+      : `✖ ${result.attempts} attempt${result.attempts === 1 ? '' : 's'}`
+    : state.running
+      ? 'Building…'
+      : 'Idle'
+  const statusClass = result
+    ? result.ok
+      ? 'text-signal'
+      : 'text-warn'
+    : 'text-ink-mute'
+  return (
+    <div className="flex min-w-0 flex-col gap-3">
+      <div className="flex items-center justify-between gap-3 rounded-xl border border-paper-line bg-paper-card px-4 py-2 text-xs">
+        <div className="flex items-center gap-2">
+          <span className="font-semibold text-ink">{label}</span>
+          <span className={statusClass}>{status}</span>
+        </div>
+        {cost > 0 && <span className="text-ink-mute">${cost.toFixed(4)}</span>}
+      </div>
+      <div className="rounded-xl border border-paper-line bg-paper-card">
+        <Timeline state={state} />
+      </div>
+      {state.error && (
+        <div className="rounded-xl border border-warn/30 bg-warn-soft px-4 py-3 text-sm text-warn">{state.error}</div>
+      )}
+      {state.drafts.length > 0 && (
+        <CodePanel drafts={state.drafts} finalOk={state.result?.ok ?? null} lang={state.lang} />
+      )}
+    </div>
   )
 }
 
