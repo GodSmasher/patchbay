@@ -54,16 +54,21 @@ async function cmdUpload() {
 }
 
 async function cmdStart(args: Record<string, string>) {
+  const hyperparameters: Record<string, number> = {
+    n_epochs: Number(args.epochs ?? 3),
+    learning_rate_multiplier: Number(args.lr ?? 1),
+    batch_size: Number(args.batch ?? 1),
+  }
+  // Nebius Token Factory accepts a `context_length` hyperparameter — our repair pairs
+  // routinely hit 10-11k tokens (full connector + failing-test report + fixed files),
+  // so the default 8192 rejects the dataset. 16384 covers everything in training-{train,eval}.jsonl.
+  if (args.context) hyperparameters.context_length = Number(args.context)
   const body = {
     model: args.model ?? 'nvidia/Nemotron-3_5-Lightning',
     training_file: args.train,
     validation_file: args.eval,
     suffix: args.suffix ?? 'patchbay-repair',
-    hyperparameters: {
-      n_epochs: Number(args.epochs ?? 3),
-      learning_rate_multiplier: Number(args.lr ?? 1),
-      batch_size: Number(args.batch ?? 1),
-    },
+    hyperparameters,
     integrations: [],
   }
   const job = await req<{ id: string; status: string; model: string }>('/fine_tuning/jobs', {
