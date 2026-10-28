@@ -13,7 +13,8 @@ const RECORDED_PROMPT =
   'When someone submits our Typeform contact form, create the lead in Pipedrive as organization, person and deal.'
 
 // Curated from the 20-prompt benchmark: the hardest cases that still finished green,
-// so a judge clicking any of them sees a non-trivial run.
+// so a judge clicking any of them sees a non-trivial run. The last three were green
+// 2/2 passes on the Python Brutal-20 set (adversarial shapes); they work in TS too.
 const EXAMPLES: { label: string; prompt: string }[] = [
   { label: 'Typeform → Pipedrive', prompt: RECORDED_PROMPT },
   { label: 'Stripe → Mailchimp', prompt: 'When a Stripe payment succeeds, add the customer to a Mailchimp audience with the plan as a tag.' },
@@ -21,6 +22,9 @@ const EXAMPLES: { label: string; prompt: string }[] = [
   { label: 'GitHub → Linear', prompt: 'When a GitHub issue gets the label "bug", create an issue in Linear in the Triage team.' },
   { label: 'Shopify HMAC → Slack', prompt: 'When a Shopify order webhook arrives, verify the HMAC-SHA256 signature from the X-Shopify-Hmac-Sha256 header against the shared secret, then forward the order summary to a Slack channel.' },
   { label: 'Jotform → Airtable (filterByFormula)', prompt: 'When a Jotform submission arrives, update an Airtable record by looking it up with filterByFormula on the email field and PATCHing only the empty fields.' },
+  { label: 'GitHub PR → OpenAI structured output', prompt: 'When a GitHub pull_request is opened, call OpenAI with a structured output schema requesting title and reviewer suggestions, then post as a PR comment.' },
+  { label: 'Zendesk priority routing', prompt: 'When a Zendesk ticket is updated, inspect the ticket priority — if high, page via Opsgenie Create Alert API; if normal, create a Jira issue instead.' },
+  { label: 'Linear GraphQL nested mutation', prompt: 'When a Linear comment is created, use the Linear GraphQL API with a nested mutation to add two reactions and a sub-comment in a single request.' },
 ]
 
 type LangChoice = 'ts' | 'py' | 'both'
