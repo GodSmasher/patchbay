@@ -255,6 +255,32 @@ Hard rules:
   while "cursor is truthy" alone — many APIs return an empty-string or placeholder cursor on the
   final page. Pass the cursor under the exact field name the vendor documents. Hard-cap every
   pagination loop at 50 iterations as a safety net.
+- URL FIDELITY (contract-critical). Your fetch calls MUST hit URLs that match the entries in
+  TARGET_ENDPOINTS from fixtures.py. patchbay wrote that file from the researched spec and the
+  URL matcher accepts placeholder segments ({id}, :id, <id>) + region subdomains — but NOT a
+  different base host, a different path shape, or a different HTTP method. If a documented
+  endpoint uses PATCH to \`/sobjects/Account/Website__c/{website}\`, do not POST to
+  \`/sobjects/Account\` — contract_fetch will raise because that's a different endpoint.
+  Build each call's URL by taking TARGET_ENDPOINTS[i]['url'] as the template and substituting
+  placeholders with payload values at the SAME POSITIONS; do not reconstruct URLs from scratch.
+- IDEMPOTENT UPSERT PATTERNS. Vendors use distinctive URL shapes for upserts; use the exact one:
+
+      # Mailchimp — PUT to subscriber-hash URL (md5(email.lower())):
+      import hashlib
+      subscriber_hash = hashlib.md5(email.lower().encode('utf-8')).hexdigest()
+      url = f"https://{dc}.api.mailchimp.com/3.0/lists/{list_id}/members/{subscriber_hash}"
+      await fetch(url, method='PUT', body={'email_address': email, 'status_if_new': 'subscribed', 'merge_fields': {...}}, headers=auth)
+
+      # Salesforce — external-id upsert via PATCH on the field value in the path:
+      from urllib.parse import quote
+      url = f"{instance}/services/data/v60.0/sobjects/Account/Website__c/{quote(website)}"
+      await fetch(url, method='PATCH', body={'Name': name, 'Industry': industry}, headers=auth)
+      # response 201 (created) or 204 (updated); check status_code to distinguish
+
+      # HubSpot — contact upsert by email (PATCH with idProperty=email):
+      url = f"https://api.hubapi.com/crm/v3/objects/contacts/{quote(email)}?idProperty=email"
+      await fetch(url, method='PATCH', body={'properties': {...}}, headers=auth)
+
 - MULTI-STEP CRUD / UPSERT PATTERN. When the integration needs to create several related objects
   in sequence (Pipedrive org → person → deal, Salesforce account → contact → opportunity, HubSpot
   contact → company → association), do them inside one handle() in order, carrying the id from
