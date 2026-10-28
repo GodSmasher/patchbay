@@ -27,6 +27,53 @@ the agent's quality lives.
 
 Numbers in `scratchpad/variance_ts_super_out/summary.json`.
 
+### Python Brutal-20 adversarial pass (2026-10-28)
+
+20 adversarial prompts × 2 passes = **40 live Nebius builds** on the hardest
+shapes patchbay sees: OAuth2 refresh, GraphQL federation, HMAC verification,
+nested cursor pagination, dedup/idempotency, presigned S3 uploads, WebSocket,
+SOAP envelopes, long-poll with exponential backoff, response-driven branching.
+Executed with Tavily rate-limit throttling (batches of 4 at a time, 2s gap)
+after an unthrottled attempt tripped Tavily HTTP 429s.
+
+Overall: **28/40 green (70.0%)** · $0.164 per build · $6.56 total
+
+| | TS Brutal 10 (13 runs) | Python Brutal 20 (40 runs) |
+| --- | --- | --- |
+| green | **69.2%** (9/13) | **70.0%** (28/40) |
+| cost / build | $0.177 | $0.164 |
+
+**Parity on hard cases.** Common-shape Python trails TS by 17 points (73%
+vs 90% on the Core 20), but on adversarial shapes both sides land at ~70%
+— the gap closes once the task gets hard. The six prompts that only
+produced 1/2 green (OAuth2 refresh, dedup, S3 presign, WebSocket/Pusher,
+pagination-with-nesting, Twilio long-poll) are the same shapes the TS
+Brutal pass dropped on. The one 0/2 (SOAP XML envelope → Salesforce REST)
+is the hardest shape in the set.
+
+| # | Prompt (shortened) | Green | Cost (mean) | Attempts avg |
+| --- | --- | --- | --- | --- |
+| 1 | Stripe invoice finalized → QuickBooks via OAuth2 bearer + refresh | 1/2 | $0.1218 | 2.5 |
+| 2 | HubSpot deal → Google OAuth refresh + Sheets write | 1/2 | $0.2040 | 3.0 |
+| 3 | Linear comment → GraphQL nested mutation (2 reactions + sub-comment) | 2/2 | $0.0551 | 1.5 |
+| 4 | Shopify Admin GraphQL productCreate + batched productCreateMedia | 2/2 | $0.0514 | 1.5 |
+| 5 | Shopify order dedupe by id + X-Shopify-Webhook-Id header | 2/2 | $0.1662 | 2.5 |
+| 6 | Stripe charge.refunded → idempotent Mailchimp tag with Idempotency-Key | 1/2 | $0.1343 | 2.5 |
+| 7 | Typeform file answer → S3 via presigned URL from /sign endpoint | 1/2 | $0.3034 | 3.5 |
+| 8 | Zendesk attachment → Confluence page via multipart/form-data | 1/2 | $0.1525 | 3.0 |
+| 9 | Zendesk ticket → WebSocket to Pusher Channels | 1/2 | $0.1062 | 2.5 |
+| 10 | GitHub PR opened → OpenAI structured output → PR comment | 2/2 | $0.1281 | 2.0 |
+| 11 | Slack event verify X-Slack-Signature HMAC → Datadog | 2/2 | $0.0905 | 2.0 |
+| 12 | GitHub push verify X-Hub-Signature-256 → Jenkins | 1/2 | $0.3060 | 4.0 |
+| 13 | Linear issue search cursor pagination + nested comments → Slack | 2/2 | $0.1268 | 2.0 |
+| 14 | HubSpot search follow `after` cursor until exhausted → BigQuery batches | 1/2 | $0.2255 | 3.0 |
+| 15 | Zendesk priority routing (Opsgenie or Jira) | 2/2 | $0.0326 | 1.0 |
+| 16 | Mailchimp bounce → HubSpot lookup → branch (Zendesk vs unsubscribe) | 2/2 | $0.2020 | 3.0 |
+| 17 | GitHub stargazer → user+repos respecting rate-limit headers | 1/2 | $0.1857 | 4.0 |
+| 18 | Intercom conv close → download PDF → Linear issue attachment | 2/2 | $0.1041 | 2.5 |
+| 19 | Jotform SOAP XML envelope → Salesforce REST Composite | 0/2 | $0.3221 | 4.0 |
+| 20 | Twilio call ended → poll Recording until completed → Slack | 1/2 | $0.2612 | 4.0 |
+
 ### Python Core 20 variance pass (2026-10-28)
 
 Full apples-to-apples pass against the TS Core 20 above: **same 20 prompts,
