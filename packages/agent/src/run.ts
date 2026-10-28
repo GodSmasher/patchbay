@@ -1,12 +1,12 @@
 import type { AgentConfig } from './config'
-import { renderFixturesFor, withContractFor, withFixtures } from './contract'
+import { withContractFor, withFixtures } from './contract'
 import { preflightSyntax } from './syntax-check'
+import { LANG } from './lang'
 import type { LlmClient } from './llm'
 import { extractJson, parseFileBlocks, renderFileBlocks } from './parse'
 import {
   PLAN_SYSTEM,
   SPEC_SYSTEM,
-  generateSystemFor,
   generateUser,
   planUser,
   repairUser,
@@ -26,12 +26,7 @@ export interface AgentDeps {
   sandbox: SandboxRunner
 }
 
-const REQUIRED_FILES_TS = ['src/connector.ts', 'src/connector.test.ts', 'README.md']
-const REQUIRED_FILES_PY = ['connector.py', 'test_connector.py', 'README.md']
-
-function requiredFilesFor(lang: Lang): string[] {
-  return lang === 'py' ? REQUIRED_FILES_PY : REQUIRED_FILES_TS
-}
+// Required file lists live on the LangDescriptor (LANG[lang].requiredFiles).
 
 /**
  * plan (fast model) → research (Tavily + mid model) → generate (strong model)
@@ -65,7 +60,7 @@ export async function* runAgent(prompt: string, deps: AgentDeps): AsyncGenerator
 
     current = 'generate'
     yield { type: 'step', step: 'generate', status: 'start' }
-    const fixtures = renderFixturesFor(lang, spec)
+    const fixtures = LANG[lang].renderFixtures(spec)
     let files = withFixtures(await generate(plan, spec, fixtures.content, llm, config), fixtures)
     yield { type: 'files', attempt: 1, files }
     yield { type: 'step', step: 'generate', status: 'done', detail: files.map((f) => f.path).join(', ') }
@@ -302,7 +297,7 @@ export async function research(
 export async function generate(plan: Plan, spec: ApiSpec, fixtures: string, llm: LlmClient, config: AgentConfig): Promise<GeneratedFile[]> {
   const lang: Lang = config.lang ?? 'ts'
   const answer = await llm.chat(config.models.strong, [
-    { role: 'system', content: generateSystemFor(lang) },
+    { role: 'system', content: LANG[lang].generateSystem },
     { role: 'user', content: generateUser(plan, spec, fixtures, lang) },
   ], { maxTokens: 32_000, temperature: 0.1 })
   return requireFiles(parseFileBlocks(answer), lang)
@@ -317,7 +312,7 @@ export async function repair(
 ): Promise<GeneratedFile[]> {
   const lang: Lang = config.lang ?? 'ts'
   const answer = await llm.chat(config.models.strong, [
-    { role: 'system', content: generateSystemFor(lang) },
+    { role: 'system', content: LANG[lang].generateSystem },
     { role: 'user', content: repairUser(renderFileBlocks(files), report, options.context, lang) },
   ], { maxTokens: 32_000, temperature: options.temperature ?? 0.1 })
   const repaired = parseFileBlocks(answer)
@@ -403,7 +398,7 @@ export async function repairParallel(
 }
 
 function requireFiles(files: GeneratedFile[], lang: Lang = 'ts'): GeneratedFile[] {
-  const required = requiredFilesFor(lang)
+  const required = LANG[lang].requiredFiles
   const missing = required.filter((path) => !files.some((f) => f.path === path))
   if (missing.length) throw new Error(`Model output is missing ${missing.join(', ')}`)
   return required.map((path) => files.find((f) => f.path === path) as GeneratedFile)

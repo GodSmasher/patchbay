@@ -1,4 +1,4 @@
-import { parsePytestOutput, parseTestOutput, TEST_COMMAND, TEST_COMMAND_PY } from './report'
+import { LANG } from './lang'
 import type { GeneratedFile, Lang, TestReport } from './types'
 
 export interface SandboxRunner {
@@ -151,8 +151,7 @@ export function createNebiusSandbox(opts: {
   }
 
   async function ensureBaseImage(log: (m: string) => void): Promise<string> {
-    const tag = lang === 'py' ? PY_IMAGE_TAG : NODE_IMAGE_TAG
-    const registry = lang === 'py' ? PY_IMAGE_REGISTRY : NODE_IMAGE_REGISTRY
+    const { tag, registry } = LANG[lang].sandbox
     const { body } = await request<{ images?: { uuid: string; tag?: string | null }[] }>('/images?tagged=1&limit=200')
     const existing = (body.images ?? []).find((image) => image.tag === tag)
     if (existing) return existing.uuid
@@ -168,14 +167,6 @@ export function createNebiusSandbox(opts: {
     return image
   }
 
-  function prepareCommand(): string {
-    return lang === 'py' ? PREPARE_COMMAND_PY : PREPARE_COMMAND
-  }
-
-  function testCommand(): string {
-    return lang === 'py' ? TEST_COMMAND_PY : TEST_COMMAND
-  }
-
   function filesForRun(files: GeneratedFile[]): GeneratedFile[] {
     if (lang === 'py') {
       return files.filter((f) => f.path.endsWith('.py'))
@@ -184,9 +175,7 @@ export function createNebiusSandbox(opts: {
   }
 
   function parse(stdout: string, operationId: string): TestReport {
-    return lang === 'py'
-      ? parsePytestOutput(stdout, `nebius-sandbox:${operationId}`)
-      : parseTestOutput(stdout, `nebius-sandbox:${operationId}`)
+    return LANG[lang].parseTestOutput(stdout, `nebius-sandbox:${operationId}`)
   }
 
   return {
@@ -196,11 +185,12 @@ export function createNebiusSandbox(opts: {
         return cachedImage
       }
       const baseImage = await ensureBaseImage(log)
+      const { prepareCommand } = LANG[lang].sandbox
       log(`Installing ${lang === 'py' ? 'pytest + pytest-asyncio + pytest-json-report' : 'typescript + vitest'} in a sandbox checkpoint`)
       const started = await request<{ uuid?: string }>('/instances', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: baseImage, command: prepareCommand(), shell: true, timeout: 300, networking: { enabled: true } }),
+        body: JSON.stringify({ image: baseImage, command: prepareCommand, shell: true, timeout: 300, networking: { enabled: true } }),
       })
       const op = await waitFor(operationIdFrom(started.location, started.body), 330_000)
       const exit = op.metadata?.result?.state?.exit_code
@@ -224,7 +214,7 @@ export function createNebiusSandbox(opts: {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           image: baseImage,
-          command: testCommand(),
+          command: LANG[lang].sandbox.testCommand,
           shell: true,
           disposable: true,
           timeout: 120,
