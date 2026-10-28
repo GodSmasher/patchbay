@@ -1,31 +1,15 @@
-import { readFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import type { ApiSpec, GeneratedFile, Lang, TestReport } from './types'
+import { FIXTURES_PY_TEMPLATE as PY_TEMPLATE } from './fixtures-py-template'
 
 export const FIXTURES_PATH = 'src/fixtures.ts'
 export const FIXTURES_PATH_PY = 'fixtures.py'
 
 /**
- * Python fixtures runtime. Lives as a real .py file beside the module (so Python
- * tooling, linters, and reviewers see Python code, not a 150-line template literal
- * inside a .ts file), and gets read once at module load. renderFixturesPy
- * substitutes two markers — SOURCE_EXAMPLE and TARGET_ENDPOINTS — and prepends
- * documentation URLs as comments. Everything else is static.
- *
- * The file ships both at src/ (for dev / vitest / typecheck) and at dist/ (copied
- * by tsup's onSuccess hook), so both the source tree and the bundled package work.
+ * Python fixtures runtime is imported as a TS-exported string constant from
+ * fixtures-py-template.ts, so webpack bundles it into any downstream serverless
+ * build (Vercel, Lambda). The companion fixtures-py.template.py file is kept
+ * next to it for grep / Python tooling but is NOT read at runtime.
  */
-const PY_TEMPLATE_PATH = resolvePyTemplatePath()
-const PY_TEMPLATE = readFileSync(PY_TEMPLATE_PATH, 'utf8')
-
-function resolvePyTemplatePath(): string {
-  const here = dirname(fileURLToPath(import.meta.url))
-  // In source mode (vitest), the template sits next to this .ts file.
-  // In published mode (dist/), tsup copies it next to the bundled .js file.
-  // Both resolve by looking in __dirname first.
-  return join(here, 'fixtures-py.template.py')
-}
 
 export function fixturesPathFor(lang: Lang): string {
   return lang === 'py' ? FIXTURES_PATH_PY : FIXTURES_PATH
