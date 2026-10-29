@@ -32,7 +32,7 @@ echo "[entrypoint] weights dir: $WEIGHTS_DIR"
 # One Python invocation does everything: get the job → list result_files →
 # fetch per-file metadata → pick the biggest ftckpt_ group → stream each file.
 python3 <<PYEOF
-import json, os, sys, time, urllib.request
+import json, os, sys, time, urllib.request, urllib.error
 
 API = "$API"
 JOB_ID = "$JOB_ID"
@@ -40,9 +40,27 @@ WEIGHTS = "$WEIGHTS_DIR"
 KEY = os.environ["NEBIUS_API_KEY"]
 HDRS = {"Authorization": f"Bearer {KEY}"}
 
+# /files/{id}/content returns a 302 to a signed S3 URL. urllib's default redirect
+# handler forwards the Authorization header to the S3 host, which S3 rejects with
+# 403 ("signature + bearer token both present"). Strip the Authorization header
+# on redirect so S3 only sees its own signature in the URL.
+class StripAuthRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        new_req = super().redirect_request(req, fp, code, msg, headers, newurl)
+        if new_req is not None:
+            try: new_req.remove_header("Authorization")
+            except Exception: pass
+            try: del new_req.headers["Authorization"]
+            except Exception: pass
+            try: del new_req.unredirected_hdrs["Authorization"]
+            except Exception: pass
+        return new_req
+
+OPENER = urllib.request.build_opener(StripAuthRedirect())
+
 def get_json(path):
     req = urllib.request.Request(API + path, headers=HDRS)
-    with urllib.request.urlopen(req, timeout=60) as resp:
+    with OPENER.open(req, timeout=60) as resp:
         return json.loads(resp.read().decode())
 
 print(f"[entrypoint] fetching job metadata...", flush=True)
@@ -87,7 +105,7 @@ for i, m in enumerate(files, 1):
     for attempt in range(5):
         try:
             req = urllib.request.Request(API + f"/files/{m['id']}/content", headers=HDRS)
-            with urllib.request.urlopen(req, timeout=600) as resp, open(dest, "wb") as out:
+            with OPENER.open(req, timeout=600) as resp, open(dest, "wb") as out:
                 while True:
                     chunk = resp.read(4 * 1024 * 1024)
                     if not chunk: break
