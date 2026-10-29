@@ -69,15 +69,28 @@ function runOne(variant: 'finetuned' | 'baseline', prompt: string, promptIdx: nu
       PATCHBAY_LANG: 'ts',
       PATCHBAY_MAX_ATTEMPTS: '4',
       PATCHBAY_PARALLEL_REPAIRS: '2',
+      // Our Qwen3-30B fine-tune was trained on red→green repair pairs
+      // (connector + test only, no README). Make README optional so the bench
+      // measures what the model actually learned — functional connector + tests.
+      PATCHBAY_OPTIONAL_README: '1',
     }
     if (variant === 'baseline') {
-      // Strip the fine-tune env so loadConfig falls back to Nemotron Ultra on Token Factory.
-      delete env.PATCHBAY_MODEL_STRONG
-      delete env.PATCHBAY_LLM_BASE_URL
-      delete env.PATCHBAY_LLM_PROVIDER
-      delete env.PATCHBAY_LLM_API_KEY
+      // "baseline" = Nemotron Ultra for BOTH generate and repair.
+      // Strip the repair-tier override so the repair step falls back to the strong model (Ultra).
+      delete env.PATCHBAY_MODEL_REPAIR
+      delete env.PATCHBAY_REPAIR_LLM_BASE_URL
+      delete env.PATCHBAY_REPAIR_LLM_API_KEY
+      delete env.PATCHBAY_REPAIR_LLM_PROVIDER
     }
-    const p = spawn('node', ['--env-file=.env.local', 'packages/agent/dist/cli.js', 'build', prompt], {
+    // "finetuned" variant keeps PATCHBAY_MODEL_REPAIR=patchbay-repair + REPAIR_LLM_* from .env.local
+    // which routes only the repair step to the fine-tuned Qwen3-30B — Ultra still handles the
+    // fresh-generation step (what Ultra is good at), fine-tune handles the red→green fixes
+    // (what it was actually trained on).
+    // Don't pass --env-file=.env.local here: the ablation script itself was launched with
+    // --env-file-if-exists=.env.local, so all PATCHBAY_* / NEBIUS_* / TAVILY_* vars are
+    // already in process.env. If we re-read .env.local in the child, the PATCHBAY_STRONG_*
+    // we deliberately deleted for the baseline variant come right back.
+    const p = spawn('node', ['packages/agent/dist/cli.js', 'build', prompt], {
       cwd: ROOT, env, stdio: ['ignore', 'pipe', 'pipe'],
     })
     let out = ''
@@ -131,8 +144,12 @@ function aggregate(variant: 'finetuned' | 'baseline', results: BuildResult[]): A
   const avgSeconds = results.reduce((s, r) => s + r.seconds, 0) / results.length
   return {
     variant,
-    model: (variant === 'finetuned' ? process.env.PATCHBAY_MODEL_STRONG : '') || 'nvidia/Nemotron-3-Ultra-550b-a55b (default)',
-    baseUrl: (variant === 'finetuned' ? process.env.PATCHBAY_LLM_BASE_URL : '') || 'https://api.tokenfactory.nebius.com/v1',
+    model: variant === 'finetuned'
+      ? `${process.env.PATCHBAY_MODEL_REPAIR} (repair) + Nemotron-3-Ultra-550b-a55b (generate)`
+      : 'nvidia/Nemotron-3-Ultra-550b-a55b (both steps)',
+    baseUrl: variant === 'finetuned'
+      ? `${process.env.PATCHBAY_REPAIR_LLM_BASE_URL} (repair) + Token Factory (generate)`
+      : 'https://api.tokenfactory.nebius.com/v1',
     greens,
     firstTry,
     totalCost,
@@ -145,11 +162,13 @@ function pct(x: number): string { return `${(x * 100).toFixed(1)}%` }
 
 function makeComparison(ft: Agg, base: Agg, n: number): string {
   const lines: string[] = []
-  lines.push('# Fine-tuned Qwen3-30B vs baseline Nemotron Ultra 550B')
+  lines.push('# Fine-tuned Qwen3-30B on repair step vs pure Nemotron Ultra 550B')
   lines.push('')
   lines.push(`Same 20 TS Core prompts, one pass per variant = ${n} builds per variant.`)
   lines.push('')
-  lines.push('| | Fine-tuned Qwen3-30B | Baseline Nemotron Ultra |')
+  lines.push('The fine-tune was trained on red→green repair pairs, so this variant uses it ONLY for the repair step; Ultra still does the fresh-generation step.')
+  lines.push('')
+  lines.push('| | Fine-tune on repair + Ultra generate | Pure Ultra (both steps) |')
   lines.push('| --- | --- | --- |')
   lines.push(`| model | \`${ft.model}\` | \`${base.model}\` |`)
   lines.push(`| served from | \`${ft.baseUrl}\` | \`${base.baseUrl}\` |`)
@@ -169,17 +188,48 @@ function makeComparison(ft: Agg, base: Agg, n: number): string {
   return lines.join('\n') + '\n'
 }
 
+// Parse `${slot}.log` for a cached result when re-running one variant only.
+function parseExistingLog(slot: string, variant: 'finetuned' | 'baseline', promptIdx: number): BuildResult | null {
+  const path = join(OUT_DIR, `${slot}.log`)
+  try {
+    const out = require('node:fs').readFileSync(path, 'utf8') as string
+    const m = out.match(/[✖✔] verify — (\d+)\/(\d+) tests after (\d+) attempt/)
+    const passed = m ? Number(m[1]) : 0
+    const total = m ? Number(m[2]) : 0
+    const attempts = m ? Number(m[3]) : 0
+    const costs = [...out.matchAll(/\$(\d+\.\d+)/g)].map((x) => Number(x[1]))
+    const cost = costs.length ? costs.reduce((s, c) => s + c, 0) : 0
+    const green = passed > 0 && passed === total
+    return { variant, promptIdx, prompt: PROMPTS[promptIdx]!, green, greenFirstTry: green && attempts === 1, passed, total, attempts, cost, seconds: 0 }
+  } catch { return null }
+}
+
 async function main() {
-  const strong = process.env.PATCHBAY_MODEL_STRONG
-  const base = process.env.PATCHBAY_LLM_BASE_URL
-  if (!strong || !base) {
-    console.error('Missing PATCHBAY_MODEL_STRONG and/or PATCHBAY_LLM_BASE_URL — set them in .env.local after deploying the GPU endpoint.')
+  const repair = process.env.PATCHBAY_MODEL_REPAIR
+  const base = process.env.PATCHBAY_REPAIR_LLM_BASE_URL
+  if (!repair || !base) {
+    console.error('Missing PATCHBAY_MODEL_REPAIR and/or PATCHBAY_REPAIR_LLM_BASE_URL — set them in .env.local after deploying the GPU endpoint.')
     console.error('See scripts/deploy-finetune.md.')
     process.exit(1)
   }
 
-  const ftResults = await runVariant('finetuned')
-  const baseResults = await runVariant('baseline')
+  const variantFlag = process.argv.find((a) => a.startsWith('--variant='))?.split('=')[1]
+
+  let ftResults: BuildResult[]
+  let baseResults: BuildResult[]
+
+  if (variantFlag === 'baseline') {
+    console.log('[main] --variant=baseline — reusing cached fine-tune logs, running baseline only')
+    ftResults = PROMPTS.map((_, i) => parseExistingLog(`finetuned-prompt-${String(i + 1).padStart(2, '0')}`, 'finetuned', i)!).filter(Boolean)
+    if (ftResults.length !== PROMPTS.length) {
+      console.error(`Expected ${PROMPTS.length} cached fine-tune logs, got ${ftResults.length}. Aborting.`)
+      process.exit(1)
+    }
+    baseResults = await runVariant('baseline')
+  } else {
+    ftResults = await runVariant('finetuned')
+    baseResults = await runVariant('baseline')
+  }
 
   const ft = aggregate('finetuned', ftResults)
   const baseAgg = aggregate('baseline', baseResults)

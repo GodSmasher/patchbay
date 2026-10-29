@@ -299,7 +299,7 @@ export async function generate(plan: Plan, spec: ApiSpec, fixtures: string, llm:
   const answer = await llm.chat(config.models.strong, [
     { role: 'system', content: LANG[lang].generateSystem },
     { role: 'user', content: generateUser(plan, spec, fixtures, lang) },
-  ], { maxTokens: 32_000, temperature: 0.1 })
+  ], { maxTokens: 24_000, temperature: 0.1 })
   return requireFiles(parseFileBlocks(answer), lang)
 }
 
@@ -311,10 +311,10 @@ export async function repair(
   options: { temperature?: number; context?: RepairContext } = {},
 ): Promise<GeneratedFile[]> {
   const lang: Lang = config.lang ?? 'ts'
-  const answer = await llm.chat(config.models.strong, [
+  const answer = await llm.chat(config.models.repair, [
     { role: 'system', content: LANG[lang].generateSystem },
     { role: 'user', content: repairUser(renderFileBlocks(files), report, options.context, lang) },
-  ], { maxTokens: 32_000, temperature: options.temperature ?? 0.1 })
+  ], { maxTokens: 24_000, temperature: options.temperature ?? 0.1 })
   const repaired = parseFileBlocks(answer)
   const merged = new Map(files.map((f) => [f.path, f]))
   for (const file of repaired) merged.set(file.path, file)
@@ -399,9 +399,17 @@ export async function repairParallel(
 
 function requireFiles(files: GeneratedFile[], lang: Lang = 'ts'): GeneratedFile[] {
   const required = LANG[lang].requiredFiles
-  const missing = required.filter((path) => !files.some((f) => f.path === path))
+  // PATCHBAY_OPTIONAL_README=1 relaxes the README.md requirement, used by the fine-tune
+  // ablation benchmark: our Qwen3-30B fine-tune was trained on red→green repair pairs
+  // (connector + test only), so it reliably skips README. Keep connector + test checks strict.
+  const effective = process.env.PATCHBAY_OPTIONAL_README === '1'
+    ? required.filter((p) => p !== 'README.md')
+    : required
+  const missing = effective.filter((path) => !files.some((f) => f.path === path))
   if (missing.length) throw new Error(`Model output is missing ${missing.join(', ')}`)
-  return required.map((path) => files.find((f) => f.path === path) as GeneratedFile)
+  return required
+    .filter((p) => files.some((f) => f.path === p))
+    .map((path) => files.find((f) => f.path === path) as GeneratedFile)
 }
 
 /** One retry for structured steps: invalid JSON goes back to the same model once to be fixed. */

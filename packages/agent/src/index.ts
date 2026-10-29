@@ -7,6 +7,33 @@ import { createNebiusSandbox } from './sandbox'
 import { createTavilyClient } from './tavily'
 import type { GeneratedFile, RunEvent } from './types'
 
+function buildLlm(config: AgentConfig) {
+  const modelOverrides: Record<string, { baseUrl: string; apiKey: string; supportsNemotronThinking?: boolean; contextWindow?: number }> = {}
+  if (config.strongOverride) {
+    modelOverrides[config.models.strong.id] = {
+      baseUrl: config.strongOverride.baseUrl,
+      apiKey: config.strongOverride.apiKey,
+      supportsNemotronThinking: config.strongOverride.provider === 'nebius',
+      // Fine-tune vLLM endpoints we deploy use --max-model-len 32768.
+      contextWindow: 32768,
+    }
+  }
+  if (config.repairOverride) {
+    modelOverrides[config.models.repair.id] = {
+      baseUrl: config.repairOverride.baseUrl,
+      apiKey: config.repairOverride.apiKey,
+      supportsNemotronThinking: config.repairOverride.provider === 'nebius',
+      contextWindow: 32768,
+    }
+  }
+  return createNebiusClient({
+    apiKey: config.nebiusApiKey,
+    baseUrl: config.nebiusBaseUrl,
+    supportsNemotronThinking: config.llmProvider === 'nebius',
+    modelOverrides: Object.keys(modelOverrides).length ? modelOverrides : undefined,
+  })
+}
+
 export * from './types'
 export { loadConfig, missingLiveKeys } from './config'
 export { REPLAY_RUN, replayRun, type RecordedRun } from './replay'
@@ -20,7 +47,7 @@ export function startRun(prompt: string, config: AgentConfig = loadConfig()): As
   if (config.mock || missingLiveKeys(config).length > 0) return replayRun()
   return runAgent(prompt, {
     config,
-    llm: createNebiusClient({ apiKey: config.nebiusApiKey, baseUrl: config.nebiusBaseUrl, supportsNemotronThinking: config.llmProvider === 'nebius' }),
+    llm: buildLlm(config),
     search: createTavilyClient({ apiKey: config.tavilyApiKey }),
     sandbox:
       config.runner === 'local'
@@ -40,7 +67,7 @@ export function startResearch(prompt: string, config: AgentConfig = loadConfig()
   if (config.mock || missingLiveKeys(config).length > 0) return truncateAt(replayRun(), 'spec')
   return researchAgent(prompt, {
     config,
-    llm: createNebiusClient({ apiKey: config.nebiusApiKey, baseUrl: config.nebiusBaseUrl, supportsNemotronThinking: config.llmProvider === 'nebius' }),
+    llm: buildLlm(config),
     search: createTavilyClient({ apiKey: config.tavilyApiKey }),
   })
 }
@@ -52,7 +79,7 @@ export function startVerify(files: GeneratedFile[], config: AgentConfig = loadCo
   }
   return verifyAgent(files, {
     config,
-    llm: createNebiusClient({ apiKey: config.nebiusApiKey, baseUrl: config.nebiusBaseUrl, supportsNemotronThinking: config.llmProvider === 'nebius' }),
+    llm: buildLlm(config),
     sandbox:
       config.runner === 'local'
         ? createLocalRunner()

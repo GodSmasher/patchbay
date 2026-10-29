@@ -29,7 +29,17 @@ export interface AgentConfig {
    * Together, Fireworks, OpenRouter, self-hosted vLLM) stops rejecting it.
    */
   llmProvider: 'nebius' | 'openai' | 'generic'
-  models: { fast: ModelTier; mid: ModelTier; strong: ModelTier }
+  /**
+   * `repair` is the model used for the repair/retry step. It defaults to the same model as
+   * `strong` (so single-model deployments keep working), but can be overridden independently
+   * when the fine-tune was trained on red→green repair pairs — then `strong` stays as
+   * Nemotron Ultra for the fresh-generation step, and `repair` points at the fine-tune.
+   */
+  models: { fast: ModelTier; mid: ModelTier; strong: ModelTier; repair: ModelTier }
+  /** Per-tier endpoint override for `strong` (when strong lives on a dedicated endpoint). */
+  strongOverride: { baseUrl: string; apiKey: string; provider: 'nebius' | 'openai' | 'generic' } | null
+  /** Per-tier endpoint override for `repair`. Same shape; usually points at the fine-tune. */
+  repairOverride: { baseUrl: string; apiKey: string; provider: 'nebius' | 'openai' | 'generic' } | null
 }
 
 type Env = Record<string, string | undefined>
@@ -64,7 +74,22 @@ export function loadConfig(env: Env = process.env): AgentConfig {
       fast: { id: env.PATCHBAY_MODEL_FAST || defaultModels.fast, inputPrice: 0.06, outputPrice: 0.24 },
       mid: { id: env.PATCHBAY_MODEL_MID || defaultModels.mid, inputPrice: 0.3, outputPrice: 0.9 },
       strong: { id: env.PATCHBAY_MODEL_STRONG || defaultModels.strong, inputPrice: 1, outputPrice: 3 },
+      repair: { id: env.PATCHBAY_MODEL_REPAIR || env.PATCHBAY_MODEL_STRONG || defaultModels.strong, inputPrice: 1, outputPrice: 3 },
     },
+    strongOverride: env.PATCHBAY_STRONG_LLM_BASE_URL
+      ? {
+          baseUrl: env.PATCHBAY_STRONG_LLM_BASE_URL,
+          apiKey: env.PATCHBAY_STRONG_LLM_API_KEY || apiKey,
+          provider: parseProvider(env.PATCHBAY_STRONG_LLM_PROVIDER),
+        }
+      : null,
+    repairOverride: env.PATCHBAY_REPAIR_LLM_BASE_URL
+      ? {
+          baseUrl: env.PATCHBAY_REPAIR_LLM_BASE_URL,
+          apiKey: env.PATCHBAY_REPAIR_LLM_API_KEY || apiKey,
+          provider: parseProvider(env.PATCHBAY_REPAIR_LLM_PROVIDER),
+        }
+      : null,
   }
 }
 

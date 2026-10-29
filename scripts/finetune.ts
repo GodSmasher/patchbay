@@ -45,10 +45,12 @@ async function uploadFile(path: string, purpose: string): Promise<string> {
   return body.id
 }
 
-async function cmdUpload() {
+async function cmdUpload(args: Record<string, string>) {
   const base = process.cwd()
-  const train = await uploadFile(join(base, 'bench', 'training-train.jsonl'), 'fine-tune')
-  const evalId = await uploadFile(join(base, 'bench', 'training-eval.jsonl'), 'fine-tune')
+  const trainPath = args.train ?? join(base, 'bench', 'training-train.jsonl')
+  const evalPath = args.eval ?? join(base, 'bench', 'training-eval.jsonl')
+  const train = await uploadFile(trainPath, 'fine-tune')
+  const evalId = await uploadFile(evalPath, 'fine-tune')
   console.log('\nNext:')
   console.log(`  npx tsx --env-file-if-exists=.env.local scripts/finetune.ts start --model=nvidia/Nemotron-3_5-Lightning --train=${train} --eval=${evalId}`)
 }
@@ -111,7 +113,7 @@ function parseArgs(args: string[]): Record<string, string> {
 
 async function main() {
   const [cmd, ...rest] = process.argv.slice(2)
-  if (cmd === 'upload') return cmdUpload()
+  if (cmd === 'upload') return cmdUpload(parseArgs(rest))
   if (cmd === 'start') return cmdStart(parseArgs(rest))
   if (cmd === 'status') return cmdStatus(rest[0]!)
   if (cmd === 'watch') return cmdWatch(rest[0]!)

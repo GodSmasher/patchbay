@@ -42,27 +42,55 @@ export function createNebiusClient(opts: {
   fetch?: typeof fetch
   retries?: number
   supportsNemotronThinking?: boolean
+  /**
+   * Per-model overrides. Lets a specific model id (typically the "strong" tier when it's
+   * been fine-tuned and self-hosted on a dedicated endpoint) use a different baseUrl /
+   * apiKey / nemotron flag than the default. Lookup is by model id, no match → defaults.
+   */
+  modelOverrides?: Record<string, { baseUrl: string; apiKey: string; supportsNemotronThinking?: boolean; contextWindow?: number }>
 }): LlmClient {
   const doFetch = opts.fetch ?? fetch
   const retries = opts.retries ?? 2
   const nemotron = opts.supportsNemotronThinking ?? true
+  const overrides = opts.modelOverrides ?? {}
   const ledger = new Map<string, Usage>()
 
+  function approxTokens(messages: ChatMessage[]): number {
+    // Rough char/4 heuristic — enough to decide whether to clip max_tokens below the context window.
+    let chars = 0
+    for (const m of messages) chars += m.content.length + m.role.length + 8
+    return Math.ceil(chars / 4)
+  }
+
   async function chat(model: ModelTier, messages: ChatMessage[], options: ChatOptions = {}): Promise<string> {
+    const override = overrides[model.id]
+    const baseUrl = override?.baseUrl ?? opts.baseUrl
+    const apiKey = override?.apiKey ?? opts.apiKey
+    const nemotronForCall = override ? (override.supportsNemotronThinking ?? false) : nemotron
+    const contextWindow = override?.contextWindow
+    let maxTokens = options.maxTokens ?? 4096
+    if (contextWindow) {
+      // vLLM strictly enforces input_tokens + max_tokens <= context_window. The char/4
+      // approximation under-counts (BPE splits tend to be denser) and chat-template
+      // overhead eats more tokens on top, so pad with 20% + 2048 absolute headroom.
+      const promptTokens = Math.ceil(approxTokens(messages) * 1.2) + 2048
+      const budget = contextWindow - promptTokens
+      if (budget > 0 && budget < maxTokens) maxTokens = budget
+    }
     const body = {
       model: model.id,
       messages,
       temperature: options.temperature ?? 0.2,
-      max_tokens: options.maxTokens ?? 4096,
-      ...(nemotron && options.thinking === false ? { chat_template_kwargs: { enable_thinking: false } } : {}),
+      max_tokens: maxTokens,
+      ...(nemotronForCall && options.thinking === false ? { chat_template_kwargs: { enable_thinking: false } } : {}),
     }
 
     let lastError: unknown
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
-        const res = await doFetch(`${opts.baseUrl}/chat/completions`, {
+        const res = await doFetch(`${baseUrl}/chat/completions`, {
           method: 'POST',
-          headers: { Authorization: `Bearer ${opts.apiKey}`, 'Content-Type': 'application/json' },
+          headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
         })
         const data = (await res.json().catch(() => ({}))) as NebiusChatResponse
