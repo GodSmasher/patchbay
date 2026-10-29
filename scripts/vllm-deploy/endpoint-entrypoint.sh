@@ -102,7 +102,7 @@ print(f"[entrypoint] weights ready in {WEIGHTS}", flush=True)
 PYEOF
 
 echo "[entrypoint] starting vLLM..."
-exec python -m vllm.entrypoints.openai.api_server \
+exec python3 -m vllm.entrypoints.openai.api_server \
   --model "$WEIGHTS_DIR" \
   --served-model-name patchbay-repair \
   --max-model-len 32768 \
