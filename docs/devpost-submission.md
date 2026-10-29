@@ -157,14 +157,26 @@ It's one thing to turn a sentence into code. It's another to turn a codebase int
 
 ### We fine-tune our own repair model on our own benchmark runs
 
-Every patchbay benchmark run is a record of the agent failing and then fixing itself. **109 of those `(red draft + failing test) → green draft` moments** across the committed benchmark passes make a domain-matched training set — and Nebius Token Factory ships an OpenAI-compatible fine-tune endpoint that eats exactly this format. So we fine-tune a repair-focused **Qwen3-30B-A3B-Instruct-2507** (the smallest instruction model Token Factory lets us fine-tune, active 3B parameters) on patchbay's own repair history.
+Every patchbay benchmark run is a record of the agent failing and then fixing itself. **173 of those `(red draft + failing test) → green draft` moments** across the committed benchmark passes make a domain-matched training set — and Nebius Token Factory ships an OpenAI-compatible fine-tune endpoint that eats exactly this format. So we fine-tune a repair-focused **Qwen3-30B-A3B-Instruct-2507** (the smallest instruction model Token Factory lets us fine-tune, active 3B parameters) on patchbay's own repair history.
 
-The deployment side closes the loop with a second Nebius product. Token Factory serves fine-tunes behind an invitation-only Custom Weights beta we're not in, but the Nebius Support team confirmed (2026-10-28) that trained checkpoints come out via `/fine_tuning/jobs/{id}/checkpoints`. We pull the weights, deploy them on a **Nebius AI Cloud GPU** (H100 or H200) behind an OpenAI-compatible vLLM endpoint, and point patchbay at that endpoint via `PATCHBAY_LLM_BASE_URL=…`. **Three Nebius products in one closed loop:** Token Factory Inference (live agent) → Token Factory Post-training (fine-tune) → AI Cloud GPU (serve the fine-tune).
+The deployment side closes the loop with a second Nebius product. We pull the weights via `/fine_tuning/jobs/{id}/checkpoints`, deploy them on a **Nebius AI Cloud GPU** (H100 NVLink preemptible) behind an OpenAI-compatible vLLM endpoint, and point patchbay's repair step at that endpoint via `PATCHBAY_REPAIR_LLM_BASE_URL=…`. **Three Nebius products in one closed loop:** Token Factory Inference (live agent) → Token Factory Post-training (fine-tune) → AI Cloud GPU (serve the fine-tune).
 
-- `bench/training-{train,eval}.jsonl` — 98 train + 11 eval real red→green repair pairs, extracted from committed benchmark runs. Also published on HuggingFace: [patchbay-nebius/connector-repair-dataset](https://huggingface.co/datasets/patchbay-nebius/connector-repair-dataset)
+**Live ablation vs the production baseline** (20 TS Core prompts, same pipeline):
+
+| | Fine-tune on repair + Ultra generate | Pure Ultra (both steps) |
+| --- | --- | --- |
+| Green | 45% (9/20) | 80% (16/20) |
+| First-try green | 35% | 15% |
+| **Cost / build** | **$0.088** | $0.144 |
+| Delta | **-35 pp green** | **1.64× cheaper** |
+
+Honest reading: a 30B fine-tune on 173 pairs doesn't match a 550B Ultra on raw green rate yet, but **it's 1.64× cheaper per build** and the pattern of failures is almost all "near-green" (7/8, 9/10, 12/13 outcomes). More training pairs is the obvious next move — the pipeline that produces them is the submission's point.
+
+- `bench/training-{train,eval}-v2.jsonl` — 155 train + 18 eval red→green repair pairs (expanded from the original 98 train + 11 eval), extracted from committed benchmark runs. Published on HuggingFace: [patchbay-nebius/connector-repair-dataset](https://huggingface.co/datasets/patchbay-nebius/connector-repair-dataset)
 - `scripts/finetune.ts` — Nebius Token Factory fine-tune job launcher (takes `--context=32768` to fit our 20k-token repair pairs)
-- `scripts/finetune-checkpoint.ts` — retrieve the finished checkpoint URL from Token Factory and print the AI Cloud deploy next steps
-- `scripts/eval-repair.ts` — format, file-coverage and line-overlap metrics against a held-out eval split
+- `scripts/harvest-repair-pairs.ts` — walks the benchmark runs and extracts every `(red attempt N → attempt N+1)` transition as a new training pair
+- `scripts/vllm-deploy/endpoint-entrypoint.sh` — the vLLM entrypoint for the AI Cloud endpoint, downloads the checkpoint via the OpenAI SDK (handles Token Factory's 307→S3 signed URL hop that urllib trips over)
+- `scripts/bench-finetuned-ablation.ts` — reproducible ablation harness (writes `docs/evidence/ablation-v2-finetune-repair-only.md`)
 - Full plan + status: `docs/finetune.md`
 
 ### Why not just ask Claude Code / Cursor / Codex yourself?

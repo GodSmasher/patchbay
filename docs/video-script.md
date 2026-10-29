@@ -1,97 +1,116 @@
-# patchbay — Devpost video script
+# patchbay — hackathon submission video script
 
-Target length **90–120 seconds**. Voice via ElevenLabs; recommended voice:
-"Rachel" or "Adam" (clean, slightly conversational dev-content register).
-
-## Rendering tips in ElevenLabs
-
-- **Voice settings:** Stability 50 · Similarity 75 · Style 20 · Speaker boost on.
-- Export each chunk as its own clip (one per `###`). Easier to re-record a single
-  sentence than the whole monologue.
-- Leave 0.5s of silence after each clip when timing against the screen cuts.
+**Length target**: ~90 seconds. Pacing: fast but not rushed, 2 cuts per sentence block.
+**Tone**: honest engineer, not pitchy. Numbers do the selling.
+**Visual language**: 90% screen capture, 10% b-roll (dashboard panels, bench page).
 
 ---
 
-## Chunk 1 — hook (0:00 – 0:08) · shoots title card
+## 0:00–0:10 — Hook
 
-> patchbay turns one sentence into a tested TypeScript connector.
+**[VISUAL]** Landing page `patchbay-nebius.vercel.app`, cursor types the Typeform → Pipedrive example into the prompt box.
 
-## Chunk 2 — what it does (0:08 – 0:26) · shoots live demo prompt → plan card
-
-> You describe the integration — any webhook, any API — and patchbay plans it,
-> reads the real documentation with Tavily, and writes a connector with tests,
-> powered by Nemotron on the Nebius Token Factory.
-
-## Chunk 3 — the proof (0:26 – 0:45) · shoots verify step in the sandbox
-
-> Then it proves the code works. Every draft runs through type-check and vitest
-> inside an isolated Nebius sandbox, with the network switched off. Nothing talks
-> to the real APIs. The connector either passes against the documented example
-> payload, or it goes back for repair.
-
-## Chunk 4 — parallel repair (0:45 – 1:02) · shoots the two [branch N] log lines + final green pill
-
-> When a test fails, patchbay forks the sandbox twice at different temperatures
-> and lets both repairs race. The first one that lands green wins. The one that
-> doesn't even parse never spawns a sandbox at all.
-
-## Chunk 5 — numbers (1:02 – 1:16) · shoots /bench dashboard
-
-> Over ninety-two real benchmark runs, patchbay lands green ninety percent of the
-> time. More than half pass on the first draft. Each connector costs about seven
-> cents.
-
-## Chunk 6 — distribution (1:16 – 1:38) · collage: CLI terminal, Claude Code chat, Slack message, GitHub PR comment
-
-> It runs anywhere you work. As a CLI. As an MCP server inside Claude Code,
-> Codex and Cursor. As a web demo. As a Slack slash command. As a GitHub
-> pull-request bot that drops the finished connector straight into your repo.
-
-## Chunk 7 — close (1:38 – 1:50) · title card again + URLs
-
-> Describe an integration. Walk away. Come back to passing tests.
-> patchbay. Open source. Built on Nebius.
+**[NARRATION]**
+> Every integration is the same ritual: read the docs, write the glue code,
+> hope the tests pass, debug when they don't. patchbay does it for you.
 
 ---
 
-## Shot list to film while the VO is being generated
+## 0:10–0:45 — Live demo (the money shot)
 
-Record **1920×1080 at 60 fps**, no mouse highlight, hide the OS cursor glow.
-Any clean screen recorder works (OBS Studio, ScreenToGif, QuickTime). You can
-also just reuse the Puppeteer renders in `docs/screenshots/*.mp4` for the shots
-where the browser is the whole frame.
+**[VISUAL]** Click **Build connector**. Screen capture the live run as the four phases stream in: Plan → Research → Generate → Verify.
 
-1. **Title card** — static image (I'll ship it as an Artifact). 8s.
-2. **Live demo prompt → plan** — open `patchbay-nebius.vercel.app`, click the
-   `Stripe → Mailchimp` pill, click `Build connector`. Record until the Plan
-   card is fully visible. ~18s.
-3. **Verify in sandbox** — same recording, keep rolling into the `Prove it in
-   a sandbox` step. Expand the step so the log is visible. ~20s.
-4. **Parallel branches** — in a run that needs repair (Shopify HMAC is a good
-   bet), capture the `Repairing with 2 parallel branches` log line + both
-   `[branch 1]` / `[branch 2]` results + the "Chose branch 1" line. ~15s.
-5. **Benchmark dashboard** — navigate to `/bench`, hero stats visible, slow
-   scroll down one page. ~15s.
-6. **Distribution collage** — four quick cuts, 4-5s each:
-   - Terminal with `patchbay build "..."` running
-   - Claude Code chat where the MCP tool is called
-   - Slack message where `/patchbay` was typed and the thread replies
-   - GitHub PR with the auto-opened patchbay PR
-7. **End card** — static image (I'll ship this too). 10s.
+**[NARRATION — read over the stream]**
+> One sentence in. A small Nemotron plans the integration.
+> Tavily reads the real Typeform and Pipedrive docs, mid-size Nemotron
+> extracts the endpoints. Nemotron Ultra writes a TypeScript connector
+> with tests. Then — this is the part — it runs the tests in an
+> isolated Nebius Sandbox. Network off. If a test fails, the model
+> sees the failure, fixes the code, and tries again.
 
-## Editing
+**[VISUAL]** Repair cycle visible: Draft 1 → Draft 2 with the `13/13 ✓`.
 
-- CapCut (free, mac/win) or DaVinci Resolve (free). Both handle 1080p60 fine.
-- Audio: lay the ElevenLabs clips end-to-end on one track, add 0.5s silence
-  between chunks. The silent screens stretch to match the voice length.
-- Background music optional. If you add one, keep it under -22 dBFS so it
-  doesn't fight the voice. Pixabay has royalty-free "ambient tech" tracks.
-- Export: H.264 MP4, 1080p60, ~15 Mbps. YouTube unlisted → paste link in Devpost.
+**[NARRATION]**
+> Thirteen out of thirteen tests green on the second draft. Two minutes.
+> Seven cents.
 
-## Timing checklist before submit
+**[VISUAL]** Hover the **Download .zip** button, click, show the extracted
+`connector/`, `trajectory/`, `prompt.txt`, `manifest.json` with SHA-256
+hashes.
 
-- [ ] Under 3 minutes (Devpost cap)
-- [ ] Shows the live demo URL at least once (lower-third or end card)
-- [ ] Credits Nebius + NVIDIA in the end card
-- [ ] Audio normalised to -14 LUFS
-- [ ] Downloadable copy saved in `docs/` in case YouTube takes it down
+**[NARRATION]**
+> Full audit bundle in one zip — code, trajectory, every prompt that
+> went to the model, hashes you can verify. Nothing hidden.
+
+---
+
+## 0:45–1:10 — The numbers (the honesty slide)
+
+**[VISUAL]** Navigate to `/bench`. Switch TypeScript → Python → Brutal 20.
+
+**[NARRATION]**
+> We ran it 192 times on live Nebius Sandboxes. TypeScript Core 20:
+> ninety point two percent green. Python Core 20: seventy-three.
+> Twenty adversarial prompts — OAuth refresh, GraphQL federation,
+> presigned uploads — seventy percent. Every per-run JSON is in the repo.
+> No cherry-picking.
+
+---
+
+## 1:10–1:30 — The fine-tune (the "we went further" slide)
+
+**[VISUAL]** Nebius Console → Token Factory → Post-training jobs → open
+Job ftjob-75eb0... (succeeded ✓, loss curve visible).
+
+**[NARRATION]**
+> patchbay produces repair data on every run — red test, green test, the
+> code change between. We trained Qwen3-30B-A3B on 109 of those pairs
+> on Nebius Token Factory Post-training. Three epochs, loss down from
+> point-oh-one to point-oh-oh-six.
+
+**[VISUAL]** Cut to the AI Cloud Endpoints page → `patchbay-repair` endpoint
+Running on H100 NVLink.
+
+**[NARRATION]**
+> And it serves right now on Nebius AI Cloud, H100 NVLink, OpenAI-compatible.
+> One API key swap and patchbay runs on its own fine-tune.
+
+---
+
+## 1:30–1:45 — Close
+
+**[VISUAL]** Back to landing page. Scroll to the stack line: "Models:
+Nemotron on Nebius Token Factory · API docs: Tavily · Verified in: Nebius
+Sandboxes".
+
+**[NARRATION]**
+> Four Nebius services end to end. Nemotron for the pipeline, Sandboxes
+> for the proof, Post-training for the self-improvement loop, AI Cloud
+> for serving. Repo and live site in the description. Thanks.
+
+---
+
+## Deliverable checklist for recording
+
+- [ ] Browser tab at `patchbay-nebius.vercel.app` with the Typeform example pre-filled
+- [ ] A second tab at `/bench?lang=py&set=brutal` for the numbers cut
+- [ ] Nebius console tab on the fine-tune job page (Checkpoints view, loss values visible)
+- [ ] Nebius console tab on the Model Endpoints page showing `patchbay-repair` state = Running
+- [ ] 1080p screen capture, 30 fps minimum, mouse-highlight ON
+
+## Optional B-roll (if you want to run long to 2:00)
+
+- Monaco code panel scrolling the generated connector
+- Diff view of Draft 1 → Draft 2 (where the repair happened)
+- Terminal running `patchbay build "..."` CLI → shows the same pipeline out of the browser
+- Claude Code pane calling the MCP server's `build_connector` tool
+
+## Numbers to say exactly right
+
+- **90.2%** TypeScript Core 20 (not "about 90%")
+- **73.3%** Python Core 20
+- **70.0%** Python Brutal 20
+- **192** live Nebius Sandbox runs
+- **109** red→green repair pairs in the fine-tune dataset
+- **Qwen3-30B-A3B-Instruct-2507** base model (not "Qwen 30B")
+- **H100 NVLink** GPU (not just "H100")
