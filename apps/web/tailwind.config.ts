@@ -5,10 +5,24 @@ export default {
   theme: {
     extend: {
       colors: {
-        ink: { DEFAULT: '#16181d', soft: '#4b5160', mute: '#8a8f9c' },
-        paper: { DEFAULT: '#fbfaf7', card: '#ffffff', line: '#e7e4dc' },
-        signal: { DEFAULT: '#1f6f5c', soft: '#e6f2ee' },
-        warn: { DEFAULT: '#a4462b', soft: '#fbece6' },
+        ink: {
+          DEFAULT: 'var(--color-ink)',
+          soft: 'var(--color-ink-soft)',
+          mute: 'var(--color-ink-mute)',
+        },
+        paper: {
+          DEFAULT: 'var(--color-paper)',
+          card: 'var(--color-paper-card)',
+          line: 'var(--color-paper-line)',
+        },
+        signal: {
+          DEFAULT: 'var(--color-signal)',
+          soft: 'var(--color-signal-soft)',
+        },
+        warn: {
+          DEFAULT: 'var(--color-warn)',
+          soft: 'var(--color-warn-soft)',
+        },
       },
       fontFamily: {
         sans: ['ui-sans-serif', 'system-ui', '-apple-system', 'Segoe UI', 'Inter', 'sans-serif'],
