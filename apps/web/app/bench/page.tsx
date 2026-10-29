@@ -55,7 +55,7 @@ function loadVariance(lang: Lang, set: BenchSet): Variance {
   const data = JSON.parse(raw) as RawVariance
   // New shape: summary.{greenRate,firstTryRate,costPerPassUsd,passes,prompts}
   if (data.summary) {
-    const prompts = (data.prompts ?? []).map((p, i) => ({
+    const allPrompts = (data.prompts ?? []).map((p, i) => ({
       index: p.index ?? i + 1,
       prompt: p.prompt ?? '',
       passes: p.passes ?? 0,
@@ -65,6 +65,13 @@ function loadVariance(lang: Lang, set: BenchSet): Variance {
       costStd: p.costStd ?? 0,
       attemptsMean: p.attemptsMean ?? 0,
     }))
+    // The TypeScript variance file bundles Core 20 (indices 1-20) and Brutal 10
+    // (indices 21-30). Split them so the Core tab matches the README's 90.2%.
+    // Python files are already split (variance-py.json = Core 20, variance-py-brutal.json = Brutal 20).
+    const prompts =
+      lang === 'ts' && set === 'core' ? allPrompts.filter((p) => p.index <= 20) :
+      lang === 'ts' && set === 'brutal' ? allPrompts.filter((p) => p.index > 20) :
+      allPrompts
     // Totals come from the actual rows, not passes×prompts — the Core 20 ran
     // 5-pass and the Brutal 10 ran 2-pass, so there's no single "passes"
     // number to multiply with.
@@ -89,13 +96,14 @@ function loadVariance(lang: Lang, set: BenchSet): Variance {
 export default async function BenchPage({ searchParams }: { searchParams: Promise<{ lang?: string; set?: string }> }) {
   const resolved = await searchParams
   const lang: Lang = resolved?.lang === 'py' ? 'py' : 'ts'
-  const set: BenchSet = lang === 'py' && resolved?.set === 'brutal' ? 'brutal' : 'core'
+  const set: BenchSet = resolved?.set === 'brutal' ? 'brutal' : 'core'
   const v = loadVariance(lang, set)
   const greenPct = v.totalGreen / v.totalRuns
   const firstTryPct = v.totalFirstTry / v.totalRuns
   const perConnector = v.totalCostMean / v.prompts.length
   const langLabel = lang === 'py' ? 'Python 3.12 (pytest)' : 'TypeScript (vitest)'
-  const setLabel = set === 'brutal' ? ' — Brutal 20 (adversarial)' : ''
+  const brutalLabel = lang === 'py' ? ' — Brutal 20 (adversarial)' : ' — Brutal 10 (adversarial)'
+  const setLabel = set === 'brutal' ? brutalLabel : ''
 
   return (
     <main className="mx-auto max-w-6xl px-4 pb-16 sm:px-6">
@@ -140,30 +148,28 @@ export default async function BenchPage({ searchParams }: { searchParams: Promis
               Python
             </Link>
           </div>
-          {lang === 'py' && (
-            <div
-              role="radiogroup"
-              aria-label="Benchmark set"
-              className="inline-flex rounded-lg border border-paper-line bg-paper-card p-0.5 text-xs"
+          <div
+            role="radiogroup"
+            aria-label="Benchmark set"
+            className="inline-flex rounded-lg border border-paper-line bg-paper-card p-0.5 text-xs"
+          >
+            <Link
+              href={lang === 'py' ? '/bench?lang=py' : '/bench'}
+              aria-checked={set === 'core'}
+              role="radio"
+              className={`rounded-md px-3 py-1 transition-colors ${set === 'core' ? 'bg-ink text-white' : 'text-ink-soft hover:text-ink'}`}
             >
-              <Link
-                href="/bench?lang=py"
-                aria-checked={set === 'core'}
-                role="radio"
-                className={`rounded-md px-3 py-1 transition-colors ${set === 'core' ? 'bg-ink text-white' : 'text-ink-soft hover:text-ink'}`}
-              >
-                Core 20
-              </Link>
-              <Link
-                href="/bench?lang=py&set=brutal"
-                aria-checked={set === 'brutal'}
-                role="radio"
-                className={`rounded-md px-3 py-1 transition-colors ${set === 'brutal' ? 'bg-ink text-white' : 'text-ink-soft hover:text-ink'}`}
-              >
-                Brutal 20
-              </Link>
-            </div>
-          )}
+              Core 20
+            </Link>
+            <Link
+              href={lang === 'py' ? '/bench?lang=py&set=brutal' : '/bench?set=brutal'}
+              aria-checked={set === 'brutal'}
+              role="radio"
+              className={`rounded-md px-3 py-1 transition-colors ${set === 'brutal' ? 'bg-ink text-white' : 'text-ink-soft hover:text-ink'}`}
+            >
+              {lang === 'py' ? 'Brutal 20' : 'Brutal 10'}
+            </Link>
+          </div>
         </div>
       </section>
 

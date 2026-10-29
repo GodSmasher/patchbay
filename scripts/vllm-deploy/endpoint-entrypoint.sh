@@ -82,12 +82,25 @@ for i, m in enumerate(files, 1):
     os.makedirs(os.path.dirname(dest), exist_ok=True)
     size_mib = m["bytes"] / 1024**2
     print(f"[entrypoint] [{i}/{len(files)}] {rel} ({size_mib:.1f} MiB)...", flush=True)
-    req = urllib.request.Request(API + f"/files/{m['id']}/content", headers=HDRS)
-    with urllib.request.urlopen(req, timeout=600) as resp, open(dest, "wb") as out:
-        while True:
-            chunk = resp.read(4 * 1024 * 1024)
-            if not chunk: break
-            out.write(chunk)
+    # Token Factory /files/{id}/content throttles sequential bursts after ~6 large shards
+    # with HTTP 403, so retry with exponential backoff up to 5 attempts (2s, 4s, 8s, 16s, 32s).
+    for attempt in range(5):
+        try:
+            req = urllib.request.Request(API + f"/files/{m['id']}/content", headers=HDRS)
+            with urllib.request.urlopen(req, timeout=600) as resp, open(dest, "wb") as out:
+                while True:
+                    chunk = resp.read(4 * 1024 * 1024)
+                    if not chunk: break
+                    out.write(chunk)
+            break
+        except urllib.error.HTTPError as e:
+            if attempt == 4 or e.code not in (403, 429, 500, 502, 503, 504):
+                raise
+            backoff = 2 ** (attempt + 1)
+            print(f"[entrypoint]   HTTP {e.code} on attempt {attempt + 1}, sleeping {backoff}s", flush=True)
+            time.sleep(backoff)
+    # Small sleep between files to avoid tripping the burst limit at all.
+    time.sleep(1)
 
 print(f"[entrypoint] weights ready in {WEIGHTS}", flush=True)
 PYEOF

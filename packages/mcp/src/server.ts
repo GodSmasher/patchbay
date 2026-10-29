@@ -2,10 +2,11 @@
 /**
  * patchbay MCP server (stdio transport).
  *
- * Exposes three tools to any MCP client (Claude Code, Codex, Cursor):
- *   - build_connector: full pipeline, returns generated files
+ * Exposes four tools to any MCP client (Claude Code, Codex, Cursor):
+ *   - build_connector: full pipeline, returns generated files (TypeScript or Python)
  *   - research_api:    plan + API research, returns the spec
- *   - verify_code:     type-check + vitest an existing connector (with repair loop)
+ *   - scan_repo:       walk a repo and report integration opportunities
+ *   - verify_code:     type-check + vitest/pytest an existing connector (with repair loop)
  *
  * Each tool streams patchbay's internal step/log/tests events as MCP logging
  * notifications and, when a client passes a progressToken, as progress updates,
