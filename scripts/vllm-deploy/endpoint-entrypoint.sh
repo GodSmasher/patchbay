@@ -16,7 +16,7 @@
 
 set -e
 
-JOB_ID="${FINETUNE_JOB_ID:-ftjob-75eb05699051437e97573635b7a30abd}"
+JOB_ID="${FINETUNE_JOB_ID:-ftjob-c6b4ba95d91c4d9884018fb8debbc707}"
 API="https://api.tokenfactory.nebius.com/v1"
 WEIGHTS_DIR="${WEIGHTS_DIR:-/weights}"
 
