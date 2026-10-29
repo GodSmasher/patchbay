@@ -28,51 +28,32 @@ fi
 mkdir -p "$WEIGHTS_DIR"
 echo "[entrypoint] job: $JOB_ID"
 echo "[entrypoint] weights dir: $WEIGHTS_DIR"
+echo "[entrypoint] installing openai SDK (needed for signed-URL redirect handling)..."
+pip install --quiet --no-input openai httpx
 
-# One Python invocation does everything: get the job → list result_files →
-# fetch per-file metadata → pick the biggest ftckpt_ group → stream each file.
+# The OpenAI Python SDK handles Token Factory's /files/{id}/content 307 → S3
+# signed-URL hop correctly (it uses httpx under the hood and strips auth on
+# the hop). urllib does not, so sticking with the SDK avoids a 403 on every
+# large safetensor shard.
 python3 <<PYEOF
-import json, os, sys, time, urllib.request, urllib.error
+import os, sys, time
+from openai import OpenAI
 
 API = "$API"
 JOB_ID = "$JOB_ID"
 WEIGHTS = "$WEIGHTS_DIR"
-KEY = os.environ["NEBIUS_API_KEY"]
-HDRS = {"Authorization": f"Bearer {KEY}"}
-
-# /files/{id}/content returns a 302 to a signed S3 URL. urllib's default redirect
-# handler forwards the Authorization header to the S3 host, which S3 rejects with
-# 403 ("signature + bearer token both present"). Strip the Authorization header
-# on redirect so S3 only sees its own signature in the URL.
-class StripAuthRedirect(urllib.request.HTTPRedirectHandler):
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
-        new_req = super().redirect_request(req, fp, code, msg, headers, newurl)
-        if new_req is not None:
-            try: new_req.remove_header("Authorization")
-            except Exception: pass
-            try: del new_req.headers["Authorization"]
-            except Exception: pass
-            try: del new_req.unredirected_hdrs["Authorization"]
-            except Exception: pass
-        return new_req
-
-OPENER = urllib.request.build_opener(StripAuthRedirect())
-
-def get_json(path):
-    req = urllib.request.Request(API + path, headers=HDRS)
-    with OPENER.open(req, timeout=60) as resp:
-        return json.loads(resp.read().decode())
+client = OpenAI(api_key=os.environ["NEBIUS_API_KEY"], base_url=API)
 
 print(f"[entrypoint] fetching job metadata...", flush=True)
-job = get_json(f"/fine_tuning/jobs/{JOB_ID}")
-ids = job.get("result_files") or []
+job = client.fine_tuning.jobs.retrieve(JOB_ID)
+ids = list(job.result_files or [])
 print(f"[entrypoint] result_files: {len(ids)}", flush=True)
 
 metas = []
 for fid in ids:
     for attempt in range(3):
         try:
-            metas.append(get_json(f"/files/{fid}"))
+            metas.append(client.files.retrieve(fid))
             break
         except Exception as e:
             if attempt == 2: raise
@@ -80,7 +61,7 @@ for fid in ids:
 
 groups = {}
 for m in metas:
-    fn = m.get("filename", "")
+    fn = m.filename or ""
     if fn.startswith("ftckpt_"):
         ckpt = fn.split("/", 1)[0]
         groups.setdefault(ckpt, []).append(m)
@@ -88,37 +69,33 @@ if not groups:
     print("[entrypoint] FATAL: no ftckpt_ files in result_files", file=sys.stderr)
     sys.exit(2)
 
-chosen = max(groups.items(), key=lambda kv: sum(m["bytes"] for m in kv[1]))
+chosen = max(groups.items(), key=lambda kv: sum(m.bytes for m in kv[1]))
 ckpt_id, files = chosen
-total = sum(m["bytes"] for m in files)
+total = sum(m.bytes for m in files)
 print(f"[entrypoint] chosen checkpoint: {ckpt_id}", flush=True)
 print(f"[entrypoint] {len(files)} files, {total / 1024**3:.1f} GiB total", flush=True)
 
 for i, m in enumerate(files, 1):
-    rel = m["filename"].split("/", 1)[1]
+    rel = m.filename.split("/", 1)[1]
     dest = os.path.join(WEIGHTS, rel)
     os.makedirs(os.path.dirname(dest), exist_ok=True)
-    size_mib = m["bytes"] / 1024**2
+    size_mib = m.bytes / 1024**2
     print(f"[entrypoint] [{i}/{len(files)}] {rel} ({size_mib:.1f} MiB)...", flush=True)
-    # Token Factory /files/{id}/content throttles sequential bursts after ~6 large shards
-    # with HTTP 403, so retry with exponential backoff up to 5 attempts (2s, 4s, 8s, 16s, 32s).
+    t0 = time.time()
     for attempt in range(5):
         try:
-            req = urllib.request.Request(API + f"/files/{m['id']}/content", headers=HDRS)
-            with OPENER.open(req, timeout=600) as resp, open(dest, "wb") as out:
-                while True:
-                    chunk = resp.read(4 * 1024 * 1024)
-                    if not chunk: break
+            with client.files.content(m.id) as resp, open(dest, "wb") as out:
+                for chunk in resp.iter_bytes(chunk_size=16 * 1024 * 1024):
                     out.write(chunk)
+            dt = time.time() - t0
+            mbps = (size_mib / dt) if dt > 0 else 0
+            print(f"[entrypoint]   done in {dt:.1f}s ({mbps:.1f} MiB/s)", flush=True)
             break
-        except urllib.error.HTTPError as e:
-            if attempt == 4 or e.code not in (403, 429, 500, 502, 503, 504):
-                raise
+        except Exception as e:
+            if attempt == 4: raise
             backoff = 2 ** (attempt + 1)
-            print(f"[entrypoint]   HTTP {e.code} on attempt {attempt + 1}, sleeping {backoff}s", flush=True)
+            print(f"[entrypoint]   {type(e).__name__}: {str(e)[:120]} on attempt {attempt + 1}, sleeping {backoff}s", flush=True)
             time.sleep(backoff)
-    # Small sleep between files to avoid tripping the burst limit at all.
-    time.sleep(1)
 
 print(f"[entrypoint] weights ready in {WEIGHTS}", flush=True)
 PYEOF
