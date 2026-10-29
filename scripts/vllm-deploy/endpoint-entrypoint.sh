@@ -84,7 +84,8 @@ for i, m in enumerate(files, 1):
     t0 = time.time()
     for attempt in range(5):
         try:
-            with client.files.content(m.id) as resp, open(dest, "wb") as out:
+            resp = client.files.content(m.id)
+            with open(dest, "wb") as out:
                 for chunk in resp.iter_bytes(chunk_size=16 * 1024 * 1024):
                     out.write(chunk)
             dt = time.time() - t0
