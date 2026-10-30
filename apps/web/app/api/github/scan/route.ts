@@ -48,18 +48,28 @@ export async function POST(request: Request) {
     return Response.json({ error: 'Pass a repo as "owner/name".' }, { status: 400 })
   }
   const session = await readSession()
-  const token = session?.accessToken
+  let token = session?.accessToken
 
-  const headers: Record<string, string> = {
-    Accept: 'application/vnd.github+json',
-    'User-Agent': 'patchbay-web',
-    'X-GitHub-Api-Version': '2022-11-28',
+  function buildHeaders(withAuth: boolean): Record<string, string> {
+    const h: Record<string, string> = {
+      Accept: 'application/vnd.github+json',
+      'User-Agent': 'patchbay-web',
+      'X-GitHub-Api-Version': '2022-11-28',
+    }
+    if (withAuth && token) h.Authorization = `Bearer ${token}`
+    return h
   }
-  if (token) headers.Authorization = `Bearer ${token}`
 
   try {
-    // 1. Resolve ref → tree SHA.
-    const repoRes = await fetch(`https://api.github.com/repos/${repo}`, { headers, cache: 'no-store' })
+    // 1. Resolve ref → tree SHA. If an attached GitHub session token is stale (expired OAuth,
+    // revoked PAT, bad credentials — GitHub returns 401), transparently retry anonymous:
+    // public repos are readable without auth, and that's the fallback users expect from
+    // the "scan any repo" box.
+    let repoRes = await fetch(`https://api.github.com/repos/${repo}`, { headers: buildHeaders(true), cache: 'no-store' })
+    if (repoRes.status === 401 && token) {
+      token = undefined
+      repoRes = await fetch(`https://api.github.com/repos/${repo}`, { headers: buildHeaders(false), cache: 'no-store' })
+    }
     if (!repoRes.ok) {
       return Response.json({ error: await ghError(repoRes, repo) }, { status: repoRes.status })
     }
@@ -67,7 +77,7 @@ export async function POST(request: Request) {
     const ref = body?.ref || repoInfo.default_branch
 
     const treeRes = await fetch(`https://api.github.com/repos/${repo}/git/trees/${encodeURIComponent(ref)}?recursive=1`, {
-      headers,
+      headers: buildHeaders(true),
       cache: 'no-store',
     })
     if (!treeRes.ok) {
