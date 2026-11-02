@@ -16,7 +16,7 @@ export const auth004: Check = {
         severity: 'medium',
         confidence: 'medium',
         title: 'Resource indicators not advertised (RFC 8707)',
-        evidence: `${r.url} advertises no "resource_indicators_supported": true in OAuth metadata. Clients cannot discover whether tokens are audience-bound; server may still enforce audience at runtime — this is a metadata completeness finding, not a confirmed vulnerability.`,
+        evidence: `${r.url} advertises no "resource_indicators_supported": true in OAuth metadata. Clients cannot discover whether tokens are audience-bound; server may still enforce audience at runtime; this is a metadata completeness finding, not a confirmed vulnerability.`,
         fix: 'Support the `resource` parameter on authorization + token requests (RFC 8707), reject tokens whose audience is not this server, and advertise the capability in metadata.',
         docsUrl: 'https://patchbay-mcp.dev/docs/auth-004',
         autofixTemplate: 'oauth21',

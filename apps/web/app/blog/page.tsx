@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { POSTS } from './_data'
 
 export const metadata: Metadata = {
-  title: 'patchbay — blog',
+  title: 'patchbay · blog',
   description: 'Writing on MCP, OAuth, connector tooling and whatever else patchbay is doing.',
 }
 

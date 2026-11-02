@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { DOCS, type Severity } from './_data'
 
 export const metadata: Metadata = {
-  title: 'patchbay audit — findings reference',
+  title: 'patchbay audit · findings reference',
   description: 'What each patchbay audit finding means, why it fires, and how to fix it.',
 }
 

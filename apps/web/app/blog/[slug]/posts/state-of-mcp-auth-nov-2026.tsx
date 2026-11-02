@@ -41,7 +41,7 @@ export function StateOfMcpAuthNov2026() {
       </p>
       <p>
         Public-by-design servers like DeepWiki are correctly flagged as{' '}
-        <em>info — public read-only server (documented pattern)</em> rather than critical. That
+        <em>info, public read-only server (documented pattern)</em> rather than critical. That
         distinction matters more than it sounds: the first version of my tool called DeepWiki
         &quot;critical no auth required&quot;, which would have made the whole post indefensible on
         day one.
@@ -61,8 +61,8 @@ export function StateOfMcpAuthNov2026() {
       <p>
         If the server serves <code>/.well-known/oauth-authorization-server</code>, we read it and
         check for PKCE S256 advertisement, resource indicators, and a dynamic client registration
-        endpoint. These are &quot;not advertised&quot; findings with confidence medium — a server
-        can enforce the behaviour without exposing the metadata; we only flag the metadata gap.
+        endpoint. These are &quot;not advertised&quot; findings with confidence medium. A server
+        can enforce the behaviour without exposing the metadata, so we only flag the metadata gap.
       </p>
       <h3 className="text-lg font-medium text-neutral-100 mt-6 mb-2">Scopes (SCOPE-001, SCOPE-002)</h3>
       <p>
@@ -79,8 +79,8 @@ export function StateOfMcpAuthNov2026() {
       </p>
       <h3 className="text-lg font-medium text-neutral-100 mt-6 mb-2">Honest probe failures (PROBE-001)</h3>
       <p>
-        If the probe can&apos;t learn anything — server is behind auth, uses an unknown transport, or
-        just doesn&apos;t respond — we say so explicitly instead of returning &quot;0 findings, all
+        If the probe can&apos;t learn anything (server is behind auth, uses an unknown transport, or
+        just doesn&apos;t respond), we say so explicitly instead of returning &quot;0 findings, all
         clean&quot;. That silent-false-negative trap is a real risk when scanning diverse servers.
       </p>
 
@@ -138,7 +138,7 @@ npx -y @patchbay-nebius/agent audit ./my-mcp-server --sarif > out.sarif`}
       <ul className="list-disc list-inside space-y-2 my-4 text-neutral-300">
         <li>Can&apos;t audit auth-walled servers deeper than &quot;auth-walled&quot;. A future <code>--auth</code> flag will take a token.</li>
         <li>SCOPE-002 is name-regex heuristics on tool names. Will produce occasional false positives on names like <code>post_user</code> (meaning &quot;the user who posted&quot; vs. &quot;HTTP POST a user&quot;).</li>
-        <li>The probe tries the given URL, <code>/mcp</code>, <code>/sse</code>, <code>/messages</code>, and <code>/</code> — won&apos;t find endpoints at unusual paths.</li>
+        <li>The probe tries the given URL, <code>/mcp</code>, <code>/sse</code>, <code>/messages</code>, and <code>/</code>. It won&apos;t find endpoints at unusual paths.</li>
         <li>Stdio transport servers (local MCP) are out of scope; audit the HTTP side.</li>
         <li>Doesn&apos;t yet have <code>--pr-draft</code> to write a markdown findings doc into the target repo. That ships next.</li>
       </ul>
@@ -149,7 +149,7 @@ npx -y @patchbay-nebius/agent audit ./my-mcp-server --sarif > out.sarif`}
       </pre>
       <p>
         If it flags something and you think it&apos;s wrong, open an issue with the output.
-        False-positive reports are the most useful feedback right now — the severity recalibration
+        False-positive reports are the most useful feedback right now. The severity recalibration
         between first and second version came entirely from running the tool on known-good servers
         and finding where it was too alarmist.
       </p>

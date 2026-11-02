@@ -194,7 +194,6 @@ export async function probeRemote(url: string, opts: RemoteProbeOptions = {}): P
     }
   }
 
-  // tiny mitigation for TS6133 on initRes — we captured it to show first-hit kept
   void initRes
 
   return {

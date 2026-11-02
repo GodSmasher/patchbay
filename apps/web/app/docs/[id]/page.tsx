@@ -11,7 +11,7 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
   const doc = getDoc(params.id)
   if (!doc) return { title: 'Not found' }
   return {
-    title: `${doc.id.toUpperCase()} — ${doc.title} · patchbay`,
+    title: `${doc.id.toUpperCase()} · ${doc.title} · patchbay`,
     description: doc.oneLiner,
   }
 }

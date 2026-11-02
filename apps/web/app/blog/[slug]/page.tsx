@@ -39,7 +39,7 @@ export default function BlogPost({ params }: { params: { slug: string } }) {
 
         {post.draft && (
           <div className="mb-6 rounded border border-yellow-500/30 bg-yellow-500/5 px-4 py-2 text-sm text-yellow-400">
-            Draft — not linked from the index in production.
+            Draft. Not linked from the index in production.
           </div>
         )}
 
