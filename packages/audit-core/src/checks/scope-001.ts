@@ -37,7 +37,7 @@ function finding(evidence: string): Finding {
     title: 'No per-tool scopes declared',
     evidence,
     fix: 'Give every tool its own OAuth scope (`tool:name:action`). Reject tool calls whose token lacks the required scope.',
-    docsUrl: 'https://patchbay.dev/docs/scope-001',
+    docsUrl: 'https://patchbay-mcp.dev/docs/scope-001',
     autofixTemplate: 'scopes',
   }
 }

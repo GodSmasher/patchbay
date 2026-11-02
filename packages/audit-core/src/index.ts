@@ -40,7 +40,7 @@ function runChecks(snapshot: TargetSnapshot, checks: Check[], start: number): Au
         title: `Check ${c.id} crashed`,
         evidence: (e as Error).message,
         fix: 'Report this to patchbay.',
-        docsUrl: 'https://patchbay.dev/docs/check-crashed',
+        docsUrl: 'https://patchbay-mcp.dev/docs/check-crashed',
       })
     }
   }

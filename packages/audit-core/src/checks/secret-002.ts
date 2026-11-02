@@ -17,7 +17,7 @@ export const secret002: Check = {
         title: 'Long-lived credential in env, no refresh flow found',
         evidence: `Env vars read as credentials: ${d.secretEnvVarsUsed.join(', ')}. No refresh_token request found in source.`,
         fix: 'Switch to OAuth 2.1 refresh tokens. Rotate at least every 24h; never store long-lived API keys as the only credential.',
-        docsUrl: 'https://patchbay.dev/docs/secret-002',
+        docsUrl: 'https://patchbay-mcp.dev/docs/secret-002',
         autofixTemplate: 'oauth21',
       },
     ]

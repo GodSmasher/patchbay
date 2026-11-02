@@ -10,7 +10,7 @@ export const probe001: Check = {
     if (!r.reachable) {
       return [finding(`Server did not respond to any request. ${r.rawErrors.length} error(s) captured.`, r.rawErrors)]
     }
-    const anySignal = r.initializeOk || r.toolsListOk || r.oauthAuthServer || r.oauthProtectedResource
+    const anySignal = r.initializeOk || r.toolsListOk || r.oauthAuthServer || r.oauthProtectedResource || (r.acceptedAuthHeader && r.acceptedAuthHeader !== 'none')
     if (anySignal) return []
     if (r.authRequired) {
       return [{
@@ -20,7 +20,7 @@ export const probe001: Check = {
         title: 'Auth-walled server — not audited',
         evidence: `${r.url} requires authentication before any MCP endpoint responds. patchbay has no credentials, so auth posture beyond "auth is enforced" cannot be judged. This is the expected state for a correctly configured OAuth 2.1 server.`,
         fix: 'No action needed if the server is intentionally gated. To audit deeper, pass credentials via (not yet implemented) --auth flag.',
-        docsUrl: 'https://patchbay.dev/docs/probe-001',
+        docsUrl: 'https://patchbay-mcp.dev/docs/probe-001',
       }]
     }
     return [finding(
@@ -39,6 +39,6 @@ function finding(evidence: string, rawErrors: string[]): Finding {
     title: 'Probe inconclusive — cannot judge auth posture',
     evidence: evidence + errSuffix,
     fix: 'Check the URL. The server may use a different transport (SSE / Streamable HTTP GET), require auth before any endpoint responds, or sit behind a path like /sse or /messages. Re-run with --json to inspect the raw snapshot.',
-    docsUrl: 'https://patchbay.dev/docs/probe-001',
+    docsUrl: 'https://patchbay-mcp.dev/docs/probe-001',
   }
 }

@@ -16,7 +16,7 @@ export const transport002: Check = {
         title: 'Server does not reject spoofed Origin header',
         evidence: `${r.url} answered a tools/list call with Origin: https://attacker.example without rejecting it. Only relevant for servers intended to accept browser clients; server-to-server MCP endpoints do not need Origin validation.`,
         fix: 'If this endpoint can be called from browser clients (Streamable HTTP in a webapp), validate the Origin header against an allowlist. Otherwise ignore this finding.',
-        docsUrl: 'https://patchbay.dev/docs/transport-002',
+        docsUrl: 'https://patchbay-mcp.dev/docs/transport-002',
       },
     ]
   },

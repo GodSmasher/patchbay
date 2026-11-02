@@ -17,7 +17,7 @@ export const transport001: Check = {
         title: 'Server reachable over plain HTTP',
         evidence: `${r.url} is served without TLS. Bearer tokens traverse the wire in cleartext.`,
         fix: 'Serve the MCP endpoint over HTTPS only. Redirect or reject plain HTTP.',
-        docsUrl: 'https://patchbay.dev/docs/transport-001',
+        docsUrl: 'https://patchbay-mcp.dev/docs/transport-001',
       },
     ]
   },

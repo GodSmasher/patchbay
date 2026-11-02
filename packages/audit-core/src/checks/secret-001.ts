@@ -14,7 +14,7 @@ export const secret001: Check = {
       title: `Hardcoded secret in ${hit.path}:${hit.line}`,
       evidence: `Pattern "${hit.pattern}" matched: ${redact(hit.match)}`,
       fix: 'Move the secret into an environment variable or secret manager. Rotate the leaked value immediately — assume it is public.',
-      docsUrl: 'https://patchbay.dev/docs/secret-001',
+      docsUrl: 'https://patchbay-mcp.dev/docs/secret-001',
     }))
   },
 }

@@ -18,7 +18,7 @@ export const auth002: Check = {
         title: 'Static credential accepted, no OAuth 2.1 discovery served',
         evidence: `Server at ${r.url} accepts ${r.acceptedAuthHeader} credentials but serves no /.well-known/oauth-protected-resource or /.well-known/oauth-authorization-server metadata.`,
         fix: 'Replace static credentials with OAuth 2.1. Publish discovery metadata so clients can negotiate PKCE, scopes and resource indicators.',
-        docsUrl: 'https://patchbay.dev/docs/auth-002',
+        docsUrl: 'https://patchbay-mcp.dev/docs/auth-002',
         autofixTemplate: 'oauth21',
       },
     ]

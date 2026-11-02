@@ -55,7 +55,7 @@ export function renderTerminal(report: AuditReport, opts: TerminalReportOptions 
   lines.push('')
 
   if (opts.showCta !== false) {
-    const url = opts.ctaUrl ?? 'https://patchbay.dev/fix'
+    const url = opts.ctaUrl ?? 'https://patchbay-mcp.dev/fix'
     if (report.findings.length > 0) {
       lines.push('  Want patchbay to generate the fix?')
       lines.push(`  → npx patchbay fix --with-auth   (coming)`)
@@ -108,7 +108,7 @@ export function renderSarif(report: AuditReport): string {
   const sarif = {
     $schema: 'https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/Schemata/sarif-schema-2.1.0.json',
     version: '2.1.0',
-    runs: [{ tool: { driver: { name: 'patchbay-audit', version: '0.1.0', informationUri: 'https://patchbay.dev', rules } }, results }],
+    runs: [{ tool: { driver: { name: 'patchbay-audit', version: '0.1.0', informationUri: 'https://patchbay-mcp.dev', rules } }, results }],
   }
   return JSON.stringify(sarif, null, 2)
 }

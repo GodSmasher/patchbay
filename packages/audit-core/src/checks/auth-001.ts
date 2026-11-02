@@ -21,7 +21,7 @@ export const auth001: Check = {
           title: 'Public read-only server (no auth)',
           evidence: `tools/list returned ${r.tools.length} tool(s) without credentials at ${r.url}. All tool names look read-only (get/list/search/...). This is a documented pattern for public data servers, not necessarily a vulnerability.`,
           fix: 'If this server is intended to be public and read-only, no action needed. If any tool mutates state, add OAuth 2.1.',
-          docsUrl: 'https://patchbay.dev/docs/auth-001',
+          docsUrl: 'https://patchbay-mcp.dev/docs/auth-001',
         },
       ]
     }
@@ -35,7 +35,7 @@ export const auth001: Check = {
         title: 'No authentication required (server has write tools)',
         evidence: `tools/list returned ${r.tools.length} tool(s) without credentials at ${r.url}. Mutating tool(s) detected: ${writeTools.join(', ')}${r.tools.length > 5 ? ', …' : ''}.`,
         fix: 'Require OAuth 2.1 bearer tokens. Serve /.well-known/oauth-protected-resource and reject unauthenticated requests on initialize and tools/* endpoints.',
-        docsUrl: 'https://patchbay.dev/docs/auth-001',
+        docsUrl: 'https://patchbay-mcp.dev/docs/auth-001',
         autofixTemplate: 'oauth21',
       },
     ]

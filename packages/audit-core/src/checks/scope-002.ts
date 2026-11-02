@@ -25,7 +25,7 @@ export const scope002: Check = {
             title: `Scope ${scope} covers both write (${tool}) and read (${shared.join(', ')})`,
             evidence: `Tool ${tool} is a write/destructive operation but shares scope ${scope} with read tools: ${shared.join(', ')}.`,
             fix: 'Split write and read into separate scopes so revoking write access does not revoke reads (and vice versa).',
-            docsUrl: 'https://patchbay.dev/docs/scope-002',
+            docsUrl: 'https://patchbay-mcp.dev/docs/scope-002',
             autofixTemplate: 'scopes',
           })
         }
