@@ -12,6 +12,17 @@ export const probe001: Check = {
     }
     const anySignal = r.initializeOk || r.toolsListOk || r.oauthAuthServer || r.oauthProtectedResource
     if (anySignal) return []
+    if (r.authRequired) {
+      return [{
+        id: 'PROBE-001',
+        severity: 'info',
+        confidence: 'high',
+        title: 'Auth-walled server — not audited',
+        evidence: `${r.url} requires authentication before any MCP endpoint responds. patchbay has no credentials, so auth posture beyond "auth is enforced" cannot be judged. This is the expected state for a correctly configured OAuth 2.1 server.`,
+        fix: 'No action needed if the server is intentionally gated. To audit deeper, pass credentials via (not yet implemented) --auth flag.',
+        docsUrl: 'https://patchbay.dev/docs/probe-001',
+      }]
+    }
     return [finding(
       `Server at ${r.url} responded but no MCP initialize, no tools/list and no /.well-known/oauth-* metadata succeeded. The probe cannot judge auth posture. "0 findings" below does NOT mean clean.`,
       r.rawErrors,
