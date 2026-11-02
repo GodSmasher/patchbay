@@ -12,6 +12,7 @@ function dirSnap(hits: Array<{ path: string; line: number; pattern: string; matc
       files: [],
       secretHits: hits,
       envVarsUsed: [],
+      secretEnvVarsUsed: [],
       hasRefreshTokenPath: false,
     },
   }

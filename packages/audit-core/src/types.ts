@@ -15,6 +15,7 @@ export interface RemoteProbe {
   oauthProtectedResource?: Record<string, unknown>
   oauthAuthServer?: Record<string, unknown>
   originValidation?: 'strict' | 'permissive' | 'unknown'
+  redirectLocalhostInconsistent?: boolean
   rawErrors: string[]
 }
 
@@ -23,6 +24,7 @@ export interface DirectoryProbe {
   files: Array<{ path: string; snippet?: string }>
   secretHits: Array<{ path: string; line: number; pattern: string; match: string }>
   envVarsUsed: string[]
+  secretEnvVarsUsed: string[]
   hasRefreshTokenPath: boolean
   scopeManifest?: Record<string, string[]>
 }

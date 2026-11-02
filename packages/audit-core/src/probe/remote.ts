@@ -20,6 +20,7 @@ export async function probeRemote(url: string, opts: RemoteProbeOptions = {}): P
     acceptedAuthHeader: 'none',
     tools: [],
     originValidation: 'unknown',
+    redirectLocalhostInconsistent: false,
     rawErrors: errors,
   }
 
@@ -83,6 +84,41 @@ export async function probeRemote(url: string, opts: RemoteProbeOptions = {}): P
   }
   probe.oauthProtectedResource = await wellKnown('/.well-known/oauth-protected-resource')
   probe.oauthAuthServer = await wellKnown('/.well-known/oauth-authorization-server')
+
+  const originSpoof = await call(
+    { jsonrpc: '2.0', id: 5, method: 'tools/list', params: {} },
+    { origin: 'https://attacker.example' },
+  )
+  if (originSpoof) {
+    if (originSpoof.status === 403 || originSpoof.status === 400) probe.originValidation = 'strict'
+    else if (originSpoof.ok) probe.originValidation = 'permissive'
+  }
+
+  const authServer = probe.oauthAuthServer
+  if (authServer && typeof authServer === 'object') {
+    const tokenEndpoint = typeof authServer.token_endpoint === 'string' ? authServer.token_endpoint : undefined
+    if (tokenEndpoint) {
+      const probeRedirect = async (uri: string): Promise<number | null> => {
+        try {
+          const r = await f(tokenEndpoint, {
+            method: 'POST',
+            headers: { 'content-type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ grant_type: 'authorization_code', code: 'patchbay-probe', redirect_uri: uri, client_id: 'patchbay-probe' }).toString(),
+            signal: AbortSignal.timeout(timeoutMs),
+          })
+          return r.status
+        } catch (e) {
+          errors.push(`redirect probe ${uri}: ${(e as Error).message}`)
+          return null
+        }
+      }
+      const sLocal = await probeRedirect('http://localhost:1234/cb')
+      const sLoop = await probeRedirect('http://127.0.0.1:1234/cb')
+      if (sLocal !== null && sLoop !== null && sLocal !== sLoop) {
+        probe.redirectLocalhostInconsistent = true
+      }
+    }
+  }
 
   return {
     kind: 'remote-url',

@@ -26,6 +26,7 @@ export function probeDirectory(root: string, opts: DirectoryProbeOptions = {}): 
     files: [],
     secretHits: [],
     envVarsUsed: [],
+    secretEnvVarsUsed: [],
     hasRefreshTokenPath: false,
   }
   const envSet = new Set<string>()
@@ -77,6 +78,26 @@ export function probeDirectory(root: string, opts: DirectoryProbeOptions = {}): 
 
   walk(root)
   probe.envVarsUsed = [...envSet].sort()
+  probe.secretEnvVarsUsed = probe.envVarsUsed.filter((v) => /KEY|TOKEN|SECRET|PASSWORD|PASS\b/.test(v))
+
+  for (const candidate of ['scopes.json', 'auth/scopes.json', 'src/auth/scopes.json']) {
+    try {
+      const text = readFileSync(join(root, candidate), 'utf8')
+      const parsed = JSON.parse(text) as unknown
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        const manifest: Record<string, string[]> = {}
+        for (const [tool, scopes] of Object.entries(parsed as Record<string, unknown>)) {
+          if (Array.isArray(scopes) && scopes.every((s) => typeof s === 'string')) {
+            manifest[tool] = scopes as string[]
+          }
+        }
+        probe.scopeManifest = manifest
+        break
+      }
+    } catch {
+      // not present or unreadable; try next
+    }
+  }
 
   return {
     kind: 'directory',

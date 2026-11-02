@@ -39,7 +39,13 @@ describe('auditSnapshot', () => {
         authRequired: true,
         acceptedAuthHeader: 'none',
         tools: [],
-        oauthAuthServer: { issuer: 'https://x' },
+        oauthAuthServer: {
+          issuer: 'https://x',
+          registration_endpoint: 'https://x/register',
+          code_challenge_methods_supported: ['S256'],
+          resource_indicators_supported: true,
+        },
+        originValidation: 'strict',
         rawErrors: [],
       },
     }
