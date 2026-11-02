@@ -13,6 +13,7 @@ Usage:
   patchbay research           "<one-sentence integration>"
   patchbay verify  [--watch] <directory>
   patchbay scan    <directory> [--build-top=<n>] [--json]
+  patchbay audit   <url|directory> [--json] [--sarif] [--ci] [--no-cta]
   patchbay add     <run-dir> [--target=<dir>]
   patchbay push    <run-dir> --repo=owner/name [--path=connectors/<name>] [--branch=<branch>] [--dry-run]
   patchbay help
@@ -66,6 +67,7 @@ async function main() {
   if (first === 'add') return add(argv.slice(1))
   if (first === 'push') return push(argv.slice(1))
   if (first === 'scan') return scan(argv.slice(1))
+  if (first === 'audit') return audit(argv.slice(1))
 
   switch (cmd) {
     case 'build':
@@ -303,6 +305,32 @@ async function push(args: string[]) {
     for (const path of result.files) console.log(`    ${path}`)
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error))
+    process.exit(1)
+  }
+}
+
+async function audit(args: string[]) {
+  const positional = args.filter((a) => !a.startsWith('--'))
+  const target = positional[0]
+  if (!target) {
+    console.error('patchbay audit: missing target (url or directory)')
+    console.error('usage: patchbay audit <url|dir> [--json] [--sarif] [--ci] [--no-cta]')
+    process.exit(2)
+  }
+  const asJson = args.includes('--json')
+  const asSarif = args.includes('--sarif')
+  const ci = args.includes('--ci')
+  const noCta = args.includes('--no-cta')
+
+  const { auditTarget, renderTerminal, renderJson, renderSarif } = await import('@patchbay-nebius/audit-core')
+  const resolved = /^https?:\/\//i.test(target) ? target : resolve(target)
+  const report = await auditTarget(resolved)
+
+  if (asJson) console.log(renderJson(report))
+  else if (asSarif) console.log(renderSarif(report))
+  else console.log(renderTerminal(report, { showCta: !noCta }))
+
+  if (ci && (report.summary.critical > 0 || report.summary.high > 0)) {
     process.exit(1)
   }
 }
