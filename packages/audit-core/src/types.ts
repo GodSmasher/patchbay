@@ -3,10 +3,14 @@ export type Confidence = 'high' | 'medium' | 'low'
 
 export type TargetKind = 'remote-url' | 'local-command' | 'directory' | 'patchbay-connector'
 
+export type Transport = 'streamable-http' | 'legacy-sse' | 'unknown'
+
 export interface RemoteProbe {
   url: string
   reachable: boolean
   usesTls: boolean
+  transport: Transport
+  effectiveEndpoint?: string
   initializeOk: boolean
   toolsListOk: boolean
   authRequired: boolean

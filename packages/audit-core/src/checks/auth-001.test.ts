@@ -16,6 +16,7 @@ function snap(overrides: Partial<NonNullable<TargetSnapshot['remote']>> & { url:
       toolsListOk: true,
       authRequired: false,
       acceptedAuthHeader: 'none',
+      transport: 'streamable-http',
       tools: [],
       rawErrors: [],
       ...rest,

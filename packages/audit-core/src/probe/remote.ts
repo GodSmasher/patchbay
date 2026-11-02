@@ -1,8 +1,17 @@
-import type { RemoteProbe, TargetSnapshot } from '../types'
+import type { RemoteProbe, TargetSnapshot, Transport } from '../types'
 
 export interface RemoteProbeOptions {
   timeoutMs?: number
   fetchImpl?: typeof fetch
+}
+
+const MCP_ACCEPT = 'application/json, text/event-stream'
+const CLIENT_INFO = { name: 'patchbay-audit', version: '0.1.0' }
+const INITIALIZE_BODY = {
+  jsonrpc: '2.0' as const,
+  id: 1,
+  method: 'initialize',
+  params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: CLIENT_INFO },
 }
 
 export async function probeRemote(url: string, opts: RemoteProbeOptions = {}): Promise<TargetSnapshot> {
@@ -14,6 +23,7 @@ export async function probeRemote(url: string, opts: RemoteProbeOptions = {}): P
     url,
     reachable: false,
     usesTls: url.startsWith('https://'),
+    transport: 'unknown',
     initializeOk: false,
     toolsListOk: false,
     authRequired: false,
@@ -24,55 +34,120 @@ export async function probeRemote(url: string, opts: RemoteProbeOptions = {}): P
     rawErrors: errors,
   }
 
-  const call = async (body: unknown, headers: Record<string, string> = {}): Promise<Response | null> => {
+  const postRpc = async (endpoint: string, body: unknown, headers: Record<string, string> = {}): Promise<Response | null> => {
     const ctl = new AbortController()
     const t = setTimeout(() => ctl.abort(), timeoutMs)
     try {
-      return await f(url, {
+      return await f(endpoint, {
         method: 'POST',
-        headers: { 'content-type': 'application/json', accept: 'application/json', ...headers },
+        headers: { 'content-type': 'application/json', accept: MCP_ACCEPT, ...headers },
         body: JSON.stringify(body),
         signal: ctl.signal,
       })
     } catch (e) {
-      errors.push(`fetch ${url}: ${(e as Error).message}`)
+      errors.push(`POST ${endpoint}: ${(e as Error).message}`)
       return null
     } finally {
       clearTimeout(t)
     }
   }
 
-  const initRes = await call({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'patchbay-audit', version: '0.1.0' } } })
-  if (initRes) {
-    probe.reachable = true
-    probe.initializeOk = initRes.ok
-    if (initRes.status === 401 || initRes.status === 403) probe.authRequired = true
-  }
-
-  const listRes = await call({ jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} })
-  if (listRes && listRes.ok) {
-    probe.toolsListOk = true
+  const getEventStream = async (endpoint: string): Promise<Response | null> => {
+    const ctl = new AbortController()
+    const t = setTimeout(() => ctl.abort(), timeoutMs)
     try {
-      const j = (await listRes.json()) as { result?: { tools?: Array<{ name: string; description?: string }> } }
-      probe.tools = j.result?.tools ?? []
+      return await f(endpoint, {
+        method: 'GET',
+        headers: { accept: 'text/event-stream' },
+        signal: ctl.signal,
+      })
     } catch (e) {
-      errors.push(`tools/list parse: ${(e as Error).message}`)
+      errors.push(`GET ${endpoint}: ${(e as Error).message}`)
+      return null
+    } finally {
+      clearTimeout(t)
     }
-  } else if (listRes && (listRes.status === 401 || listRes.status === 403)) {
-    probe.authRequired = true
   }
 
-  if (probe.authRequired) {
-    const bearer = await call({ jsonrpc: '2.0', id: 3, method: 'tools/list', params: {} }, { authorization: 'Bearer patchbay-probe-token' })
+  const streamOk = (res: Response | null): boolean => {
+    if (!res || !res.ok) return false
+    const ct = res.headers.get('content-type') ?? ''
+    return ct.includes('application/json') || ct.includes('text/event-stream')
+  }
+
+  const candidates = pathCandidates(url)
+  let endpoint: string | undefined
+  let initRes: Response | null = null
+
+  for (const candidate of candidates) {
+    const res = await postRpc(candidate, INITIALIZE_BODY)
+    if (!res) continue
+    if (res.status === 401 || res.status === 403) {
+      endpoint = candidate
+      probe.reachable = true
+      probe.authRequired = true
+      initRes = res
+      break
+    }
+    if (streamOk(res)) {
+      endpoint = candidate
+      probe.reachable = true
+      probe.transport = 'streamable-http'
+      probe.initializeOk = true
+      initRes = res
+      break
+    }
+    if (res.status < 500 && res.status !== 404) {
+      endpoint = candidate
+      probe.reachable = true
+      initRes = res
+      break
+    }
+  }
+
+  if (!endpoint) {
+    for (const candidate of candidates) {
+      const res = await getEventStream(candidate)
+      if (!res) continue
+      const ct = res.headers.get('content-type') ?? ''
+      if (res.ok && ct.includes('text/event-stream')) {
+        endpoint = candidate
+        probe.reachable = true
+        probe.transport = 'legacy-sse'
+        break
+      }
+      if (res.status === 401 || res.status === 403) {
+        endpoint = candidate
+        probe.reachable = true
+        probe.authRequired = true
+        break
+      }
+    }
+  }
+
+  probe.effectiveEndpoint = endpoint
+
+  if (endpoint && !probe.authRequired && probe.transport !== 'legacy-sse') {
+    const listRes = await postRpc(endpoint, { jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} })
+    if (listRes && listRes.ok && streamOk(listRes)) {
+      probe.toolsListOk = true
+      probe.tools = await parseTools(listRes, errors)
+    } else if (listRes && (listRes.status === 401 || listRes.status === 403)) {
+      probe.authRequired = true
+    }
+  }
+
+  if (endpoint && probe.authRequired) {
+    const bearer = await postRpc(endpoint, { jsonrpc: '2.0', id: 3, method: 'tools/list', params: {} }, { authorization: 'Bearer patchbay-probe-token' })
     if (bearer && bearer.status !== 401 && bearer.status !== 403) probe.acceptedAuthHeader = 'bearer'
     if (probe.acceptedAuthHeader === 'none') {
-      const apiKey = await call({ jsonrpc: '2.0', id: 4, method: 'tools/list', params: {} }, { 'x-api-key': 'patchbay-probe-key' })
+      const apiKey = await postRpc(endpoint, { jsonrpc: '2.0', id: 4, method: 'tools/list', params: {} }, { 'x-api-key': 'patchbay-probe-key' })
       if (apiKey && apiKey.status !== 401 && apiKey.status !== 403) probe.acceptedAuthHeader = 'api-key'
     }
   }
 
   const base = new URL(url)
-  const wellKnown = async (path: string) => {
+  const wellKnown = async (path: string): Promise<Record<string, unknown> | undefined> => {
     try {
       const r = await f(new URL(path, base).toString(), { method: 'GET', signal: AbortSignal.timeout(timeoutMs) })
       if (!r.ok) return undefined
@@ -85,13 +160,12 @@ export async function probeRemote(url: string, opts: RemoteProbeOptions = {}): P
   probe.oauthProtectedResource = await wellKnown('/.well-known/oauth-protected-resource')
   probe.oauthAuthServer = await wellKnown('/.well-known/oauth-authorization-server')
 
-  const originSpoof = await call(
-    { jsonrpc: '2.0', id: 5, method: 'tools/list', params: {} },
-    { origin: 'https://attacker.example' },
-  )
-  if (originSpoof) {
-    if (originSpoof.status === 403 || originSpoof.status === 400) probe.originValidation = 'strict'
-    else if (originSpoof.ok) probe.originValidation = 'permissive'
+  if (endpoint) {
+    const originSpoof = await postRpc(endpoint, { jsonrpc: '2.0', id: 5, method: 'tools/list', params: {} }, { origin: 'https://attacker.example' })
+    if (originSpoof) {
+      if (originSpoof.status === 403 || originSpoof.status === 400) probe.originValidation = 'strict'
+      else if (streamOk(originSpoof)) probe.originValidation = 'permissive'
+    }
   }
 
   const authServer = probe.oauthAuthServer
@@ -120,6 +194,9 @@ export async function probeRemote(url: string, opts: RemoteProbeOptions = {}): P
     }
   }
 
+  // tiny mitigation for TS6133 on initRes — we captured it to show first-hit kept
+  void initRes
+
   return {
     kind: 'remote-url',
     target: url,
@@ -127,3 +204,46 @@ export async function probeRemote(url: string, opts: RemoteProbeOptions = {}): P
     capturedAt: new Date().toISOString(),
   }
 }
+
+function pathCandidates(url: string): string[] {
+  const u = new URL(url)
+  const base = `${u.protocol}//${u.host}`
+  const given = u.pathname.replace(/\/+$/, '') || '/'
+  const seen = new Set<string>()
+  const push = (p: string) => {
+    const full = p === '/' ? `${base}/` : `${base}${p}`
+    if (!seen.has(full)) seen.add(full)
+  }
+  push(given)
+  if (!given.endsWith('/mcp')) push(`${given === '/' ? '' : given}/mcp`)
+  if (!given.endsWith('/sse')) push(`${given === '/' ? '' : given}/sse`)
+  if (!given.endsWith('/messages')) push(`${given === '/' ? '' : given}/messages`)
+  if (given !== '/') push('/mcp')
+  if (given !== '/') push('/sse')
+  if (given !== '/') push('/')
+  return [...seen]
+}
+
+async function parseTools(res: Response, errors: string[]): Promise<RemoteProbe['tools']> {
+  const ct = res.headers.get('content-type') ?? ''
+  try {
+    if (ct.includes('text/event-stream')) {
+      const text = await res.text()
+      for (const line of text.split('\n')) {
+        if (!line.startsWith('data:')) continue
+        try {
+          const j = JSON.parse(line.slice(5).trim()) as { result?: { tools?: Array<{ name: string }> } }
+          if (j.result?.tools) return j.result.tools
+        } catch {}
+      }
+      return []
+    }
+    const j = (await res.json()) as { result?: { tools?: Array<{ name: string }> } }
+    return j.result?.tools ?? []
+  } catch (e) {
+    errors.push(`tools/list parse: ${(e as Error).message}`)
+    return []
+  }
+}
+
+export { pathCandidates }

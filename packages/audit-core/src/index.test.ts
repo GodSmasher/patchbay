@@ -16,6 +16,7 @@ describe('auditSnapshot', () => {
         toolsListOk: true,
         authRequired: false,
         acceptedAuthHeader: 'none',
+        transport: 'streamable-http',
         tools: [{ name: 'a' }, { name: 'b' }],
         rawErrors: [],
       },
@@ -38,6 +39,7 @@ describe('auditSnapshot', () => {
         toolsListOk: false,
         authRequired: true,
         acceptedAuthHeader: 'none',
+        transport: 'streamable-http',
         tools: [],
         oauthAuthServer: {
           issuer: 'https://x',

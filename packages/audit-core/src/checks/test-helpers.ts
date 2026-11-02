@@ -14,6 +14,7 @@ export function remoteSnap(overrides: Partial<RemoteProbe> & { url?: string } = 
       toolsListOk: false,
       authRequired: true,
       acceptedAuthHeader: 'none',
+      transport: 'streamable-http',
       tools: [],
       originValidation: 'unknown',
       redirectLocalhostInconsistent: false,
