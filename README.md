@@ -71,6 +71,30 @@ The Python target ships `fixtures.py` with the same shape as `src/fixtures.ts`: 
 
 **Carve-outs:** `PATCHBAY_RUNNER=local` only runs TS. The hosted site's recorded replays are TS-only recordings, so without live keys the Python toggle shows the TS replay with a note.
 
+## Audit MCP servers and connectors
+
+`patchbay audit <url-or-directory>` scans an MCP server or a connector repo for OAuth 2.1 and secret-hygiene gaps before you ship it. ~40% of open-source MCP servers have no auth at all, only ~8.5% use OAuth — patchbay audit is the drop-in check.
+
+```
+npx -y @patchbay-nebius/agent audit https://mcp.example.com/mcp
+npx -y @patchbay-nebius/agent audit ./my-mcp-server --json
+npx -y @patchbay-nebius/agent audit ./my-mcp-server --sarif > results.sarif
+```
+
+**Checks shipped so far:**
+
+| ID | Severity | What it catches |
+|---|---|---|
+| `AUTH-001` | critical | `tools/list` succeeds without any credentials |
+| `AUTH-002` | critical | Static API key or bearer accepted, no `/.well-known/oauth-*` discovery served |
+| `SECRET-001` | critical | Hardcoded `sk-…`, `ghp_…`, `AKIA…`, `xoxb-…` or hex secrets in source |
+
+More checks (PKCE enforcement, resource indicators, per-tool scopes, DNS rebinding, transport, redirect validation) ship in the following weeks — see [patchbay-phase2-plan.md](patchbay-phase2-plan.md).
+
+**Outputs:** pretty terminal (default, with CTA), `--json`, `--sarif` for GitHub Actions. `--ci` exits non-zero on critical/high so the audit gates your pipeline. `--no-cta` keeps CI logs clean.
+
+**Pure-core design.** `packages/audit-core` has zero I/O inside the check functions: probing collects a `TargetSnapshot`, checks are `(snapshot) => Finding[]`. Trivial to unit-test, trivial for the repair model to consume later.
+
 ## Training our own repair model on our own benchmark runs
 
 Every patchbay benchmark run is a record of the agent failing and then fixing itself. **173** of those `(red draft + failing test report) → green draft` moments across the committed benchmark passes make a domain-matched training set — and Nebius Token Factory ships an OpenAI-compatible fine-tune endpoint that eats exactly this format. So we fine-tuned **Qwen/Qwen3-30B-A3B-Instruct-2507** on patchbay's own repair history. The deployment path uses a second Nebius product: trained checkpoints come out via `/fine_tuning/jobs/{id}/checkpoints`, land on a Nebius AI Cloud GPU (H100 NVLink preemptible) behind a vLLM OpenAI-compatible endpoint, and `PATCHBAY_REPAIR_LLM_BASE_URL` points patchbay's repair step at the self-hosted model. **Three Nebius products in one closed loop:** Token Factory Inference (live agent) → Token Factory Post-training (fine-tune) → AI Cloud GPU (serve the fine-tune).
@@ -116,6 +140,7 @@ patchbay build   [--record] [--lang=python] "<one-sentence integration>"
 patchbay research [--lang=python]            "<one-sentence integration>"
 patchbay verify  [--lang=python] <directory>
 patchbay scan    <directory-or-github-url> [--build-top=<n>] [--lang=python]
+patchbay audit   <url-or-directory> [--json] [--sarif] [--ci] [--no-cta]
 ```
 
 **`patchbay scan <dir-or-github-url>` — autonomous repo scanner.** Walks any repository (local directory OR a GitHub URL, which patchbay shallow-clones for you) and reports the integration opportunities patchbay could build: TypeScript Express/Next/Fastify webhook handlers that only contain `TODO` or `throw not implemented`, **Python FastAPI/Flask routes with `pass` bodies or `raise NotImplementedError`**, `.env.example` entries pointing at vendor APIs with no implementation, TODO/FIXME comments mentioning Stripe/Mailchimp/Shopify/… and vendor SDKs that are imported but barely used. Each opportunity ships with a ready-to-run prompt and a priority score; `--build-top=N` runs the full pipeline on the top N automatically.
@@ -211,8 +236,9 @@ The generated connector has **zero patchbay dependency** – it's a plain TypeSc
 
 ```
 packages/
-  agent/   # the pipeline (plan, research, generate, verify, repair) + CLI + scanner
-  mcp/     # MCP server exposing scan_repo / build_connector / research_api / verify_code
+  agent/        # the pipeline (plan, research, generate, verify, repair) + CLI + scanner
+  mcp/          # MCP server exposing scan_repo / build_connector / research_api / verify_code
+  audit-core/   # OAuth 2.1 / scope / secret checks for MCP servers (patchbay audit)
 apps/
   web/     # Next.js demo
 bench/     # the 20-prompt benchmark + results + training data
