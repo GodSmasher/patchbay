@@ -1,4 +1,4 @@
-import { writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { auditTarget } from '../packages/audit-core/src/index'
 import type { AuditReport, Severity } from '../packages/audit-core/src/types'
 
@@ -7,21 +7,27 @@ const DEFAULT_TARGETS = [
   'https://mcp.context7.com/mcp',
 ]
 
-const CONCURRENCY = 4
+const CONCURRENCY = 8
 const TIMEOUT_MS = 8000
 
 async function main() {
   const argv = process.argv.slice(2)
   const outFlag = argv.find((a) => a.startsWith('--out='))
   const outPath = outFlag?.slice('--out='.length)
+  const fileFlag = argv.find((a) => a.startsWith('--file='))
+  const filePath = fileFlag?.slice('--file='.length)
   const urls = argv.filter((a) => !a.startsWith('--'))
-  const targets = urls.length > 0 ? urls : DEFAULT_TARGETS
+  const fromFile = filePath
+    ? readFileSync(filePath, 'utf8').split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('#'))
+    : []
+  const targets = [...fromFile, ...urls]
+  const finalTargets = targets.length > 0 ? targets : DEFAULT_TARGETS
 
-  console.log(`Scanning ${targets.length} MCP server(s), concurrency=${CONCURRENCY}, timeout=${TIMEOUT_MS}ms\n`)
+  console.log(`Scanning ${finalTargets.length} MCP server(s), concurrency=${CONCURRENCY}, timeout=${TIMEOUT_MS}ms\n`)
 
   const results: Array<{ url: string; report?: AuditReport; error?: string }> = []
-  const queue = [...targets]
-  const workers = Array.from({ length: Math.min(CONCURRENCY, targets.length) }, async () => {
+  const queue = [...finalTargets]
+  const workers = Array.from({ length: Math.min(CONCURRENCY, finalTargets.length) }, async () => {
     while (queue.length > 0) {
       const url = queue.shift()!
       process.stdout.write(`  scanning ${url} ... `)
@@ -81,7 +87,7 @@ async function main() {
   if (outPath) {
     const payload = {
       capturedAt: new Date().toISOString(),
-      targets,
+      targets: finalTargets,
       totals,
       checkCounts,
       results: results.map((r) => ({
