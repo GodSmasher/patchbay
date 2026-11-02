@@ -17,8 +17,10 @@ export const scope001: Check = {
       return []
     }
     if (r && r.tools.length >= 2) {
+      const hasOAuthContext = Boolean(r.oauthAuthServer || r.oauthProtectedResource)
+      if (!hasOAuthContext) return []
       const anyScope = r.tools.some((t) => Array.isArray(t.scopes) && t.scopes.length > 0)
-      if (!anyScope) return [finding(`${r.tools.length} tools listed via tools/list, none declare scopes.`)]
+      if (!anyScope) return [finding(`${r.tools.length} tools listed via tools/list on an OAuth-protected server, none declare scopes.`)]
       const first = JSON.stringify((r.tools[0]?.scopes ?? []).slice().sort())
       const allSame = r.tools.every((t) => JSON.stringify((t.scopes ?? []).slice().sort()) === first)
       if (allSame) return [finding(`All ${r.tools.length} tools share the same scope set ${first}.`)]

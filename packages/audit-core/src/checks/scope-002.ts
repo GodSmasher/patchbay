@@ -1,10 +1,6 @@
 import type { Check, Finding } from '../types'
 
-const WRITES = new Set(['create', 'update', 'delete', 'send', 'pay', 'charge', 'transfer', 'execute', 'run', 'post', 'put', 'patch', 'destroy', 'remove', 'insert', 'write'])
-const READS = new Set(['get', 'list', 'read', 'search', 'find', 'query', 'fetch', 'lookup', 'describe', 'show'])
-const tokens = (name: string): string[] => name.toLowerCase().split(/[_\-\s./]+/).filter(Boolean)
-const isWrite = (name: string): boolean => tokens(name).some((t) => WRITES.has(t))
-const isRead = (name: string): boolean => tokens(name).some((t) => READS.has(t))
+import { isRead, isWrite } from './tool-shapes'
 
 export const scope002: Check = {
   id: 'SCOPE-002',

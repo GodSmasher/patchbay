@@ -8,9 +8,17 @@ describe('SCOPE-001', () => {
     expect(r).toHaveLength(1)
   })
 
-  it('fires when remote tools declare no scopes', () => {
-    const r = scope001.run(remoteSnap({ tools: [{ name: 'a' }, { name: 'b' }] }))
+  it('fires when remote OAuth server tools declare no scopes', () => {
+    const r = scope001.run(remoteSnap({
+      tools: [{ name: 'a' }, { name: 'b' }],
+      oauthAuthServer: { issuer: 'https://x' },
+    }))
     expect(r).toHaveLength(1)
+  })
+
+  it('does not fire for non-OAuth server (not applicable)', () => {
+    const r = scope001.run(remoteSnap({ tools: [{ name: 'a' }, { name: 'b' }] }))
+    expect(r).toEqual([])
   })
 
   it('passes when tools have distinct scope sets', () => {

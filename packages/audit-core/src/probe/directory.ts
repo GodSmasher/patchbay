@@ -10,8 +10,15 @@ const SECRET_PATTERNS: Array<{ name: string; re: RegExp }> = [
   { name: 'generic-hex-secret', re: /(?:key|token|secret|password)\s*[:=]\s*['"][A-Fa-f0-9]{32,}['"]/g },
 ]
 
+const EXAMPLE_PATTERNS = [
+  /example/i, /sample/i, /dummy/i, /placeholder/i, /your[-_]?(key|token|secret)/i,
+  /xxxx|xxxxxx|aaaaaa|bbbbbb|000000/i, /test[-_]?(key|token)/i, /fake[-_]?/i,
+  /^sk-(xxx|example|test|dummy|aaaa)/i,
+]
+
 const SOURCE_EXT = new Set(['.ts', '.tsx', '.js', '.mjs', '.cjs', '.py', '.json', '.yaml', '.yml', '.env'])
 const IGNORE_DIR = new Set(['node_modules', '.git', 'dist', 'build', '.next', '.turbo', 'coverage', '.venv', '__pycache__'])
+const TEST_PATH_RE = /(^|[\\/])(__tests__|__fixtures__|tests?|fixtures?|examples?|docs?|spec)([\\/]|$)|\.(test|spec)\.[a-z]+$/i
 
 export interface DirectoryProbeOptions {
   maxFiles?: number
@@ -53,13 +60,19 @@ export function probeDirectory(root: string, opts: DirectoryProbeOptions = {}): 
       count++
       probe.files.push({ path: rel })
 
-      for (const { name: pname, re } of SECRET_PATTERNS) {
-        re.lastIndex = 0
-        let m: RegExpExecArray | null
-        while ((m = re.exec(text)) !== null) {
-          const line = text.slice(0, m.index).split('\n').length
-          probe.secretHits.push({ path: rel, line, pattern: pname, match: m[0] })
-          if (probe.secretHits.length > 100) break
+      const isTestPath = TEST_PATH_RE.test(rel)
+      if (!isTestPath) {
+        for (const { name: pname, re } of SECRET_PATTERNS) {
+          re.lastIndex = 0
+          let m: RegExpExecArray | null
+          while ((m = re.exec(text)) !== null) {
+            if (EXAMPLE_PATTERNS.some((p) => p.test(m![0]))) continue
+            const line = text.slice(0, m.index).split('\n').length
+            const lineText = text.split('\n')[line - 1] ?? ''
+            if (EXAMPLE_PATTERNS.some((p) => p.test(lineText))) continue
+            probe.secretHits.push({ path: rel, line, pattern: pname, match: m[0] })
+            if (probe.secretHits.length > 100) break
+          }
         }
       }
 

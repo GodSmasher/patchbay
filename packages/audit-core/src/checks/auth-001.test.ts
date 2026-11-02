@@ -25,11 +25,18 @@ function snap(overrides: Partial<NonNullable<TargetSnapshot['remote']>> & { url:
 }
 
 describe('AUTH-001', () => {
-  it('fires when tools/list succeeds without auth', () => {
-    const r = auth001.run(snap({ url: 'https://x', tools: [{ name: 'a' }, { name: 'b' }] }))
+  it('fires critical when server has write tools and no auth', () => {
+    const r = auth001.run(snap({ url: 'https://x', tools: [{ name: 'get_user' }, { name: 'delete_user' }] }))
     expect(r).toHaveLength(1)
     expect(r[0]!.severity).toBe('critical')
-    expect(r[0]!.evidence).toContain('2 tool')
+    expect(r[0]!.evidence).toContain('delete_user')
+  })
+
+  it('fires info (not critical) for public read-only server', () => {
+    const r = auth001.run(snap({ url: 'https://x', tools: [{ name: 'get_user' }, { name: 'search' }] }))
+    expect(r).toHaveLength(1)
+    expect(r[0]!.severity).toBe('info')
+    expect(r[0]!.title.toLowerCase()).toContain('read-only')
   })
 
   it('does not fire when auth is required', () => {

@@ -17,7 +17,7 @@ describe('auditSnapshot', () => {
         authRequired: false,
         acceptedAuthHeader: 'none',
         transport: 'streamable-http',
-        tools: [{ name: 'a' }, { name: 'b' }],
+        tools: [{ name: 'get_user' }, { name: 'delete_user' }],
         rawErrors: [],
       },
     }

@@ -11,11 +11,11 @@ export const transport002: Check = {
     return [
       {
         id: 'TRANSPORT-002',
-        severity: 'medium',
+        severity: 'low',
         confidence: 'medium',
-        title: 'Server accepts spoofed Origin header',
-        evidence: `${r.url} answered a tools/list call with Origin: https://attacker.example as if it came from an allowed origin. Local MCP servers are vulnerable to DNS rebinding when they accept arbitrary origins.`,
-        fix: 'Validate the Origin header against an allowlist on Streamable HTTP endpoints. Reject requests whose Origin is unknown.',
+        title: 'Server does not reject spoofed Origin header',
+        evidence: `${r.url} answered a tools/list call with Origin: https://attacker.example without rejecting it. Only relevant for servers intended to accept browser clients; server-to-server MCP endpoints do not need Origin validation.`,
+        fix: 'If this endpoint can be called from browser clients (Streamable HTTP in a webapp), validate the Origin header against an allowlist. Otherwise ignore this finding.',
         docsUrl: 'https://patchbay.dev/docs/transport-002',
       },
     ]

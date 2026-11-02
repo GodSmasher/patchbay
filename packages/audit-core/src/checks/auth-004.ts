@@ -13,11 +13,11 @@ export const auth004: Check = {
     return [
       {
         id: 'AUTH-004',
-        severity: 'high',
+        severity: 'medium',
         confidence: 'medium',
-        title: 'Tokens not bound to this resource server (RFC 8707)',
-        evidence: `${r.url} advertises no "resource_indicators_supported": true in OAuth metadata. Clients cannot bind tokens to this server; tokens issued for other audiences can be replayed.`,
-        fix: 'Support the `resource` parameter on authorization + token requests (RFC 8707) and reject tokens whose audience is not this server.',
+        title: 'Resource indicators not advertised (RFC 8707)',
+        evidence: `${r.url} advertises no "resource_indicators_supported": true in OAuth metadata. Clients cannot discover whether tokens are audience-bound; server may still enforce audience at runtime — this is a metadata completeness finding, not a confirmed vulnerability.`,
+        fix: 'Support the `resource` parameter on authorization + token requests (RFC 8707), reject tokens whose audience is not this server, and advertise the capability in metadata.',
         docsUrl: 'https://patchbay.dev/docs/auth-004',
         autofixTemplate: 'oauth21',
       },
