@@ -62,4 +62,5 @@ export interface AuditReport {
   summary: Record<Severity, number>
   durationMs: number
   capturedAt: string
+  snapshot: TargetSnapshot
 }

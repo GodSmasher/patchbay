@@ -54,6 +54,7 @@ function runChecks(snapshot: TargetSnapshot, checks: Check[], start: number): Au
     summary,
     durationMs: Date.now() - start,
     capturedAt: snapshot.capturedAt,
+    snapshot,
   }
 }
 
