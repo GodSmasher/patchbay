@@ -81,15 +81,24 @@ npx -y @patchbay-nebius/agent audit ./my-mcp-server --json
 npx -y @patchbay-nebius/agent audit ./my-mcp-server --sarif > results.sarif
 ```
 
-**Checks shipped so far:**
+**12 checks shipped:**
 
 | ID | Severity | What it catches |
 |---|---|---|
 | `AUTH-001` | critical | `tools/list` succeeds without any credentials |
 | `AUTH-002` | critical | Static API key or bearer accepted, no `/.well-known/oauth-*` discovery served |
+| `AUTH-003` | high | OAuth metadata without PKCE S256 in `code_challenge_methods_supported` |
+| `AUTH-004` | high | No resource indicator support (RFC 8707) — tokens not audience-bound |
+| `AUTH-005` | high | OAuth 2.1 advertised without Dynamic Client Registration endpoint |
+| `SCOPE-001` | high | All tools share one scope or no scopes declared at all |
+| `SCOPE-002` | medium | Write/destructive tools share scope with read tools |
 | `SECRET-001` | critical | Hardcoded `sk-…`, `ghp_…`, `AKIA…`, `xoxb-…` or hex secrets in source |
+| `SECRET-002` | medium | Credential read from env but no refresh-token flow found |
+| `TRANSPORT-001` | high | Remote server reachable over plain HTTP |
+| `TRANSPORT-002` | medium | Server accepts a spoofed `Origin` header (DNS rebinding) |
+| `REDIRECT-001` | medium | Token endpoint treats `localhost` and `127.0.0.1` inconsistently |
 
-More checks (PKCE enforcement, resource indicators, per-tool scopes, DNS rebinding, transport, redirect validation) ship in the following weeks — see [patchbay-phase2-plan.md](patchbay-phase2-plan.md).
+See [patchbay-phase2-plan.md](patchbay-phase2-plan.md) for the roadmap (`--with-auth` connector templates, `--pr-draft`, GitHub Action).
 
 **Outputs:** pretty terminal (default, with CTA), `--json`, `--sarif` for GitHub Actions. `--ci` exits non-zero on critical/high so the audit gates your pipeline. `--no-cta` keeps CI logs clean.
 
