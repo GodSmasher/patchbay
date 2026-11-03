@@ -156,11 +156,12 @@ npx -y @patchbay-nebius/agent audit ./my-mcp-server --sarif > out.sarif`}
       </pre>
       <p>
         In CI, drop{' '}
-        <a href="https://github.com/GodSmasher/patchbay/blob/main/.github/workflows/patchbay-audit.yml" className="text-neutral-100 underline underline-offset-4 hover:text-white">
-          .github/workflows/patchbay-audit.yml
+        <a href="https://github.com/GodSmasher/patchbay/blob/main/examples/github-action/patchbay-audit.yml" className="text-neutral-100 underline underline-offset-4 hover:text-white">
+          examples/github-action/patchbay-audit.yml
         </a>{' '}
-        into your repo. It runs on every push and PR, fails the build on critical or high findings
-        and uploads SARIF to the GitHub Code Scanning tab.
+        into your own repo as <code>.github/workflows/patchbay-audit.yml</code>. It runs on every
+        push and PR, fails the build on critical or high findings and uploads SARIF to the GitHub
+        Code Scanning tab.
       </p>
       <p>
         If it flags something and you think it&apos;s wrong, open an issue with the output.
