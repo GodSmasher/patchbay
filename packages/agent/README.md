@@ -61,7 +61,7 @@ Full breakdown and per-prompt stability in [bench/RESULTS-variance.md](https://g
 ## Also runs as
 
 - **MCP server** for Claude Code / Codex / Cursor — see [@patchbay-nebius/mcp](https://www.npmjs.com/package/@patchbay-nebius/mcp)
-- **Web app** — live at <https://patchbay-nebius.vercel.app>
+- **Web app** — live at <https://patchbay-mcp.dev>
 - **Slack slash command** — see [docs/slack-setup.md](https://github.com/GodSmasher/patchbay/blob/main/docs/slack-setup.md)
 
 Built for the [Nebius × NVIDIA Global AI Hackathon](https://nebiusglobalaihackathon.devpost.com).

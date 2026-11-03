@@ -21,7 +21,7 @@
   <a href="docs/slack-setup.md"><img src="https://img.shields.io/badge/-Slack-4A154B?style=for-the-badge&logo=slack&logoColor=white" alt="Slack" height="28"/></a>
   <a href=".github/workflows/patchbay-pr.yml"><img src="https://img.shields.io/badge/-GitHub%20PR-181717?style=for-the-badge&logo=github&logoColor=white" alt="GitHub Actions" height="28"/></a>
   <a href="Dockerfile"><img src="https://img.shields.io/badge/-Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker" height="28"/></a>
-  <a href="https://patchbay-nebius.vercel.app"><img src="https://img.shields.io/badge/-Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white" alt="Vercel" height="28"/></a>
+  <a href="https://patchbay-mcp.dev"><img src="https://img.shields.io/badge/-Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white" alt="Vercel" height="28"/></a>
   <a href="https://www.npmjs.com/package/@patchbay-nebius/agent"><img src="https://img.shields.io/badge/-npm-CB3837?style=for-the-badge&logo=npm&logoColor=white" alt="npm" height="28"/></a>
 </p>
 
@@ -35,7 +35,7 @@ patchbay build "When a Stripe payment succeeds, add the customer to a Mailchimp 
 patchbay build --lang=python "When a Stripe payment succeeds, add the customer to a Mailchimp audience with the plan as a tag"
 ```
 
-**90.2% green on TS Core 20 · 73.3% green on Python Core 20 · 70.0% on Python Brutal 20 — measured across 192 live Nebius Sandbox runs with per-run JSON committed to the repo.** Fine-tune live on Nebius AI Cloud (Qwen3-30B-A3B on 173 of patchbay's own red→green repair pairs, served from an H100 NVLink GPU behind an OpenAI-compatible vLLM endpoint). Dual-language toggle on the live site at **https://patchbay-nebius.vercel.app**, public uptime at **https://patchbay.openstatus.dev**, open-source training dataset on [🤗 patchbay-nebius/connector-repair-dataset](https://huggingface.co/datasets/patchbay-nebius/connector-repair-dataset).
+**90.2% green on TS Core 20 · 73.3% green on Python Core 20 · 70.0% on Python Brutal 20 — measured across 192 live Nebius Sandbox runs with per-run JSON committed to the repo.** Fine-tune live on Nebius AI Cloud (Qwen3-30B-A3B on 173 of patchbay's own red→green repair pairs, served from an H100 NVLink GPU behind an OpenAI-compatible vLLM endpoint). Dual-language toggle on the live site at **https://patchbay-mcp.dev**, public uptime at **https://patchbay.openstatus.dev**, open-source training dataset on [🤗 patchbay-nebius/connector-repair-dataset](https://huggingface.co/datasets/patchbay-nebius/connector-repair-dataset).
 
 ## The numbers
 
@@ -65,7 +65,7 @@ Every endpoint in the spec comes with an example payload taken from the document
 
 ## Dual-language, first-class
 
-TypeScript and Python share one plan + research step — only the generate prompt, the sandbox image and the test harness swap. The hosted demo at [patchbay-nebius.vercel.app](https://patchbay-nebius.vercel.app) has a **TypeScript · Python · Both** toggle; "Both" fires two live Nebius pipelines side-by-side so you watch the same prompt land in both languages at once.
+TypeScript and Python share one plan + research step — only the generate prompt, the sandbox image and the test harness swap. The hosted demo at [patchbay-mcp.dev](https://patchbay-mcp.dev) has a **TypeScript · Python · Both** toggle; "Both" fires two live Nebius pipelines side-by-side so you watch the same prompt land in both languages at once.
 
 The Python target ships `fixtures.py` with the same shape as `src/fixtures.ts`: `SOURCE_EXAMPLE`, `TARGET_ENDPOINTS`, `contract_fetch()`, `fake_fetch()`, `json_response()`. Connectors export `async def handle(payload, config)` with an injected async transport in `config['fetch']`, so tests stay hermetic (no network, no real httpx client). URL matcher handles placeholder segments (`{id}`, `:id`, `<id>`) and region subdomains. See [bench/RESULTS-variance.md](bench/RESULTS-variance.md#python-core-20-variance-pass-2026-10-28) for the per-prompt breakdown.
 
@@ -168,7 +168,7 @@ claude mcp add patchbay -- npx -y @patchbay-nebius/mcp
 
 Full setup for Claude Code, Codex and Cursor in [docs/mcp-setup.md](docs/mcp-setup.md).
 
-**Web app** – `apps/web`, Next.js 14 on port 3400. Live demo at **https://patchbay-nebius.vercel.app**. The same UI streams a live Nebius run or, past the 6/hour per-IP rate limit, the recorded replay. Shareable scan URLs (`?scan=owner/name`) and shareable run URLs. Public uptime at **https://patchbay.openstatus.dev**.
+**Web app** – `apps/web`, Next.js 14 on port 3400. Live demo at **https://patchbay-mcp.dev**. The same UI streams a live Nebius run or, past the 6/hour per-IP rate limit, the recorded replay. Shareable scan URLs (`?scan=owner/name`) and shareable run URLs. Public uptime at **https://patchbay.openstatus.dev**.
 
 **Slack** – `/patchbay <one-sentence integration>` as a slash command. Setup in [docs/slack-setup.md](docs/slack-setup.md); the endpoint lives at `apps/web/app/api/slack/command/route.ts` on the same Vercel deploy.
 

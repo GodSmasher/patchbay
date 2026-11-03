@@ -26,7 +26,7 @@ export function StateOfMcpAuthNov2026() {
             <Row label="Reachable" value="20 / 25" />
             <Row label="Enforce authentication" value="12 / 25" />
             <Row label="Reachable + public (no auth)" value="8 / 20" />
-            <Row label="Of those public: expose a mutating tool" value="3 / 8" emphasised />
+            <Row label="Of those public: expose a mutating tool" value="2 / 8" emphasised />
             <Row label="Advertise OAuth 2.1 discovery metadata" value="2 / 20" />
             <Row label="Advertise resource_indicators_supported (RFC 8707)" value="2 / 20" />
             <Row label="Advertise PKCE S256 in code_challenge_methods_supported" value="2 / 20" />
@@ -35,16 +35,21 @@ export function StateOfMcpAuthNov2026() {
       </div>
 
       <p>
-        Three servers surfaced critical findings. All three got a responsible-disclosure email with a
-        90-day embargo before any public write-up names them. If you&apos;re one of them and you fix
-        the issue, I&apos;ll cite the fixed state here.
+        Three servers surfaced findings I thought were critical. All three got a responsible-disclosure
+        email with a 90-day embargo before any public write-up names them. One of them (Chainflip&apos;s
+        broker-as-a-service MCP) came back within hours with a link to their public AI documentation:
+        the broker tools are intentionally no-auth because the actual value transfer is signed on-chain
+        by the user, not initiated server-side. Public-by-design, documented, correctly scoped. So
+        that one is off the critical list.
       </p>
       <p>
-        Public-by-design servers like DeepWiki are correctly flagged as{' '}
-        <em>info, public read-only server (documented pattern)</em> rather than critical. That
-        distinction matters more than it sounds: the first version of my tool called DeepWiki
-        &quot;critical no auth required&quot;, which would have made the whole post indefensible on
-        day one.
+        Public-by-design servers like DeepWiki and Chainflip are now flagged as{' '}
+        <em>info, public read-only or user-signed pattern</em> rather than critical. That distinction
+        matters more than it sounds: the first version of my tool called DeepWiki &quot;critical no
+        auth required&quot;, which would have made the whole post indefensible on day one. The
+        Chainflip response is the second lesson: when a server links a <code>/.well-known/ai-catalog.json</code>{' '}
+        or an AI-documentation page explicitly saying &quot;no auth required&quot;, the audit should
+        read that first and downgrade.
       </p>
 
       <h2 className="text-xl font-semibold text-white mt-12 mb-4">What the tool actually does</h2>
@@ -116,9 +121,10 @@ npx -y @patchbay-nebius/agent audit ./my-mcp-server --sarif > out.sarif`}
         documents.
       </p>
       <p>
-        The servers I&apos;d worry about are the public ones with mutating tools. Those are startups
-        and solo projects shipping MCP endpoints that look like read-only wiki queries but include{' '}
-        <code>start_swap</code> or <code>create_...</code> tools in the list. The developer who
+        The servers I&apos;d worry about are the public ones with mutating tools and no documented
+        reason for being public. Those are startups and solo projects shipping MCP endpoints that look
+        like read-only wiki queries but include <code>create_...</code> or <code>update_...</code>{' '}
+        tools in the list, with no AI-catalog entry saying this is intentional. The developer who
         shipped them might not have realised there&apos;s no auth gate.
       </p>
       <p>
@@ -141,6 +147,7 @@ npx -y @patchbay-nebius/agent audit ./my-mcp-server --sarif > out.sarif`}
         <li>The probe tries the given URL, <code>/mcp</code>, <code>/sse</code>, <code>/messages</code>, and <code>/</code>. It won&apos;t find endpoints at unusual paths.</li>
         <li>Stdio transport servers (local MCP) are out of scope; audit the HTTP side.</li>
         <li>Doesn&apos;t yet have <code>--pr-draft</code> to write a markdown findings doc into the target repo. That ships next.</li>
+        <li>Doesn&apos;t yet read <code>/.well-known/ai-catalog.json</code> or linked AI-documentation pages. When a server declares no-auth intentionally there, AUTH-001 should auto-downgrade. Ships next.</li>
       </ul>
 
       <h2 className="text-xl font-semibold text-white mt-12 mb-4">Try it</h2>

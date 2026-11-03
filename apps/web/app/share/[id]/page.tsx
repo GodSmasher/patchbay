@@ -96,7 +96,7 @@ export default function SharePage({ params }: { params: { id: string } }) {
       )}
 
       <footer className="mt-10 border-t border-paper-line pt-4 text-xs text-ink-mute">
-        Reproduce or remix this at <Link href="/" className="text-ink hover:underline">patchbay-nebius.vercel.app</Link>.
+        Reproduce or remix this at <Link href="/" className="text-ink hover:underline">patchbay-mcp.dev</Link>.
       </footer>
     </main>
   )

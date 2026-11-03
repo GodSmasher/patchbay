@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 
-const SITE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://patchbay-nebius.vercel.app'
+const SITE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://patchbay-mcp.dev'
 const TITLE = 'patchbay — describe an integration, get a tested connector'
 const DESCRIPTION =
   'One sentence in. Tested TypeScript connector out. 90% green over 92 real runs on Nemotron + Nebius sandboxes.'

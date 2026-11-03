@@ -54,7 +54,7 @@ With `claude mcp add` you can inline them via `--env`, or just set them in your 
 ## Also runs as
 
 - **CLI** — `npm install -g @patchbay-nebius/agent`
-- **Web app** — live at <https://patchbay-nebius.vercel.app>
+- **Web app** — live at <https://patchbay-mcp.dev>
 - **Slack slash command** — [docs/slack-setup.md](https://github.com/GodSmasher/patchbay/blob/main/docs/slack-setup.md)
 
 Built for the [Nebius × NVIDIA Global AI Hackathon](https://nebiusglobalaihackathon.devpost.com).

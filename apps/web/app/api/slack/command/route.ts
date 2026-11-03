@@ -158,7 +158,7 @@ async function collectReplaySummary(_prompt: string): Promise<string> {
 }
 
 function liveLink(): string {
-  return process.env.NEXT_PUBLIC_BASE_URL || 'https://patchbay-nebius.vercel.app'
+  return process.env.NEXT_PUBLIC_BASE_URL || 'https://patchbay-mcp.dev'
 }
 
 function slackJson(text: string, opts: { ephemeral?: boolean } = {}): Response {
