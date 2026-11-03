@@ -1,0 +1,53 @@
+name: patchbay audit
+
+# Example drop-in workflow: audits this repo's MCP endpoint(s) on every push
+# and pull request, failing the build on critical or high findings.
+#
+# Copy to .github/workflows/patchbay-audit.yml in YOUR repo. Edit TARGETS to
+# point at your MCP server URLs and/or local repo paths.
+#
+# Docs: https://patchbay-mcp.dev/docs
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  audit:
+    name: patchbay audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Audit MCP targets
+        run: |
+          # Edit this list for your project.
+          TARGETS=(
+            "./packages/mcp-server"
+            "https://mcp.example.com/mcp"
+          )
+          for target in "${TARGETS[@]}"; do
+            echo "::group::patchbay audit $target"
+            npx -y @patchbay-nebius/agent audit "$target" --ci
+            echo "::endgroup::"
+          done
+
+      - name: Upload SARIF (optional, for Code Scanning UI)
+        if: always()
+        run: |
+          npx -y @patchbay-nebius/agent audit ./packages/mcp-server --sarif > patchbay.sarif || true
+
+      - name: Upload SARIF to GitHub Code Scanning
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: patchbay.sarif
+          category: patchbay-audit

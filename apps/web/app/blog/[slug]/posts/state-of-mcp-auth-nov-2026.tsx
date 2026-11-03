@@ -155,6 +155,14 @@ npx -y @patchbay-nebius/agent audit ./my-mcp-server --sarif > out.sarif`}
         <code>npx -y @patchbay-nebius/agent audit &lt;your-server-or-repo&gt;</code>
       </pre>
       <p>
+        In CI, drop{' '}
+        <a href="https://github.com/GodSmasher/patchbay/blob/main/.github/workflows/patchbay-audit.yml" className="text-neutral-100 underline underline-offset-4 hover:text-white">
+          .github/workflows/patchbay-audit.yml
+        </a>{' '}
+        into your repo. It runs on every push and PR, fails the build on critical or high findings
+        and uploads SARIF to the GitHub Code Scanning tab.
+      </p>
+      <p>
         If it flags something and you think it&apos;s wrong, open an issue with the output.
         False-positive reports are the most useful feedback right now. The severity recalibration
         between first and second version came entirely from running the tool on known-good servers
