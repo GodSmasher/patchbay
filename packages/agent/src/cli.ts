@@ -13,7 +13,7 @@ Usage:
   patchbay research           "<one-sentence integration>"
   patchbay verify  [--watch] <directory>
   patchbay scan    <directory> [--build-top=<n>] [--json]
-  patchbay audit   <url|directory> [--json] [--sarif] [--ci] [--no-cta]
+  patchbay audit   <url|directory> [--json] [--sarif] [--pr-draft] [--out=<path>] [--ci] [--no-cta]
   patchbay add     <run-dir> [--target=<dir>]
   patchbay push    <run-dir> --repo=owner/name [--path=connectors/<name>] [--branch=<branch>] [--dry-run]
   patchbay help
@@ -314,21 +314,32 @@ async function audit(args: string[]) {
   const target = positional[0]
   if (!target) {
     console.error('patchbay audit: missing target (url or directory)')
-    console.error('usage: patchbay audit <url|dir> [--json] [--sarif] [--ci] [--no-cta]')
+    console.error('usage: patchbay audit <url|dir> [--json] [--sarif] [--pr-draft] [--out=<path>] [--ci] [--no-cta]')
     process.exit(2)
   }
   const asJson = args.includes('--json')
   const asSarif = args.includes('--sarif')
+  const asPrDraft = args.includes('--pr-draft')
+  const outPath = flagValue(args, '--out')
   const ci = args.includes('--ci')
   const noCta = args.includes('--no-cta')
 
-  const { auditTarget, renderTerminal, renderJson, renderSarif } = await import('@patchbay-nebius/audit-core')
+  const { auditTarget, renderTerminal, renderJson, renderSarif, renderMarkdown } = await import('@patchbay-nebius/audit-core')
   const resolved = /^https?:\/\//i.test(target) ? target : resolve(target)
   const report = await auditTarget(resolved)
 
-  if (asJson) console.log(renderJson(report))
-  else if (asSarif) console.log(renderSarif(report))
-  else console.log(renderTerminal(report, { showCta: !noCta }))
+  let rendered: string
+  if (asJson) rendered = renderJson(report)
+  else if (asSarif) rendered = renderSarif(report)
+  else if (asPrDraft) rendered = renderMarkdown(report)
+  else rendered = renderTerminal(report, { showCta: !noCta })
+
+  if (outPath) {
+    writeFileSync(resolve(outPath), rendered, 'utf8')
+    console.error(`wrote ${rendered.length} bytes to ${outPath}`)
+  } else {
+    console.log(rendered)
+  }
 
   if (ci && (report.summary.critical > 0 || report.summary.high > 0)) {
     process.exit(1)

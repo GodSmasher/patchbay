@@ -1,13 +1,13 @@
 name: patchbay audit
 
 # Example drop-in workflow: audits an MCP endpoint on every push and pull
-# request, failing the build on critical or high findings.
+# request, failing the build on critical or high findings, and posting the
+# findings as a Markdown comment on the pull request.
 #
 # This file lives under examples/ in the patchbay repo so GitHub does NOT
 # run it against patchbay itself. To use it in YOUR repo:
 #   1. Copy to .github/workflows/patchbay-audit.yml
-#   2. Edit the TARGETS list below to point at your MCP server URLs and/or
-#      local repo paths.
+#   2. Edit the TARGET below to point at your MCP server URL or local repo path.
 #
 # Docs: https://patchbay-mcp.dev/docs
 
@@ -17,10 +17,16 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   audit:
     name: patchbay audit
     runs-on: ubuntu-latest
+    env:
+      TARGET: ./packages/mcp-server
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -30,23 +36,30 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Audit MCP targets
-        run: |
-          # Edit this list for your project.
-          TARGETS=(
-            "./packages/mcp-server"
-            "https://mcp.example.com/mcp"
-          )
-          for target in "${TARGETS[@]}"; do
-            echo "::group::patchbay audit $target"
-            npx -y @patchbay-nebius/agent audit "$target" --ci
-            echo "::endgroup::"
-          done
+      - name: Audit target (CI fail on critical / high)
+        run: npx -y @patchbay-nebius/agent audit "$TARGET" --ci
 
-      - name: Upload SARIF (optional, for Code Scanning UI)
+      - name: Render PR-draft markdown
         if: always()
-        run: |
-          npx -y @patchbay-nebius/agent audit ./packages/mcp-server --sarif > patchbay.sarif || true
+        run: npx -y @patchbay-nebius/agent audit "$TARGET" --pr-draft --out PATCHBAY_AUDIT.md
+
+      - name: Comment on PR with findings
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs')
+            const body = fs.readFileSync('PATCHBAY_AUDIT.md', 'utf8')
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            })
+
+      - name: Render SARIF for GitHub Code Scanning
+        if: always()
+        run: npx -y @patchbay-nebius/agent audit "$TARGET" --sarif --out patchbay.sarif
 
       - name: Upload SARIF to GitHub Code Scanning
         if: always()

@@ -146,7 +146,13 @@ npx -y @patchbay-nebius/agent audit ./my-mcp-server --sarif > out.sarif`}
         <li>SCOPE-002 is name-regex heuristics on tool names. Will produce occasional false positives on names like <code>post_user</code> (meaning &quot;the user who posted&quot; vs. &quot;HTTP POST a user&quot;).</li>
         <li>The probe tries the given URL, <code>/mcp</code>, <code>/sse</code>, <code>/messages</code>, and <code>/</code>. It won&apos;t find endpoints at unusual paths.</li>
         <li>Stdio transport servers (local MCP) are out of scope; audit the HTTP side.</li>
-        <li>Doesn&apos;t yet have <code>--pr-draft</code> to write a markdown findings doc into the target repo. That ships next.</li>
+        <li>
+          <s>Doesn&apos;t yet have <code>--pr-draft</code></s>{' '}
+          Shipped in 0.1.3 the same day. <code>patchbay audit &lt;target&gt; --pr-draft --out
+          PATCHBAY_AUDIT.md</code> renders a PR-body-ready markdown report (summary table,
+          grouped by severity, reproducer per finding). The example GitHub Action now posts
+          it as a PR comment automatically.
+        </li>
         <li>
           <s>Doesn&apos;t yet read <code>/.well-known/ai-catalog.json</code></s>{' '}
           Shipped in 0.1.2 the same day as this post. When a server publishes an ai-catalog

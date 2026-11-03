@@ -6,7 +6,7 @@ import type { AuditReport, Check, Finding, Severity, TargetSnapshot } from './ty
 export type { AuditReport, Check, Finding, Severity, TargetSnapshot } from './types'
 export { ALL_CHECKS } from './checks'
 export { probeRemote, probeDirectory } from './probe'
-export { renderTerminal, renderJson, renderSarif } from './report'
+export { renderTerminal, renderJson, renderSarif, renderMarkdown } from './report'
 
 export interface AuditOptions {
   checks?: Check[]
