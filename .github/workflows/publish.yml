@@ -1,0 +1,91 @@
+name: publish
+
+# Trigger: push a semver tag like v0.1.5 or v0.2.7. The tag's version does
+# not have to match either package's version; this workflow publishes
+# WHATEVER version is in each package.json. So the normal release flow is:
+#
+#   1. bump the version(s) in packages/audit-core/package.json and/or
+#      packages/agent/package.json (and the agent -> audit-core dep range)
+#   2. commit + push to main
+#   3. git tag v<audit-core version>  (or whatever label you prefer)
+#   4. git push --tags
+#
+# The tag is just the signal. Both packages are checked and only published
+# if their current package.json version is NOT already on npm. So re-running
+# the same tag or pushing a tag after only one package changed is safe.
+#
+# Auth: npm Trusted Publishing via GitHub OIDC. No NPM_TOKEN in secrets.
+# You must configure the trusted publisher once per npm package:
+#
+#   npmjs.com -> each package -> Settings -> Trusted Publishers -> Add
+#     GitHub Organization: GodSmasher
+#     Repository:          patchbay
+#     Workflow filename:   publish.yml
+#     Environment name:    (leave empty)
+#
+# Do that for both @patchbay-nebius/audit-core and @patchbay-nebius/agent.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:  # also allow a manual run from the Actions tab
+
+permissions:
+  contents: read
+  id-token: write  # required for OIDC auth to npm
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Build audit-core (agent depends on its types)
+        run: npm run build -w @patchbay-nebius/audit-core
+
+      - name: Build agent
+        run: npm run build -w @patchbay-nebius/agent
+
+      - name: Run full test suite
+        run: npm test
+        env:
+          PATCHBAY_MOCK: 'true'
+
+      - name: Publish @patchbay-nebius/audit-core (if version is new)
+        run: |
+          pkg=@patchbay-nebius/audit-core
+          local_version=$(node -p "require('./packages/audit-core/package.json').version")
+          published=$(npm view "$pkg" versions --json 2>/dev/null || echo '[]')
+          if echo "$published" | jq -e --arg v "$local_version" 'index($v)' > /dev/null; then
+            echo "$pkg@$local_version already on npm, skipping"
+          else
+            echo "publishing $pkg@$local_version"
+            npm publish -w "$pkg" --provenance --access public
+          fi
+
+      - name: Publish @patchbay-nebius/agent (if version is new)
+        run: |
+          pkg=@patchbay-nebius/agent
+          local_version=$(node -p "require('./packages/agent/package.json').version")
+          published=$(npm view "$pkg" versions --json 2>/dev/null || echo '[]')
+          if echo "$published" | jq -e --arg v "$local_version" 'index($v)' > /dev/null; then
+            echo "$pkg@$local_version already on npm, skipping"
+          else
+            echo "publishing $pkg@$local_version"
+            npm publish -w "$pkg" --provenance --access public
+          fi
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Published versions" >> "$GITHUB_STEP_SUMMARY"
+          echo "- @patchbay-nebius/audit-core@$(node -p "require('./packages/audit-core/package.json').version")" >> "$GITHUB_STEP_SUMMARY"
+          echo "- @patchbay-nebius/agent@$(node -p "require('./packages/agent/package.json').version")" >> "$GITHUB_STEP_SUMMARY"
