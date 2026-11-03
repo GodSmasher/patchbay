@@ -52,4 +52,25 @@ describe('AUTH-001', () => {
   it('does not fire on directory-only snapshots', () => {
     expect(auth001.run({ kind: 'directory', target: '/tmp', capturedAt: '' })).toEqual([])
   })
+
+  it('downgrades to info when server declares publicByDesign (even with write tools)', () => {
+    const r = auth001.run(snap({
+      url: 'https://x',
+      tools: [{ name: 'start_swap' }, { name: 'create_order' }],
+      publicByDesign: true,
+      publicByDesignEvidence: 'mcp.authentication: "none"',
+    }))
+    expect(r).toHaveLength(1)
+    expect(r[0]!.severity).toBe('info')
+    expect(r[0]!.title.toLowerCase()).toContain('documented')
+    expect(r[0]!.evidence).toContain('ai-catalog.json')
+    expect(r[0]!.evidence).toContain('mcp.authentication')
+  })
+
+  it('publicByDesign takes precedence over write-tool detection', () => {
+    const withoutFlag = auth001.run(snap({ url: 'https://x', tools: [{ name: 'delete_record' }] }))
+    const withFlag = auth001.run(snap({ url: 'https://x', tools: [{ name: 'delete_record' }], publicByDesign: true }))
+    expect(withoutFlag[0]!.severity).toBe('critical')
+    expect(withFlag[0]!.severity).toBe('info')
+  })
 })

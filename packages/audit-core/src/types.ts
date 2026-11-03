@@ -20,6 +20,9 @@ export interface RemoteProbe {
   oauthAuthServer?: Record<string, unknown>
   originValidation?: 'strict' | 'permissive' | 'unknown'
   redirectLocalhostInconsistent?: boolean
+  publicByDesign?: boolean
+  publicByDesignEvidence?: string
+  aiCatalog?: Record<string, unknown>
   rawErrors: string[]
 }
 

@@ -147,7 +147,13 @@ npx -y @patchbay-nebius/agent audit ./my-mcp-server --sarif > out.sarif`}
         <li>The probe tries the given URL, <code>/mcp</code>, <code>/sse</code>, <code>/messages</code>, and <code>/</code>. It won&apos;t find endpoints at unusual paths.</li>
         <li>Stdio transport servers (local MCP) are out of scope; audit the HTTP side.</li>
         <li>Doesn&apos;t yet have <code>--pr-draft</code> to write a markdown findings doc into the target repo. That ships next.</li>
-        <li>Doesn&apos;t yet read <code>/.well-known/ai-catalog.json</code> or linked AI-documentation pages. When a server declares no-auth intentionally there, AUTH-001 should auto-downgrade. Ships next.</li>
+        <li>
+          <s>Doesn&apos;t yet read <code>/.well-known/ai-catalog.json</code></s>{' '}
+          Shipped in 0.1.2 the same day as this post. When a server publishes an ai-catalog
+          declaring no-auth intentionally (<code>authentication: &quot;none&quot;</code>,{' '}
+          <code>auth_required: false</code>, <code>public: true</code>, or similar), AUTH-001
+          now auto-downgrades to info with evidence pointing at the declaring field.
+        </li>
       </ul>
 
       <h2 className="text-xl font-semibold text-white mt-12 mb-4">Try it</h2>

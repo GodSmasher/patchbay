@@ -11,6 +11,20 @@ export const auth001: Check = {
     if (!r.toolsListOk) return []
     if (r.authRequired) return []
 
+    if (r.publicByDesign) {
+      return [
+        {
+          id: 'AUTH-001',
+          severity: 'info',
+          confidence: 'high',
+          title: 'Public, documented no-auth pattern',
+          evidence: `tools/list returned ${r.tools.length} tool(s) without credentials at ${r.url}. The server publishes /.well-known/ai-catalog.json declaring this is intentional (${r.publicByDesignEvidence ?? 'no-auth posture'}). No fix needed.`,
+          fix: 'If this server mutates state on behalf of the caller rather than the end-user (e.g. a broker that signs on behalf of a wallet), the ai-catalog declaration is misleading; serve OAuth 2.1 instead.',
+          docsUrl: 'https://patchbay-mcp.dev/docs/auth-001',
+        },
+      ]
+    }
+
     const writes = hasWriteTools(r.tools)
     if (!writes) {
       return [

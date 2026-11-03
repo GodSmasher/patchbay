@@ -1,3 +1,4 @@
+import { detectPublicByDesign } from './ai-catalog'
 import type { RemoteProbe, TargetSnapshot, Transport } from '../types'
 
 export interface RemoteProbeOptions {
@@ -159,6 +160,16 @@ export async function probeRemote(url: string, opts: RemoteProbeOptions = {}): P
   }
   probe.oauthProtectedResource = await wellKnown('/.well-known/oauth-protected-resource')
   probe.oauthAuthServer = await wellKnown('/.well-known/oauth-authorization-server')
+
+  const aiCatalog = await wellKnown('/.well-known/ai-catalog.json')
+  if (aiCatalog) {
+    probe.aiCatalog = aiCatalog
+    const designation = detectPublicByDesign(aiCatalog)
+    if (designation) {
+      probe.publicByDesign = true
+      probe.publicByDesignEvidence = designation.evidence
+    }
+  }
 
   if (endpoint) {
     const originSpoof = await postRpc(endpoint, { jsonrpc: '2.0', id: 5, method: 'tools/list', params: {} }, { origin: 'https://attacker.example' })
