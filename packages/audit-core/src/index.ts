@@ -11,6 +11,14 @@ export { renderTerminal, renderJson, renderSarif, renderMarkdown } from './repor
 export interface AuditOptions {
   checks?: Check[]
   timeoutMs?: number
+  /**
+   * Bearer token for auth-walled servers. When set, the remote probe sends
+   * `Authorization: Bearer <token>` on every request, so the audit can walk
+   * past the auth gate (Linear, Notion, Supabase, Sentry, your own
+   * OAuth-protected MCP) instead of reporting "auth-walled, not audited".
+   * Ignored for directory targets.
+   */
+  authToken?: string
 }
 
 export async function auditTarget(target: string, opts: AuditOptions = {}): Promise<AuditReport> {
@@ -24,7 +32,7 @@ export function auditSnapshot(snapshot: TargetSnapshot, checks: Check[] = ALL_CH
 }
 
 async function resolveTarget(target: string, opts: AuditOptions): Promise<TargetSnapshot> {
-  if (/^https?:\/\//i.test(target)) return probeRemote(target, { timeoutMs: opts.timeoutMs })
+  if (/^https?:\/\//i.test(target)) return probeRemote(target, { timeoutMs: opts.timeoutMs, authToken: opts.authToken })
   return probeDirectory(target)
 }
 

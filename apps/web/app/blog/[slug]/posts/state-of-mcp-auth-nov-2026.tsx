@@ -142,7 +142,13 @@ npx -y @patchbay-nebius/agent audit ./my-mcp-server --sarif > out.sarif`}
 
       <h2 className="text-xl font-semibold text-white mt-12 mb-4">Limitations and things I&apos;ll fix</h2>
       <ul className="list-disc list-inside space-y-2 my-4 text-neutral-300">
-        <li>Can&apos;t audit auth-walled servers deeper than &quot;auth-walled&quot;. A future <code>--auth</code> flag will take a token.</li>
+        <li>
+          <s>Can&apos;t audit auth-walled servers deeper than &quot;auth-walled&quot;</s>{' '}
+          Shipped in 0.1.4 the same day. <code>patchbay audit &lt;url&gt; --auth=&lt;token&gt;</code>{' '}
+          (or <code>PATCHBAY_AUDIT_TOKEN=...</code> env var) sends the bearer on every probe
+          request, so Linear, Notion, Supabase, Sentry and your own OAuth-protected MCP get the
+          full audit instead of &quot;auth-walled, not audited&quot;.
+        </li>
         <li>SCOPE-002 is name-regex heuristics on tool names. Will produce occasional false positives on names like <code>post_user</code> (meaning &quot;the user who posted&quot; vs. &quot;HTTP POST a user&quot;).</li>
         <li>The probe tries the given URL, <code>/mcp</code>, <code>/sse</code>, <code>/messages</code>, and <code>/</code>. It won&apos;t find endpoints at unusual paths.</li>
         <li>Stdio transport servers (local MCP) are out of scope; audit the HTTP side.</li>

@@ -4,6 +4,13 @@ import type { RemoteProbe, TargetSnapshot, Transport } from '../types'
 export interface RemoteProbeOptions {
   timeoutMs?: number
   fetchImpl?: typeof fetch
+  /**
+   * Bearer token to use on all probe requests. When set, the probe audits
+   * the server as an authenticated client rather than reporting
+   * "auth-walled, not audited". The token is sent as
+   * `Authorization: Bearer <token>` on every HTTP call made by the probe.
+   */
+  authToken?: string
 }
 
 const MCP_ACCEPT = 'application/json, text/event-stream'
@@ -19,6 +26,9 @@ export async function probeRemote(url: string, opts: RemoteProbeOptions = {}): P
   const timeoutMs = opts.timeoutMs ?? 5000
   const f = opts.fetchImpl ?? fetch
   const errors: string[] = []
+  const authedHeaders: Record<string, string> = opts.authToken
+    ? { authorization: `Bearer ${opts.authToken}` }
+    : {}
 
   const probe: RemoteProbe = {
     url,
@@ -41,7 +51,7 @@ export async function probeRemote(url: string, opts: RemoteProbeOptions = {}): P
     try {
       return await f(endpoint, {
         method: 'POST',
-        headers: { 'content-type': 'application/json', accept: MCP_ACCEPT, ...headers },
+        headers: { 'content-type': 'application/json', accept: MCP_ACCEPT, ...authedHeaders, ...headers },
         body: JSON.stringify(body),
         signal: ctl.signal,
       })
@@ -59,7 +69,7 @@ export async function probeRemote(url: string, opts: RemoteProbeOptions = {}): P
     try {
       return await f(endpoint, {
         method: 'GET',
-        headers: { accept: 'text/event-stream' },
+        headers: { accept: 'text/event-stream', ...authedHeaders },
         signal: ctl.signal,
       })
     } catch (e) {
@@ -138,7 +148,13 @@ export async function probeRemote(url: string, opts: RemoteProbeOptions = {}): P
     }
   }
 
-  if (endpoint && probe.authRequired) {
+  if (opts.authToken && probe.toolsListOk) {
+    // User supplied a real bearer token and it got us to tools/list. We know
+    // the scheme already; no need to run the junk-token scheme probe (which
+    // would carry our real token in authedHeaders anyway and give a confusing
+    // result).
+    probe.acceptedAuthHeader = 'bearer'
+  } else if (endpoint && probe.authRequired) {
     const bearer = await postRpc(endpoint, { jsonrpc: '2.0', id: 3, method: 'tools/list', params: {} }, { authorization: 'Bearer patchbay-probe-token' })
     if (bearer && bearer.ok && streamOk(bearer)) probe.acceptedAuthHeader = 'bearer'
     if (probe.acceptedAuthHeader === 'none') {
@@ -150,7 +166,7 @@ export async function probeRemote(url: string, opts: RemoteProbeOptions = {}): P
   const base = new URL(url)
   const wellKnown = async (path: string): Promise<Record<string, unknown> | undefined> => {
     try {
-      const r = await f(new URL(path, base).toString(), { method: 'GET', signal: AbortSignal.timeout(timeoutMs) })
+      const r = await f(new URL(path, base).toString(), { method: 'GET', headers: authedHeaders, signal: AbortSignal.timeout(timeoutMs) })
       if (!r.ok) return undefined
       return (await r.json()) as Record<string, unknown>
     } catch (e) {
