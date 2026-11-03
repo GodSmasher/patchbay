@@ -1,5 +1,16 @@
 # patchbay
 
+> **New in 0.2.4: `patchbay audit`** — free CLI to scan an MCP server for OAuth 2.1 gaps.
+> Read [the November 2026 sweep](https://patchbay-mcp.dev/blog/state-of-mcp-auth-nov-2026) (25 public MCP servers scanned, 2 of 8 reachable-and-public ones expose mutating tools without auth) or try it:
+>
+> ```
+> npx -y @patchbay-nebius/agent audit https://mcp.example.com/mcp
+> ```
+>
+> 13 checks against the MCP 2025-03-26 spec. Context-sensitive severity, `--pr-draft` for CI, `--auth` for walled servers. Jump to [the audit section](#patchbay-audit) for the full flag list.
+
+---
+
 ![patchbay — one sentence in, tested TypeScript connector out](docs/screenshots/patchbay-01-hero-calendly-slack.gif)
 
 
