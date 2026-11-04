@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync } from 'node:fs'
-import { auditTarget } from '../packages/audit-core/src/index'
-import type { AuditReport, Severity } from '../packages/audit-core/src/types'
+import { auditTarget } from '@patchbay-nebius/audit-core'
+import type { AuditReport, Severity } from '@patchbay-nebius/audit-core'
 
 const DEFAULT_TARGETS = [
   'https://mcp.deepwiki.com/mcp',
