@@ -19,6 +19,7 @@ export {
   fileManifestStore, memoryManifestStore, defaultManifestDir, makeEntry,
   type ManifestStore,
 } from './lib/manifest-store'
+export { score, letterGrade, gradeColor, WEIGHTS, type LetterGrade } from './lib/score'
 
 export interface AuditOptions {
   checks?: Check[]

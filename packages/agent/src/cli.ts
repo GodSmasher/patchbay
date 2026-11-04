@@ -13,7 +13,7 @@ Usage:
   patchbay research           "<one-sentence integration>"
   patchbay verify  [--watch] <directory>
   patchbay scan    <directory> [--build-top=<n>] [--json]
-  patchbay audit   <url|directory|--stdio "<cmd>"> [--json] [--sarif] [--pr-draft] [--out=<path>] [--auth=<token>] [--probe-audience=<token>] [--trust] [--ci] [--no-cta]
+  patchbay audit   <url|directory|--stdio "<cmd>"> [--json] [--sarif] [--pr-draft] [--out=<path>] [--publish] [--auth=<token>] [--probe-audience=<token>] [--trust] [--ci] [--no-cta]
   patchbay add     <run-dir> [--target=<dir>]
   patchbay push    <run-dir> --repo=owner/name [--path=connectors/<name>] [--branch=<branch>] [--dry-run]
   patchbay help
@@ -325,6 +325,7 @@ async function audit(args: string[]) {
   const authToken = flagValue(args, '--auth') ?? process.env.PATCHBAY_AUDIT_TOKEN
   const probeAudienceToken = flagValue(args, '--probe-audience') ?? process.env.PATCHBAY_PROBE_AUDIENCE_TOKEN
   const trustCurrentManifest = args.includes('--trust')
+  const publish = args.includes('--publish')
   const ci = args.includes('--ci')
   const noCta = args.includes('--no-cta')
   const stdio = Boolean(stdioCmd)
@@ -332,6 +333,25 @@ async function audit(args: string[]) {
   const { auditTarget, renderTerminal, renderJson, renderSarif, renderMarkdown } = await import('@patchbay-nebius/audit-core')
   const resolved = stdio ? target : (/^https?:\/\//i.test(target) ? target : resolve(target))
   const report = await auditTarget(resolved, { authToken, trustCurrentManifest, probeAudienceToken, stdio })
+
+  if (publish) {
+    try {
+      const base = process.env.PATCHBAY_PUBLISH_URL || 'https://patchbay-mcp.dev'
+      const res = await fetch(`${base}/api/report`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(report),
+      })
+      if (res.ok) {
+        const j = (await res.json()) as { url?: string; id?: string }
+        if (j.url) console.error(`Published report: ${j.url}`)
+      } else {
+        console.error(`Publish failed: HTTP ${res.status}`)
+      }
+    } catch (e) {
+      console.error(`Publish failed: ${(e as Error).message}`)
+    }
+  }
 
   let rendered: string
   if (asJson) rendered = renderJson(report)
