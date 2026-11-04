@@ -8,6 +8,8 @@
 > ```
 >
 > 13 checks against the MCP 2025-03-26 spec. Context-sensitive severity, `--pr-draft` for CI, `--auth` for walled servers. Jump to [the audit section](#patchbay-audit) for the full flag list.
+>
+> **Hosted scheduled scans + alerts** coming Q1 2027 for teams. CLI stays free and MIT forever. [Interest check](https://github.com/GodSmasher/patchbay/discussions/2) · [email waitlist](https://tally.so/r/yXMQjd).
 
 ---
 

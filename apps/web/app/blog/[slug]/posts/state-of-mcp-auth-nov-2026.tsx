@@ -194,6 +194,31 @@ npx -y @patchbay-nebius/agent audit ./my-mcp-server --sarif > out.sarif`}
         </a>
         . MIT. No tracking, no backend, no account. Just a CLI.
       </p>
+
+      <h2 className="text-xl font-semibold text-white mt-12 mb-4">What is next</h2>
+      <p>
+        The CLI stays free and MIT forever. For teams that do not want to run the CI integration
+        themselves, I am planning a hosted version for Q1 2027: scheduled scans against a list of
+        MCP endpoints, diff alerts when something changes (new finding, severity escalation, tool
+        manifest change), delivery via email, Slack or webhook.
+      </p>
+      <p>
+        Interested? Two ways to signal:
+      </p>
+      <ul className="list-disc list-inside space-y-2 my-4 text-neutral-300">
+        <li>
+          Public interest check (react with 👍 / 👎 / 🚀, or comment with your use case):{' '}
+          <a href="https://github.com/GodSmasher/patchbay/discussions/2" className="text-neutral-100 underline underline-offset-4 hover:text-white">
+            github.com/GodSmasher/patchbay/discussions/2
+          </a>
+        </li>
+        <li>
+          Email waitlist (so you hear when it launches):{' '}
+          <a href="https://tally.so/r/yXMQjd" className="text-neutral-100 underline underline-offset-4 hover:text-white">
+            tally.so/r/yXMQjd
+          </a>
+        </li>
+      </ul>
     </>
   )
 }
