@@ -76,8 +76,12 @@ describe('fileManifestStore', () => {
     store.save(entry)
     const savedPath = store.pathFor(entry.serverId)
     expect(existsSync(savedPath)).toBe(true)
-    expect(savedPath).not.toContain('/')
-    expect(savedPath).not.toContain('?')
+    // basename only — the dir path itself may contain / (Linux) or \ (Windows)
+    const basename = savedPath.split(/[\\/]/).pop() ?? ''
+    expect(basename).not.toContain('/')
+    expect(basename).not.toContain('\\')
+    expect(basename).not.toContain('?')
+    expect(basename).toBe('http_some_weird_id_with_stuff.json')
   })
 
   it('returns null when file contents are corrupt', () => {
