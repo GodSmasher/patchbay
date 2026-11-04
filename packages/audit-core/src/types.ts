@@ -15,7 +15,7 @@ export interface RemoteProbe {
   toolsListOk: boolean
   authRequired: boolean
   acceptedAuthHeader?: 'bearer' | 'api-key' | 'none'
-  tools: Array<{ name: string; description?: string; scopes?: string[] }>
+  tools: Array<ToolDescriptor>
   oauthProtectedResource?: Record<string, unknown>
   oauthAuthServer?: Record<string, unknown>
   originValidation?: 'strict' | 'permissive' | 'unknown'
@@ -23,7 +23,48 @@ export interface RemoteProbe {
   publicByDesign?: boolean
   publicByDesignEvidence?: string
   aiCatalog?: Record<string, unknown>
+  manifestDelta?: ManifestDelta
   rawErrors: string[]
+}
+
+export interface ToolDescriptor {
+  name: string
+  description?: string
+  scopes?: string[]
+  inputSchema?: Record<string, unknown>
+}
+
+/**
+ * Pinned manifest stored on disk per server (hash + tool set), so we can
+ * detect supply-chain-style updates between runs: new tools, description
+ * changes, inputSchema changes.
+ */
+export interface ManifestEntry {
+  serverId: string
+  pinnedHash: string
+  tools: ToolDescriptor[]
+  firstSeen: string
+  lastSeen: string
+}
+
+export type ManifestDeltaKind =
+  | 'tool-added'
+  | 'tool-removed'
+  | 'description-changed'
+  | 'input-schema-changed'
+
+export interface ManifestDeltaItem {
+  kind: ManifestDeltaKind
+  toolName: string
+  detail?: string
+}
+
+export interface ManifestDelta {
+  serverId: string
+  pinnedHash: string
+  currentHash: string
+  changes: ManifestDeltaItem[]
+  firstSeen: string
 }
 
 export interface DirectoryProbe {

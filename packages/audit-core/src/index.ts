@@ -3,10 +3,21 @@ import { probeDirectory } from './probe/directory'
 import { probeRemote } from './probe/remote'
 import type { AuditReport, Check, Finding, Severity, TargetSnapshot } from './types'
 
-export type { AuditReport, Check, Finding, Severity, TargetSnapshot } from './types'
+export type {
+  AuditReport, Check, Finding, Severity, TargetSnapshot,
+  ManifestDelta, ManifestDeltaItem, ManifestDeltaKind, ManifestEntry, ToolDescriptor,
+} from './types'
 export { ALL_CHECKS } from './checks'
 export { probeRemote, probeDirectory } from './probe'
 export { renderTerminal, renderJson, renderSarif, renderMarkdown } from './report'
+export {
+  canonicalise, canonicaliseTools, hashManifest, diffManifest,
+  serverIdFromUrl, serverIdFromStdio,
+} from './lib/manifest'
+export {
+  fileManifestStore, memoryManifestStore, defaultManifestDir, makeEntry,
+  type ManifestStore,
+} from './lib/manifest-store'
 
 export interface AuditOptions {
   checks?: Check[]
@@ -19,6 +30,11 @@ export interface AuditOptions {
    * Ignored for directory targets.
    */
   authToken?: string
+  /**
+   * When true, overwrite the pinned manifest with the current scan instead
+   * of running MANIFEST-001's diff. Use after a legitimate server update.
+   */
+  trustCurrentManifest?: boolean
 }
 
 export async function auditTarget(target: string, opts: AuditOptions = {}): Promise<AuditReport> {
@@ -32,7 +48,13 @@ export function auditSnapshot(snapshot: TargetSnapshot, checks: Check[] = ALL_CH
 }
 
 async function resolveTarget(target: string, opts: AuditOptions): Promise<TargetSnapshot> {
-  if (/^https?:\/\//i.test(target)) return probeRemote(target, { timeoutMs: opts.timeoutMs, authToken: opts.authToken })
+  if (/^https?:\/\//i.test(target)) {
+    return probeRemote(target, {
+      timeoutMs: opts.timeoutMs,
+      authToken: opts.authToken,
+      trustCurrentManifest: opts.trustCurrentManifest,
+    })
+  }
   return probeDirectory(target)
 }
 

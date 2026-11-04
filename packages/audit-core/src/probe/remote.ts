@@ -1,4 +1,6 @@
 import { detectPublicByDesign } from './ai-catalog'
+import { diffManifest, serverIdFromUrl } from '../lib/manifest'
+import { fileManifestStore, makeEntry, type ManifestStore } from '../lib/manifest-store'
 import type { RemoteProbe, TargetSnapshot, Transport } from '../types'
 
 export interface RemoteProbeOptions {
@@ -11,6 +13,17 @@ export interface RemoteProbeOptions {
    * `Authorization: Bearer <token>` on every HTTP call made by the probe.
    */
   authToken?: string
+  /**
+   * Manifest store for MANIFEST-001 (pin on first scan, diff on subsequent).
+   * Defaults to ~/.patchbay/manifests/ on disk. Pass a memoryManifestStore()
+   * for tests.
+   */
+  manifestStore?: ManifestStore
+  /**
+   * When true, overwrite the pinned manifest with the current tool list
+   * instead of diffing. Use after a legitimate server update.
+   */
+  trustCurrentManifest?: boolean
 }
 
 const MCP_ACCEPT = 'application/json, text/event-stream'
@@ -222,6 +235,27 @@ export async function probeRemote(url: string, opts: RemoteProbeOptions = {}): P
   }
 
   void initRes
+
+  if (probe.toolsListOk && probe.tools.length > 0) {
+    try {
+      const store = opts.manifestStore ?? fileManifestStore()
+      const serverId = serverIdFromUrl(url)
+      const pinned = store.load(serverId)
+      const now = new Date()
+
+      if (opts.trustCurrentManifest || !pinned) {
+        store.save(makeEntry(serverId, probe.tools, now))
+      } else {
+        const delta = diffManifest(pinned, probe.tools)
+        if (delta.changes.length > 0) {
+          probe.manifestDelta = delta
+        }
+        store.save({ ...pinned, lastSeen: now.toISOString() })
+      }
+    } catch (e) {
+      errors.push(`manifest store: ${(e as Error).message}`)
+    }
+  }
 
   return {
     kind: 'remote-url',
