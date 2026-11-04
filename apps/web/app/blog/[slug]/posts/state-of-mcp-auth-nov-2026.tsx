@@ -149,6 +149,13 @@ npx -y @patchbay-nebius/agent audit ./my-mcp-server --sarif > out.sarif`}
           request, so Linear, Notion, Supabase, Sentry and your own OAuth-protected MCP get the
           full audit instead of &quot;auth-walled, not audited&quot;.
         </li>
+        <li>
+          <s>Checks only hit the discovery metadata, cannot verify behaviour (e.g. does the server actually validate the <code>aud</code> claim per RFC 8707?)</s>{' '}
+          Shipping in 0.4.0: AUDIENCE-001. Pass <code>--probe-audience=&lt;token-with-wrong-aud&gt;</code>{' '}
+          and patchbay sends a tools/list call with that token. If the server accepts it, the
+          server is not validating the audience claim and any sibling resource at the same auth
+          server can replay its tokens. Credit: @Bloqarl on r/mcp.
+        </li>
         <li>SCOPE-002 is name-regex heuristics on tool names. Will produce occasional false positives on names like <code>post_user</code> (meaning &quot;the user who posted&quot; vs. &quot;HTTP POST a user&quot;).</li>
         <li>The probe tries the given URL, <code>/mcp</code>, <code>/sse</code>, <code>/messages</code>, and <code>/</code>. It won&apos;t find endpoints at unusual paths.</li>
         <li>Stdio transport servers (local MCP) are out of scope for probing; audit the HTTP side. Shipped MANIFEST-001 in 0.3.0 which catches tool manifest changes (new tools, description or inputSchema changes on existing tools) between runs regardless of transport, which covers the stdio supply-chain-update risk even without live probing.</li>

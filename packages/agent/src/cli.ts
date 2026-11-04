@@ -13,7 +13,7 @@ Usage:
   patchbay research           "<one-sentence integration>"
   patchbay verify  [--watch] <directory>
   patchbay scan    <directory> [--build-top=<n>] [--json]
-  patchbay audit   <url|directory> [--json] [--sarif] [--pr-draft] [--out=<path>] [--auth=<token>] [--trust] [--ci] [--no-cta]
+  patchbay audit   <url|directory> [--json] [--sarif] [--pr-draft] [--out=<path>] [--auth=<token>] [--probe-audience=<token>] [--trust] [--ci] [--no-cta]
   patchbay add     <run-dir> [--target=<dir>]
   patchbay push    <run-dir> --repo=owner/name [--path=connectors/<name>] [--branch=<branch>] [--dry-run]
   patchbay help
@@ -322,13 +322,14 @@ async function audit(args: string[]) {
   const asPrDraft = args.includes('--pr-draft')
   const outPath = flagValue(args, '--out')
   const authToken = flagValue(args, '--auth') ?? process.env.PATCHBAY_AUDIT_TOKEN
+  const probeAudienceToken = flagValue(args, '--probe-audience') ?? process.env.PATCHBAY_PROBE_AUDIENCE_TOKEN
   const trustCurrentManifest = args.includes('--trust')
   const ci = args.includes('--ci')
   const noCta = args.includes('--no-cta')
 
   const { auditTarget, renderTerminal, renderJson, renderSarif, renderMarkdown } = await import('@patchbay-nebius/audit-core')
   const resolved = /^https?:\/\//i.test(target) ? target : resolve(target)
-  const report = await auditTarget(resolved, { authToken, trustCurrentManifest })
+  const report = await auditTarget(resolved, { authToken, trustCurrentManifest, probeAudienceToken })
 
   let rendered: string
   if (asJson) rendered = renderJson(report)

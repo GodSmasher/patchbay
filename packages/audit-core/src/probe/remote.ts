@@ -24,6 +24,15 @@ export interface RemoteProbeOptions {
    * instead of diffing. Use after a legitimate server update.
    */
   trustCurrentManifest?: boolean
+  /**
+   * Bearer token MINTED FOR A DIFFERENT RESOURCE on the same authorisation
+   * server as this MCP endpoint. Used by AUDIENCE-001 to verify that the
+   * server rejects cross-audience tokens per RFC 8707 Section 2.
+   *
+   * If the server accepts tools/list with this token, it is not validating
+   * the `aud` claim and AUDIENCE-001 fires critical.
+   */
+  probeAudienceToken?: string
 }
 
 const MCP_ACCEPT = 'application/json, text/event-stream'
@@ -235,6 +244,29 @@ export async function probeRemote(url: string, opts: RemoteProbeOptions = {}): P
   }
 
   void initRes
+
+  if (endpoint && opts.probeAudienceToken) {
+    const probeToken = opts.probeAudienceToken
+    const res = await postRpc(
+      endpoint,
+      { jsonrpc: '2.0', id: 6, method: 'tools/list', params: {} },
+      { authorization: `Bearer ${probeToken}` },
+    )
+    if (!res) {
+      probe.audienceProbe = { attempted: true, outcome: 'inconclusive', reason: 'network error' }
+    } else if (res.status === 401 || res.status === 403) {
+      probe.audienceProbe = { attempted: true, outcome: 'rejected', httpStatus: res.status }
+    } else if (streamOk(res)) {
+      probe.audienceProbe = { attempted: true, outcome: 'accepted', httpStatus: res.status }
+    } else {
+      probe.audienceProbe = {
+        attempted: true,
+        outcome: 'inconclusive',
+        httpStatus: res.status,
+        reason: `unexpected status ${res.status}`,
+      }
+    }
+  }
 
   if (probe.toolsListOk && probe.tools.length > 0) {
     try {

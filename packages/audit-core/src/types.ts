@@ -24,7 +24,30 @@ export interface RemoteProbe {
   publicByDesignEvidence?: string
   aiCatalog?: Record<string, unknown>
   manifestDelta?: ManifestDelta
+  audienceProbe?: AudienceProbeResult
   rawErrors: string[]
+}
+
+/**
+ * Result of the AUDIENCE-001 cross-audience token probe. When the user
+ * supplies a bearer token minted for a DIFFERENT resource on the same
+ * authorisation server, we send tools/list with it and record how the
+ * server responded.
+ *
+ *   accepted:  server returned 2xx with a valid tools/list response.
+ *              Means the server does NOT validate the `aud` claim, so
+ *              any sibling resource at the same AS can replay tokens.
+ *              AUDIENCE-001 critical.
+ *   rejected:  server returned 401 or 403. Correct behaviour per
+ *              RFC 8707. No finding.
+ *   inconclusive: network error or non-2xx-non-401/403. We can't tell.
+ *              AUDIENCE-001 info.
+ */
+export interface AudienceProbeResult {
+  attempted: boolean
+  outcome: 'accepted' | 'rejected' | 'inconclusive'
+  httpStatus?: number
+  reason?: string
 }
 
 export interface ToolDescriptor {

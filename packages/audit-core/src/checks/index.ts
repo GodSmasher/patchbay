@@ -1,4 +1,5 @@
 import type { Check } from '../types'
+import { audience001 } from './audience-001'
 import { auth001 } from './auth-001'
 import { auth002 } from './auth-002'
 import { auth003 } from './auth-003'
@@ -20,6 +21,7 @@ export const ALL_CHECKS: Check[] = [
   auth003,
   auth004,
   auth005,
+  audience001,
   scope001,
   scope002,
   secret001,
@@ -32,6 +34,7 @@ export const ALL_CHECKS: Check[] = [
 ]
 
 export {
+  audience001,
   auth001, auth002, auth003, auth004, auth005,
   manifest001,
   probe001, redirect001, scope001, scope002, secret001, secret002, transport001, transport002,

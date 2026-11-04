@@ -4,7 +4,7 @@ import { probeRemote } from './probe/remote'
 import type { AuditReport, Check, Finding, Severity, TargetSnapshot } from './types'
 
 export type {
-  AuditReport, Check, Finding, Severity, TargetSnapshot,
+  AuditReport, AudienceProbeResult, Check, Finding, Severity, TargetSnapshot,
   ManifestDelta, ManifestDeltaItem, ManifestDeltaKind, ManifestEntry, ToolDescriptor,
 } from './types'
 export { ALL_CHECKS } from './checks'
@@ -35,6 +35,12 @@ export interface AuditOptions {
    * of running MANIFEST-001's diff. Use after a legitimate server update.
    */
   trustCurrentManifest?: boolean
+  /**
+   * Bearer token minted for a DIFFERENT resource on the same AS. Used by
+   * AUDIENCE-001 to verify cross-audience rejection per RFC 8707. Ignored
+   * for directory targets.
+   */
+  probeAudienceToken?: string
 }
 
 export async function auditTarget(target: string, opts: AuditOptions = {}): Promise<AuditReport> {
@@ -53,6 +59,7 @@ async function resolveTarget(target: string, opts: AuditOptions): Promise<Target
       timeoutMs: opts.timeoutMs,
       authToken: opts.authToken,
       trustCurrentManifest: opts.trustCurrentManifest,
+      probeAudienceToken: opts.probeAudienceToken,
     })
   }
   return probeDirectory(target)
