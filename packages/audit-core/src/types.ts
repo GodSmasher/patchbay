@@ -1,7 +1,7 @@
 export type Severity = 'critical' | 'high' | 'medium' | 'low' | 'info'
 export type Confidence = 'high' | 'medium' | 'low'
 
-export type TargetKind = 'remote-url' | 'local-command' | 'directory' | 'patchbay-connector'
+export type TargetKind = 'remote-url' | 'stdio-command' | 'local-command' | 'directory' | 'patchbay-connector'
 
 export type Transport = 'streamable-http' | 'legacy-sse' | 'unknown'
 
@@ -105,7 +105,38 @@ export interface TargetSnapshot {
   target: string
   remote?: RemoteProbe
   directory?: DirectoryProbe
+  stdio?: StdioProbe
   capturedAt: string
+}
+
+/**
+ * Snapshot of an MCP server reached over stdio (child-process) transport.
+ *
+ * This is what Claude Desktop and most local MCP clients use. There is
+ * no HTTP endpoint, so OAuth-related checks (AUTH-*, AUDIENCE-001, SCOPE-*)
+ * do not apply. What stdio DOES give us is a tool list, which lets
+ * MANIFEST-001 catch supply-chain-style updates (new write tool, changed
+ * description, inputSchema permission escalation) between runs.
+ */
+export interface StdioProbe {
+  /** Raw command string the user passed in (e.g. "npx -y @foo/mcp /tmp"). */
+  command: string
+  /** Parsed binary path and args. */
+  binary: string
+  args: string[]
+  /** Did the child process spawn without an immediate exec failure? */
+  spawned: boolean
+  /** Did initialize round-trip successfully? */
+  initializeOk: boolean
+  /** Did tools/list round-trip successfully? */
+  toolsListOk: boolean
+  tools: ToolDescriptor[]
+  /** Final exit code of the child, if it had already exited when we checked. */
+  exitCode?: number
+  /** First N characters of stderr, useful for diagnosing silent failures. */
+  stderrSnippet?: string
+  manifestDelta?: ManifestDelta
+  rawErrors: string[]
 }
 
 export interface Finding {

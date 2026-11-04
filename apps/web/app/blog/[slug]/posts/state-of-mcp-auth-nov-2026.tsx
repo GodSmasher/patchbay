@@ -158,7 +158,14 @@ npx -y @patchbay-nebius/agent audit ./my-mcp-server --sarif > out.sarif`}
         </li>
         <li>SCOPE-002 is name-regex heuristics on tool names. Will produce occasional false positives on names like <code>post_user</code> (meaning &quot;the user who posted&quot; vs. &quot;HTTP POST a user&quot;).</li>
         <li>The probe tries the given URL, <code>/mcp</code>, <code>/sse</code>, <code>/messages</code>, and <code>/</code>. It won&apos;t find endpoints at unusual paths.</li>
-        <li>Stdio transport servers (local MCP) are out of scope for probing; audit the HTTP side. Shipped MANIFEST-001 in 0.3.0 which catches tool manifest changes (new tools, description or inputSchema changes on existing tools) between runs regardless of transport, which covers the stdio supply-chain-update risk even without live probing.</li>
+        <li>
+          <s>Stdio transport servers (local MCP) are out of scope for probing</s>{' '}
+          Shipping in 0.4.0: <code>patchbay audit --stdio &quot;npx -y @foo/mcp /path&quot;</code>{' '}
+          spawns the server as a child process, speaks MCP JSON-RPC over stdin/stdout, and
+          hands the tool list to MANIFEST-001. Finally makes Claude Desktop configs auditable.
+          OAuth-family checks (AUTH-*, AUDIENCE-001) still only apply to HTTP targets because
+          stdio has no HTTP surface.
+        </li>
         <li>
           <s>Doesn&apos;t yet have <code>--pr-draft</code></s>{' '}
           Shipped in 0.1.3 the same day. <code>patchbay audit &lt;target&gt; --pr-draft --out

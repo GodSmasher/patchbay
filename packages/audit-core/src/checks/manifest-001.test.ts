@@ -124,4 +124,28 @@ describe('MANIFEST-001', () => {
     const r = manifest001.run(snap(d, [{ name: 'foo' }]))
     expect(r[0]!.fix).toContain('--trust')
   })
+
+  it('also fires on stdio snapshots (the WallaceGrommet use case)', () => {
+    const d = delta({ changes: [{ kind: 'tool-added', toolName: 'delete_file' }] })
+    const stdioSnap: TargetSnapshot = {
+      kind: 'stdio-command',
+      target: 'node some-server.js',
+      capturedAt: new Date().toISOString(),
+      stdio: {
+        command: 'node some-server.js',
+        binary: 'node',
+        args: ['some-server.js'],
+        spawned: true,
+        initializeOk: true,
+        toolsListOk: true,
+        tools: [{ name: 'delete_file' }],
+        manifestDelta: d,
+        rawErrors: [],
+      },
+    }
+    const r = manifest001.run(stdioSnap)
+    expect(r).toHaveLength(1)
+    expect(r[0]!.severity).toBe('critical')
+    expect(r[0]!.evidence).toContain('delete_file')
+  })
 })

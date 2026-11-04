@@ -26,11 +26,17 @@ export const manifest001: Check = {
   severity: 'medium',
   title: 'Tool manifest changed since last run',
   run: (snapshot): Finding[] => {
-    const r = snapshot.remote
-    if (!r || !r.manifestDelta || r.manifestDelta.changes.length === 0) return []
+    // Both HTTP and stdio probes populate .manifestDelta on their respective
+    // branches. Pick whichever branch has a delta.
+    const source = snapshot.remote?.manifestDelta
+      ? { delta: snapshot.remote.manifestDelta, tools: snapshot.remote.tools, surface: `at ${snapshot.remote.url}` }
+      : snapshot.stdio?.manifestDelta
+        ? { delta: snapshot.stdio.manifestDelta, tools: snapshot.stdio.tools, surface: `from stdio: ${snapshot.stdio.command}` }
+        : null
+    if (!source || source.delta.changes.length === 0) return []
 
-    const delta = r.manifestDelta
-    const severity = highestSeverity(delta, r.tools)
+    const { delta, tools } = source
+    const severity = highestSeverity(delta, tools)
     const evidence = renderEvidence(delta)
     const fix = renderFix(delta, severity)
 

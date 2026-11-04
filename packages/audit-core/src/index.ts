@@ -1,14 +1,15 @@
 import { ALL_CHECKS } from './checks'
 import { probeDirectory } from './probe/directory'
 import { probeRemote } from './probe/remote'
+import { probeStdio } from './probe/stdio'
 import type { AuditReport, Check, Finding, Severity, TargetSnapshot } from './types'
 
 export type {
-  AuditReport, AudienceProbeResult, Check, Finding, Severity, TargetSnapshot,
+  AuditReport, AudienceProbeResult, Check, Finding, Severity, StdioProbe, TargetSnapshot,
   ManifestDelta, ManifestDeltaItem, ManifestDeltaKind, ManifestEntry, ToolDescriptor,
 } from './types'
 export { ALL_CHECKS } from './checks'
-export { probeRemote, probeDirectory } from './probe'
+export { probeRemote, probeDirectory, probeStdio, parseCommand } from './probe'
 export { renderTerminal, renderJson, renderSarif, renderMarkdown } from './report'
 export {
   canonicalise, canonicaliseTools, hashManifest, diffManifest,
@@ -41,6 +42,12 @@ export interface AuditOptions {
    * for directory targets.
    */
   probeAudienceToken?: string
+  /**
+   * When set, `target` is treated as a shell command to spawn as an MCP
+   * server over stdio, not as a URL or directory. Enables MANIFEST-001
+   * for Claude Desktop-style MCP servers.
+   */
+  stdio?: boolean
 }
 
 export async function auditTarget(target: string, opts: AuditOptions = {}): Promise<AuditReport> {
@@ -54,6 +61,12 @@ export function auditSnapshot(snapshot: TargetSnapshot, checks: Check[] = ALL_CH
 }
 
 async function resolveTarget(target: string, opts: AuditOptions): Promise<TargetSnapshot> {
+  if (opts.stdio) {
+    return probeStdio(target, {
+      timeoutMs: opts.timeoutMs,
+      trustCurrentManifest: opts.trustCurrentManifest,
+    })
+  }
   if (/^https?:\/\//i.test(target)) {
     return probeRemote(target, {
       timeoutMs: opts.timeoutMs,

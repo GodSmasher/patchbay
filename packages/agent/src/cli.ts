@@ -13,7 +13,7 @@ Usage:
   patchbay research           "<one-sentence integration>"
   patchbay verify  [--watch] <directory>
   patchbay scan    <directory> [--build-top=<n>] [--json]
-  patchbay audit   <url|directory> [--json] [--sarif] [--pr-draft] [--out=<path>] [--auth=<token>] [--probe-audience=<token>] [--trust] [--ci] [--no-cta]
+  patchbay audit   <url|directory|--stdio "<cmd>"> [--json] [--sarif] [--pr-draft] [--out=<path>] [--auth=<token>] [--probe-audience=<token>] [--trust] [--ci] [--no-cta]
   patchbay add     <run-dir> [--target=<dir>]
   patchbay push    <run-dir> --repo=owner/name [--path=connectors/<name>] [--branch=<branch>] [--dry-run]
   patchbay help
@@ -311,10 +311,11 @@ async function push(args: string[]) {
 
 async function audit(args: string[]) {
   const positional = args.filter((a) => !a.startsWith('--'))
-  const target = positional[0]
+  const stdioCmd = flagValue(args, '--stdio')
+  const target = stdioCmd ?? positional[0]
   if (!target) {
-    console.error('patchbay audit: missing target (url or directory)')
-    console.error('usage: patchbay audit <url|dir> [--json] [--sarif] [--pr-draft] [--out=<path>] [--ci] [--no-cta]')
+    console.error('patchbay audit: missing target (url, directory, or --stdio "<command>")')
+    console.error('usage: patchbay audit <url|dir> [--stdio "<cmd>"] [--json] [--sarif] [--pr-draft] [--out=<path>] [--auth=<token>] [--probe-audience=<token>] [--trust] [--ci] [--no-cta]')
     process.exit(2)
   }
   const asJson = args.includes('--json')
@@ -326,10 +327,11 @@ async function audit(args: string[]) {
   const trustCurrentManifest = args.includes('--trust')
   const ci = args.includes('--ci')
   const noCta = args.includes('--no-cta')
+  const stdio = Boolean(stdioCmd)
 
   const { auditTarget, renderTerminal, renderJson, renderSarif, renderMarkdown } = await import('@patchbay-nebius/audit-core')
-  const resolved = /^https?:\/\//i.test(target) ? target : resolve(target)
-  const report = await auditTarget(resolved, { authToken, trustCurrentManifest, probeAudienceToken })
+  const resolved = stdio ? target : (/^https?:\/\//i.test(target) ? target : resolve(target))
+  const report = await auditTarget(resolved, { authToken, trustCurrentManifest, probeAudienceToken, stdio })
 
   let rendered: string
   if (asJson) rendered = renderJson(report)
