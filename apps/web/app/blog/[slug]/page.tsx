@@ -29,28 +29,28 @@ export default function BlogPost({ params }: { params: { slug: string } }) {
   if (!Body) notFound()
 
   return (
-    <main className="min-h-screen bg-black text-neutral-200 px-6 py-16">
+    <main className="min-h-screen bg-paper text-ink px-6 py-16">
       <div className="mx-auto max-w-3xl">
-        <nav className="mb-10 text-sm text-neutral-500">
-          <Link href="/" className="hover:text-neutral-200">patchbay</Link>
+        <nav className="mb-10 text-sm text-ink-mute">
+          <Link href="/" className="hover:text-ink">patchbay</Link>
           <span className="mx-2">/</span>
-          <Link href="/blog" className="hover:text-neutral-200">blog</Link>
+          <Link href="/blog" className="hover:text-ink">blog</Link>
         </nav>
 
         {post.draft && (
-          <div className="mb-6 rounded border border-yellow-500/30 bg-yellow-500/5 px-4 py-2 text-sm text-yellow-400">
+          <div className="mb-6 rounded border border-warn/30 bg-warn-soft px-4 py-2 text-sm text-warn">
             Draft. Not linked from the index in production.
           </div>
         )}
 
-        <div className="flex items-baseline gap-3 text-sm text-neutral-500 mb-2">
+        <div className="flex items-baseline gap-3 text-sm text-ink-mute mb-2">
           <time dateTime={post.date}>{post.date}</time>
           <span>·</span>
           <span>{post.readingMinutes} min read</span>
         </div>
-        <h1 className="text-3xl font-semibold text-white mb-8">{post.title}</h1>
+        <h1 className="text-3xl font-semibold text-ink mb-8">{post.title}</h1>
 
-        <article className="prose prose-invert max-w-none text-neutral-300 leading-relaxed">
+        <article className="max-w-none text-ink-soft leading-relaxed space-y-4">
           <Body />
         </article>
       </div>

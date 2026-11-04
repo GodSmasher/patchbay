@@ -10,17 +10,17 @@ export function StateOfMcpAuthNov2026() {
       </p>
       <p>Here&apos;s what I learned.</p>
 
-      <h2 className="text-xl font-semibold text-white mt-12 mb-4">The numbers</h2>
+      <h2 className="text-xl font-semibold text-ink mt-12 mb-4">The numbers</h2>
       <p>
         25 servers scanned on 2026-11-02. All are publicly listed in community directories or vendor
         docs. The URL list is in{' '}
-        <a href="https://github.com/GodSmasher/patchbay/blob/main/bench/mcp-sweep-targets.txt" className="text-neutral-100 underline underline-offset-4 hover:text-white">
+        <a href="https://github.com/GodSmasher/patchbay/blob/main/bench/mcp-sweep-targets.txt" className="text-ink underline underline-offset-4 hover:text-ink">
           bench/mcp-sweep-targets.txt
         </a>
         .
       </p>
 
-      <div className="my-6 overflow-x-auto rounded border border-neutral-800">
+      <div className="my-6 overflow-x-auto rounded border border-paper-line">
         <table className="w-full text-sm">
           <tbody className="divide-y divide-neutral-900">
             <Row label="Reachable" value="20 / 25" />
@@ -52,29 +52,29 @@ export function StateOfMcpAuthNov2026() {
         read that first and downgrade.
       </p>
 
-      <h2 className="text-xl font-semibold text-white mt-12 mb-4">What the tool actually does</h2>
+      <h2 className="text-xl font-semibold text-ink mt-12 mb-4">What the tool actually does</h2>
       <p>
         <code>patchbay audit &lt;url&gt;</code> runs 13 checks grouped roughly like this:
       </p>
-      <h3 className="text-lg font-medium text-neutral-100 mt-6 mb-2">Auth presence (AUTH-001, AUTH-002)</h3>
+      <h3 className="text-lg font-medium text-ink mt-6 mb-2">Auth presence (AUTH-001, AUTH-002)</h3>
       <p>
         Does the server accept <code>tools/list</code> without credentials? If yes, do any tool names
         look mutating (create / delete / send / execute / start-...)? Critical only when both are
         true. Public read-only servers are explicitly recognised as a legitimate pattern.
       </p>
-      <h3 className="text-lg font-medium text-neutral-100 mt-6 mb-2">OAuth metadata completeness (AUTH-003 / 004 / 005)</h3>
+      <h3 className="text-lg font-medium text-ink mt-6 mb-2">OAuth metadata completeness (AUTH-003 / 004 / 005)</h3>
       <p>
         If the server serves <code>/.well-known/oauth-authorization-server</code>, we read it and
         check for PKCE S256 advertisement, resource indicators, and a dynamic client registration
         endpoint. These are &quot;not advertised&quot; findings with confidence medium. A server
         can enforce the behaviour without exposing the metadata, so we only flag the metadata gap.
       </p>
-      <h3 className="text-lg font-medium text-neutral-100 mt-6 mb-2">Scopes (SCOPE-001, SCOPE-002)</h3>
+      <h3 className="text-lg font-medium text-ink mt-6 mb-2">Scopes (SCOPE-001, SCOPE-002)</h3>
       <p>
         If the server advertises OAuth, do its tools declare per-tool scopes? Do write and read tools
         share a scope (so revoking write access also revokes reads)?
       </p>
-      <h3 className="text-lg font-medium text-neutral-100 mt-6 mb-2">Secrets and transport</h3>
+      <h3 className="text-lg font-medium text-ink mt-6 mb-2">Secrets and transport</h3>
       <p>
         The directory-mode checks for hardcoded <code>sk-...</code> / <code>ghp_...</code> /{' '}
         <code>AKIA...</code> patterns in source files (skipping test fixtures and example patterns).
@@ -82,7 +82,7 @@ export function StateOfMcpAuthNov2026() {
         header, and treats <code>localhost</code> consistently with <code>127.0.0.1</code> on the
         token endpoint.
       </p>
-      <h3 className="text-lg font-medium text-neutral-100 mt-6 mb-2">Honest probe failures (PROBE-001)</h3>
+      <h3 className="text-lg font-medium text-ink mt-6 mb-2">Honest probe failures (PROBE-001)</h3>
       <p>
         If the probe can&apos;t learn anything (server is behind auth, uses an unknown transport, or
         just doesn&apos;t respond), we say so explicitly instead of returning &quot;0 findings, all
@@ -99,7 +99,7 @@ export function StateOfMcpAuthNov2026() {
       </p>
 
       <p>Run it like this:</p>
-      <pre className="rounded border border-neutral-800 bg-neutral-950 p-4 text-sm overflow-x-auto my-4">
+      <pre className="rounded border border-paper-line bg-paper p-4 text-sm overflow-x-auto my-4">
         <code>
 {`npx -y @patchbay-nebius/agent audit https://mcp.example.com/mcp
 npx -y @patchbay-nebius/agent audit ./my-mcp-server --json
@@ -111,7 +111,7 @@ npx -y @patchbay-nebius/agent audit ./my-mcp-server --sarif > out.sarif`}
         build.
       </p>
 
-      <h2 className="text-xl font-semibold text-white mt-12 mb-4">What I think is actually going on</h2>
+      <h2 className="text-xl font-semibold text-ink mt-12 mb-4">What I think is actually going on</h2>
       <p>
         The MCP 2025-03-26 Streamable HTTP spec is new enough that most server implementations are
         catching up to it. The 2024-11-05 spec and the Legacy SSE transport are what most servers
@@ -130,7 +130,7 @@ npx -y @patchbay-nebius/agent audit ./my-mcp-server --sarif > out.sarif`}
       <p>
         If you&apos;re building an MCP server right now, the fastest wins are:
       </p>
-      <ol className="list-decimal list-inside space-y-2 my-4 text-neutral-300">
+      <ol className="list-decimal list-inside space-y-2 my-4 text-ink-soft">
         <li>serve <code>/.well-known/oauth-protected-resource</code> so clients can discover your auth server,</li>
         <li>advertise <code>code_challenge_methods_supported: [&quot;S256&quot;]</code> and <code>resource_indicators_supported: true</code> in your authorization server metadata,</li>
         <li>give each tool its own scope and reject calls whose token lacks it.</li>
@@ -140,8 +140,8 @@ npx -y @patchbay-nebius/agent audit ./my-mcp-server --sarif > out.sarif`}
         you&apos;re ahead of most of this list.
       </p>
 
-      <h2 className="text-xl font-semibold text-white mt-12 mb-4">Limitations and things I&apos;ll fix</h2>
-      <ul className="list-disc list-inside space-y-2 my-4 text-neutral-300">
+      <h2 className="text-xl font-semibold text-ink mt-12 mb-4">Limitations and things I&apos;ll fix</h2>
+      <ul className="list-disc list-inside space-y-2 my-4 text-ink-soft">
         <li>
           <s>Can&apos;t audit auth-walled servers deeper than &quot;auth-walled&quot;</s>{' '}
           Shipped in 0.1.4 the same day. <code>patchbay audit &lt;url&gt; --auth=&lt;token&gt;</code>{' '}
@@ -182,13 +182,13 @@ npx -y @patchbay-nebius/agent audit ./my-mcp-server --sarif > out.sarif`}
         </li>
       </ul>
 
-      <h2 className="text-xl font-semibold text-white mt-12 mb-4">Try it</h2>
-      <pre className="rounded border border-neutral-800 bg-neutral-950 p-4 text-sm overflow-x-auto my-4">
+      <h2 className="text-xl font-semibold text-ink mt-12 mb-4">Try it</h2>
+      <pre className="rounded border border-paper-line bg-paper p-4 text-sm overflow-x-auto my-4">
         <code>npx -y @patchbay-nebius/agent audit &lt;your-server-or-repo&gt;</code>
       </pre>
       <p>
         In CI, drop{' '}
-        <a href="https://github.com/GodSmasher/patchbay/blob/main/examples/github-action/patchbay-audit.yml" className="text-neutral-100 underline underline-offset-4 hover:text-white">
+        <a href="https://github.com/GodSmasher/patchbay/blob/main/examples/github-action/patchbay-audit.yml" className="text-ink underline underline-offset-4 hover:text-ink">
           examples/github-action/patchbay-audit.yml
         </a>{' '}
         into your own repo as <code>.github/workflows/patchbay-audit.yml</code>. It runs on every
@@ -203,13 +203,13 @@ npx -y @patchbay-nebius/agent audit ./my-mcp-server --sarif > out.sarif`}
       </p>
       <p>
         Repo:{' '}
-        <a href="https://github.com/GodSmasher/patchbay" className="text-neutral-100 underline underline-offset-4 hover:text-white">
+        <a href="https://github.com/GodSmasher/patchbay" className="text-ink underline underline-offset-4 hover:text-ink">
           GodSmasher/patchbay
         </a>
         . MIT. No tracking, no backend, no account. Just a CLI.
       </p>
 
-      <h2 className="text-xl font-semibold text-white mt-12 mb-4">What is next</h2>
+      <h2 className="text-xl font-semibold text-ink mt-12 mb-4">What is next</h2>
       <p>
         The CLI stays free and MIT forever. For teams that do not want to run the CI integration
         themselves, I am planning a hosted version for Q1 2027: scheduled scans against a list of
@@ -219,16 +219,16 @@ npx -y @patchbay-nebius/agent audit ./my-mcp-server --sarif > out.sarif`}
       <p>
         Interested? Two ways to signal:
       </p>
-      <ul className="list-disc list-inside space-y-2 my-4 text-neutral-300">
+      <ul className="list-disc list-inside space-y-2 my-4 text-ink-soft">
         <li>
           Public interest check (react with 👍 / 👎 / 🚀, or comment with your use case):{' '}
-          <a href="https://github.com/GodSmasher/patchbay/discussions/2" className="text-neutral-100 underline underline-offset-4 hover:text-white">
+          <a href="https://github.com/GodSmasher/patchbay/discussions/2" className="text-ink underline underline-offset-4 hover:text-ink">
             github.com/GodSmasher/patchbay/discussions/2
           </a>
         </li>
         <li>
           Email waitlist (so you hear when it launches):{' '}
-          <a href="https://tally.so/r/yXMQjd" className="text-neutral-100 underline underline-offset-4 hover:text-white">
+          <a href="https://tally.so/r/yXMQjd" className="text-ink underline underline-offset-4 hover:text-ink">
             tally.so/r/yXMQjd
           </a>
         </li>
@@ -240,8 +240,8 @@ npx -y @patchbay-nebius/agent audit ./my-mcp-server --sarif > out.sarif`}
 function Row({ label, value, emphasised }: { label: string; value: string; emphasised?: boolean }) {
   return (
     <tr>
-      <td className="px-4 py-3 text-neutral-400">{label}</td>
-      <td className={`px-4 py-3 text-right font-mono ${emphasised ? 'text-red-400 font-semibold' : 'text-neutral-100'}`}>{value}</td>
+      <td className="px-4 py-3 text-ink-mute">{label}</td>
+      <td className={`px-4 py-3 text-right font-mono ${emphasised ? 'text-warn font-semibold' : 'text-ink'}`}>{value}</td>
     </tr>
   )
 }

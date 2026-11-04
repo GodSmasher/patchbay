@@ -10,29 +10,29 @@ export const metadata: Metadata = {
 export default function BlogIndex() {
   const posts = POSTS.filter((p) => !p.draft || process.env.NODE_ENV !== 'production')
   return (
-    <main className="min-h-screen bg-black text-neutral-200 px-6 py-16">
+    <main className="min-h-screen bg-paper text-ink px-6 py-16">
       <div className="mx-auto max-w-3xl">
-        <nav className="mb-10 text-sm text-neutral-500">
-          <Link href="/" className="hover:text-neutral-200">patchbay</Link>
+        <nav className="mb-10 text-sm text-ink-mute">
+          <Link href="/" className="hover:text-ink">patchbay</Link>
           <span className="mx-2">/</span>
-          <span className="text-neutral-300">blog</span>
+          <span className="text-ink-soft">blog</span>
         </nav>
-        <h1 className="text-3xl font-semibold text-white mb-10">blog</h1>
+        <h1 className="text-3xl font-semibold text-ink mb-10">blog</h1>
         {posts.length === 0 && (
-          <p className="text-neutral-500">Nothing published yet.</p>
+          <p className="text-ink-mute">Nothing published yet.</p>
         )}
         <ul className="space-y-8">
           {posts.map((p) => (
             <li key={p.slug}>
               <Link href={`/blog/${p.slug}`} className="group block">
-                <div className="flex items-baseline gap-3 text-sm text-neutral-500 mb-1">
+                <div className="flex items-baseline gap-3 text-sm text-ink-mute mb-1">
                   <time dateTime={p.date}>{p.date}</time>
                   <span>·</span>
                   <span>{p.readingMinutes} min read</span>
-                  {p.draft && <span className="text-yellow-500/80">· draft</span>}
+                  {p.draft && <span className="text-warn">· draft</span>}
                 </div>
-                <h2 className="text-xl font-medium text-neutral-100 group-hover:text-white">{p.title}</h2>
-                <p className="mt-2 text-neutral-400">{p.summary}</p>
+                <h2 className="text-xl font-medium text-ink group-hover:text-signal">{p.title}</h2>
+                <p className="mt-2 text-ink-soft">{p.summary}</p>
               </Link>
             </li>
           ))}

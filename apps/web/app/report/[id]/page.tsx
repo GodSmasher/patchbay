@@ -17,20 +17,23 @@ const SEV_LABEL: Record<Severity, string> = {
   info: 'Info',
 }
 
-const SEV_BAR: Record<Severity, string> = {
-  critical: 'bg-red-500',
-  high: 'bg-orange-500',
-  medium: 'bg-yellow-500',
-  low: 'bg-neutral-500',
-  info: 'bg-neutral-600',
+// Pastel chips in paper-tone context: warn-rust for the two risky tiers,
+// a yellow for medium, ink-mute for low/info so the eye focuses on the real
+// problems instead of being painted red by every finding.
+const SEV_CHIP: Record<Severity, string> = {
+  critical: 'bg-warn-soft text-warn border-warn/30',
+  high: 'bg-warn-soft text-warn border-warn/30',
+  medium: 'bg-[#fff7d6] text-[#8a5a00] border-[#e4c16a]/40 dark:bg-[#2b2211] dark:text-[#e2b64a] dark:border-[#e2b64a]/30',
+  low: 'bg-paper-card text-ink-soft border-paper-line',
+  info: 'bg-paper-card text-ink-mute border-paper-line',
 }
 
 const SEV_CARD: Record<Severity, string> = {
-  critical: 'border-red-900/60 bg-red-950/30',
-  high: 'border-orange-900/60 bg-orange-950/30',
-  medium: 'border-yellow-900/60 bg-yellow-950/30',
-  low: 'border-neutral-800 bg-neutral-950',
-  info: 'border-neutral-800 bg-neutral-950',
+  critical: 'border-warn/40 bg-warn-soft',
+  high: 'border-warn/40 bg-warn-soft',
+  medium: 'border-[#e4c16a]/50 bg-[#fff7d6] dark:border-[#e2b64a]/30 dark:bg-[#2b2211]',
+  low: 'border-paper-line bg-paper-card',
+  info: 'border-paper-line bg-paper-card',
 }
 
 export default async function ReportPage({ params }: { params: { id: string } }) {
@@ -50,63 +53,58 @@ export default async function ReportPage({ params }: { params: { id: string } })
   const badgeMarkdown = `[![patchbay](https://patchbay-mcp.dev/api/badge/${encodeURIComponent(report.target)}.svg)](https://patchbay-mcp.dev/report/${entry.id})`
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-200">
-      <nav className="border-b border-neutral-800">
-        <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-4">
-          <Link href="/" className="text-sm font-semibold text-white hover:text-neutral-300">
-            patchbay
-          </Link>
-          <div className="flex gap-6 text-sm text-neutral-400">
-            <Link href="/blog/state-of-mcp-auth-nov-2026" className="hover:text-neutral-200">Blog</Link>
-            <a href="https://github.com/GodSmasher/patchbay" className="hover:text-neutral-200">GitHub</a>
-          </div>
-        </div>
-      </nav>
+    <main className="min-h-screen bg-paper text-ink px-6 py-16">
+      <div className="mx-auto max-w-3xl">
+        <nav className="mb-10 text-sm text-ink-mute">
+          <Link href="/" className="hover:text-ink">patchbay</Link>
+          <span className="mx-2">/</span>
+          <span className="text-ink-soft">report</span>
+          <span className="mx-2">/</span>
+          <span className="font-mono text-ink-soft">{entry.id}</span>
+        </nav>
 
-      <main className="mx-auto max-w-4xl px-6 py-10">
-        <div className="mb-8">
-          <p className="text-xs uppercase tracking-wider text-neutral-500">patchbay audit report</p>
-          <h1 className="mt-2 break-all text-2xl font-semibold text-white sm:text-3xl">
-            {report.target}
-          </h1>
-          <p className="mt-2 text-sm text-neutral-500">
-            Captured {new Date(entry.storedAt).toLocaleString()} · {(report.durationMs / 1000).toFixed(1)}s
-          </p>
-        </div>
+        <p className="text-xs uppercase tracking-wider text-ink-mute mb-2">audit report</p>
+        <h1 className="text-3xl font-semibold text-ink break-all">{report.target}</h1>
+        <p className="mt-2 text-sm text-ink-mute">
+          Captured {new Date(entry.storedAt).toLocaleString()} · {(report.durationMs / 1000).toFixed(1)}s
+        </p>
 
-        <section className="mb-10 rounded-lg border border-neutral-800 bg-neutral-900/60 p-6">
+        <section className="mt-10 rounded-lg border border-paper-line bg-paper-card p-6">
           <div className="flex flex-wrap items-center gap-6">
             <div
-              className="flex h-24 w-24 flex-shrink-0 items-center justify-center rounded-lg text-4xl font-bold text-white"
+              className="flex h-24 w-24 flex-shrink-0 items-center justify-center rounded-lg text-4xl font-bold text-white shadow-sm"
               style={{ backgroundColor: color }}
             >
               {grade}
             </div>
             <div className="flex-1 min-w-[12rem]">
-              <p className="text-4xl font-semibold text-white">{num}<span className="text-xl text-neutral-500"> / 100</span></p>
+              <p className="text-4xl font-semibold text-ink">
+                {num}<span className="text-xl text-ink-mute"> / 100</span>
+              </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {SEV_ORDER.filter((s) => report.summary[s] > 0).map((s) => (
                   <span
                     key={s}
-                    className={`inline-flex items-center gap-1.5 rounded border border-neutral-800 bg-neutral-950 px-2.5 py-1 text-xs text-neutral-200`}
+                    className={`inline-flex items-center gap-1.5 rounded border px-2.5 py-1 text-xs ${SEV_CHIP[s]}`}
                   >
-                    <span className={`inline-block h-2 w-2 rounded-full ${SEV_BAR[s]}`} />
-                    <span>{report.summary[s]} {SEV_LABEL[s]}</span>
+                    {report.summary[s]} {SEV_LABEL[s]}
                   </span>
                 ))}
                 {report.findings.length === 0 && (
-                  <span className="text-sm text-neutral-400">All clean</span>
+                  <span className="text-sm text-signal">All clean</span>
                 )}
               </div>
             </div>
           </div>
         </section>
 
-        <section className="mb-10 rounded-lg border border-neutral-800 bg-neutral-900/60 p-6">
+        <section className="mt-10 rounded-lg border border-paper-line bg-paper-card p-6">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h2 className="text-sm font-medium text-white">Embed this badge</h2>
-              <p className="mt-1 text-xs text-neutral-500">Live-updates on every new <code>--publish</code> for this target.</p>
+              <h2 className="text-sm font-medium text-ink">Embed this badge</h2>
+              <p className="mt-1 text-xs text-ink-mute">
+                Live-updates on every new <code className="font-mono">--publish</code> for this target.
+              </p>
             </div>
             <img
               src={`/api/badge/${encodeURIComponent(report.target)}.svg`}
@@ -114,41 +112,42 @@ export default async function ReportPage({ params }: { params: { id: string } })
               className="h-6"
             />
           </div>
-          <pre className="overflow-x-auto whitespace-pre-wrap break-all rounded border border-neutral-800 bg-neutral-950 p-3 text-xs text-neutral-300">
+          <pre className="overflow-x-auto whitespace-pre-wrap break-all rounded border border-paper-line bg-paper px-3 py-2 text-xs text-ink-soft code">
 {badgeMarkdown}
           </pre>
         </section>
 
         {report.findings.length === 0 ? (
-          <section className="rounded-lg border border-neutral-800 bg-neutral-900/60 p-6 text-center">
-            <p className="text-neutral-300">No findings. Every check passed on this scan.</p>
+          <section className="mt-10 rounded-lg border border-paper-line bg-paper-card p-6 text-center">
+            <p className="text-ink">No findings. Every check passed on this scan.</p>
           </section>
         ) : (
           SEV_ORDER.map((sev) =>
             grouped[sev].length ? (
-              <section key={sev} className="mb-10">
+              <section key={sev} className="mt-10">
                 <div className="mb-4 flex items-center gap-3">
-                  <span className={`inline-block h-3 w-3 rounded-full ${SEV_BAR[sev]}`} />
-                  <h2 className="text-lg font-semibold uppercase tracking-wider text-white">
+                  <h2 className="text-lg font-semibold uppercase tracking-wider text-ink">
                     {SEV_LABEL[sev]}
                   </h2>
-                  <span className="text-sm text-neutral-500">{grouped[sev].length}</span>
+                  <span className={`inline-flex items-center rounded border px-2 py-0.5 text-xs ${SEV_CHIP[sev]}`}>
+                    {grouped[sev].length}
+                  </span>
                 </div>
                 <div className="space-y-4">
                   {grouped[sev].map((f, i) => (
                     <article key={i} className={`rounded-lg border p-5 ${SEV_CARD[sev]}`}>
                       <div className="mb-3 flex flex-wrap items-baseline gap-2">
-                        <span className="font-mono text-sm text-neutral-400">{f.id}</span>
-                        <h3 className="text-base font-semibold text-white">{f.title}</h3>
+                        <span className="font-mono text-sm text-ink-mute">{f.id}</span>
+                        <h3 className="text-base font-semibold text-ink">{f.title}</h3>
                       </div>
-                      <p className="whitespace-pre-wrap text-sm text-neutral-300">{f.evidence}</p>
-                      <div className="mt-4 rounded border border-neutral-800 bg-neutral-950/60 p-3">
-                        <p className="mb-1 text-xs font-medium uppercase tracking-wider text-neutral-500">Fix</p>
-                        <p className="text-sm text-neutral-200">{f.fix}</p>
+                      <p className="whitespace-pre-wrap text-sm text-ink-soft">{f.evidence}</p>
+                      <div className="mt-4 rounded border border-paper-line bg-paper px-4 py-3">
+                        <p className="mb-1 text-xs font-medium uppercase tracking-wider text-ink-mute">Fix</p>
+                        <p className="text-sm text-ink">{f.fix}</p>
                       </div>
-                      <p className="mt-3 text-xs text-neutral-500">
+                      <p className="mt-3 text-xs text-ink-mute">
                         Severity {f.severity} · Confidence {f.confidence} ·{' '}
-                        <a href={f.docsUrl} className="text-neutral-300 underline underline-offset-4 hover:text-white">
+                        <a href={f.docsUrl} className="text-ink-soft underline underline-offset-4 hover:text-ink">
                           docs
                         </a>
                       </p>
@@ -160,19 +159,19 @@ export default async function ReportPage({ params }: { params: { id: string } })
           )
         )}
 
-        <footer className="mt-16 border-t border-neutral-800 pt-6">
-          <p className="text-sm text-neutral-500">
+        <footer className="mt-16 border-t border-paper-line pt-6">
+          <p className="text-sm text-ink-mute">
             Generated by{' '}
-            <Link href="/" className="text-neutral-300 underline underline-offset-4 hover:text-white">
+            <Link href="/" className="text-ink-soft underline underline-offset-4 hover:text-ink">
               patchbay audit
             </Link>
             . Local, open source, no backend. Reproduce this report:
           </p>
-          <pre className="mt-3 overflow-x-auto whitespace-pre-wrap break-all rounded border border-neutral-800 bg-neutral-950 p-3 text-xs text-neutral-300">
+          <pre className="mt-3 overflow-x-auto whitespace-pre-wrap break-all rounded border border-paper-line bg-paper px-3 py-2 text-xs text-ink-soft code">
 {`npx -y @patchbay-nebius/agent audit ${report.target}`}
           </pre>
         </footer>
-      </main>
-    </div>
+      </div>
+    </main>
   )
 }
