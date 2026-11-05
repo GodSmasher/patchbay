@@ -42,6 +42,51 @@ export function StateOfMcpAuthNov2026() {
         by the user, not initiated server-side. Public-by-design, documented, correctly scoped. So
         that one is off the critical list.
       </p>
+
+      <h2 className="text-xl font-semibold text-ink mt-12 mb-4">The reachability problem nobody is talking about</h2>
+      <p>
+        Here is what actually happened with the other two critical findings: the emails bounced. Not
+        a &quot;no such mailbox&quot; bounce, but Gmail&apos;s SMTP layer timing out against the
+        vendor&apos;s own mail server for 48 hours straight. Three days later, still not delivered.
+      </p>
+      <p>
+        I then went looking for any other way to reach them:
+      </p>
+      <ul className="list-disc list-inside space-y-1 my-4 text-ink-soft">
+        <li>Neither vendor publishes a <code>/.well-known/security.txt</code>. Both return 404.</li>
+        <li>Neither has a public <code>/contact</code> or <code>/about</code> page. Both return 404.</li>
+        <li>Neither links a GitHub organisation, a LinkedIn, or a company X/Twitter from their homepage.</li>
+        <li>Neither publishes a founder name I could track down.</li>
+        <li>RDAP / WHOIS for both domains returns registry handles, no contact email. Privacy-protected by default.</li>
+      </ul>
+      <p>
+        So the responsible-disclosure loop collapses at the first step: there is no one to tell. Both
+        vendors ship a live MCP endpoint that accepts mutating tool calls without a credential, and
+        neither has a channel that accepts a security report.
+      </p>
+      <p>
+        I am going to keep the 90-day embargo running (public naming earliest Jan 31 2027) and try
+        the remaining weak channels — contact forms if any JS-rendered page reveals one, abuse
+        notifications to the registrar — but the actionable observation here is not about these two
+        companies. It is about the MCP ecosystem: <strong>zero of 145 top MCP servers I scanned this
+        week publish a security.txt.</strong> The spec does not require it. The registries that list
+        them do not require it. So when a scanner finds something real, the finding has nowhere to go.
+      </p>
+      <p>
+        This is why patchbay is a CLI first and a disclosure workflow second. The primary users are:
+      </p>
+      <ul className="list-disc list-inside space-y-1 my-4 text-ink-soft">
+        <li>MCP server authors auditing their own server before it ships</li>
+        <li>Security teams gating which MCPs their agents are allowed to call</li>
+        <li>Everybody else who wants to see a report card before adding a server to their Claude Desktop config</li>
+      </ul>
+      <p>
+        The shareable report URLs (<code>--publish</code> flag, landed in 0.4.0) are the escape
+        hatch for when email disclosure fails: a public report page with a score badge the vendor
+        eventually finds via their own brand monitoring, if not via responsible disclosure. Not
+        ideal. Also the reality we are in.
+      </p>
+      <p>
       <p>
         Public-by-design servers like DeepWiki and Chainflip are now flagged as{' '}
         <em>info, public read-only or user-signed pattern</em> rather than critical. That distinction
