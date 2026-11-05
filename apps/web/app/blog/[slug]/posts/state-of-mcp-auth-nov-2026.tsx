@@ -87,7 +87,6 @@ export function StateOfMcpAuthNov2026() {
         ideal. Also the reality we are in.
       </p>
       <p>
-      <p>
         Public-by-design servers like DeepWiki and Chainflip are now flagged as{' '}
         <em>info, public read-only or user-signed pattern</em> rather than critical. That distinction
         matters more than it sounds: the first version of my tool called DeepWiki &quot;critical no
