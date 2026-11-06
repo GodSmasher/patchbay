@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type FormEvent } from 'react'
+import { useState, useEffect, type FormEvent } from 'react'
 import Link from 'next/link'
 
 interface ScanResult {
@@ -14,7 +14,13 @@ interface ScanResult {
 type State =
   | { kind: 'idle' }
   | { kind: 'scanning' }
-  | { kind: 'done'; result: ScanResult; emailCaptured: boolean }
+  | { kind: 'done'; result: ScanResult; target: string }
+  | { kind: 'error'; message: string }
+
+type WatchState =
+  | { kind: 'idle' }
+  | { kind: 'submitting' }
+  | { kind: 'ok'; watcherCount: number }
   | { kind: 'error'; message: string }
 
 const EXAMPLES = [
@@ -24,28 +30,69 @@ const EXAMPLES = [
 
 export default function ScanPage() {
   const [url, setUrl] = useState('')
-  const [email, setEmail] = useState('')
   const [state, setState] = useState<State>({ kind: 'idle' })
+  const [email, setEmail] = useState('')
+  const [watchState, setWatchState] = useState<WatchState>({ kind: 'idle' })
+  const [initialWatcherCount, setInitialWatcherCount] = useState<number | null>(null)
+
+  useEffect(() => {
+    fetch('/api/watch').then((r) => r.json()).then((j) => {
+      if (typeof j.watcherCount === 'number') setInitialWatcherCount(j.watcherCount)
+    }).catch(() => {})
+  }, [])
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
     setState({ kind: 'scanning' })
+    setWatchState({ kind: 'idle' })
     try {
       const r = await fetch('/api/scan', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ url: url.trim(), email: email.trim() || undefined }),
+        body: JSON.stringify({ url: url.trim() }),
       })
       const j = await r.json()
       if (!r.ok) {
         setState({ kind: 'error', message: j.error ?? 'scan failed' })
         return
       }
-      setState({ kind: 'done', result: j as ScanResult, emailCaptured: Boolean(email.trim()) })
+      setState({ kind: 'done', result: j as ScanResult, target: url.trim() })
     } catch (e) {
       setState({ kind: 'error', message: (e as Error).message })
     }
   }
+
+  async function onWatch(e: FormEvent) {
+    e.preventDefault()
+    if (state.kind !== 'done') return
+    setWatchState({ kind: 'submitting' })
+    try {
+      const r = await fetch('/api/watch', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          email: email.trim(),
+          target: state.target,
+          reportId: state.result.id,
+          grade: state.result.grade,
+          score: state.result.score,
+        }),
+      })
+      const j = await r.json()
+      if (!r.ok) {
+        setWatchState({ kind: 'error', message: j.error ?? 'could not save' })
+        return
+      }
+      setWatchState({ kind: 'ok', watcherCount: j.watcherCount })
+    } catch (e) {
+      setWatchState({ kind: 'error', message: (e as Error).message })
+    }
+  }
+
+  const shareText = state.kind === 'done'
+    ? `Scanned ${state.target} with patchbay — grade ${state.result.grade}, score ${state.result.score}/100. https://patchbay-mcp.dev/report/${state.result.id}`
+    : ''
+  const tweetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`
 
   return (
     <main className="min-h-screen bg-paper text-ink px-6 py-16">
@@ -91,20 +138,6 @@ export default function ScanPage() {
             </div>
           </div>
 
-          <div>
-            <label htmlFor="email" className="block text-sm text-ink mb-2">
-              Email <span className="text-ink-mute">(optional, for weekly change alerts when hosted monitoring launches Jan 2027)</span>
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@company.com"
-              className="w-full px-4 py-3 bg-paper-card border border-paper-line rounded text-ink placeholder:text-ink-mute focus:outline-none focus:border-ink"
-            />
-          </div>
-
           <button
             type="submit"
             disabled={state.kind === 'scanning'}
@@ -121,30 +154,82 @@ export default function ScanPage() {
         )}
 
         {state.kind === 'done' && (
-          <div className="mt-10 p-6 border border-paper-line bg-paper-card rounded">
-            <div className="flex items-baseline gap-4 mb-4">
-              <span className="text-5xl font-semibold text-ink">{state.result.grade}</span>
-              <span className="text-ink-soft">score {state.result.score} / 100</span>
+          <>
+            <div className="mt-10 p-6 border border-paper-line bg-paper-card rounded">
+              <div className="flex items-baseline gap-4 mb-4">
+                <span className="text-5xl font-semibold text-ink">{state.result.grade}</span>
+                <span className="text-ink-soft">score {state.result.score} / 100</span>
+              </div>
+              <div className="flex flex-wrap gap-3 text-sm text-ink-soft mb-6">
+                <span>critical {state.result.findings.critical}</span>
+                <span>high {state.result.findings.high}</span>
+                <span>medium {state.result.findings.medium}</span>
+                <span>low {state.result.findings.low}</span>
+                <span>info {state.result.findings.info}</span>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <Link
+                  href={`/report/${state.result.id}`}
+                  className="inline-block px-4 py-2 bg-ink text-paper rounded font-medium hover:opacity-90"
+                >
+                  Open full report →
+                </Link>
+                <a
+                  href={tweetUrl}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="inline-block px-4 py-2 border border-paper-line rounded font-medium text-ink-soft hover:text-ink hover:border-ink"
+                >
+                  Share grade
+                </a>
+              </div>
             </div>
-            <div className="flex flex-wrap gap-3 text-sm text-ink-soft mb-6">
-              <span>critical {state.result.findings.critical}</span>
-              <span>high {state.result.findings.high}</span>
-              <span>medium {state.result.findings.medium}</span>
-              <span>low {state.result.findings.low}</span>
-              <span>info {state.result.findings.info}</span>
+
+            <div className="mt-6 p-6 border border-ink/15 bg-paper-card rounded">
+              {watchState.kind === 'ok' ? (
+                <div>
+                  <p className="text-ink font-medium mb-1">You are watching this server.</p>
+                  <p className="text-sm text-ink-soft">
+                    We will email you if the grade drops, if a new write tool appears, or if the OAuth metadata changes.
+                    At most one email per week. Unsubscribe link in every email.
+                    {' '}<span className="text-ink-mute">{watchState.watcherCount} scans watched so far.</span>
+                  </p>
+                </div>
+              ) : (
+                <form onSubmit={onWatch}>
+                  <p className="text-ink font-medium mb-1">Watch this server</p>
+                  <p className="text-sm text-ink-soft mb-4">
+                    Get one email if the grade drops or a new write tool appears. No spam, unsubscribe anywhere.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <input
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="you@company.com"
+                      className="flex-1 px-4 py-3 bg-paper border border-paper-line rounded text-ink placeholder:text-ink-mute focus:outline-none focus:border-ink"
+                    />
+                    <button
+                      type="submit"
+                      disabled={watchState.kind === 'submitting'}
+                      className="px-5 py-3 bg-ink text-paper rounded font-medium hover:opacity-90 disabled:opacity-50"
+                    >
+                      {watchState.kind === 'submitting' ? 'Saving…' : 'Watch'}
+                    </button>
+                  </div>
+                  {watchState.kind === 'error' && (
+                    <p className="mt-2 text-sm text-warn">{watchState.message}</p>
+                  )}
+                  {initialWatcherCount !== null && initialWatcherCount > 0 && (
+                    <p className="mt-3 text-xs text-ink-mute">
+                      {initialWatcherCount} {initialWatcherCount === 1 ? 'scan is' : 'scans are'} already being watched.
+                    </p>
+                  )}
+                </form>
+              )}
             </div>
-            <Link
-              href={`/report/${state.result.id}`}
-              className="inline-block px-4 py-2 bg-ink text-paper rounded font-medium hover:opacity-90"
-            >
-              Open full report →
-            </Link>
-            {state.emailCaptured && (
-              <p className="mt-4 text-sm text-ink-mute">
-                We saved your email. You will get a note when the server changes or when hosted monitoring goes live.
-              </p>
-            )}
-          </div>
+          </>
         )}
 
         <div className="mt-16 pt-8 border-t border-paper-line text-sm text-ink-mute space-y-2">

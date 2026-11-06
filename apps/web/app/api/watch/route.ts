@@ -1,0 +1,76 @@
+import { NextResponse } from 'next/server'
+import { kv } from '@vercel/kv'
+import { saveLead, leadCount } from '@/lib/lead-store'
+
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const RATE_WINDOW_SECONDS = 60
+const RATE_LIMIT = 10
+
+function kvAvailable(): boolean {
+  return Boolean(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN)
+}
+
+async function rateLimited(ip: string): Promise<boolean> {
+  if (!kvAvailable()) return false
+  const key = `patchbay:watch:rate:${ip}`
+  const n = await kv.incr(key)
+  if (n === 1) await kv.expire(key, RATE_WINDOW_SECONDS)
+  return n > RATE_LIMIT
+}
+
+/**
+ * POST /api/watch
+ *
+ * Body: { email, target, reportId, grade, score }
+ *
+ * Opt-in watch registration for a scanned server. Called from the /scan
+ * post-report CTA. Writes into the shared lead-store so the same email+target
+ * dedupes.
+ *
+ * GET /api/watch returns the aggregate lead count for the social-proof counter.
+ */
+export async function POST(request: Request): Promise<Response> {
+  const ip =
+    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+    request.headers.get('x-real-ip') ??
+    'unknown'
+
+  if (await rateLimited(ip)) {
+    return NextResponse.json({ error: 'too many requests, slow down' }, { status: 429 })
+  }
+
+  let body: { email?: string; target?: string; reportId?: string; grade?: string; score?: number }
+  try {
+    body = (await request.json()) as typeof body
+  } catch {
+    return NextResponse.json({ error: 'body must be JSON' }, { status: 400 })
+  }
+
+  const email = (body.email ?? '').trim()
+  const target = (body.target ?? '').trim()
+  if (!EMAIL_RE.test(email)) return NextResponse.json({ error: 'email looks invalid' }, { status: 400 })
+  if (!target) return NextResponse.json({ error: 'missing target' }, { status: 400 })
+
+  await saveLead({
+    email,
+    target,
+    reportId: body.reportId ?? '',
+    grade: body.grade ?? '?',
+    score: body.score ?? 0,
+    source: 'web-scan',
+    capturedAt: new Date().toISOString(),
+    userAgent: request.headers.get('user-agent') ?? undefined,
+    ip,
+  })
+
+  const total = await leadCount()
+  return NextResponse.json({ ok: true, watcherCount: total })
+}
+
+export async function GET(): Promise<Response> {
+  const total = await leadCount()
+  return NextResponse.json({ watcherCount: total })
+}
