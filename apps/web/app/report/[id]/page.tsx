@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { letterGrade, score, gradeColor } from '@patchbay-nebius/audit-core'
 import { loadReport } from '@/lib/report-store'
+import { watchersForTarget } from '@/lib/lead-store'
 import type { AuditReport, Finding, Severity } from '@patchbay-nebius/audit-core'
 
 export const runtime = 'nodejs'
@@ -44,6 +45,7 @@ export default async function ReportPage({ params }: { params: { id: string } })
   const num = score(report.summary)
   const grade = letterGrade(num)
   const color = gradeColor(grade)
+  const watcherCount = await watchersForTarget(report.target)
 
   const grouped = SEV_ORDER.reduce<Record<Severity, Finding[]>>((acc, s) => {
     acc[s] = report.findings.filter((f) => f.severity === s)
@@ -67,6 +69,16 @@ export default async function ReportPage({ params }: { params: { id: string } })
         <h1 className="text-3xl font-semibold text-ink break-all">{report.target}</h1>
         <p className="mt-2 text-sm text-ink-mute">
           Captured {new Date(entry.storedAt).toLocaleString()} · {(report.durationMs / 1000).toFixed(1)}s
+          {watcherCount > 0 && (
+            <>
+              {' · '}
+              <span className="text-ink-soft">
+                {watcherCount === 1
+                  ? '1 person watching'
+                  : `${watcherCount} people watching`}
+              </span>
+            </>
+          )}
         </p>
 
         <section className="mt-10 rounded-lg border border-paper-line bg-paper-card p-6">

@@ -30,11 +30,18 @@ export interface Lead {
 const LEAD_PREFIX = 'patchbay:lead:'
 const LEAD_INDEX = 'patchbay:leads:index'
 const UNSUB_PREFIX = 'patchbay:unsub:'
+const TARGET_WATCHERS_PREFIX = 'patchbay:target-watchers:'
 const TTL_SECONDS = 60 * 60 * 24 * 365
 
 const memory = new Map<string, Lead>()
 const memoryIndex: string[] = []
 const memoryUnsub = new Set<string>()
+const memoryTargetWatchers = new Map<string, Set<string>>()
+
+function targetKey(target: string): string {
+  // Normalise so different-case URLs count as one.
+  return target.trim().toLowerCase()
+}
 
 function kvAvailable(): boolean {
   return Boolean(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN)
@@ -86,16 +93,36 @@ export async function saveLead(lead: Lead): Promise<SaveLeadResult> {
   if (await isUnsubscribed(lead.email)) {
     return { key, isNew: false, skipped: 'unsubscribed' }
   }
+  const tk = targetKey(lead.target)
+  const emailNorm = normEmail(lead.email)
   if (kvAvailable()) {
     const existing = await kv.get<Lead>(LEAD_PREFIX + key)
     await kv.set(LEAD_PREFIX + key, lead, { ex: TTL_SECONDS })
     if (!existing) await kv.lpush(LEAD_INDEX, key)
+    // Track per-target watchers as a KV set for social-proof counter.
+    // SADD is idempotent so repeat clicks never double-count.
+    await kv.sadd(TARGET_WATCHERS_PREFIX + tk, emailNorm)
     return { key, isNew: !existing }
   }
   const isNew = !memory.has(key)
   memory.set(key, lead)
   if (isNew) memoryIndex.unshift(key)
+  const set = memoryTargetWatchers.get(tk) ?? new Set<string>()
+  set.add(emailNorm)
+  memoryTargetWatchers.set(tk, set)
   return { key, isNew }
+}
+
+/**
+ * How many unique emails are watching this specific target. Used for social
+ * proof on /report/<id> ("N people are watching this server").
+ */
+export async function watchersForTarget(target: string): Promise<number> {
+  const tk = targetKey(target)
+  if (kvAvailable()) {
+    return (await kv.scard(TARGET_WATCHERS_PREFIX + tk)) ?? 0
+  }
+  return memoryTargetWatchers.get(tk)?.size ?? 0
 }
 
 export async function leadCount(): Promise<number> {
