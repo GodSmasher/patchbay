@@ -68,18 +68,32 @@ export function verifyUnsubscribeToken(email: string, token: string): boolean {
   return expected === token
 }
 
-export async function saveLead(lead: Lead): Promise<string> {
+export interface SaveLeadResult {
+  key: string
+  isNew: boolean
+  skipped?: 'unsubscribed'
+}
+
+/**
+ * Idempotent save: same (email, target) pair never double-indexes, so one
+ * person clicking Watch five times on the same server still counts as one
+ * lead and the caller can gate the welcome mail on `isNew === true`.
+ */
+export async function saveLead(lead: Lead): Promise<SaveLeadResult> {
   const key = leadKey(lead.email, lead.target)
-  // Do not accept saves for an already-unsubscribed email.
-  if (await isUnsubscribed(lead.email)) return key
-  if (kvAvailable()) {
-    await kv.set(LEAD_PREFIX + key, lead, { ex: TTL_SECONDS })
-    await kv.lpush(LEAD_INDEX, key)
-    return key
+  if (await isUnsubscribed(lead.email)) {
+    return { key, isNew: false, skipped: 'unsubscribed' }
   }
+  if (kvAvailable()) {
+    const existing = await kv.get<Lead>(LEAD_PREFIX + key)
+    await kv.set(LEAD_PREFIX + key, lead, { ex: TTL_SECONDS })
+    if (!existing) await kv.lpush(LEAD_INDEX, key)
+    return { key, isNew: !existing }
+  }
+  const isNew = !memory.has(key)
   memory.set(key, lead)
-  memoryIndex.unshift(key)
-  return key
+  if (isNew) memoryIndex.unshift(key)
+  return { key, isNew }
 }
 
 export async function leadCount(): Promise<number> {

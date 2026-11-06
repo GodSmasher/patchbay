@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { kv } from '@vercel/kv'
 import { waitUntil } from '@vercel/functions'
-import { saveLead, leadCount, isUnsubscribed } from '@/lib/lead-store'
+import { saveLead, leadCount } from '@/lib/lead-store'
 import { sendWelcomeMail } from '@/lib/email'
 
 export const runtime = 'nodejs'
@@ -56,8 +56,7 @@ export async function POST(request: Request): Promise<Response> {
   if (!EMAIL_RE.test(email)) return NextResponse.json({ error: 'email looks invalid' }, { status: 400 })
   if (!target) return NextResponse.json({ error: 'missing target' }, { status: 400 })
 
-  const alreadyUnsubscribed = await isUnsubscribed(email)
-  await saveLead({
+  const saved = await saveLead({
     email,
     target,
     reportId: body.reportId ?? '',
@@ -69,10 +68,10 @@ export async function POST(request: Request): Promise<Response> {
     ip,
   })
 
-  // Welcome mail runs after the response is returned but is kept alive by
-  // waitUntil so Vercel does not terminate the function before the Resend
-  // call completes. Skip entirely if the email was previously unsubscribed.
-  if (!alreadyUnsubscribed) {
+  // Only send the welcome mail the first time this (email, target) pair
+  // is saved. Subsequent clicks are no-ops: no duplicate lead, no duplicate
+  // mail. Also skip unsubscribed addresses.
+  if (saved.isNew && !saved.skipped) {
     waitUntil(
       sendWelcomeMail({
         email,
@@ -85,10 +84,12 @@ export async function POST(request: Request): Promise<Response> {
         else console.log('welcome mail sent to', email)
       }),
     )
+  } else {
+    console.log('watch repeat (no mail):', email, '→', target, 'skipped:', saved.skipped ?? 'duplicate')
   }
 
   const total = await leadCount()
-  return NextResponse.json({ ok: true, watcherCount: total })
+  return NextResponse.json({ ok: true, watcherCount: total, alreadyWatching: !saved.isNew })
 }
 
 export async function GET(): Promise<Response> {
