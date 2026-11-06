@@ -19,7 +19,9 @@ export interface Lead {
   reportId: string
   grade: string
   score: number
-  source: 'web-scan' | 'cli'
+  source: 'web-scan' | 'cli' | 'tally'
+  useCase?: string
+  priceAnswer?: string
   capturedAt: string
   userAgent?: string
   ip?: string
