@@ -41,13 +41,16 @@ export async function sendWelcomeMail(input: WelcomeMailInput): Promise<{ ok: bo
 
   const unsub = unsubUrl(input.email)
   const reportUrl = `${BASE}/report/${input.reportId}`
+  const scanUrl = `${BASE}/scan`
+  const targetHost = new URL(input.target).hostname
+  const targetPath = new URL(input.target).pathname
 
-  const subject = `patchbay is watching ${new URL(input.target).hostname} for you`
+  const subject = `patchbay is watching ${targetHost} for you`
 
   const text = [
     `Thanks for signing up.`,
     ``,
-    `You asked patchbay to watch ${input.target}.`,
+    `You asked patchbay to watch the MCP server at ${targetHost}${targetPath}.`,
     `Its current grade is ${input.grade} (score ${input.score}/100).`,
     `Full report: ${reportUrl}`,
     ``,
@@ -58,8 +61,12 @@ export async function sendWelcomeMail(input: WelcomeMailInput): Promise<{ ok: bo
     unsub,
     ``,
     `— Sarah`,
-    `patchbay-mcp.dev`,
+    `${BASE}/scan`,
   ].join('\n')
+
+  // Zero-width space between scheme and host prevents Gmail's auto-linker
+  // from turning the target into a clickable link (which 405s on MCP GET).
+  const targetDisplay = `${targetHost}&#8203;${targetPath}`
 
   const html = `<!doctype html>
 <html>
@@ -69,7 +76,7 @@ export async function sendWelcomeMail(input: WelcomeMailInput): Promise<{ ok: bo
 
     <h1 style="font-size: 22px; font-weight: 600; margin: 0 0 16px;">Thanks for signing up.</h1>
 
-    <p style="margin:0 0 12px;">You asked patchbay to watch <strong>${input.target}</strong>.</p>
+    <p style="margin:0 0 12px;">You asked patchbay to watch the MCP server at <strong>${targetDisplay}</strong>.</p>
     <p style="margin:0 0 20px;">Its current grade is <strong>${input.grade}</strong> (score ${input.score}/100).</p>
 
     <p style="margin:0 0 24px;">
@@ -81,11 +88,15 @@ export async function sendWelcomeMail(input: WelcomeMailInput): Promise<{ ok: bo
       plus one email when the live alerts go on.
     </p>
 
-    <p style="margin:24px 0 8px; font-size: 13px; color:#6b6b6b;">— Sarah, patchbay-mcp.dev</p>
+    <p style="margin:0 0 20px;">
+      Want to scan another MCP server now? <a href="${scanUrl}" style="color:#15161a;">Run another scan</a>.
+    </p>
+
+    <p style="margin:24px 0 8px; font-size: 13px; color:#6b6b6b;">— Sarah</p>
 
     <hr style="border:none; border-top:1px solid #e8e5dd; margin:32px 0 16px;">
     <p style="font-size: 12px; color:#8a8a8a; margin:0;">
-      You are receiving this because you clicked Watch on <a href="${BASE}/scan" style="color:#8a8a8a;">patchbay-mcp.dev/scan</a>.
+      You are receiving this because you clicked Watch on <a href="${scanUrl}" style="color:#8a8a8a;">patchbay-mcp.dev/scan</a>.
       <a href="${unsub}" style="color:#8a8a8a;">Unsubscribe in one click</a> or read the
       <a href="${BASE}/privacy" style="color:#8a8a8a;">privacy policy</a>.
     </p>
