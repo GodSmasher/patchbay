@@ -13,7 +13,7 @@ Usage:
   patchbay research           "<one-sentence integration>"
   patchbay verify  [--watch] <directory>
   patchbay scan    <directory> [--build-top=<n>] [--json]
-  patchbay audit   <url|directory|--stdio "<cmd>"> [--json] [--sarif] [--pr-draft] [--out=<path>] [--publish] [--auth=<token>] [--probe-audience=<token>] [--trust] [--ci] [--no-cta]
+  patchbay audit   <url|directory|--stdio "<cmd>"> [--json] [--sarif] [--pr-draft] [--out=<path>] [--publish] [--auth=<token>] [--probe-audience=<token>] [--trust] [--ci] [--fail-on=<severity>] [--no-cta]
   patchbay add     <run-dir> [--target=<dir>]
   patchbay push    <run-dir> --repo=owner/name [--path=connectors/<name>] [--branch=<branch>] [--dry-run]
   patchbay help
@@ -327,8 +327,20 @@ async function audit(args: string[]) {
   const trustCurrentManifest = args.includes('--trust')
   const publish = args.includes('--publish')
   const ci = args.includes('--ci')
+  const failOnRaw = flagValue(args, '--fail-on')
   const noCta = args.includes('--no-cta')
   const stdio = Boolean(stdioCmd)
+
+  const FAIL_SEVERITIES = ['critical', 'high', 'medium', 'low', 'info'] as const
+  type FailSeverity = typeof FAIL_SEVERITIES[number]
+  let failOn: FailSeverity | undefined
+  if (failOnRaw) {
+    if (!(FAIL_SEVERITIES as readonly string[]).includes(failOnRaw)) {
+      console.error(`patchbay audit: --fail-on must be one of ${FAIL_SEVERITIES.join(', ')}`)
+      process.exit(2)
+    }
+    failOn = failOnRaw as FailSeverity
+  }
 
   const { auditTarget, renderTerminal, renderJson, renderSarif, renderMarkdown } = await import('@patchbay-nebius/audit-core')
   const resolved = stdio ? target : (/^https?:\/\//i.test(target) ? target : resolve(target))
@@ -368,6 +380,18 @@ async function audit(args: string[]) {
 
   if (ci && (report.summary.critical > 0 || report.summary.high > 0)) {
     process.exit(1)
+  }
+
+  if (failOn) {
+    // Exit 1 if there is at least one finding at or above `failOn` severity.
+    // Order: critical > high > medium > low > info. --fail-on=high counts crit + high.
+    const idx = FAIL_SEVERITIES.indexOf(failOn)
+    const triggerSeverities = FAIL_SEVERITIES.slice(0, idx + 1)
+    const total = triggerSeverities.reduce((n, s) => n + (report.summary[s] ?? 0), 0)
+    if (total > 0) {
+      console.error(`patchbay: ${total} finding(s) at severity ${failOn} or higher. Exiting 1.`)
+      process.exit(1)
+    }
   }
 }
 

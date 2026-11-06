@@ -73,4 +73,22 @@ describe('AUTH-001', () => {
     expect(withoutFlag[0]!.severity).toBe('critical')
     expect(withFlag[0]!.severity).toBe('info')
   })
+
+  it('downgrades *.googleapis.com to info (IAM-protected at transport layer)', () => {
+    const r = auth001.run(snap({ url: 'https://bigquery.googleapis.com/mcp', tools: [{ name: 'execute_sql' }, { name: 'list_datasets' }] }))
+    expect(r).toHaveLength(1)
+    expect(r[0]!.severity).toBe('info')
+    expect(r[0]!.title).toContain('Google Cloud IAM')
+  })
+
+  it('downgrades *.amazonaws.com to info (AWS SigV4 at transport layer)', () => {
+    const r = auth001.run(snap({ url: 'https://knowledge-mcp.global.api.aws/mcp', tools: [{ name: 'create_index' }] }))
+    expect(r).toHaveLength(1)
+    expect(r[0]!.severity).toBe('info')
+  })
+
+  it('does NOT downgrade non-platform hosts even if tool names suggest IAM', () => {
+    const r = auth001.run(snap({ url: 'https://random-startup.io/mcp', tools: [{ name: 'execute_sql' }] }))
+    expect(r[0]!.severity).toBe('critical')
+  })
 })

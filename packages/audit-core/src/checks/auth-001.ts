@@ -25,6 +25,37 @@ export const auth001: Check = {
       ]
     }
 
+    // Hosts whose auth model is transport-layer IAM, not MCP bearer tokens.
+    // tools/list is public discovery; tools/call always requires credentials via
+    // the hosting platform's own auth layer (Google SA, AWS SigV4, Azure AAD).
+    // Reporting AUTH-001 critical here is a false positive the scanner cannot
+    // tell apart without attempting a mutating call, which we refuse to do.
+    const iamHostPatterns: Array<{ pattern: RegExp; platform: string }> = [
+      { pattern: /\.googleapis\.com$/, platform: 'Google Cloud IAM' },
+      { pattern: /\.amazonaws\.com$|\.api\.aws$/, platform: 'AWS SigV4' },
+      { pattern: /\.azure\.com$|\.azure-api\.net$/, platform: 'Azure AAD' },
+    ]
+    let iamPlatform: string | null = null
+    try {
+      const host = new URL(r.url).hostname
+      for (const { pattern, platform } of iamHostPatterns) {
+        if (pattern.test(host)) { iamPlatform = platform; break }
+      }
+    } catch {}
+    if (iamPlatform) {
+      return [
+        {
+          id: 'AUTH-001',
+          severity: 'info',
+          confidence: 'medium',
+          title: `Platform-IAM-protected (${iamPlatform})`,
+          evidence: `tools/list returned ${r.tools.length} tool(s) without MCP-level credentials at ${r.url}. Host matches ${iamPlatform} pattern: the authentication layer is enforced by the hosting platform (service accounts, signed requests, or managed identities), not by MCP bearer tokens. tools/list is discovery; tools/call requires platform credentials.`,
+          fix: 'No action needed if the host truly enforces IAM on tools/call. patchbay does not attempt mutating calls to verify, so this is downgraded to info rather than critical.',
+          docsUrl: 'https://patchbay-mcp.dev/docs/auth-001',
+        },
+      ]
+    }
+
     const writes = hasWriteTools(r.tools)
     if (!writes) {
       return [

@@ -68,9 +68,12 @@ export function StateOfMcpAuthNov2026() {
         I am going to keep the 90-day embargo running (public naming earliest Jan 31 2027) and try
         the remaining weak channels — contact forms if any JS-rendered page reveals one, abuse
         notifications to the registrar — but the actionable observation here is not about these two
-        companies. It is about the MCP ecosystem: <strong>zero of 145 top MCP servers I scanned this
-        week publish a security.txt.</strong> The spec does not require it. The registries that list
-        them do not require it. So when a scanner finds something real, the finding has nowhere to go.
+        companies. It is about the MCP ecosystem: <strong>15 of 266 unique hosts across 277 MCP
+        servers I scanned this week publish a security.txt</strong> (6 percent). The ones that do
+        are the ones you would expect: Atlassian, Sentry, Slack, Zoom, Reddit, Hugging Face,
+        Indeed. The MCP spec does not require it. The registries that list them do not require it.
+        So when a scanner finds something real on one of the other 251, the finding has nowhere
+        to go.
       </p>
       <p>
         This is why patchbay is a CLI first and a disclosure workflow second. The primary users are:
