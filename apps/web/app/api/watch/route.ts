@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { kv } from '@vercel/kv'
+import { waitUntil } from '@vercel/functions'
 import { saveLead, leadCount, isUnsubscribed } from '@/lib/lead-store'
 import { sendWelcomeMail } from '@/lib/email'
 
@@ -68,18 +69,22 @@ export async function POST(request: Request): Promise<Response> {
     ip,
   })
 
-  // Fire-and-forget welcome mail. A failing send never breaks the signup;
-  // skip entirely if the email was previously unsubscribed.
+  // Welcome mail runs after the response is returned but is kept alive by
+  // waitUntil so Vercel does not terminate the function before the Resend
+  // call completes. Skip entirely if the email was previously unsubscribed.
   if (!alreadyUnsubscribed) {
-    void sendWelcomeMail({
-      email,
-      target,
-      grade: body.grade ?? '?',
-      score: body.score ?? 0,
-      reportId: body.reportId ?? '',
-    }).then((res) => {
-      if (!res.ok) console.error('welcome mail failed:', res.error)
-    })
+    waitUntil(
+      sendWelcomeMail({
+        email,
+        target,
+        grade: body.grade ?? '?',
+        score: body.score ?? 0,
+        reportId: body.reportId ?? '',
+      }).then((res) => {
+        if (!res.ok) console.error('welcome mail failed:', res.error)
+        else console.log('welcome mail sent to', email)
+      }),
+    )
   }
 
   const total = await leadCount()
