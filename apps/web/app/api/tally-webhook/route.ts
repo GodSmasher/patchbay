@@ -20,11 +20,17 @@ export const dynamic = 'force-dynamic'
  * header. Docs: https://tally.so/help/webhooks
  */
 
+interface TallyOption {
+  id: string
+  text: string
+}
+
 interface TallyField {
   key: string
   label: string
   type: string
   value: unknown
+  options?: TallyOption[]
 }
 
 interface TallyPayload {
@@ -48,11 +54,25 @@ function fieldValue(fields: TallyField[], labelMatch: RegExp): string | undefine
   const f = fields.find((x) => labelMatch.test(x.label))
   if (!f) return undefined
   const v = f.value
+
   if (typeof v === 'string') return v.trim() || undefined
+
   if (Array.isArray(v) && v.length > 0) {
-    const first = v[0] as { label?: string } | string
+    // Multiple choice / dropdown: value is an array of option IDs.
+    // Resolve to human-readable text via the field's options list.
+    if (f.options && f.options.length > 0 && typeof v[0] === 'string') {
+      const texts = (v as string[])
+        .map((id) => f.options!.find((o) => o.id === id)?.text)
+        .filter((t): t is string => Boolean(t))
+      if (texts.length > 0) return texts.join(', ')
+    }
+    // Some Tally payloads already embed {text} or {label} in the value array
+    const first = v[0] as { label?: string; text?: string } | string
     if (typeof first === 'string') return first.trim() || undefined
-    if (first && typeof first === 'object' && typeof first.label === 'string') return first.label.trim() || undefined
+    if (first && typeof first === 'object') {
+      if (typeof first.text === 'string') return first.text.trim() || undefined
+      if (typeof first.label === 'string') return first.label.trim() || undefined
+    }
   }
   return undefined
 }
