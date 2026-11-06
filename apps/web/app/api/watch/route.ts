@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { kv } from '@vercel/kv'
-import { saveLead, leadCount } from '@/lib/lead-store'
+import { saveLead, leadCount, isUnsubscribed } from '@/lib/lead-store'
+import { sendWelcomeMail } from '@/lib/email'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -54,6 +55,7 @@ export async function POST(request: Request): Promise<Response> {
   if (!EMAIL_RE.test(email)) return NextResponse.json({ error: 'email looks invalid' }, { status: 400 })
   if (!target) return NextResponse.json({ error: 'missing target' }, { status: 400 })
 
+  const alreadyUnsubscribed = await isUnsubscribed(email)
   await saveLead({
     email,
     target,
@@ -65,6 +67,20 @@ export async function POST(request: Request): Promise<Response> {
     userAgent: request.headers.get('user-agent') ?? undefined,
     ip,
   })
+
+  // Fire-and-forget welcome mail. A failing send never breaks the signup;
+  // skip entirely if the email was previously unsubscribed.
+  if (!alreadyUnsubscribed) {
+    void sendWelcomeMail({
+      email,
+      target,
+      grade: body.grade ?? '?',
+      score: body.score ?? 0,
+      reportId: body.reportId ?? '',
+    }).then((res) => {
+      if (!res.ok) console.error('welcome mail failed:', res.error)
+    })
+  }
 
   const total = await leadCount()
   return NextResponse.json({ ok: true, watcherCount: total })

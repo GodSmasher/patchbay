@@ -188,18 +188,21 @@ export default function ScanPage() {
             <div className="mt-6 p-6 border border-ink/15 bg-paper-card rounded">
               {watchState.kind === 'ok' ? (
                 <div>
-                  <p className="text-ink font-medium mb-1">You are watching this server.</p>
+                  <p className="text-ink font-medium mb-1">You are on the early-access list.</p>
                   <p className="text-sm text-ink-soft">
-                    We will email you if the grade drops, if a new write tool appears, or if the OAuth metadata changes.
-                    At most one email per week. Unsubscribe link in every email.
-                    {' '}<span className="text-ink-mute">{watchState.watcherCount} scans watched so far.</span>
+                    Hosted monitoring (weekly change alerts for watched servers) launches January 2027.
+                    You will get one email when it goes live, nothing before. Every email carries a
+                    one-click unsubscribe. See the <Link href="/privacy" className="underline underline-offset-2 hover:text-ink">privacy policy</Link>.
+                    {' '}<span className="text-ink-mute">{watchState.watcherCount} {watchState.watcherCount === 1 ? 'scan is' : 'scans are'} on the list so far.</span>
                   </p>
                 </div>
               ) : (
                 <form onSubmit={onWatch}>
                   <p className="text-ink font-medium mb-1">Watch this server</p>
                   <p className="text-sm text-ink-soft mb-4">
-                    Get one email if the grade drops or a new write tool appears. No spam, unsubscribe anywhere.
+                    Get on the early-access list for weekly change alerts. One email when hosted monitoring
+                    launches (Jan 2027), nothing before. One-click unsubscribe in every email.
+                    See the <Link href="/privacy" className="underline underline-offset-2 hover:text-ink">privacy policy</Link>.
                   </p>
                   <div className="flex flex-col sm:flex-row gap-3">
                     <input
