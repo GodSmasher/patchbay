@@ -13,7 +13,7 @@ export const POSTS: Post[] = [
     title: 'The state of MCP auth, November 2026',
     date: '2026-11-03',
     readingMinutes: 6,
-    summary: 'I scanned 25 public MCP servers. Here is what the OAuth 2.1 posture looks like in the wild, and the auditor I built to measure it.',
+    summary: 'I scanned 277 public MCP servers. Here is what the OAuth 2.1 posture looks like in the wild, and the auditor I built to measure it.',
   },
 ]
 
