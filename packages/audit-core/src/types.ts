@@ -20,6 +20,7 @@ export interface RemoteProbe {
   oauthAuthServer?: Record<string, unknown>
   originValidation?: 'strict' | 'permissive' | 'unknown'
   redirectLocalhostInconsistent?: boolean
+  dcrLoopback?: DcrLoopbackResult
   publicByDesign?: boolean
   publicByDesignEvidence?: string
   aiCatalog?: Record<string, unknown>
@@ -43,6 +44,30 @@ export interface RemoteProbe {
  *   inconclusive: network error or non-2xx-non-401/403. We can't tell.
  *              AUDIENCE-001 info.
  */
+/**
+ * Result of the AUTH-006 Dynamic Client Registration loopback probe.
+ * Registers a throw-away client with loopback redirect URIs
+ * ("http://127.0.0.1:PORT/callback" and "http://localhost:PORT/callback")
+ * to verify RFC 8252 Section 7.3 compliance — native/CLI MCP clients
+ * can only complete an authorization code flow when the AS accepts
+ * these redirect URIs with an arbitrary port.
+ *
+ *   accepted:    DCR returned 2xx, both loopback URIs registered.
+ *                No finding.
+ *   rejected:    DCR returned 400 "invalid_redirect_uri" (or similar).
+ *                AUTH-006 high.
+ *   inconclusive: non-2xx / non-400 (auth required, 5xx, network error).
+ *                No finding; recorded for diagnostics.
+ *   no-endpoint: authServer metadata has no registration_endpoint.
+ *                No finding (AUTH-005 covers that).
+ */
+export interface DcrLoopbackResult {
+  attempted: boolean
+  outcome: 'accepted' | 'rejected' | 'inconclusive' | 'no-endpoint'
+  httpStatus?: number
+  reason?: string
+}
+
 export interface AudienceProbeResult {
   attempted: boolean
   outcome: 'accepted' | 'rejected' | 'inconclusive'

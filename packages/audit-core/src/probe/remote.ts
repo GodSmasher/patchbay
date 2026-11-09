@@ -33,6 +33,14 @@ export interface RemoteProbeOptions {
    * the `aud` claim and AUDIENCE-001 fires critical.
    */
   probeAudienceToken?: string
+  /**
+   * When true, AUTH-006 actively registers a throw-away client against the
+   * authorisation server's registration_endpoint with loopback redirect URIs
+   * ("http://127.0.0.1:PORT/callback" and "http://localhost:PORT/callback")
+   * to verify RFC 8252 Section 7.3 compliance. Off by default because it
+   * writes to the AS. Flip on for full-fidelity audits.
+   */
+  probeDcrLoopback?: boolean
 }
 
 const MCP_ACCEPT = 'application/json, text/event-stream'
@@ -239,6 +247,58 @@ export async function probeRemote(url: string, opts: RemoteProbeOptions = {}): P
       const sLoop = await probeRedirect('http://127.0.0.1:1234/cb')
       if (sLocal !== null && sLoop !== null && sLocal !== sLoop) {
         probe.redirectLocalhostInconsistent = true
+      }
+    }
+  }
+
+  if (opts.probeDcrLoopback && authServer && typeof authServer === 'object') {
+    const regEndpoint = typeof authServer.registration_endpoint === 'string' ? authServer.registration_endpoint : undefined
+    if (!regEndpoint) {
+      probe.dcrLoopback = { attempted: true, outcome: 'no-endpoint' }
+    } else {
+      const port = 33418
+      try {
+        const r = await f(regEndpoint, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', ...authedHeaders },
+          body: JSON.stringify({
+            client_name: 'patchbay-loopback-probe',
+            redirect_uris: [
+              `http://127.0.0.1:${port}/callback`,
+              `http://localhost:${port}/callback`,
+            ],
+            token_endpoint_auth_method: 'none',
+            grant_types: ['authorization_code'],
+            response_types: ['code'],
+            application_type: 'native',
+          }),
+          signal: AbortSignal.timeout(timeoutMs),
+        })
+        if (r.status >= 200 && r.status < 300) {
+          probe.dcrLoopback = { attempted: true, outcome: 'accepted', httpStatus: r.status }
+        } else if (r.status === 400) {
+          const bodyText = await r.text().catch(() => '')
+          probe.dcrLoopback = {
+            attempted: true,
+            outcome: 'rejected',
+            httpStatus: r.status,
+            reason: bodyText.slice(0, 500),
+          }
+        } else {
+          probe.dcrLoopback = {
+            attempted: true,
+            outcome: 'inconclusive',
+            httpStatus: r.status,
+            reason: `unexpected status ${r.status}`,
+          }
+        }
+      } catch (e) {
+        probe.dcrLoopback = {
+          attempted: true,
+          outcome: 'inconclusive',
+          reason: (e as Error).message,
+        }
+        errors.push(`dcr loopback probe: ${(e as Error).message}`)
       }
     }
   }
