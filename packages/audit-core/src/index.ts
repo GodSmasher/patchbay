@@ -44,6 +44,13 @@ export interface AuditOptions {
    */
   probeAudienceToken?: string
   /**
+   * When true, AUTH-006 actively registers a throw-away client against the
+   * authorisation server's registration_endpoint with loopback redirect
+   * URIs to verify RFC 8252 Section 7.3 compliance. Off by default because
+   * it writes to the AS.
+   */
+  probeDcrLoopback?: boolean
+  /**
    * When set, `target` is treated as a shell command to spawn as an MCP
    * server over stdio, not as a URL or directory. Enables MANIFEST-001
    * for Claude Desktop-style MCP servers.
@@ -74,6 +81,7 @@ async function resolveTarget(target: string, opts: AuditOptions): Promise<Target
       authToken: opts.authToken,
       trustCurrentManifest: opts.trustCurrentManifest,
       probeAudienceToken: opts.probeAudienceToken,
+      probeDcrLoopback: opts.probeDcrLoopback,
     })
   }
   return probeDirectory(target)
