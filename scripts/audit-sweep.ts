@@ -99,7 +99,10 @@ async function main() {
           transport: r.report.snapshot.remote.transport,
           authRequired: r.report.snapshot.remote.authRequired,
           toolCount: r.report.snapshot.remote.tools.length,
+          tools: r.report.snapshot.remote.tools,
           effectiveEndpoint: r.report.snapshot.remote.effectiveEndpoint,
+          oauthAuthServer: r.report.snapshot.remote.oauthAuthServer,
+          oauthProtectedResource: r.report.snapshot.remote.oauthProtectedResource,
         },
       })),
     }

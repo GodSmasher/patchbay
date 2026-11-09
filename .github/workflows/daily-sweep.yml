@@ -1,0 +1,74 @@
+name: daily-sweep
+
+on:
+  schedule:
+    # 03:00 UTC = 04:00 CET / 05:00 CEST
+    - cron: '0 3 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - run: npm ci
+
+      - name: Build audit-core
+        working-directory: packages/audit-core
+        run: npx tsc
+
+      - name: Run sweep
+        id: sweep
+        run: |
+          DATE=$(date -u +%Y-%m-%d)
+          echo "DATE=$DATE" >> $GITHUB_OUTPUT
+          node --experimental-strip-types scripts/audit-sweep.ts \
+            --file=bench/urls-277.txt \
+            --out="bench/mcp-sweep-${DATE}-full.json"
+
+      - name: Generate anonymized aggregate
+        run: |
+          DATE=${{ steps.sweep.outputs.DATE }}
+          node -e "
+            const fs = require('fs');
+            const raw = JSON.parse(fs.readFileSync('bench/mcp-sweep-${DATE}-full.json','utf8'));
+            const agg = {
+              capturedAt: raw.capturedAt,
+              totalTargets: raw.targets.length,
+              reachable: raw.results.filter(r => r.remote?.reachable).length,
+              totals: raw.totals,
+              checkCounts: raw.checkCounts,
+            };
+            fs.writeFileSync('bench/mcp-sweep-${DATE}-aggregate.json', JSON.stringify(agg, null, 2));
+          "
+
+      - name: Upload raw sweep (private artifact, 90 days)
+        uses: actions/upload-artifact@v4
+        with:
+          name: sweep-raw-${{ steps.sweep.outputs.DATE }}
+          path: bench/mcp-sweep-${{ steps.sweep.outputs.DATE }}-full.json
+          retention-days: 90
+
+      - name: Commit anonymized aggregate
+        run: |
+          DATE=${{ steps.sweep.outputs.DATE }}
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "bench/mcp-sweep-${DATE}-aggregate.json"
+          if git diff --cached --quiet; then
+            echo "No aggregate changes to commit"
+          else
+            git commit -m "chore(bench): daily sweep aggregate ${DATE}"
+            git push
+          fi

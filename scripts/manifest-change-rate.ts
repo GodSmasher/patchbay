@@ -16,6 +16,12 @@ import { hashManifest, type ToolDescriptor } from '@patchbay-nebius/audit-core'
 
 interface SweepEntry {
   url: string
+  // Current sweep shape (audit-sweep.ts): remote.tools lives at top level
+  remote?: {
+    reachable?: boolean
+    tools?: ToolDescriptor[]
+  }
+  // Legacy sweep shape: tools nested under report.snapshot
   report?: {
     snapshot?: {
       remote?: {
@@ -40,7 +46,7 @@ interface Diff {
 }
 
 function tools(entry: SweepEntry): ToolDescriptor[] {
-  return entry.report?.snapshot?.remote?.tools ?? []
+  return entry.remote?.tools ?? entry.report?.snapshot?.remote?.tools ?? []
 }
 
 function diffEntries(prev: SweepEntry, cur: SweepEntry): Diff | null {
