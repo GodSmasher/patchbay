@@ -63,6 +63,54 @@ export const DOCS: DocEntry[] = [
     specUrl: 'https://datatracker.ietf.org/doc/html/rfc7591',
   },
   {
+    id: 'auth-006',
+    title: 'Authorization server rejects loopback redirect URIs',
+    severity: 'high',
+    oneLiner: 'Dynamic Client Registration refused "http://127.0.0.1:PORT/callback" and "http://localhost:PORT/callback" as redirect URIs.',
+    whatItMeans: `Native and CLI MCP clients (Claude Code, Claude Desktop, editor integrations) finish the OAuth authorization code flow by listening on a local port and using a loopback redirect URI such as http://127.0.0.1:53124/callback. The port is picked by the operating system at request time, so it is different on every login. RFC 8252 §7.3 says the authorization server MUST allow any port for loopback IP redirect URIs for exactly this reason.
+
+This finding fires when patchbay tried to register a client with loopback redirect URIs and the registration endpoint rejected them. For users the symptom is a login that hangs or errors after they click "Allow": the browser flow works, but the client can never receive the callback.
+
+The check is opt-in because it sends a real registration request. Run it with --probe-dcr-loopback. It stays silent if the server has no registration endpoint (see AUTH-005) or if the probe was inconclusive.`,
+    howToFix: `Accept loopback redirect URIs in Dynamic Client Registration and at the authorization endpoint: http://127.0.0.1:PORT/callback and http://localhost:PORT/callback, with any port number. Match on scheme, host and path, and ignore the port for loopback hosts only. Keep rejecting plain http:// redirect URIs for every non-loopback host.
+
+Re-run to confirm:
+  npx -y @patchbay-nebius/agent audit <url> --probe-dcr-loopback`,
+    spec: 'RFC 8252 §7.3',
+    specUrl: 'https://datatracker.ietf.org/doc/html/rfc8252#section-7.3',
+  },
+  {
+    id: 'audience-001',
+    title: 'Server accepts cross-audience bearer tokens',
+    severity: 'critical',
+    oneLiner: 'tools/list succeeded with a bearer token that was minted for a different resource on the same authorization server.',
+    whatItMeans: `One authorization server often issues tokens for several resources: your MCP server, an internal API, a sibling product. Each token carries an "aud" (audience) claim naming the resource it was issued for. If your MCP server does not check that claim, a token issued for any sibling resource also works against the MCP server, so whoever holds or can obtain a token for the weakest sibling can call your tools.
+
+Discovery metadata cannot reveal this. A server can advertise resource_indicators_supported (see AUTH-004) and still skip the validation at runtime, which is why this check sends a real request.
+
+The check only runs when you supply a probe token with --probe-audience=<token> (or the PATCHBAY_PROBE_AUDIENCE_TOKEN environment variable). Use a token you are entitled to hold, minted for a different resource on the same authorization server. If the probe gets no clear answer, the finding is reported as info ("probe inconclusive") instead of critical.`,
+    howToFix: `Validate the "aud" claim on every incoming bearer token. The expected audience is this MCP server's own resource identifier, the value you publish as "resource" in /.well-known/oauth-protected-resource. Reject any token whose audience does not match with HTTP 401.`,
+    spec: 'RFC 8707 §2',
+    specUrl: 'https://datatracker.ietf.org/doc/html/rfc8707#section-2',
+  },
+  {
+    id: 'manifest-001',
+    title: 'Tool manifest changed since last run',
+    severity: 'medium',
+    oneLiner: 'The set of tools this server exposes is different from the manifest patchbay pinned on an earlier run.',
+    whatItMeans: `Approving an MCP server is a one-time decision, but the server can change afterwards. It can add a tool that writes or executes, give an existing read-only tool a new "command" or "path" parameter, or rewrite a tool description so it starts instructing the model. None of that triggers a new approval prompt in most clients.
+
+patchbay pins the tool manifest the first time it audits a server and diffs against it on later runs. Severity follows the most serious change in the diff:
+  critical: a new write-shaped tool, or a read tool that gained a write-shaped parameter
+  medium: an existing tool's description changed
+  low: an input schema changed structurally, or a new read-only tool appeared
+  info: a tool was removed`,
+    howToFix: `Review the diff in the finding. If every change is expected because you updated the server on purpose, re-pin the manifest:
+  npx -y @patchbay-nebius/agent audit <url> --trust
+
+If a change is unexpected, do not re-pin. Check the server's release notes, or the deployment log for a self-hosted server, before you let an agent call it again.`,
+  },
+  {
     id: 'scope-001',
     title: 'No per-tool scopes',
     severity: 'high',

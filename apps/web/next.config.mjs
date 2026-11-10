@@ -11,6 +11,12 @@ const nextConfig = {
   // longer necessary. Keeping it would pull esbuild (a runtime dep of the preflight
   // syntax check) through webpack's loaders and crash the build.
   poweredByHeader: false,
+  // The CLI's post-audit CTA has pointed at /fix since 0.1.0, and that route
+  // never existed. Temporary redirect so every installed CLI version lands on
+  // the scanner (and its Watch signup) until a dedicated /fix page ships.
+  async redirects() {
+    return [{ source: '/fix', destination: '/scan?ref=cli', permanent: false }]
+  },
   // "standalone" produces a self-contained server + minimal node_modules in .next/standalone,
   // which the Docker image copies as its only runtime payload. ~90 MB instead of ~500 MB.
   output: 'standalone',

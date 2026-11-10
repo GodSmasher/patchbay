@@ -3,8 +3,9 @@ import Link from 'next/link'
 import { DOCS, type Severity } from './_data'
 
 export const metadata: Metadata = {
-  title: 'patchbay audit · findings reference',
-  description: 'What each patchbay audit finding means, why it fires, and how to fix it.',
+  title: 'MCP server security checks: findings reference · patchbay audit',
+  description: 'What each patchbay audit finding means, why it fires, and how to fix it: OAuth 2.1, PKCE, scopes, secrets, transport and redirect checks for MCP servers.',
+  alternates: { canonical: '/docs' },
 }
 
 const SEV_COLOR: Record<Severity, string> = {

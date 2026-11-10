@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getPost, POSTS } from '../_data'
+import { McpOauthLoginHangsLoopbackRedirect } from './posts/mcp-oauth-login-hangs-loopback-redirect'
 import { StateOfMcpAuthNov2026 } from './posts/state-of-mcp-auth-nov-2026'
 
 export function generateStaticParams() {
@@ -14,11 +15,21 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   return {
     title: `${post.title} · patchbay`,
     description: post.summary,
-    openGraph: { title: post.title, description: post.summary, type: 'article' },
+    alternates: { canonical: `/blog/${post.slug}` },
+    // Drafts are reachable by direct link for review but must not be indexed.
+    ...(post.draft ? { robots: { index: false, follow: false } } : {}),
+    openGraph: {
+      title: post.title,
+      description: post.summary,
+      type: 'article',
+      url: `/blog/${post.slug}`,
+      publishedTime: post.date,
+    },
   }
 }
 
 const BODIES: Record<string, () => JSX.Element> = {
+  'mcp-oauth-login-hangs-loopback-redirect': McpOauthLoginHangsLoopbackRedirect,
   'state-of-mcp-auth-nov-2026': StateOfMcpAuthNov2026,
 }
 

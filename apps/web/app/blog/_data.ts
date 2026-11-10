@@ -9,6 +9,14 @@ export interface Post {
 
 export const POSTS: Post[] = [
   {
+    slug: 'mcp-oauth-login-hangs-loopback-redirect',
+    title: 'Why MCP OAuth login hangs after you click Allow, and how to fix it',
+    date: '2026-11-10',
+    readingMinutes: 5,
+    summary: 'Native and CLI MCP clients use loopback redirect URIs with a random port. Authorization servers that reject them break login for every such client. How to confirm it and what to change.',
+    draft: true,
+  },
+  {
     slug: 'state-of-mcp-auth-nov-2026',
     title: 'The state of MCP auth, November 2026',
     date: '2026-11-03',

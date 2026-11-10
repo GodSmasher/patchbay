@@ -3,8 +3,9 @@ import Link from 'next/link'
 import { POSTS } from './_data'
 
 export const metadata: Metadata = {
-  title: 'patchbay · blog',
-  description: 'Writing on MCP, OAuth, connector tooling and whatever else patchbay is doing.',
+  title: 'MCP security research and audit data · patchbay blog',
+  description: 'Data from scanning public MCP servers: OAuth 2.1 adoption, auth gaps, manifest drift, and how to fix what the scans find.',
+  alternates: { canonical: '/blog' },
 }
 
 export default function BlogIndex() {

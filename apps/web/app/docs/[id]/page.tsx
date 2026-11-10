@@ -11,8 +11,9 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
   const doc = getDoc(params.id)
   if (!doc) return { title: 'Not found' }
   return {
-    title: `${doc.id.toUpperCase()} · ${doc.title} · patchbay`,
+    title: `${doc.title} (${doc.id.toUpperCase()}) · MCP security check · patchbay`,
     description: doc.oneLiner,
+    alternates: { canonical: `/docs/${doc.id}` },
   }
 }
 
@@ -79,6 +80,13 @@ export default function DocPage({ params }: { params: { id: string } }) {
           <pre className="mt-3 rounded border border-paper-line bg-paper p-4 text-sm overflow-x-auto">
             <code>npx -y @patchbay-nebius/agent audit &lt;url-or-directory&gt;</code>
           </pre>
+          <p className="mt-4 text-sm text-ink-mute">
+            No install:{' '}
+            <Link href="/scan" className="text-ink-soft hover:text-ink underline-offset-4 hover:underline">
+              scan an MCP server in the browser
+            </Link>{' '}
+            and get a shareable report.
+          </p>
           <p className="mt-6 text-sm text-ink-mute">
             Disagree with this finding on your server?{' '}
             <a href="https://github.com/GodSmasher/patchbay/issues" target="_blank" rel="noopener noreferrer" className="text-ink-soft hover:text-ink underline-offset-4 hover:underline">
