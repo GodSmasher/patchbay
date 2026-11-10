@@ -14,7 +14,6 @@ export const POSTS: Post[] = [
     date: '2026-11-10',
     readingMinutes: 4,
     summary: 'Authentication is optional in MCP and some servers are public on purpose. What an open tools/list tells a stranger, how to test your own server and where the line to a real problem is.',
-    draft: true,
   },
   {
     slug: 'mcp-tools-change-after-approval',
