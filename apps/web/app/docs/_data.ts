@@ -19,8 +19,8 @@ export const DOCS: DocEntry[] = [
     oneLiner: 'Server returns tools/list without any credential, and at least one tool name looks mutating.',
     whatItMeans: `patchbay audit calls the server's tools/list endpoint without any Authorization or x-api-key header. If the server returns a tool list, no authentication is being enforced. The check is only critical when at least one tool name reads as mutating (create/delete/send/execute/start-...). A server that only exposes read-shaped tools (get/list/search/...) is downgraded to info level and labelled "public read-only server", which the MCP spec documents as a legitimate pattern for public data endpoints.`,
     howToFix: `Require OAuth 2.1 bearer tokens on initialize and tools/*. Serve /.well-known/oauth-protected-resource pointing to an authorization server, and reject unauthenticated calls with 401. If this server is intended to be public read-only, no action needed; the finding will downgrade automatically once no mutating tool names are present.`,
-    spec: 'MCP 2025-03-26 §Security',
-    specUrl: 'https://modelcontextprotocol.io/specification/2025-03-26/basic/authorization',
+    spec: 'MCP authorization spec (2025-06-18)',
+    specUrl: 'https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization',
   },
   {
     id: 'auth-002',
@@ -29,8 +29,8 @@ export const DOCS: DocEntry[] = [
     oneLiner: 'Server accepts bearer or API-key auth but serves no .well-known OAuth metadata.',
     whatItMeans: `The server accepts an Authorization: Bearer or x-api-key header (patchbay confirmed this with a probe token that returned 2xx), but neither /.well-known/oauth-protected-resource nor /.well-known/oauth-authorization-server is served. MCP clients that follow the spec cannot negotiate PKCE, scopes or resource indicators. They have to be configured out of band with a static credential.`,
     howToFix: `Replace static credentials with OAuth 2.1. Publish discovery metadata at the two well-known paths so clients can auto-configure. Support PKCE with S256, resource indicators (RFC 8707), and dynamic client registration (RFC 7591).`,
-    spec: 'MCP 2025-03-26 §Authorization',
-    specUrl: 'https://modelcontextprotocol.io/specification/2025-03-26/basic/authorization',
+    spec: 'MCP authorization spec (2025-06-18)',
+    specUrl: 'https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization',
   },
   {
     id: 'auth-003',
