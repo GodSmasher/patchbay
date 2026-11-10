@@ -53,10 +53,19 @@ export function McpTokenAudienceValidation() {
           RFC 8707
         </a>{' '}
         (Resource Indicators) lets a client name the resource it wants a token for, so the
-        authorization server can set the audience accordingly. OAuth 2.1 requires the resource
-        server to verify that a token was intended for it and reject the token otherwise. The MCP
-        authorization spec builds on both: clients send the <code>resource</code> parameter, and
-        servers must only accept tokens issued for themselves.
+        authorization server can set the audience accordingly.{' '}
+        <a href="https://datatracker.ietf.org/doc/html/rfc9068#section-4" className={A}>
+          RFC 9068
+        </a>
+        , the JWT profile for access tokens, requires the resource server to check that{' '}
+        <code>aud</code> contains its own identifier and to reject the token if it does not. The
+        MCP authorization spec makes both mandatory from{' '}
+        <a href="https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization" className={A}>
+          revision 2025-06-18
+        </a>
+        : clients must send the <code>resource</code> parameter, and servers must only accept
+        tokens issued for themselves. The earlier 2025-03-26 revision does not mention audience,
+        so a server built against it may never have added the check.
       </p>
 
       <h2 className={H2}>Why metadata does not tell you</h2>
