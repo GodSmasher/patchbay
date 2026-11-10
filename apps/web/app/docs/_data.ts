@@ -86,6 +86,20 @@ Re-run to confirm:
     specUrl: 'https://datatracker.ietf.org/doc/html/rfc8252#section-7.3',
   },
   {
+    id: 'auth-007',
+    title: 'Invalid bearer token returns wrong HTTP status',
+    severity: 'medium',
+    oneLiner: 'The server rejected a made-up bearer token with a status other than 401.',
+    whatItMeans: `patchbay sends one tools/list request with a bearer token that cannot be valid. The MCP authorization spec says invalid or expired tokens must receive HTTP 401. This finding fires when the server rejected the token with a different status. The most common one is 403.
+
+The difference matters to clients. 401 means the token is not good and the client should get a new one. 403 means the token is fine but not allowed to do this. A client that receives 403 for an expired token has no reason to refresh it, so the user sees a permission error where a silent token refresh would have fixed it.
+
+The check stays silent if the server needs no authentication, and if it accepted the made-up token. That second case is AUTH-002.`,
+    howToFix: `Return 401 with a WWW-Authenticate header for every request that carries an invalid or expired token. Keep 403 for requests with a valid token that lacks the required scope and send WWW-Authenticate with error="insufficient_scope" there.`,
+    spec: 'MCP authorization spec (2026-07-28)',
+    specUrl: 'https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization',
+  },
+  {
     id: 'audience-001',
     title: 'Server accepts cross-audience bearer tokens',
     severity: 'critical',
@@ -115,6 +129,34 @@ patchbay pins the tool manifest the first time it audits a server and diffs agai
   npx -y @patchbay-nebius/agent audit <url> --trust
 
 If a change is unexpected, do not re-pin. Check the server's release notes, or the deployment log for a self-hosted server, before you let an agent call it again.`,
+  },
+  {
+    id: 'resource-001',
+    title: 'Protected Resource Metadata missing',
+    severity: 'high',
+    oneLiner: 'The server uses OAuth but serves no usable /.well-known/oauth-protected-resource document.',
+    whatItMeans: `Protected Resource Metadata (RFC 9728) is how a client finds out where to log in. The document names the authorization servers that issue tokens for this MCP server. The MCP authorization spec has required it since revision 2025-06-18 and still does in 2026-07-28.
+
+This finding has two shapes. Either the document is not served at all, or it is served without a non-empty "authorization_servers" list. In both cases a client that follows the spec cannot start the login without being configured by hand.
+
+The check only runs on servers that use OAuth, meaning the server required authentication or published authorization server metadata. A server that needs no login is not flagged here.`,
+    howToFix: `Serve /.well-known/oauth-protected-resource as JSON. Include "authorization_servers" with at least one issuer URL, the same issuer you publish in your authorization server metadata. Set "resource" to the canonical URL of your MCP endpoint.`,
+    spec: 'RFC 9728',
+    specUrl: 'https://datatracker.ietf.org/doc/html/rfc9728',
+  },
+  {
+    id: 'poisoning-001',
+    title: 'Tool metadata contains prompt injection patterns',
+    severity: 'high',
+    oneLiner: 'A tool description or input schema description contains hidden characters or text that addresses the model.',
+    whatItMeans: `MCP clients pass tool descriptions and the descriptions inside input schemas to the model. Whatever stands there is read as context for planning. A description that carries instructions for the model can steer an agent without the user noticing.
+
+The check looks for two things:
+  high: characters a person would not see in a catalog, such as zero-width characters, bidirectional overrides and Unicode tag characters
+  medium: visible text aimed at the model, such as <system> style tags, role prefixes like "System:", or phrases like "ignore previous instructions"
+
+The medium band works with patterns and can be wrong. A harmless description that says "you must call this tool first" matches too, so read the quoted text before you act on it. The check only sees tools the server lists without credentials. It does not judge what a tool does.`,
+    howToFix: `Remove hidden characters from every tool description and schema description and add a check for them to your build. Rewrite flagged descriptions so they say what the tool does for a human reader. If you did not write the flagged text yourself, treat the server as compromised until you know where it came from.`,
   },
   {
     id: 'scope-001',

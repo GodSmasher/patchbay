@@ -42,7 +42,8 @@ const GROUPS: Group[] = [
         title: 'Publish Protected Resource Metadata',
         why: 'The document under /.well-known/oauth-protected-resource names your resource identifier and the authorization servers that issue tokens for it. Clients use it to find where to log in.',
         basis: 'MCP spec, RFC 9728',
-        how: 'manual',
+        how: 'scan',
+        doc: 'resource-001',
       },
       {
         title: 'List S256 in code_challenge_methods_supported',

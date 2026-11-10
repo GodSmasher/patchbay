@@ -17,11 +17,11 @@ const CLI_ONLY: Record<string, string> = {
 }
 
 const GROUPS: { title: string; prefixes: string[] }[] = [
-  { title: 'Authentication and OAuth', prefixes: ['auth-', 'audience-', 'redirect-'] },
+  { title: 'Authentication and OAuth', prefixes: ['auth-', 'audience-', 'resource-', 'redirect-'] },
   { title: 'Scopes', prefixes: ['scope-'] },
   { title: 'Transport', prefixes: ['transport-'] },
   { title: 'Secrets', prefixes: ['secret-'] },
-  { title: 'Tool manifest', prefixes: ['manifest-'] },
+  { title: 'Tools', prefixes: ['manifest-', 'poisoning-'] },
 ]
 
 export const SCAN_FAQ: { q: string; a: string }[] = [
@@ -64,7 +64,7 @@ export function ScanInfo() {
           </h2>
           <p className="mt-3 text-ink-soft">
             patchbay audit looks at how an MCP server handles authentication, OAuth 2.1 metadata,
-            scopes and transport. Each finding links to an explanation and a fix. Checks marked
+            scopes, transport and tool descriptions. Each finding links to an explanation and a fix. Checks marked
             CLI need something a URL alone cannot provide, so they only run in the{' '}
             <a
               href="https://github.com/GodSmasher/patchbay"
