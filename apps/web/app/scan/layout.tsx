@@ -4,7 +4,7 @@ import type { Metadata } from 'next'
 // without this layout the page inherits the homepage title and description.
 const TITLE = 'MCP server security scanner: free OAuth 2.1 audit | patchbay'
 const DESCRIPTION =
-  'Paste an MCP server URL and get a security grade in seconds. 14 checks for OAuth 2.1, PKCE, audience validation, loopback redirects, scopes and exposed secrets. Free, open source, no account.'
+  'Paste an MCP server URL and get a security grade in seconds. 16 checks for OAuth 2.1, PKCE, audience validation, loopback redirects, scopes and exposed secrets. Free, open source, no account.'
 
 export const metadata: Metadata = {
   title: TITLE,

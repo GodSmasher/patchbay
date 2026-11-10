@@ -105,7 +105,7 @@ export default function ScanPage() {
 
         <h1 className="text-3xl font-semibold text-ink mb-2">Scan an MCP server</h1>
         <p className="text-ink-soft mb-10">
-          Paste the URL. We run the same 14 checks the CLI does, store the report,
+          Paste the URL. We run the same 16 checks the CLI does, store the report,
           and give you a public link you can share. No install, no account.
         </p>
 
