@@ -94,13 +94,11 @@ export function McpDynamicClientRegistrationMissing() {
           AUTH-005
         </Link>{' '}
         at high severity. A server that only offers dynamic registration gets a note at info level
-        that does not affect the grade. No flags are needed. The{' '}
+        that does not affect the grade. No flags are needed and the{' '}
         <Link href="/scan" className={A}>
           browser scanner
         </Link>{' '}
-        already works this way. The CLI on npm gets the same logic with its next release. Until
-        then it reports a missing registration endpoint as high even when metadata documents are
-        supported.
+        runs the same check.
       </p>
 
       <h2 className={H2}>The fix</h2>
