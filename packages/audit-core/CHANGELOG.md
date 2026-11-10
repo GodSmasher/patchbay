@@ -1,5 +1,18 @@
 # @patchbay-nebius/audit-core
 
+## 0.3.3 (2026-11-10)
+
+### Fixed
+- **AUTH-005.** MCP authorization spec revision 2026-07-28 deprecated
+  Dynamic Client Registration (RFC 7591) in favor of Client ID Metadata
+  Documents. Previous AUTH-005 fired high whenever `registration_endpoint`
+  was missing, which is now a false positive against spec-conform CIMD-only
+  servers. New logic:
+  - pass when `client_id_metadata_document_supported: true` is advertised
+  - info (no grade hit) when only `registration_endpoint` is advertised:
+    "DCR used but deprecated per MCP 2026-07-28, consider adding CIMD"
+  - high only when neither mechanism is advertised
+
 ## 0.3.2 (2026-11-09)
 
 ### Added

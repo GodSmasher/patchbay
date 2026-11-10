@@ -1,5 +1,11 @@
 # @patchbay-nebius/agent
 
+## 0.5.1 (2026-11-10)
+
+### Dependencies
+- `@patchbay-nebius/audit-core` → 0.3.3 (ships the AUTH-005 CIMD fix,
+  see its changelog).
+
 ## 0.5.0 (2026-11-09)
 
 ### Added
