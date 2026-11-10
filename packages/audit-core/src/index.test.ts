@@ -44,6 +44,7 @@ describe('auditSnapshot', () => {
         oauthAuthServer: {
           issuer: 'https://x',
           registration_endpoint: 'https://x/register',
+          client_id_metadata_document_supported: true,
           code_challenge_methods_supported: ['S256'],
           resource_indicators_supported: true,
         },

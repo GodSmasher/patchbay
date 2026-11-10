@@ -96,6 +96,7 @@ function oauthMetadata(mode: FixtureMode): Record<string, unknown> | undefined {
     authorization_endpoint: 'http://127.0.0.1/oauth/authorize',
     token_endpoint: 'http://127.0.0.1/oauth/token',
     registration_endpoint: 'http://127.0.0.1/oauth/register',
+    client_id_metadata_document_supported: true,
     resource_indicators_supported: true,
     code_challenge_methods_supported: ['S256'],
   }
