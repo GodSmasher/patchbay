@@ -69,6 +69,19 @@ describe('HEADERS-001', () => {
     expect(findings).toEqual([])
   })
 
+  it('fires when CSP frame-ancestors is wildcard * (not a real restriction)', () => {
+    const findings = headers001.run(remoteSnap({
+      reachable: true,
+      usesTls: true,
+      responseHeaders: {
+        'strict-transport-security': 'max-age=31536000',
+        'content-security-policy': "default-src 'self'; frame-ancestors *",
+        'x-content-type-options': 'nosniff',
+      },
+    }))
+    expect(findings[0]?.evidence).toMatch(/wildcard/)
+  })
+
   it('fires on missing nosniff', () => {
     const findings = headers001.run(remoteSnap({
       reachable: true,

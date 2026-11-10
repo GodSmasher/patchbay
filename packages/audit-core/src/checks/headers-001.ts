@@ -48,9 +48,15 @@ export const headers001: Check = {
 
     const xfo = h['x-frame-options']
     const csp = h['content-security-policy'] ?? ''
-    const hasFrameAncestors = /\bframe-ancestors\b/i.test(csp)
-    if (!xfo && !hasFrameAncestors) {
-      gaps.push('No X-Frame-Options and no frame-ancestors directive in Content-Security-Policy. Response can be framed cross-origin.')
+    const frameAncestorsMatch = csp.match(/frame-ancestors\s+([^;]+)/i)
+    const frameAncestorsValue = frameAncestorsMatch?.[1]?.trim()
+    const wildcardFrameAncestors = frameAncestorsValue === '*' || /(^|\s)\*(\s|$)/.test(frameAncestorsValue ?? '')
+    const restrictiveFrameAncestors = !!frameAncestorsValue && !wildcardFrameAncestors
+    if (!xfo && !restrictiveFrameAncestors) {
+      const why = wildcardFrameAncestors
+        ? 'Content-Security-Policy frame-ancestors is wildcard `*`, which is not a restriction.'
+        : 'No X-Frame-Options and no frame-ancestors directive in Content-Security-Policy.'
+      gaps.push(`${why} Response can be framed cross-origin.`)
     }
 
     const xcto = (h['x-content-type-options'] ?? '').toLowerCase()

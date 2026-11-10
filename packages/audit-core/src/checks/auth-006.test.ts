@@ -24,10 +24,13 @@ describe('AUTH-006', () => {
     expect(auth006.run(remoteSnap({}))).toEqual([])
   })
 
-  it('does not fire on inconclusive probe', () => {
-    expect(
-      auth006.run(remoteSnap({ dcrLoopback: { attempted: true, outcome: 'inconclusive', httpStatus: 401 } })),
-    ).toEqual([])
+  it('reports info on inconclusive probe (consistency with other opt-in probes)', () => {
+    const findings = auth006.run(remoteSnap({
+      dcrLoopback: { attempted: true, outcome: 'inconclusive', httpStatus: 500, reason: 'unexpected status 500' },
+    }))
+    expect(findings).toHaveLength(1)
+    expect(findings[0]?.severity).toBe('info')
+    expect(findings[0]?.title).toMatch(/inconclusive/)
   })
 
   it('does not fire when no registration_endpoint exists', () => {
