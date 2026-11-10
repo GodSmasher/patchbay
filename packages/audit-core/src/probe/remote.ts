@@ -536,7 +536,16 @@ async function runHeadlessOauthProbe(
     redirect_uri: registeredRedirect,
     response_type: 'code',
     state: 'patchbay-probe',
-    scope: 'openid',
+  }
+  // Scope handling: hardcoding `openid` can backfire on servers that do not
+  // advertise it — the AS then returns error=invalid_scope BEFORE evaluating
+  // PKCE / response_type / redirect_uri, and all four probes read as
+  // "rejected" even though the OAuth 2.1 violation was never tested. Prefer
+  // the first scope the AS actually advertises in `scopes_supported`; fall
+  // back to omitting `scope` entirely (the AS then applies its default).
+  const scopesSupported = authServer.scopes_supported
+  if (Array.isArray(scopesSupported) && typeof scopesSupported[0] === 'string') {
+    baseParams.scope = scopesSupported[0]
   }
 
   result.pkceMissing = await run({ ...baseParams })
