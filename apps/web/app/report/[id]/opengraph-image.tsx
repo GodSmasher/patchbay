@@ -1,5 +1,6 @@
 import { ImageResponse } from 'next/og'
 import { loadReport } from '@/lib/report-store'
+import { applyRetirements } from '@/lib/retired-checks'
 import { letterGrade, score, gradeColor } from '@patchbay-nebius/audit-core'
 import type { AuditReport } from '@patchbay-nebius/audit-core'
 
@@ -17,7 +18,7 @@ export default async function Image({ params }: { params: { id: string } }) {
   const entry = await loadReport(params.id)
   if (!entry) return genericCard()
 
-  const report = entry.body as AuditReport
+  const report = applyRetirements(entry.body as AuditReport)
   const num = score(report.summary)
   const grade = letterGrade(num)
   const color = gradeColor(grade)

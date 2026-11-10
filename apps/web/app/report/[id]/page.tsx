@@ -5,6 +5,7 @@ import { letterGrade, score, gradeColor } from '@patchbay-nebius/audit-core'
 import { loadReport } from '@/lib/report-store'
 import { watchersForTarget } from '@/lib/lead-store'
 import { SubscribeBox } from '@/components/subscribe-box'
+import { applyRetirements } from '@/lib/retired-checks'
 import type { AuditReport, Finding, Severity } from '@patchbay-nebius/audit-core'
 
 export const runtime = 'nodejs'
@@ -17,7 +18,7 @@ const SEV_ORDER: Severity[] = ['critical', 'high', 'medium', 'low', 'info']
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
   const entry = await loadReport(params.id)
   if (!entry) return { title: 'Report not found · patchbay', robots: { index: false, follow: true } }
-  const report = entry.body as AuditReport
+  const report = applyRetirements(entry.body as AuditReport)
   const num = score(report.summary)
   const grade = letterGrade(num)
   let host = report.target
@@ -68,7 +69,7 @@ export default async function ReportPage({ params }: { params: { id: string } })
   const entry = await loadReport(params.id)
   if (!entry) notFound()
 
-  const report = entry.body as AuditReport
+  const report = applyRetirements(entry.body as AuditReport)
   const num = score(report.summary)
   const grade = letterGrade(num)
   const color = gradeColor(grade)
