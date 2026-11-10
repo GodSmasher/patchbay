@@ -9,6 +9,7 @@ import Link from 'next/link'
 const NAV = [
   { href: '/scan', label: 'Scan' },
   { href: '/docs', label: 'Checks' },
+  { href: '/mcp-oauth-checklist', label: 'Checklist' },
   { href: '/blog', label: 'Blog' },
 ]
 
@@ -44,6 +45,7 @@ export function SiteFooter() {
         <nav aria-label="Footer" className="flex flex-wrap gap-x-5 gap-y-2">
           <Link href="/scan" className="hover:text-ink">Scan a server</Link>
           <Link href="/docs" className="hover:text-ink">All checks</Link>
+          <Link href="/mcp-oauth-checklist" className="hover:text-ink">OAuth checklist</Link>
           <Link href="/blog" className="hover:text-ink">Blog</Link>
           <Link href="/privacy" className="hover:text-ink">Privacy</Link>
           <a href={GITHUB} target="_blank" rel="noopener noreferrer" className="hover:text-ink">GitHub</a>

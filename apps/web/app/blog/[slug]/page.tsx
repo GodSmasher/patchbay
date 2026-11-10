@@ -50,8 +50,23 @@ export default function BlogPost({ params }: { params: { slug: string } }) {
   const Body = BODIES[post.slug]
   if (!Body) notFound()
 
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BlogPosting',
+    headline: post.title,
+    description: post.summary,
+    datePublished: post.date,
+    url: `https://patchbay-mcp.dev/blog/${post.slug}`,
+    mainEntityOfPage: `https://patchbay-mcp.dev/blog/${post.slug}`,
+    author: { '@type': 'Person', name: 'Sarah Vogel', url: 'https://github.com/GodSmasher' },
+    publisher: { '@type': 'Organization', name: 'patchbay', url: 'https://patchbay-mcp.dev/scan' },
+  }
+
   return (
     <main className="min-h-screen bg-paper text-ink px-6 py-16">
+      {!post.draft && (
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      )}
       <div className="mx-auto max-w-3xl">
         <nav className="mb-10 text-sm text-ink-mute">
           <Link href="/scan" className="hover:text-ink">patchbay</Link>

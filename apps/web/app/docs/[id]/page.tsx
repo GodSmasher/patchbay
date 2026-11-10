@@ -18,6 +18,15 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
   }
 }
 
+// Checks that have a longer write-up on the blog.
+const WRITE_UPS: Record<string, { slug: string; title: string }> = {
+  'auth-003': { slug: 'mcp-pkce-missing-from-oauth-metadata', title: 'MCP clients refuse to log in when PKCE is missing from your OAuth metadata' },
+  'auth-005': { slug: 'mcp-dynamic-client-registration-missing', title: 'MCP server without a registration_endpoint: why clients cannot connect and how to fix it' },
+  'auth-006': { slug: 'mcp-oauth-login-hangs-loopback-redirect', title: 'Why MCP OAuth login hangs after you click Allow and how to fix it' },
+  'audience-001': { slug: 'mcp-token-audience-validation', title: 'Audience validation for MCP servers' },
+  'manifest-001': { slug: 'mcp-tools-change-after-approval', title: 'An MCP server can change its tools after you approved it' },
+}
+
 const SEV_COLOR: Record<Severity, string> = {
   critical: 'bg-warn-soft text-warn border-warn/30',
   high: 'bg-warn-soft text-warn border-warn/30',
@@ -29,6 +38,7 @@ const SEV_COLOR: Record<Severity, string> = {
 export default function DocPage({ params }: { params: { id: string } }) {
   const doc = getDoc(params.id)
   if (!doc) notFound()
+  const writeUp = WRITE_UPS[doc.id]
 
   return (
     <main className="min-h-screen bg-paper text-ink px-6 py-16">
@@ -71,6 +81,15 @@ export default function DocPage({ params }: { params: { id: string } }) {
             ) : (
               <span className="text-ink-soft">{doc.spec}</span>
             )}
+          </section>
+        )}
+
+        {writeUp && (
+          <section className="mb-10">
+            <h2 className="text-sm uppercase tracking-wide text-ink-mute mb-3">Background</h2>
+            <Link href={`/blog/${writeUp.slug}`} className="text-ink underline underline-offset-4 hover:text-ink">
+              {writeUp.title}
+            </Link>
           </section>
         )}
 
