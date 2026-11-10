@@ -1,6 +1,6 @@
 # @patchbay-nebius/agent
 
-## 0.5.0 — 2026-11-09
+## 0.5.0 (2026-11-09)
 
 ### Added
 - `--probe-dcr-loopback` CLI flag for `patchbay audit`. Opts into the

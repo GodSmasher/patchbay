@@ -1,9 +1,9 @@
 # @patchbay-nebius/audit-core
 
-## 0.3.2 — 2026-11-09
+## 0.3.2 (2026-11-09)
 
 ### Added
-- **AUTH-006** — active Dynamic Client Registration loopback probe.
+- **AUTH-006.** Active Dynamic Client Registration loopback probe.
   Registers a throw-away client against the authorisation server's
   `registration_endpoint` with `http://127.0.0.1:PORT/callback` and
   `http://localhost:PORT/callback` to verify RFC 8252 §7.3 compliance.
