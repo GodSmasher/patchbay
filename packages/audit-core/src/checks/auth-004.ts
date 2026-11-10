@@ -1,26 +1,29 @@
 import type { Check, Finding } from '../types'
 
+/**
+ * AUTH-004 (RETIRED in audit-core 0.3.4, 2026-11-10).
+ *
+ * Previously checked the authorization-server metadata for a
+ * `resource_indicators_supported: true` flag. After verification against
+ * RFC 8707, RFC 9728, the IANA OAuth Authorization Server Metadata
+ * registry, and MCP authorization spec revision 2026-07-28, no spec or
+ * RFC defines a `resource_indicators_supported` metadata field.
+ *
+ * The MCP 2026-07-28 spec explicitly says clients "MUST send [the
+ * resource] parameter regardless of whether authorization servers
+ * support it," which means absence of such a flag conveys nothing about
+ * server behaviour, and its presence would convey nothing standardised
+ * either.
+ *
+ * AUDIENCE-001 (opt-in active probe) remains the authoritative check
+ * for whether a server actually validates the `aud` claim.
+ *
+ * The ID is retained so already-stored reports keep resolving, but the
+ * check now returns no findings.
+ */
 export const auth004: Check = {
   id: 'AUTH-004',
-  severity: 'high',
-  title: 'No resource indicator support (RFC 8707)',
-  run: (snapshot): Finding[] => {
-    const r = snapshot.remote
-    if (!r || !r.oauthAuthServer) return []
-    const meta = r.oauthAuthServer
-    const flag = meta.resource_indicators_supported
-    if (flag === true) return []
-    return [
-      {
-        id: 'AUTH-004',
-        severity: 'medium',
-        confidence: 'medium',
-        title: 'Resource indicators not advertised (RFC 8707)',
-        evidence: `${r.url} advertises no "resource_indicators_supported": true in OAuth metadata. Clients cannot discover whether tokens are audience-bound; server may still enforce audience at runtime; this is a metadata completeness finding, not a confirmed vulnerability.`,
-        fix: 'Support the `resource` parameter on authorization + token requests (RFC 8707), reject tokens whose audience is not this server, and advertise the capability in metadata.',
-        docsUrl: 'https://patchbay-mcp.dev/docs/auth-004',
-        autofixTemplate: 'oauth21',
-      },
-    ]
-  },
+  severity: 'info',
+  title: 'Resource indicators metadata flag (retired)',
+  run: (): Finding[] => [],
 }

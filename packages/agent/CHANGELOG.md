@@ -1,5 +1,11 @@
 # @patchbay-nebius/agent
 
+## 0.5.2 (2026-11-10)
+
+### Dependencies
+- `@patchbay-nebius/audit-core` → 0.3.4 (retires AUTH-004, see its
+  changelog).
+
 ## 0.5.1 (2026-11-10)
 
 ### Dependencies

@@ -118,7 +118,7 @@ npx -y @patchbay-nebius/agent audit ./my-mcp-server --sarif > results.sarif
 | `AUTH-001` | critical | `tools/list` succeeds without any credentials |
 | `AUTH-002` | critical | Static API key or bearer accepted, no `/.well-known/oauth-*` discovery served |
 | `AUTH-003` | high | OAuth metadata without PKCE S256 in `code_challenge_methods_supported` |
-| `AUTH-004` | high | No resource indicator support (RFC 8707). Tokens not audience-bound |
+| `AUTH-004` | ~~high~~ retired | Checked `resource_indicators_supported` metadata flag. Retired in 0.3.4 after verification that no RFC or MCP spec defines this field. Use AUDIENCE-001 (opt-in probe) for actual audience validation. |
 | `AUTH-005` | high | OAuth 2.1 advertised without Dynamic Client Registration endpoint |
 | `AUTH-006` | high | Authorization server rejects loopback redirect URIs (RFC 8252 §7.3). Opt-in via `--probe-dcr-loopback`. |
 | `AUDIENCE-001` | critical | Server accepts bearer tokens minted for a sibling resource on the same AS (RFC 8707). Opt-in via `--probe-audience`. |

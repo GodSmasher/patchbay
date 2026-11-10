@@ -1,5 +1,18 @@
 # @patchbay-nebius/audit-core
 
+## 0.3.4 (2026-11-10)
+
+### Retired
+- **AUTH-004.** Verified against RFC 8707, RFC 9728, the IANA OAuth
+  Authorization Server Metadata registry, and MCP authorization spec
+  revision 2026-07-28: `resource_indicators_supported` is not a defined
+  metadata field in any of them. MCP 2026-07-28 explicitly states that
+  clients send the `resource` parameter regardless of what the server
+  advertises, so absence of this flag conveys nothing. AUTH-004 now
+  returns no findings. ID is retained so stored reports keep resolving.
+  AUDIENCE-001 (opt-in active probe) remains the authoritative check for
+  whether a server validates the `aud` claim.
+
 ## 0.3.3 (2026-11-10)
 
 ### Fixed
