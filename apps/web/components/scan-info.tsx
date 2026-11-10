@@ -27,7 +27,7 @@ const GROUPS: { title: string; prefixes: string[] }[] = [
 export const SCAN_FAQ: { q: string; a: string }[] = [
   {
     q: 'What does the scan send to my server?',
-    a: 'An MCP initialize request and a tools/list request, plus requests for the OAuth metadata documents under /.well-known. It also sends one request with an unexpected Origin header. If the server publishes a token endpoint it sends two more requests that compare how it treats localhost and 127.0.0.1. It does not call any tool.',
+    a: 'MCP initialize requests to find the endpoint. A tools/list request without credentials and one each with a dummy bearer token and a dummy API key, to see whether the server accepts anything. Requests for the OAuth and AI catalog documents under /.well-known. One tools/list request with a foreign Origin header. If the server publishes a token endpoint, two requests that compare how it treats localhost and 127.0.0.1. It does not call any of the server tools.',
   },
   {
     q: 'How is the grade calculated?',
