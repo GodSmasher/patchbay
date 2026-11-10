@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { letterGrade, score, gradeColor } from '@patchbay-nebius/audit-core'
@@ -10,6 +11,31 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 const SEV_ORDER: Severity[] = ['critical', 'high', 'medium', 'low', 'info']
+
+// Without this the report inherits the homepage title. Reports stay out of
+// search indexes: they name third-party servers and expire after 90 days.
+export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+  const entry = await loadReport(params.id)
+  if (!entry) return { title: 'Report not found · patchbay', robots: { index: false, follow: true } }
+  const report = entry.body as AuditReport
+  const num = score(report.summary)
+  const grade = letterGrade(num)
+  let host = report.target
+  try {
+    host = new URL(report.target).host
+  } catch {
+    // directory or stdio targets are not URLs; keep the raw target
+  }
+  const title = `${host}: MCP security grade ${grade} (${num}/100) · patchbay`
+  const description = `patchbay audit report for ${host}. ${report.findings.length} findings across authentication, OAuth metadata, scopes and transport.`
+  return {
+    title,
+    description,
+    robots: { index: false, follow: true },
+    openGraph: { title, description, type: 'article', url: `/report/${entry.id}` },
+    twitter: { card: 'summary_large_image', title, description },
+  }
+}
 
 const SEV_LABEL: Record<Severity, string> = {
   critical: 'Critical',
