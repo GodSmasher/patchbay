@@ -9,6 +9,22 @@ export interface Post {
 
 export const POSTS: Post[] = [
   {
+    slug: 'mcp-tools-change-after-approval',
+    title: 'An MCP server can change its tools after you approved it',
+    date: '2026-11-10',
+    readingMinutes: 4,
+    summary: 'The tool list of an MCP server is sent fresh on every request and nothing forces a client to ask you again when it changes. Which changes matter and how to get a diff.',
+    draft: true,
+  },
+  {
+    slug: 'mcp-pkce-missing-from-oauth-metadata',
+    title: 'MCP clients refuse to log in when PKCE is missing from your OAuth metadata',
+    date: '2026-11-10',
+    readingMinutes: 3,
+    summary: 'If code_challenge_methods_supported is absent from the authorization server metadata, a compliant MCP client must stop before the login starts. Why that is and the one line that fixes it.',
+    draft: true,
+  },
+  {
     slug: 'mcp-token-audience-validation',
     title: 'Audience validation for MCP servers: a token for another API should not work on yours',
     date: '2026-11-10',
