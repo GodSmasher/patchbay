@@ -1,6 +1,6 @@
 # patchbay
 
-> **New in 0.2.4: `patchbay audit`** — free CLI to scan an MCP server for OAuth 2.1 gaps.
+> **New in 0.2.4: `patchbay audit`**. Free CLI to scan an MCP server for OAuth 2.1 gaps.
 > Read [the November 2026 sweep](https://patchbay-mcp.dev/blog/state-of-mcp-auth-nov-2026) (25 public MCP servers scanned, 2 of 8 reachable-and-public ones expose mutating tools without auth) or try it:
 >
 > ```
@@ -55,7 +55,7 @@
   <a href="https://www.npmjs.com/package/@patchbay-nebius/agent"><img src="https://img.shields.io/badge/-npm-CB3837?style=for-the-badge&logo=npm&logoColor=white" alt="npm" height="28"/></a>
 </p>
 
-**Describe an integration in one sentence. Get a tested connector — TypeScript or Python — that already passed its own tests.**
+**Describe an integration in one sentence. Get a tested connector (TypeScript or Python) that already passed its own tests.**
 
 ```
 # TypeScript (vitest + injected fetch)
@@ -65,11 +65,11 @@ patchbay build "When a Stripe payment succeeds, add the customer to a Mailchimp 
 patchbay build --lang=python "When a Stripe payment succeeds, add the customer to a Mailchimp audience with the plan as a tag"
 ```
 
-**90.2% green on TS Core 20 · 73.3% green on Python Core 20 · 70.0% on Python Brutal 20 — measured across 192 live Nebius Sandbox runs with per-run JSON committed to the repo.** Fine-tune live on Nebius AI Cloud (Qwen3-30B-A3B on 173 of patchbay's own red→green repair pairs, served from an H100 NVLink GPU behind an OpenAI-compatible vLLM endpoint). Dual-language toggle on the live site at **https://patchbay-mcp.dev**, public uptime at **https://patchbay.openstatus.dev**, open-source training dataset on [🤗 patchbay-nebius/connector-repair-dataset](https://huggingface.co/datasets/patchbay-nebius/connector-repair-dataset).
+**90.2% green on TS Core 20 · 73.3% green on Python Core 20 · 70.0% on Python Brutal 20. Measured across 192 live Nebius Sandbox runs with per-run JSON committed to the repo.** Fine-tune live on Nebius AI Cloud (Qwen3-30B-A3B on 173 of patchbay's own red→green repair pairs, served from an H100 NVLink GPU behind an OpenAI-compatible vLLM endpoint). Dual-language toggle on the live site at **https://patchbay-mcp.dev**, public uptime at **https://patchbay.openstatus.dev**, open-source training dataset on [🤗 patchbay-nebius/connector-repair-dataset](https://huggingface.co/datasets/patchbay-nebius/connector-repair-dataset).
 
 ## The numbers
 
-Every row is a live Nebius Sandbox run with the per-attempt files, test report and sandbox operation id committed under [`bench/runs/`](bench/runs/) — not cherry-picked cases. Full tables and per-prompt breakdowns in [bench/RESULTS-variance.md](bench/RESULTS-variance.md).
+Every row is a live Nebius Sandbox run with the per-attempt files, test report and sandbox operation id committed under [`bench/runs/`](bench/runs/). Not cherry-picked cases. Full tables and per-prompt breakdowns in [bench/RESULTS-variance.md](bench/RESULTS-variance.md).
 
 | Set | Shape | Runs | Green | First-try | Cost / build |
 |---|---|---|---|---|---|
@@ -79,17 +79,17 @@ Every row is a live Nebius Sandbox run with the per-attempt files, test report a
 | **Python Brutal 20** | adversarial (SOAP, GraphQL federation, long-poll, dedup) | 40 | **70.0%** | — | $0.16 |
 | TS × Nemotron Super ablation | strong-step downgraded 550B → 120B, same prompts | 60 | 46.7% | 8.3% | $0.06 |
 
-**Reading these:** the common-case Python gap (17 points vs TS Core) **closes on hard cases** — Python Brutal matches TS Brutal within one point. The Super ablation shows Ultra isn't overkill: dropping to the mid-tier halves the green rate because the saved per-call cost gets eaten by extra repair attempts.
+**Reading these:** the common-case Python gap (17 points vs TS Core) **closes on hard cases**. Python Brutal matches TS Brutal within one point. The Super ablation shows Ultra isn't overkill: dropping to the mid-tier halves the green rate because the saved per-call cost gets eaten by extra repair attempts.
 
 ## How it works
 
 patchbay runs five steps:
 
-1. **Plan** – a fast model turns the sentence into source/target apps, trigger, action, docs queries, field mapping. Nemotron 3.5 Lightning.
-2. **Research** – Tavily search + extract, biased toward each vendor's own domain, feeding a mid-tier model that produces a normalized API spec (endpoints, auth, example payloads). Nemotron 3 Super.
-3. **Generate** – a strong model writes the connector, its tests and a README. TypeScript (`src/connector.ts` + vitest) by default; `--lang=python` writes `connector.py` + pytest. Nemotron 3 Ultra, 32k tokens, temperature 0.1.
-4. **Verify** – a Nebius Token Factory sandbox pulls the right base image once and installs the test deps (vitest + typescript, or pytest + pytest-asyncio + pytest-json-report) into a checkpointed image. Every attempt forks that checkpoint with the generated files and networking disabled. For TS the gate is `tsc --noEmit` then `vitest run`; for Python it is `python -m compileall` then `pytest -q --json-report`.
-5. **Repair** – when a run is red, the strong model gets the file blocks and the failed test output, and tries again. Up to `PATCHBAY_MAX_ATTEMPTS` times (default 3). Optional parallel mode generates N variants at once, verifies them in parallel sandbox forks, keeps the first green.
+1. **Plan.** A fast model turns the sentence into source/target apps, trigger, action, docs queries, field mapping. Nemotron 3.5 Lightning.
+2. **Research.** Tavily search + extract, biased toward each vendor's own domain, feeding a mid-tier model that produces a normalized API spec (endpoints, auth, example payloads). Nemotron 3 Super.
+3. **Generate.** A strong model writes the connector, its tests and a README. TypeScript (`src/connector.ts` + vitest) by default; `--lang=python` writes `connector.py` + pytest. Nemotron 3 Ultra, 32k tokens, temperature 0.1.
+4. **Verify.** A Nebius Token Factory sandbox pulls the right base image once and installs the test deps (vitest + typescript, or pytest + pytest-asyncio + pytest-json-report) into a checkpointed image. Every attempt forks that checkpoint with the generated files and networking disabled. For TS the gate is `tsc --noEmit` then `vitest run`; for Python it is `python -m compileall` then `pytest -q --json-report`.
+5. **Repair.** When a run is red, the strong model gets the file blocks and the failed test output, then tries again. Up to `PATCHBAY_MAX_ATTEMPTS` times (default 3). Optional parallel mode generates N variants at once, verifies them in parallel sandbox forks, keeps the first green.
 
 Every endpoint in the spec comes with an example payload taken from the documentation; the generated test harness runs the connector against that payload (the "contract" check), so a run only counts as green when the generated code actually works with the shape the real API returns.
 
@@ -103,7 +103,7 @@ The Python target ships `fixtures.py` with the same shape as `src/fixtures.ts`: 
 
 ## Audit MCP servers and connectors
 
-`patchbay audit <url-or-directory>` scans an MCP server or a connector repo for OAuth 2.1 and secret-hygiene gaps before you ship it. ~40% of open-source MCP servers have no auth at all, only ~8.5% use OAuth — patchbay audit is the drop-in check.
+`patchbay audit <url-or-directory>` scans an MCP server or a connector repo for OAuth 2.1 and secret-hygiene gaps before you ship it. ~40% of open-source MCP servers have no auth at all, only ~8.5% use OAuth. patchbay audit is the drop-in check.
 
 ```
 npx -y @patchbay-nebius/agent audit https://mcp.example.com/mcp
@@ -118,7 +118,7 @@ npx -y @patchbay-nebius/agent audit ./my-mcp-server --sarif > results.sarif
 | `AUTH-001` | critical | `tools/list` succeeds without any credentials |
 | `AUTH-002` | critical | Static API key or bearer accepted, no `/.well-known/oauth-*` discovery served |
 | `AUTH-003` | high | OAuth metadata without PKCE S256 in `code_challenge_methods_supported` |
-| `AUTH-004` | high | No resource indicator support (RFC 8707) — tokens not audience-bound |
+| `AUTH-004` | high | No resource indicator support (RFC 8707). Tokens not audience-bound |
 | `AUTH-005` | high | OAuth 2.1 advertised without Dynamic Client Registration endpoint |
 | `AUTH-006` | high | Authorization server rejects loopback redirect URIs (RFC 8252 §7.3). Opt-in via `--probe-dcr-loopback`. |
 | `AUDIENCE-001` | critical | Server accepts bearer tokens minted for a sibling resource on the same AS (RFC 8707). Opt-in via `--probe-audience`. |
