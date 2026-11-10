@@ -63,7 +63,7 @@ function loadRepoEnv(): void {
 // Kept in sync with packages/mcp/package.json by the release step; loading
 // the file at runtime would require fs lookups that dist/ cannot rely on
 // across different host launchers (absolute path, pkg-wrapped install, etc).
-const VERSION = '0.3.1'
+const VERSION = '0.3.2'
 
 const server = new McpServer({ name: 'patchbay', version: VERSION })
 

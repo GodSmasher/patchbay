@@ -1,50 +1,41 @@
-# Multi-stage build for the patchbay web app.
+# Dockerfile for @patchbay-nebius/mcp — stdio MCP server.
 #
-#   docker build -t patchbay-web .
-#   docker run --rm -p 3400:3400 \
-#     -e NEBIUS_API_KEY=... -e NEBIUS_AI_PROJECT=... -e TAVILY_API_KEY=... \
-#     -e PATCHBAY_MOCK=false \
-#     patchbay-web
+# Built by Glama (https://glama.ai/mcp) and the Docker MCP Registry.
+# Installs the published npm package so the image does not depend on the
+# monorepo build and stays reproducible by version.
 #
-# Or just `docker compose up` from the repo root — docker-compose.yml wires the
-# env vars through from a local .env.local.
+# Usage:
+#   docker build -t patchbay-mcp .
+#   docker run --rm -i patchbay-mcp
+#
+# The server speaks MCP over stdio. Hosts (Claude Code, Codex, Cursor,
+# Glama's introspection crawler) launch the container with stdin/stdout
+# attached and send initialize + tools/list.
 
-############################
-# 1. Install workspaces + build @patchbay/agent so apps/web can resolve it.
-############################
-FROM node:22-slim AS deps
-WORKDIR /repo
-COPY package.json package-lock.json ./
-COPY packages/agent/package.json packages/agent/
-COPY packages/mcp/package.json packages/mcp/
-COPY apps/web/package.json apps/web/
-RUN npm ci --no-audit --no-fund --ignore-scripts
+FROM node:20-alpine
 
-############################
-# 2. Build the Next.js app in standalone mode.
-############################
-FROM node:22-slim AS build
-WORKDIR /repo
-COPY --from=deps /repo/node_modules ./node_modules
-COPY --from=deps /repo/packages/agent/node_modules ./packages/agent/node_modules
-COPY --from=deps /repo/apps/web/node_modules ./apps/web/node_modules
-COPY . .
-# Build the agent first so Next's typecheck + webpack can resolve its dist/ output.
-RUN npm run build -w @patchbay/agent
-RUN npm run build -w @patchbay/web
+LABEL org.opencontainers.image.title="patchbay-mcp"
+LABEL org.opencontainers.image.description="MCP server that audits any remote MCP server for OAuth 2.1 and security gaps."
+LABEL org.opencontainers.image.source="https://github.com/GodSmasher/patchbay"
+LABEL org.opencontainers.image.licenses="MIT"
+LABEL org.opencontainers.image.url="https://patchbay-mcp.dev"
 
-############################
-# 3. Minimal runtime image — only the standalone server, static assets and public dir.
-############################
-FROM node:22-slim AS runner
 ENV NODE_ENV=production
-ENV PORT=3400
-ENV HOSTNAME=0.0.0.0
+
+RUN addgroup -S patchbay && adduser -S patchbay -G patchbay
+
 WORKDIR /app
-# standalone copies the production node_modules alongside server.js
-COPY --from=build /repo/apps/web/.next/standalone ./
-COPY --from=build /repo/apps/web/.next/static ./apps/web/.next/static
-COPY --from=build /repo/apps/web/public ./apps/web/public
-# The connector preflight check calls esbuild at runtime; standalone brings it along.
-EXPOSE 3400
-CMD ["node", "apps/web/server.js"]
+
+RUN npm install --omit=dev --no-fund --no-audit @patchbay-nebius/mcp@0.3.2 \
+ && npm cache clean --force \
+ && chown -R patchbay:patchbay /app
+
+USER patchbay
+
+# Introspection smoke test: `patchbay-mcp --help` would need stdin, so we
+# verify the binary resolved instead. Glama launches the container with
+# stdin attached and runs the MCP handshake itself.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+  CMD node -e "require('@patchbay-nebius/mcp/package.json')" || exit 1
+
+ENTRYPOINT ["node", "/app/node_modules/@patchbay-nebius/mcp/dist/server.js"]
