@@ -34,6 +34,27 @@ export function StateOfMcpAuthNov2026() {
         </table>
       </div>
 
+      <aside className="my-6 rounded border border-warn/30 bg-warn-soft px-4 py-3 text-sm text-ink">
+        <p>
+          <strong>Correction, 10 November 2026.</strong> This post treats{' '}
+          <code>resource_indicators_supported</code> as a field that RFC 8707 expects in
+          authorization server metadata. That was wrong. RFC 8707 only defines the{' '}
+          <code>resource</code> request parameter. The field is not in the IANA registry of
+          authorization server metadata and the MCP spec does not mention it. A server without it
+          is not missing anything.
+        </p>
+        <p className="mt-2">
+          The check that looked for the field (AUTH-004) has been retired. I left the table row
+          above and the recommendation further down as written so the change stays visible. What
+          matters is whether a server validates the audience of every token. That needs an active
+          test, described in{' '}
+          <a href="/blog/mcp-token-audience-validation" className="underline underline-offset-4">
+            this post on audience validation
+          </a>
+          .
+        </p>
+      </aside>
+
       <p>
         Three servers surfaced findings I thought were critical. All three got a responsible-disclosure
         email with a 90-day embargo before any public write-up names them. One of them (Chainflip&apos;s
