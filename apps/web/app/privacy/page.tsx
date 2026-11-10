@@ -23,7 +23,7 @@ export default function PrivacyPage() {
             <p>Only two things ever leave your browser or your terminal to our servers:</p>
             <ul className="list-disc list-inside mt-2 space-y-1">
               <li><strong>The MCP server URL you ask us to scan.</strong> Public endpoints only. We never scan anything behind a login.</li>
-              <li><strong>Your email, only if you explicitly click Watch</strong> on a report. Nothing on the <code>/scan</code> form is submitted before you press a button.</li>
+              <li><strong>Your email, only if you explicitly click Watch</strong> on a report, or submit the early-access form on a blog or docs page (we also store which page the form was on). Nothing on the <code>/scan</code> form is submitted before you press a button.</li>
             </ul>
             <p className="mt-2">We do not run analytics, trackers, third-party scripts, or session recorders on this site. No cookies beyond what Vercel serves for routing.</p>
           </div>

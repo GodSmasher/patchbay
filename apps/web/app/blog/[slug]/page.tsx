@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { SubscribeBox } from '@/components/subscribe-box'
 import { getPost, POSTS } from '../_data'
 import { McpOauthLoginHangsLoopbackRedirect } from './posts/mcp-oauth-login-hangs-loopback-redirect'
 import { StateOfMcpAuthNov2026 } from './posts/state-of-mcp-auth-nov-2026'
@@ -64,6 +65,8 @@ export default function BlogPost({ params }: { params: { slug: string } }) {
         <article className="max-w-none text-ink-soft leading-relaxed space-y-4">
           <Body />
         </article>
+
+        <SubscribeBox page={`/blog/${post.slug}`} />
       </div>
     </main>
   )

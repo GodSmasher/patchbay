@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { SubscribeBox } from '@/components/subscribe-box'
 import { DOCS, getDoc, type Severity } from '../_data'
 
 export function generateStaticParams() {
@@ -95,6 +96,8 @@ export default function DocPage({ params }: { params: { id: string } }) {
             with the --json output. False-positive reports are the most useful feedback.
           </p>
         </section>
+
+        <SubscribeBox page={`/docs/${doc.id}`} />
       </div>
     </main>
   )

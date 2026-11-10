@@ -39,6 +39,8 @@ export interface TallyWelcomeMailInput {
   email: string
   useCase?: string
   priceAnswer?: string
+  /** Where the signup happened; only changes the footer line. Defaults to 'tally'. */
+  origin?: 'tally' | 'site'
 }
 
 export async function sendWelcomeMail(input: WelcomeMailInput): Promise<{ ok: boolean; error?: string }> {
@@ -142,6 +144,7 @@ export async function sendTallyWelcomeMail(input: TallyWelcomeMailInput): Promis
   const unsub = unsubUrl(input.email)
   const scanUrl = `${BASE}/scan`
   const subject = `You are on the patchbay early-access list`
+  const signedUpAt = input.origin === 'site' ? 'on patchbay-mcp.dev' : 'at tally.so'
 
   const useCaseLine = input.useCase
     ? `We saw your note on what you would use hosted scans for ("${input.useCase.slice(0, 120)}") and it will shape what ships.`
@@ -205,7 +208,7 @@ export async function sendTallyWelcomeMail(input: TallyWelcomeMailInput): Promis
 
     <hr style="border:none; border-top:1px solid #e8e5dd; margin:32px 0 16px;">
     <p style="font-size: 12px; color:#8a8a8a; margin:0;">
-      You are receiving this because you signed up at tally.so for patchbay hosted scans early access.
+      You are receiving this because you signed up ${signedUpAt} for patchbay hosted scans early access.
       <a href="${unsub}" style="color:#8a8a8a;">Unsubscribe in one click</a> or read the
       <a href="${BASE}/privacy" style="color:#8a8a8a;">privacy policy</a>.
     </p>

@@ -19,7 +19,9 @@ export interface Lead {
   reportId: string
   grade: string
   score: number
-  source: 'web-scan' | 'cli' | 'tally'
+  source: 'web-scan' | 'cli' | 'tally' | 'site'
+  /** Path of the page the signup form was on (source 'site' only). */
+  page?: string
   useCase?: string
   priceAnswer?: string
   capturedAt: string
