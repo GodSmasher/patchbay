@@ -111,14 +111,27 @@ export function McpToolsChangeAfterApproval() {
       <h2 className={H2}>Run it on a schedule</h2>
       <p>
         A diff only helps if something runs it. Put the audit in a scheduled CI job for the servers
-        your agents depend on and let it fail on critical findings:
+        your agents depend on and let it fail on critical findings. On a fresh machine such as a
+        GitHub Actions runner you have to keep the manifest store between runs. Without the cache
+        step every run looks like the first one and the diff never fires.
       </p>
       <pre className={PRE}>
-        <code>npx -y @patchbay-nebius/agent audit https://mcp.example.com/mcp --ci --fail-on=critical</code>
+        <code>
+{`- uses: actions/cache@v4
+  with:
+    path: ~/.patchbay/manifests
+    key: patchbay-manifests-v1
+
+- uses: GodSmasher/patchbay-audit@v1
+  with:
+    url: https://your-mcp.example.com/mcp
+    fail-on: critical`}
+        </code>
       </pre>
       <p>
-        The job has to keep <code>~/.patchbay/manifests</code> between runs, for example with a
-        cache step. Without it every run looks like the first one and nothing is ever reported.
+        The cache is written once under that key and then stays as it is. That is what you want
+        for a pinned state. When you have reviewed a change and want to accept it, raise the key to{' '}
+        <code>v2</code>. The next run starts without a pinned manifest and pins the current one.
       </p>
       <p>
         One limit to keep in mind: the check sees the tool list a server returns to the scanner. A
