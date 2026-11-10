@@ -4,12 +4,15 @@ import type { Check, Finding } from '../types'
  * AUDIENCE-001: the server accepted a bearer token that was minted for a
  * different resource on the same authorisation server.
  *
- * RFC 8707 Section 2 and OAuth 2.1 Section 5.6.3 require resource servers
- * to validate the `aud` claim on incoming tokens. If an MCP server accepts
- * tokens whose `aud` is a sibling resource at the same AS, any sibling
- * service can replay its tokens against this one. This is a "paper check"
- * that discovery metadata (AUTH-005) alone cannot catch, because a server
- * can advertise resource_indicators_supported without actually enforcing it.
+ * RFC 8707 Section 2 covers how clients request audience-bound tokens.
+ * RFC 9068 Section 4 (JWT Profile for OAuth 2.0 Access Tokens) requires
+ * resource servers to reject any JWT whose `aud` does not contain their
+ * resource identifier. MCP authorization spec revision 2025-06-18 makes
+ * both mandatory for MCP servers. If a server accepts tokens whose `aud`
+ * is a sibling resource at the same AS, any sibling service can replay
+ * its tokens against this one. This cannot be caught by discovery
+ * metadata (AUTH-004) alone, because a server can advertise
+ * resource_indicators_supported without actually enforcing it at runtime.
  *
  * Idea credit: @Bloqarl on r/mcp. See issue #3.
  *
@@ -36,7 +39,7 @@ export const audience001: Check = {
           severity: 'critical',
           confidence: 'high',
           title: 'Server accepts cross-audience bearer tokens',
-          evidence: `tools/list was accepted at ${r.url} using a bearer token minted for a different resource on the same authorisation server (HTTP ${p.httpStatus}). Per RFC 8707 Section 2 and OAuth 2.1 Section 5.6.3, the server must validate the \`aud\` claim and reject tokens not minted for its own resource identifier.`,
+          evidence: `tools/list was accepted at ${r.url} using a bearer token minted for a different resource on the same authorisation server (HTTP ${p.httpStatus}). Per RFC 9068 Section 4 and MCP authorization spec revision 2025-06-18, the server must validate the \`aud\` claim and reject tokens whose audience does not name its own resource identifier.`,
           fix: 'Validate the `aud` claim on every incoming bearer token. The expected audience is this MCP server\'s resource identifier (the one you advertise in /.well-known/oauth-protected-resource as `resource`). Reject with 401 any token whose `aud` does not match.',
           docsUrl: 'https://patchbay-mcp.dev/docs/audience-001',
         },
