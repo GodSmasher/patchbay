@@ -1,5 +1,11 @@
 # @patchbay-nebius/audit-core
 
+## 0.4.1 (2026-11-10)
+
+0.4.0 was staged on npm but never published (a prior publish attempt
+reserved the version without completing). 0.4.1 is the first live
+release of the content below.
+
 ## 0.4.0 (2026-11-10)
 
 ### Added

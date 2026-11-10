@@ -1,5 +1,11 @@
 # @patchbay-nebius/agent
 
+## 0.6.1 (2026-11-10)
+
+0.6.0 was staged on npm but never published (prior publish attempt
+reserved the version without completing). 0.6.1 is the first live
+release of the content below.
+
 ## 0.6.0 (2026-11-10)
 
 ### Dependencies
