@@ -109,6 +109,14 @@ export function diffManifest(pinned: ManifestEntry, currentTools: ToolDescriptor
         toolName: name,
         detail: newKeys.length ? `new params: ${newKeys.join(', ')}` : 'schema structure changed',
       })
+      // Fine-grained analysis for MANIFEST-002. Emits param-added / -removed
+      // / -made-required / -type-changed / -enum-shrunk events in addition to
+      // the coarse input-schema-changed above. MANIFEST-001 ignores these;
+      // MANIFEST-002 reads them to bucket the change as breaking vs additive
+      // vs semantic-drift.
+      for (const change of fineGrainedSchemaChanges(prev.inputSchema, cur.inputSchema)) {
+        changes.push({ ...change, toolName: name })
+      }
     }
   }
 
@@ -144,3 +152,80 @@ function extractProperties(schema: unknown): Record<string, unknown> | null {
   if (!props || typeof props !== 'object') return null
   return props as Record<string, unknown>
 }
+
+function extractRequired(schema: unknown): Set<string> {
+  if (!schema || typeof schema !== 'object') return new Set()
+  const req = (schema as Record<string, unknown>).required
+  if (!Array.isArray(req)) return new Set()
+  return new Set(req.filter((x): x is string => typeof x === 'string'))
+}
+
+function paramType(def: unknown): string {
+  if (!def || typeof def !== 'object') return 'unknown'
+  const d = def as Record<string, unknown>
+  if (Array.isArray(d.enum)) return `enum[${d.enum.length}]`
+  if (typeof d.type === 'string') return d.type
+  if (Array.isArray(d.type)) return (d.type as unknown[]).map(String).sort().join('|')
+  return 'unknown'
+}
+
+function paramEnumValues(def: unknown): string[] | null {
+  if (!def || typeof def !== 'object') return null
+  const d = def as Record<string, unknown>
+  if (!Array.isArray(d.enum)) return null
+  return d.enum.map((v) => (typeof v === 'string' ? v : JSON.stringify(v)))
+}
+
+/**
+ * Produce fine-grained param-level changes between two tool inputSchemas.
+ * Returned items have no toolName (caller adds it).
+ */
+export function fineGrainedSchemaChanges(
+  prev: unknown,
+  cur: unknown,
+): Array<{ kind: ManifestDeltaItemKind; detail: string }> {
+  const out: Array<{ kind: ManifestDeltaItemKind; detail: string }> = []
+  const prevProps = extractProperties(prev) ?? {}
+  const curProps = extractProperties(cur) ?? {}
+  const prevReq = extractRequired(prev)
+  const curReq = extractRequired(cur)
+
+  for (const name of Object.keys(curProps)) {
+    if (!(name in prevProps)) {
+      const required = curReq.has(name)
+      out.push({ kind: 'param-added', detail: `param: ${name} (${required ? 'required' : 'optional'})` })
+    }
+  }
+
+  for (const name of Object.keys(prevProps)) {
+    if (!(name in curProps)) {
+      out.push({ kind: 'param-removed', detail: `param: ${name}` })
+    }
+  }
+
+  for (const name of Object.keys(prevProps)) {
+    if (!(name in curProps)) continue
+    const prevDef = prevProps[name]
+    const curDef = curProps[name]
+    if (!prevReq.has(name) && curReq.has(name)) {
+      out.push({ kind: 'param-made-required', detail: `param: ${name}` })
+    }
+    const prevT = paramType(prevDef)
+    const curT = paramType(curDef)
+    if (prevT !== curT) {
+      out.push({ kind: 'param-type-changed', detail: `${name}: ${prevT} -> ${curT}` })
+    }
+    const prevEnum = paramEnumValues(prevDef)
+    const curEnum = paramEnumValues(curDef)
+    if (prevEnum && curEnum) {
+      const removed = prevEnum.filter((v) => !curEnum.includes(v))
+      if (removed.length) {
+        out.push({ kind: 'param-enum-shrunk', detail: `${name}: removed [${removed.join(', ')}]` })
+      }
+    }
+  }
+
+  return out
+}
+
+type ManifestDeltaItemKind = import('../types').ManifestDeltaKind

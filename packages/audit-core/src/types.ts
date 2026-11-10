@@ -135,6 +135,14 @@ export type ManifestDeltaKind =
   | 'tool-removed'
   | 'description-changed'
   | 'input-schema-changed'
+  // Fine-grained kinds emitted alongside 'input-schema-changed' for the same
+  // tool (MANIFEST-001 keeps using the coarse kind, MANIFEST-002 reads the
+  // fine-grained ones). `detail` carries the specifics named below.
+  | 'param-added'           // detail: 'param: <name> (optional)' or 'param: <name> (required)'
+  | 'param-removed'         // detail: 'param: <name>'
+  | 'param-made-required'   // detail: 'param: <name>'
+  | 'param-type-changed'    // detail: '<name>: <old-type> -> <new-type>'
+  | 'param-enum-shrunk'     // detail: '<name>: removed [X, Y]'
 
 export interface ManifestDeltaItem {
   kind: ManifestDeltaKind

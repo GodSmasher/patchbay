@@ -7,7 +7,7 @@
 > npx -y @patchbay-nebius/agent audit https://mcp.example.com/mcp
 > ```
 >
-> 19 live checks + 1 retired, against the MCP 2026-07-28 authorization spec and the OAuth 2.1 / RFC 8252 / 7591 / 8707 / 9068 / 9728 stack it builds on. Context-sensitive severity, `--pr-draft` for CI, `--auth` for walled servers. Jump to [the audit section](#patchbay-audit) for the full flag list.
+> 21 live checks + 1 retired, against the MCP 2026-07-28 authorization spec and the OAuth 2.1 / RFC 8252 / 7591 / 8707 / 9068 / 9207 / 9728 stack it builds on. Context-sensitive severity, `--pr-draft` for CI, `--auth` for walled servers. Jump to [the audit section](#patchbay-audit) for the full flag list.
 >
 > **Hosted scheduled scans + alerts** coming Q1 2027 for teams. CLI stays free and MIT forever. [Interest check](https://github.com/GodSmasher/patchbay/discussions/2) · [email waitlist](https://tally.so/r/yXMQjd).
 >
@@ -111,7 +111,7 @@ npx -y @patchbay-nebius/agent audit ./my-mcp-server --json
 npx -y @patchbay-nebius/agent audit ./my-mcp-server --sarif > results.sarif
 ```
 
-**19 live checks + 1 retired:**
+**21 live checks + 1 retired:**
 
 | ID | Severity | What it catches |
 |---|---|---|
@@ -134,7 +134,9 @@ npx -y @patchbay-nebius/agent audit ./my-mcp-server --sarif > results.sarif
 | `REDIRECT-001` | medium | Token endpoint treats `localhost` and `127.0.0.1` inconsistently |
 | `HEADERS-001` | medium | Weak transport-security response headers (wildcard CORS with credentials, missing HSTS on HTTPS, missing frame-options, missing nosniff). |
 | `POISONING-001` | high / medium | High for hidden Unicode in tool descriptions (zero-width, BOM, bidi, tag chars). Medium for imperative role-marker patterns (`<SYSTEM>`, ignore-previous directives, role prefixes). |
+| `ISS-001` | low | OAuth metadata does not advertise `authorization_response_iss_parameter_supported: true` (RFC 9207, SHOULD per MCP 2026-07-28). |
 | `MANIFEST-001` | varies | Tool manifest changed since last pinned scan (`--trust` to re-pin) |
+| `MANIFEST-002` | varies | Classifies the manifest delta into breaking (removed tool, removed param, type narrowed, enum shrunk, made-required), semantic-drift (description changed), and additive buckets. One finding per non-empty bucket. |
 | `PROBE-001` | info | Probe inconclusive, cannot judge auth posture |
 
 See [patchbay-phase2-plan.md](patchbay-phase2-plan.md) for the roadmap (`--with-auth` connector templates, `--pr-draft`, GitHub Action).

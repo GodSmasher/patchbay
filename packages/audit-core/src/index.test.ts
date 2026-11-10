@@ -47,6 +47,7 @@ describe('auditSnapshot', () => {
           client_id_metadata_document_supported: true,
           code_challenge_methods_supported: ['S256'],
           resource_indicators_supported: true,
+          authorization_response_iss_parameter_supported: true,
         },
         oauthProtectedResource: {
           resource: 'https://x/mcp',

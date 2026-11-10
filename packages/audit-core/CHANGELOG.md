@@ -16,6 +16,21 @@
   env var. Needs a validly signed bearer token whose JWT payload has no
   aud claim at all. Follow-up to AUDIENCE-001 raised by community (Issue
   #5). Reference: RFC 9068 Section 4.
+- **MANIFEST-002** (critical / medium / low). Classifies a manifest delta
+  into breaking (removed tool, removed param, type-narrowed param, enum
+  shrunk, param made required), additive (new tool, new optional param),
+  and semantic-drift (tool description changed with same shape). Emits
+  one finding per non-empty bucket. Complements MANIFEST-001's
+  single-line summary with an actionable breakdown.
+- **ISS-001** (low). Fires when the authorization-server metadata does
+  not set `authorization_response_iss_parameter_supported: true`. MCP
+  2026-07-28 SHOULD-requires MCP ASes to send the iss parameter
+  (RFC 9207 Section 2.4). Spec notes a future revision is expected to
+  upgrade this to MUST.
+- `ManifestDeltaKind` gains fine-grained variants emitted alongside the
+  coarse `input-schema-changed` kind: `param-added`, `param-removed`,
+  `param-made-required`, `param-type-changed`, `param-enum-shrunk`.
+  MANIFEST-001 keeps using the coarse kind so its output is unchanged.
 - `RemoteProbe.responseHeaders` field exposes the lowercased response
   headers from the first reachable probe response, available to any
   future header-based check without an extra request.

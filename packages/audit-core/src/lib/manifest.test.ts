@@ -128,9 +128,13 @@ describe('diffManifest', () => {
       pinned([tool({ name: 'read_doc', inputSchema: { type: 'object', properties: { id: { type: 'string' } } } })]),
       [tool({ name: 'read_doc', inputSchema: { type: 'object', properties: { id: { type: 'string' }, command: { type: 'string' } } } })],
     )
-    expect(d.changes.length).toBe(1)
-    expect(d.changes[0]!.kind).toBe('input-schema-changed')
-    expect(d.changes[0]!.detail).toContain('command')
+    // Coarse input-schema-changed plus the fine-grained param-added that
+    // MANIFEST-002 consumes.
+    expect(d.changes.length).toBe(2)
+    const coarse = d.changes.find((c) => c.kind === 'input-schema-changed')!
+    expect(coarse.detail).toContain('command')
+    const fine = d.changes.find((c) => c.kind === 'param-added')!
+    expect(fine.detail).toContain('command')
   })
 
   it('reports multiple changes in one delta', () => {
