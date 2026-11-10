@@ -94,7 +94,7 @@ Re-run to confirm:
 
 The difference matters to clients. 401 means the token is not good and the client should get a new one. 403 means the token is fine but not allowed to do this. A client that receives 403 for an expired token has no reason to refresh it, so the user sees a permission error where a silent token refresh would have fixed it.
 
-The check stays silent if the server needs no authentication, and if it accepted the made-up token. That second case is AUTH-002.`,
+The check stays silent if the server needs no authentication. It also stays silent if the server accepted the made-up token, because that case is AUTH-002.`,
     howToFix: `Return 401 with a WWW-Authenticate header for every request that carries an invalid or expired token. Keep 403 for requests with a valid token that lacks the required scope and send WWW-Authenticate with error="insufficient_scope" there.`,
     spec: 'MCP authorization spec (2026-07-28)',
     specUrl: 'https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization',
