@@ -1,10 +1,12 @@
 import type { Metadata } from 'next'
+import { ScanInfo, SCAN_FAQ } from '@/components/scan-info'
+import { SiteShell } from '@/components/site-shell'
 
 // /scan/page.tsx is a client component and cannot export metadata itself, so
 // without this layout the page inherits the homepage title and description.
 const TITLE = 'MCP server security scanner: free OAuth 2.1 audit | patchbay'
 const DESCRIPTION =
-  'Paste an MCP server URL and get a security grade in seconds. 16 checks for OAuth 2.1, PKCE, audience validation, loopback redirects, scopes and exposed secrets. Free, open source, no account.'
+  'Paste an MCP server URL and get a security grade in seconds. Checks authentication, OAuth 2.1 metadata, PKCE, client registration, scopes and transport. Free, open source, no account. 16 checks in the CLI.'
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -38,11 +40,23 @@ const JSON_LD = {
   codeRepository: 'https://github.com/GodSmasher/patchbay',
 }
 
+const FAQ_LD = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: SCAN_FAQ.map((f) => ({
+    '@type': 'Question',
+    name: f.q,
+    acceptedAnswer: { '@type': 'Answer', text: f.a },
+  })),
+}
+
 export default function ScanLayout({ children }: { children: React.ReactNode }) {
   return (
-    <>
+    <SiteShell>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(FAQ_LD) }} />
       {children}
-    </>
+      <ScanInfo />
+    </SiteShell>
   )
 }

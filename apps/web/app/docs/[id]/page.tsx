@@ -34,7 +34,7 @@ export default function DocPage({ params }: { params: { id: string } }) {
     <main className="min-h-screen bg-paper text-ink px-6 py-16">
       <div className="mx-auto max-w-3xl">
         <nav className="mb-10 text-sm text-ink-mute">
-          <Link href="/" className="hover:text-ink">patchbay</Link>
+          <Link href="/scan" className="hover:text-ink">patchbay</Link>
           <span className="mx-2">/</span>
           <Link href="/docs" className="hover:text-ink">docs</Link>
           <span className="mx-2">/</span>

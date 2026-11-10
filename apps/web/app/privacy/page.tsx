@@ -9,7 +9,7 @@ export default function PrivacyPage() {
     <main className="min-h-screen bg-paper text-ink px-6 py-16">
       <div className="mx-auto max-w-2xl">
         <nav className="mb-10 text-sm text-ink-mute">
-          <Link href="/" className="hover:text-ink">patchbay</Link>
+          <Link href="/scan" className="hover:text-ink">patchbay</Link>
           <span className="mx-2">/</span>
           <span className="text-ink">privacy</span>
         </nav>
@@ -55,7 +55,7 @@ export default function PrivacyPage() {
         </section>
 
         <div className="mt-16 pt-8 border-t border-paper-line">
-          <Link href="/" className="text-sm text-ink underline underline-offset-4">← Back to patchbay</Link>
+          <Link href="/scan" className="text-sm text-ink underline underline-offset-4">Back to the scanner</Link>
         </div>
       </div>
     </main>

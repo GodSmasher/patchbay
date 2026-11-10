@@ -95,18 +95,12 @@ export default function ScanPage() {
   const tweetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`
 
   return (
-    <main className="min-h-screen bg-paper text-ink px-6 py-16">
+    <main className="bg-paper text-ink px-6 py-16">
       <div className="mx-auto max-w-2xl">
-        <nav className="mb-10 text-sm text-ink-mute">
-          <Link href="/" className="hover:text-ink">patchbay</Link>
-          <span className="mx-2">/</span>
-          <span className="text-ink">scan</span>
-        </nav>
-
         <h1 className="text-3xl font-semibold text-ink mb-2">Scan an MCP server</h1>
         <p className="text-ink-soft mb-10">
-          Paste the URL. We run the same 16 checks the CLI does, store the report,
-          and give you a public link you can share. No install, no account.
+          Paste the URL. We run every check that works from a URL without credentials, store the
+          report and give you a public link you can share. No install, no account.
         </p>
 
         <form onSubmit={onSubmit} className="space-y-4">
