@@ -1,7 +1,7 @@
 import { detectPublicByDesign } from './ai-catalog'
 import { diffManifest, serverIdFromUrl } from '../lib/manifest'
 import { fileManifestStore, makeEntry, type ManifestStore } from '../lib/manifest-store'
-import type { RemoteProbe, TargetSnapshot, Transport } from '../types'
+import type { HeadlessOauthResult, HeadlessProbeOutcome, RemoteProbe, TargetSnapshot, Transport } from '../types'
 
 export interface RemoteProbeOptions {
   timeoutMs?: number
@@ -48,6 +48,18 @@ export interface RemoteProbeOptions {
    * writes to the AS. Flip on for full-fidelity audits.
    */
   probeDcrLoopback?: boolean
+  /**
+   * When true, the audit opts into an active OAuth 2.1 conformance
+   * battery against the server's authorization_endpoint. Registers a
+   * throw-away client via DCR, then sends four authorize requests
+   * crafted to violate OAuth 2.1 requirements (missing PKCE, plain PKCE,
+   * implicit grant, unregistered redirect_uri) and records whether the
+   * server rejected each one.
+   *
+   * Powers PKCE-001, PKCE-002, IMPLICIT-001, REDIRECT-002.
+   * Off by default because it writes to the AS registration_endpoint.
+   */
+  probeHeadlessOauth?: boolean
 }
 
 const MCP_ACCEPT = 'application/json, text/event-stream'
@@ -368,6 +380,16 @@ export async function probeRemote(url: string, opts: RemoteProbeOptions = {}): P
     }
   }
 
+  if (opts.probeHeadlessOauth && authServer && typeof authServer === 'object') {
+    probe.headlessOauth = await runHeadlessOauthProbe(
+      authServer as Record<string, unknown>,
+      f,
+      timeoutMs,
+      authedHeaders,
+      errors,
+    )
+  }
+
   if (probe.toolsListOk && probe.tools.length > 0) {
     try {
       const store = opts.manifestStore ?? fileManifestStore()
@@ -439,3 +461,154 @@ async function parseTools(res: Response, errors: string[]): Promise<RemoteProbe[
 }
 
 export { pathCandidates }
+
+async function runHeadlessOauthProbe(
+  authServer: Record<string, unknown>,
+  f: typeof fetch,
+  timeoutMs: number,
+  authedHeaders: Record<string, string>,
+  errors: string[],
+): Promise<HeadlessOauthResult> {
+  const authzEndpoint = typeof authServer.authorization_endpoint === 'string' ? authServer.authorization_endpoint : undefined
+  const regEndpoint = typeof authServer.registration_endpoint === 'string' ? authServer.registration_endpoint : undefined
+
+  const result: HeadlessOauthResult = {
+    attempted: true,
+    authorizationEndpoint: authzEndpoint,
+    dcrOutcome: 'skipped',
+  }
+
+  if (!authzEndpoint) {
+    result.dcrOutcome = 'skipped'
+    result.dcrReason = 'authorization_endpoint missing from AS metadata'
+    return result
+  }
+
+  if (!regEndpoint) {
+    result.dcrOutcome = 'no-endpoint'
+    return result
+  }
+
+  const registeredRedirect = 'http://127.0.0.1:33419/callback'
+  let clientId: string | undefined
+  try {
+    const r = await f(regEndpoint, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...authedHeaders },
+      body: JSON.stringify({
+        client_name: 'patchbay-headless-oauth-probe',
+        redirect_uris: [registeredRedirect],
+        token_endpoint_auth_method: 'none',
+        grant_types: ['authorization_code'],
+        response_types: ['code'],
+        application_type: 'native',
+      }),
+      signal: AbortSignal.timeout(timeoutMs),
+    })
+    if (r.status >= 200 && r.status < 300) {
+      const j = await r.json().catch(() => null) as { client_id?: string } | null
+      if (j && typeof j.client_id === 'string') {
+        clientId = j.client_id
+        result.dcrOutcome = 'ok'
+        result.dcrClientId = clientId
+      } else {
+        result.dcrOutcome = 'rejected'
+        result.dcrReason = 'DCR 2xx without client_id in body'
+        return result
+      }
+    } else {
+      result.dcrOutcome = 'rejected'
+      result.dcrReason = `DCR returned HTTP ${r.status}`
+      return result
+    }
+  } catch (e) {
+    result.dcrOutcome = 'network-error'
+    result.dcrReason = (e as Error).message
+    errors.push(`headless-oauth DCR: ${(e as Error).message}`)
+    return result
+  }
+
+  const run = (params: Record<string, string>) => authorizeProbe(authzEndpoint, params, f, timeoutMs, errors)
+
+  const baseChallenge = 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM'
+  const baseParams: Record<string, string> = {
+    client_id: clientId,
+    redirect_uri: registeredRedirect,
+    response_type: 'code',
+    state: 'patchbay-probe',
+    scope: 'openid',
+  }
+
+  result.pkceMissing = await run({ ...baseParams })
+  result.pkcePlain = await run({ ...baseParams, code_challenge: 'plaintext-challenge-value-123456', code_challenge_method: 'plain' })
+  result.implicit = await run({ ...baseParams, response_type: 'token', code_challenge: baseChallenge, code_challenge_method: 'S256' })
+  result.redirectMismatch = await run({
+    ...baseParams,
+    redirect_uri: 'https://attacker.example.com/callback',
+    code_challenge: baseChallenge,
+    code_challenge_method: 'S256',
+  })
+
+  return result
+}
+
+async function authorizeProbe(
+  endpoint: string,
+  params: Record<string, string>,
+  f: typeof fetch,
+  timeoutMs: number,
+  errors: string[],
+): Promise<HeadlessProbeOutcome> {
+  const url = `${endpoint}${endpoint.includes('?') ? '&' : '?'}${new URLSearchParams(params).toString()}`
+  try {
+    const r = await f(url, {
+      method: 'GET',
+      redirect: 'manual',
+      signal: AbortSignal.timeout(timeoutMs),
+    })
+
+    if (r.status === 301 || r.status === 302 || r.status === 303 || r.status === 307 || r.status === 308) {
+      const loc = r.headers.get('location') ?? ''
+      const errorCode = extractErrorCode(loc)
+      if (errorCode) {
+        return { outcome: 'rejected', httpStatus: r.status, errorCode }
+      }
+      if (/[?#&]code=/.test(loc)) {
+        return { outcome: 'accepted', httpStatus: r.status, reason: 'authorization code issued without user interaction' }
+      }
+      if (/[?#&]access_token=/.test(loc)) {
+        return { outcome: 'accepted', httpStatus: r.status, reason: 'access token issued in fragment (implicit grant)' }
+      }
+      return { outcome: 'inconclusive', httpStatus: r.status, reason: `redirected to ${loc.slice(0, 200)}` }
+    }
+
+    if (r.status === 400 || r.status === 401 || r.status === 403) {
+      const bodyText = await r.text().catch(() => '')
+      const errorCode = extractErrorCodeFromBody(bodyText)
+      return { outcome: 'rejected', httpStatus: r.status, errorCode, reason: bodyText.slice(0, 200) || undefined }
+    }
+
+    if (r.status === 200) {
+      return { outcome: 'inconclusive', httpStatus: r.status, reason: 'consent-screen HTML; cannot tell without user action' }
+    }
+
+    return { outcome: 'inconclusive', httpStatus: r.status, reason: `unexpected status ${r.status}` }
+  } catch (e) {
+    errors.push(`headless-oauth probe: ${(e as Error).message}`)
+    return { outcome: 'inconclusive', reason: (e as Error).message }
+  }
+}
+
+function extractErrorCode(location: string): string | undefined {
+  const m = location.match(/[?#&]error=([^&]+)/)
+  if (!m || !m[1]) return undefined
+  try { return decodeURIComponent(m[1]) } catch { return m[1] }
+}
+
+function extractErrorCodeFromBody(body: string): string | undefined {
+  try {
+    const j = JSON.parse(body) as { error?: unknown }
+    if (typeof j.error === 'string') return j.error
+  } catch {}
+  return undefined
+}

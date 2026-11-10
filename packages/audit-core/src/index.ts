@@ -57,6 +57,14 @@ export interface AuditOptions {
    */
   probeDcrLoopback?: boolean
   /**
+   * When true, opts into the headless OAuth 2.1 conformance battery
+   * (PKCE-001, PKCE-002, IMPLICIT-001, REDIRECT-002). Registers a
+   * throw-away client via DCR, then sends four crafted /authorize
+   * requests and records how the server responded. Off by default
+   * because it writes to the AS and fires GET requests at /authorize.
+   */
+  probeHeadlessOauth?: boolean
+  /**
    * When set, `target` is treated as a shell command to spawn as an MCP
    * server over stdio, not as a URL or directory. Enables MANIFEST-001
    * for Claude Desktop-style MCP servers.
@@ -89,6 +97,7 @@ async function resolveTarget(target: string, opts: AuditOptions): Promise<Target
       probeAudienceToken: opts.probeAudienceToken,
       probeMissingAudToken: opts.probeMissingAudToken,
       probeDcrLoopback: opts.probeDcrLoopback,
+      probeHeadlessOauth: opts.probeHeadlessOauth,
     })
   }
   return probeDirectory(target)

@@ -47,7 +47,44 @@ export interface RemoteProbe {
   manifestDelta?: ManifestDelta
   audienceProbe?: AudienceProbeResult
   missingAudProbe?: MissingAudProbeResult
+  headlessOauth?: HeadlessOauthResult
   rawErrors: string[]
+}
+
+/**
+ * Result of the headless OAuth probe battery. Opt-in via
+ * `probeHeadlessOauth: true`. Registers a throw-away client via DCR,
+ * then sends four authorization requests crafted to violate OAuth 2.1
+ * requirements and records whether the server rejected each one.
+ *
+ * Powers PKCE-001, PKCE-002, IMPLICIT-001, REDIRECT-002.
+ *
+ * ProbeOutcome:
+ *   skipped:      probe not attempted (no authorization_endpoint, DCR
+ *                 failed, or caller did not opt in).
+ *   rejected:     server redirected with ?error= / #error= (good).
+ *   accepted:     server issued an authorization code despite the
+ *                 OAuth 2.1 violation (BAD — the finding fires).
+ *   inconclusive: server returned a consent page or unexpected status,
+ *                 so we cannot tell what would happen on user approval.
+ */
+export interface HeadlessOauthResult {
+  attempted: boolean
+  authorizationEndpoint?: string
+  dcrClientId?: string
+  dcrOutcome: 'no-endpoint' | 'rejected' | 'network-error' | 'ok' | 'skipped'
+  dcrReason?: string
+  pkceMissing?: HeadlessProbeOutcome
+  pkcePlain?: HeadlessProbeOutcome
+  implicit?: HeadlessProbeOutcome
+  redirectMismatch?: HeadlessProbeOutcome
+}
+
+export interface HeadlessProbeOutcome {
+  outcome: 'skipped' | 'rejected' | 'accepted' | 'inconclusive'
+  httpStatus?: number
+  errorCode?: string
+  reason?: string
 }
 
 /**

@@ -238,24 +238,28 @@ registerTool(
       'authentication. Pass "probeAudienceToken" to enable AUDIENCE-001 (cross-audience token check, ' +
       'RFC 8707). Pass "probeMissingAudToken" to enable AUDIENCE-002 (missing-aud-claim check, catches the ' +
       'if (aud && aud !== me) reject early-exit bug). Pass "probeDcrLoopback: true" to enable AUTH-006 ' +
-      '(writes a throw-away client registration to the authorization server). The scanner never calls any ' +
-      'of the server\'s tools.',
+      '(writes a throw-away client registration to the authorization server). Pass "probeHeadlessOauth: true" ' +
+      'to enable the OAuth 2.1 conformance battery (PKCE-001 missing PKCE, PKCE-002 plain PKCE, IMPLICIT-001 ' +
+      'implicit grant, REDIRECT-002 unregistered redirect_uri). The scanner never calls any of the ' +
+      'server\'s tools.',
     inputSchema: {
       target: z.string().min(1).describe('MCP server URL (https://...) or absolute path to a local connector directory.'),
       authToken: z.string().optional().describe('Bearer token to send on every probe request. Use for servers that require authentication beyond initialize.'),
       probeAudienceToken: z.string().optional().describe('Bearer token minted for a DIFFERENT resource on the same authorization server. Enables AUDIENCE-001 (RFC 8707 cross-audience check).'),
       probeMissingAudToken: z.string().optional().describe('Bearer token whose JWT payload has NO aud claim at all. Enables AUDIENCE-002 (catches `if (aud && aud !== me) reject` early-exit bug per RFC 9068 Section 4).'),
       probeDcrLoopback: z.boolean().optional().describe('Opt into AUTH-006 active Dynamic Client Registration loopback probe (RFC 8252 Section 7.3). Writes a throw-away client to the authorization server; off by default.'),
+      probeHeadlessOauth: z.boolean().optional().describe('Opt into the OAuth 2.1 conformance battery (PKCE-001, PKCE-002, IMPLICIT-001, REDIRECT-002). Registers a throw-away client via DCR, then sends four crafted /authorize requests. Off by default.'),
       timeoutMs: z.number().int().min(500).max(30000).optional().describe('Per-request timeout in milliseconds. Default 8000.'),
     },
   },
   async (args) => {
-    const { target, authToken, probeAudienceToken, probeMissingAudToken, probeDcrLoopback, timeoutMs } = args as {
+    const { target, authToken, probeAudienceToken, probeMissingAudToken, probeDcrLoopback, probeHeadlessOauth, timeoutMs } = args as {
       target: string
       authToken?: string
       probeAudienceToken?: string
       probeMissingAudToken?: string
       probeDcrLoopback?: boolean
+      probeHeadlessOauth?: boolean
       timeoutMs?: number
     }
     try {
@@ -265,6 +269,7 @@ registerTool(
         probeAudienceToken,
         probeMissingAudToken,
         probeDcrLoopback,
+        probeHeadlessOauth,
       })
       const num = scoreFn(report.summary)
       const grade = letterGrade(num)
