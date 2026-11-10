@@ -7,7 +7,7 @@
 > npx -y @patchbay-nebius/agent audit https://mcp.example.com/mcp
 > ```
 >
-> 17 live checks + 1 retired, against the MCP 2026-07-28 authorization spec and the OAuth 2.1 / RFC 8252 / 7591 / 8707 / 9068 / 9728 stack it builds on. Context-sensitive severity, `--pr-draft` for CI, `--auth` for walled servers. Jump to [the audit section](#patchbay-audit) for the full flag list.
+> 19 live checks + 1 retired, against the MCP 2026-07-28 authorization spec and the OAuth 2.1 / RFC 8252 / 7591 / 8707 / 9068 / 9728 stack it builds on. Context-sensitive severity, `--pr-draft` for CI, `--auth` for walled servers. Jump to [the audit section](#patchbay-audit) for the full flag list.
 >
 > **Hosted scheduled scans + alerts** coming Q1 2027 for teams. CLI stays free and MIT forever. [Interest check](https://github.com/GodSmasher/patchbay/discussions/2) · [email waitlist](https://tally.so/r/yXMQjd).
 >
@@ -111,7 +111,7 @@ npx -y @patchbay-nebius/agent audit ./my-mcp-server --json
 npx -y @patchbay-nebius/agent audit ./my-mcp-server --sarif > results.sarif
 ```
 
-**17 live checks + 1 retired:**
+**19 live checks + 1 retired:**
 
 | ID | Severity | What it catches |
 |---|---|---|
@@ -123,6 +123,7 @@ npx -y @patchbay-nebius/agent audit ./my-mcp-server --sarif > results.sarif
 | `AUTH-006` | high | Authorization server rejects loopback redirect URIs (RFC 8252 §7.3). Opt-in via `--probe-dcr-loopback`. |
 | `AUTH-007` | medium | Invalid bearer token returns a status other than HTTP 401 (MCP 2026-07-28 mandates 401). |
 | `AUDIENCE-001` | critical | Server accepts bearer tokens minted for a sibling resource on the same AS (RFC 8707). Opt-in via `--probe-audience`. |
+| `AUDIENCE-002` | critical | Server accepts a bearer token whose JWT payload has no `aud` claim at all (catches the `if (aud && aud !== me) reject` early-exit bug). Opt-in via `--probe-missing-aud`. |
 | `RESOURCE-001` | high | Missing or malformed Protected Resource Metadata (RFC 9728). MCP MUST since 2025-06-18. |
 | `SCOPE-001` | high | All tools share one scope or no scopes declared at all |
 | `SCOPE-002` | medium | Write/destructive tools share scope with read tools |
@@ -131,6 +132,7 @@ npx -y @patchbay-nebius/agent audit ./my-mcp-server --sarif > results.sarif
 | `TRANSPORT-001` | high | Remote server reachable over plain HTTP |
 | `TRANSPORT-002` | medium | Server accepts a spoofed `Origin` header (DNS rebinding) |
 | `REDIRECT-001` | medium | Token endpoint treats `localhost` and `127.0.0.1` inconsistently |
+| `HEADERS-001` | medium | Weak transport-security response headers (wildcard CORS with credentials, missing HSTS on HTTPS, missing frame-options, missing nosniff). |
 | `POISONING-001` | high / medium | High for hidden Unicode in tool descriptions (zero-width, BOM, bidi, tag chars). Medium for imperative role-marker patterns (`<SYSTEM>`, ignore-previous directives, role prefixes). |
 | `MANIFEST-001` | varies | Tool manifest changed since last pinned scan (`--trust` to re-pin) |
 | `PROBE-001` | info | Probe inconclusive, cannot judge auth posture |

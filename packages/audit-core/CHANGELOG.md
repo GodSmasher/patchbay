@@ -1,5 +1,26 @@
 # @patchbay-nebius/audit-core
 
+## 0.5.0 (2026-11-10)
+
+### Added
+- **HEADERS-001** (medium). Passive check on the response headers captured
+  from the initialize probe. Flags: wildcard CORS combined with
+  Access-Control-Allow-Credentials true; missing Strict-Transport-Security
+  on HTTPS targets; missing X-Frame-Options with no CSP frame-ancestors
+  fallback; missing X-Content-Type-Options nosniff. Aggregates all gaps
+  into one finding so the report stays readable.
+- **AUDIENCE-002** (critical, opt-in). Catches the early-exit validation
+  bug `if (aud && aud !== me) reject` which lets JWTs with no `aud`
+  claim through. Opt-in via `--probe-missing-aud=<token>` (CLI) or
+  `probeMissingAudToken` (library) or `PATCHBAY_PROBE_MISSING_AUD_TOKEN`
+  env var. Needs a validly signed bearer token whose JWT payload has no
+  aud claim at all. Follow-up to AUDIENCE-001 raised by community (Issue
+  #5). Reference: RFC 9068 Section 4.
+- `RemoteProbe.responseHeaders` field exposes the lowercased response
+  headers from the first reachable probe response, available to any
+  future header-based check without an extra request.
+- `RemoteProbe.missingAudProbe` field with `MissingAudProbeResult` type.
+
 ## 0.4.1 (2026-11-10)
 
 0.4.0 was staged on npm but never published (a prior publish attempt

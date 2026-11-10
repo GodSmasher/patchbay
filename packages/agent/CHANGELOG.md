@@ -1,5 +1,17 @@
 # @patchbay-nebius/agent
 
+## 0.7.0 (2026-11-10)
+
+### Added
+- `--probe-missing-aud=<token>` CLI flag (and
+  `PATCHBAY_PROBE_MISSING_AUD_TOKEN` env var) to enable AUDIENCE-002:
+  catches the `if (aud && aud !== me) reject` early-exit bug by probing
+  with a bearer token whose JWT payload has no aud claim.
+
+### Dependencies
+- `@patchbay-nebius/audit-core` → 0.5.0 (adds HEADERS-001 and
+  AUDIENCE-002; see its changelog).
+
 ## 0.6.1 (2026-11-10)
 
 0.6.0 was staged on npm but never published (prior publish attempt
