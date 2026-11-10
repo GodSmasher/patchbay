@@ -20,6 +20,19 @@ export interface RemoteProbe {
   oauthAuthServer?: Record<string, unknown>
   originValidation?: 'strict' | 'permissive' | 'unknown'
   redirectLocalhostInconsistent?: boolean
+  /**
+   * HTTP status returned when we posted tools/list with a dummy bearer
+   * ("patchbay-probe-token"). Populated only when authRequired is true
+   * AND the dummy bearer was NOT accepted (rejection path). Used by
+   * AUTH-007 to verify the server returns 401 per MCP 2026-07-28.
+   */
+  invalidTokenStatus?: number
+  /**
+   * WWW-Authenticate header on the rejection response above. Populated
+   * only when invalidTokenStatus is set. AUTH-007 uses it to check that
+   * the server advertises how to authenticate.
+   */
+  invalidTokenWwwAuthenticate?: string
   dcrLoopback?: DcrLoopbackResult
   publicByDesign?: boolean
   publicByDesignEvidence?: string

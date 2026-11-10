@@ -187,6 +187,10 @@ export async function probeRemote(url: string, opts: RemoteProbeOptions = {}): P
   } else if (endpoint && probe.authRequired) {
     const bearer = await postRpc(endpoint, { jsonrpc: '2.0', id: 3, method: 'tools/list', params: {} }, { authorization: 'Bearer patchbay-probe-token' })
     if (bearer && bearer.ok && streamOk(bearer)) probe.acceptedAuthHeader = 'bearer'
+    if (bearer && !(bearer.ok && streamOk(bearer))) {
+      probe.invalidTokenStatus = bearer.status
+      probe.invalidTokenWwwAuthenticate = bearer.headers.get('www-authenticate') ?? undefined
+    }
     if (probe.acceptedAuthHeader === 'none') {
       const apiKey = await postRpc(endpoint, { jsonrpc: '2.0', id: 4, method: 'tools/list', params: {} }, { 'x-api-key': 'patchbay-probe-key' })
       if (apiKey && apiKey.ok && streamOk(apiKey)) probe.acceptedAuthHeader = 'api-key'
