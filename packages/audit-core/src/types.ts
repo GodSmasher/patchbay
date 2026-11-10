@@ -21,6 +21,13 @@ export interface RemoteProbe {
   originValidation?: 'strict' | 'permissive' | 'unknown'
   redirectLocalhostInconsistent?: boolean
   /**
+   * Response headers captured from the first reachable probe response
+   * (initialize or the auth-required 401). Keys are lowercased. Used by
+   * HEADERS-001 to evaluate CORS, HSTS, X-Frame-Options, Content-Type
+   * sniffing posture without making any additional request.
+   */
+  responseHeaders?: Record<string, string>
+  /**
    * HTTP status returned when we posted tools/list with a dummy bearer
    * ("patchbay-probe-token"). Populated only when authRequired is true
    * AND the dummy bearer was NOT accepted (rejection path). Used by
@@ -39,6 +46,7 @@ export interface RemoteProbe {
   aiCatalog?: Record<string, unknown>
   manifestDelta?: ManifestDelta
   audienceProbe?: AudienceProbeResult
+  missingAudProbe?: MissingAudProbeResult
   rawErrors: string[]
 }
 
@@ -82,6 +90,20 @@ export interface DcrLoopbackResult {
 }
 
 export interface AudienceProbeResult {
+  attempted: boolean
+  outcome: 'accepted' | 'rejected' | 'inconclusive'
+  httpStatus?: number
+  reason?: string
+}
+
+/**
+ * Result of the AUDIENCE-002 probe: tools/list is sent with a bearer
+ * token whose JWT payload has NO `aud` claim at all. Catches servers
+ * whose defensive validation is written as `if (aud && aud !== me) reject`
+ * (missing aud makes the first condition false and skips the reject).
+ * See Issue #5.
+ */
+export interface MissingAudProbeResult {
   attempted: boolean
   outcome: 'accepted' | 'rejected' | 'inconclusive'
   httpStatus?: number

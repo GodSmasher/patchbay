@@ -44,6 +44,12 @@ export interface AuditOptions {
    */
   probeAudienceToken?: string
   /**
+   * Bearer token whose JWT payload contains NO `aud` claim at all. Used
+   * by AUDIENCE-002 to catch the early-exit validation bug
+   * `if (aud && aud !== me) reject`. Ignored for directory targets.
+   */
+  probeMissingAudToken?: string
+  /**
    * When true, AUTH-006 actively registers a throw-away client against the
    * authorisation server's registration_endpoint with loopback redirect
    * URIs to verify RFC 8252 Section 7.3 compliance. Off by default because
@@ -81,6 +87,7 @@ async function resolveTarget(target: string, opts: AuditOptions): Promise<Target
       authToken: opts.authToken,
       trustCurrentManifest: opts.trustCurrentManifest,
       probeAudienceToken: opts.probeAudienceToken,
+      probeMissingAudToken: opts.probeMissingAudToken,
       probeDcrLoopback: opts.probeDcrLoopback,
     })
   }

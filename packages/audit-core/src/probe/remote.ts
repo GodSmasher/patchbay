@@ -34,6 +34,13 @@ export interface RemoteProbeOptions {
    */
   probeAudienceToken?: string
   /**
+   * Bearer token whose JWT payload contains NO `aud` claim at all. Used
+   * by AUDIENCE-002 to catch the early-exit validation bug
+   * `if (aud && aud !== me) reject` which lets missing-aud tokens
+   * through. See Issue #5.
+   */
+  probeMissingAudToken?: string
+  /**
    * When true, AUTH-006 actively registers a throw-away client against the
    * authorisation server's registration_endpoint with loopback redirect URIs
    * ("http://127.0.0.1:PORT/callback" and "http://localhost:PORT/callback")
@@ -144,6 +151,12 @@ export async function probeRemote(url: string, opts: RemoteProbeOptions = {}): P
       initRes = res
       break
     }
+  }
+
+  if (initRes) {
+    const headers: Record<string, string> = {}
+    initRes.headers.forEach((value, key) => { headers[key.toLowerCase()] = value })
+    probe.responseHeaders = headers
   }
 
   if (!endpoint) {
@@ -324,6 +337,29 @@ export async function probeRemote(url: string, opts: RemoteProbeOptions = {}): P
       probe.audienceProbe = { attempted: true, outcome: 'accepted', httpStatus: res.status }
     } else {
       probe.audienceProbe = {
+        attempted: true,
+        outcome: 'inconclusive',
+        httpStatus: res.status,
+        reason: `unexpected status ${res.status}`,
+      }
+    }
+  }
+
+  if (endpoint && opts.probeMissingAudToken) {
+    const probeToken = opts.probeMissingAudToken
+    const res = await postRpc(
+      endpoint,
+      { jsonrpc: '2.0', id: 7, method: 'tools/list', params: {} },
+      { authorization: `Bearer ${probeToken}` },
+    )
+    if (!res) {
+      probe.missingAudProbe = { attempted: true, outcome: 'inconclusive', reason: 'network error' }
+    } else if (res.status === 401 || res.status === 403) {
+      probe.missingAudProbe = { attempted: true, outcome: 'rejected', httpStatus: res.status }
+    } else if (streamOk(res)) {
+      probe.missingAudProbe = { attempted: true, outcome: 'accepted', httpStatus: res.status }
+    } else {
+      probe.missingAudProbe = {
         attempted: true,
         outcome: 'inconclusive',
         httpStatus: res.status,

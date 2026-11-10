@@ -324,6 +324,7 @@ async function audit(args: string[]) {
   const outPath = flagValue(args, '--out')
   const authToken = flagValue(args, '--auth') ?? process.env.PATCHBAY_AUDIT_TOKEN
   const probeAudienceToken = flagValue(args, '--probe-audience') ?? process.env.PATCHBAY_PROBE_AUDIENCE_TOKEN
+  const probeMissingAudToken = flagValue(args, '--probe-missing-aud') ?? process.env.PATCHBAY_PROBE_MISSING_AUD_TOKEN
   const probeDcrLoopback = args.includes('--probe-dcr-loopback') || process.env.PATCHBAY_PROBE_DCR_LOOPBACK === '1'
   const trustCurrentManifest = args.includes('--trust')
   const publish = args.includes('--publish')
@@ -345,7 +346,7 @@ async function audit(args: string[]) {
 
   const { auditTarget, renderTerminal, renderJson, renderSarif, renderMarkdown } = await import('@patchbay-nebius/audit-core')
   const resolved = stdio ? target : (/^https?:\/\//i.test(target) ? target : resolve(target))
-  const report = await auditTarget(resolved, { authToken, trustCurrentManifest, probeAudienceToken, probeDcrLoopback, stdio })
+  const report = await auditTarget(resolved, { authToken, trustCurrentManifest, probeAudienceToken, probeMissingAudToken, probeDcrLoopback, stdio })
 
   if (publish) {
     try {

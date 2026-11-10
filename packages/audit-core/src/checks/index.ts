@@ -1,5 +1,6 @@
 import type { Check } from '../types'
 import { audience001 } from './audience-001'
+import { audience002 } from './audience-002'
 import { auth001 } from './auth-001'
 import { auth002 } from './auth-002'
 import { auth003 } from './auth-003'
@@ -7,6 +8,7 @@ import { auth004 } from './auth-004'
 import { auth005 } from './auth-005'
 import { auth006 } from './auth-006'
 import { auth007 } from './auth-007'
+import { headers001 } from './headers-001'
 import { manifest001 } from './manifest-001'
 import { poisoning001 } from './poisoning-001'
 import { resource001 } from './resource-001'
@@ -28,6 +30,7 @@ export const ALL_CHECKS: Check[] = [
   auth006,
   auth007,
   audience001,
+  audience002,
   scope001,
   scope002,
   secret001,
@@ -38,12 +41,15 @@ export const ALL_CHECKS: Check[] = [
   manifest001,
   poisoning001,
   resource001,
+  headers001,
   probe001,
 ]
 
 export {
   audience001,
+  audience002,
   auth001, auth002, auth003, auth004, auth005, auth006, auth007,
+  headers001,
   manifest001,
   poisoning001,
   resource001,
