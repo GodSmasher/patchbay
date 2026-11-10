@@ -39,7 +39,7 @@ export const audience001: Check = {
           severity: 'critical',
           confidence: 'high',
           title: 'Server accepts cross-audience bearer tokens',
-          evidence: `tools/list was accepted at ${r.url} using a bearer token minted for a different resource on the same authorisation server (HTTP ${p.httpStatus}). Per RFC 9068 Section 4 and MCP authorization spec revision 2025-06-18, the server must validate the \`aud\` claim and reject tokens whose audience does not name its own resource identifier.`,
+          evidence: `tools/list was accepted at ${r.url} using a bearer token minted for a different resource on the same authorisation server (HTTP ${p.httpStatus}). Per RFC 8707 Section 2 (client-side resource indicators), RFC 9068 Section 4 (server-side aud validation on JWT access tokens), and MCP authorization spec revision 2025-06-18, the server must reject tokens whose audience does not name its own resource identifier.`,
           fix: 'Validate the `aud` claim on every incoming bearer token. The expected audience is this MCP server\'s resource identifier (the one you advertise in /.well-known/oauth-protected-resource as `resource`). Reject with 401 any token whose `aud` does not match.',
           docsUrl: 'https://patchbay-mcp.dev/docs/audience-001',
         },
