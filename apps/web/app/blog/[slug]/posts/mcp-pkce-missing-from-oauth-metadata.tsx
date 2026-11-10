@@ -105,14 +105,10 @@ export function McpPkceMissingFromOauthMetadata() {
         like &quot;require PKCE&quot;. Check the metadata document again after you change it.
       </p>
       <p>
-        PKCE is one of several fields a client reads from the same document. If you are fixing the
+        PKCE is one of several things a client reads from the same document. If you are fixing the
         metadata anyway, look at{' '}
         <Link href="/blog/mcp-dynamic-client-registration-missing" className={A}>
           client registration
-        </Link>{' '}
-        and the{' '}
-        <Link href="/docs/auth-004" className={A}>
-          resource indicators flag
         </Link>{' '}
         in the same pass.
       </p>

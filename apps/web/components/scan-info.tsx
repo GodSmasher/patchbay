@@ -112,9 +112,9 @@ export function ScanInfo() {
           <dl className="mt-6 grid grid-cols-2 gap-px overflow-hidden rounded border border-paper-line bg-paper-line sm:grid-cols-4">
             {[
               ['264', 'servers reachable'],
+              ['209', 'required authentication'],
               ['55', 'answered without authentication'],
-              ['138', 'had at least one finding'],
-              ['76', 'missing resource indicators in OAuth metadata'],
+              ['6', 'of those exposed tools that can write'],
             ].map(([n, label]) => (
               <div key={label} className="flex flex-col bg-paper-card p-4">
                 <dt className="order-2 text-xs text-ink-mute">{label}</dt>
@@ -123,9 +123,8 @@ export function ScanInfo() {
             ))}
           </dl>
           <p className="mt-4 text-sm text-ink-soft">
-            Six of the servers that answered without authentication were rated critical because
-            they also exposed tools that can write or change data. Three of those six are still
-            under manual review. More in{' '}
+            The six servers that answered without authentication and exposed write tools were
+            rated critical. Three of them are still under manual review. More in{' '}
             <Link href="/blog/state-of-mcp-auth-nov-2026" className="underline underline-offset-4 hover:text-ink">
               the state of MCP auth
             </Link>{' '}

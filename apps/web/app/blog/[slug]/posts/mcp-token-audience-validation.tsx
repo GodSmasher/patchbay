@@ -70,14 +70,12 @@ export function McpTokenAudienceValidation() {
 
       <h2 className={H2}>Why metadata does not tell you</h2>
       <p>
-        A server can advertise <code>resource_indicators_supported: true</code> and still skip the
-        comparison at runtime. The reverse also happens: validation is in place and the metadata
-        does not mention it. Missing metadata is a separate, weaker signal (
-        <Link href="/docs/auth-004" className={A}>
-          AUTH-004
-        </Link>
-        ). The only way to know is to present a token with the wrong audience and see what comes
-        back.
+        There is no standard metadata field that says a server validates the audience. RFC 8707
+        defines the <code>resource</code> request parameter and nothing a server could publish
+        about it. Some servers put a <code>resource_indicators_supported</code> flag in their
+        metadata, but no specification defines that flag and it says nothing about what happens at
+        runtime. The only way to know is to present a token with the wrong audience and see what
+        comes back.
       </p>
 
       <h2 className={H2}>Test it</h2>

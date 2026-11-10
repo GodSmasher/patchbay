@@ -44,11 +44,13 @@ export const DOCS: DocEntry[] = [
   },
   {
     id: 'auth-004',
-    title: 'Resource indicators not advertised (RFC 8707)',
+    title: 'Resource indicators flag not present in OAuth metadata',
     severity: 'medium',
     oneLiner: 'OAuth metadata does not advertise "resource_indicators_supported": true.',
-    whatItMeans: `RFC 8707 lets clients bind issued tokens to a specific resource server via the "resource" parameter on authorization and token requests. Without it, a token issued for audience A can be replayed against audience B if both trust the same issuer. The server's metadata doesn't advertise resource_indicators_supported, so clients cannot discover whether to send the parameter. Confidence is medium: the server may validate audience at runtime without advertising it.`,
-    howToFix: `Accept the "resource" parameter on authorization and token endpoints. Validate the resulting token's audience claim matches this server. Advertise "resource_indicators_supported": true in authorization server metadata.`,
+    whatItMeans: `This check looks for "resource_indicators_supported": true in the authorization server metadata. Read the result with care: that field is not defined by RFC 8707, it is not in the IANA registry of authorization server metadata and the MCP authorization spec does not mention it. The spec tells clients to send the "resource" parameter whether or not the server announces support. A server without this flag can be fully compliant.
+
+What actually matters is whether the server binds tokens to its own audience and rejects tokens issued for another resource. Metadata cannot show that. The AUDIENCE-001 probe tests it directly.`,
+    howToFix: `No fix is required for this finding on its own. Make sure the authorization server accepts the "resource" parameter on authorization and token requests (RFC 8707) and that the MCP server validates the audience of every token. Then confirm it with the AUDIENCE-001 probe.`,
     spec: 'RFC 8707',
     specUrl: 'https://datatracker.ietf.org/doc/html/rfc8707',
   },
@@ -90,7 +92,7 @@ Re-run to confirm:
     oneLiner: 'tools/list succeeded with a bearer token that was minted for a different resource on the same authorization server.',
     whatItMeans: `One authorization server often issues tokens for several resources: your MCP server, an internal API, a sibling product. Each token carries an "aud" (audience) claim naming the resource it was issued for. If your MCP server does not check that claim, a token issued for any sibling resource also works against the MCP server, so whoever holds or can obtain a token for the weakest sibling can call your tools.
 
-Discovery metadata cannot reveal this. A server can advertise resource_indicators_supported (see AUTH-004) and still skip the validation at runtime, which is why this check sends a real request.
+Discovery metadata cannot reveal this. No standard metadata field states that a server validates the audience, which is why this check sends a real request.
 
 The check only runs when you supply a probe token with --probe-audience=<token> (or the PATCHBAY_PROBE_AUDIENCE_TOKEN environment variable). Use a token you are entitled to hold, minted for a different resource on the same authorization server. If the probe gets no clear answer, the finding is reported as info ("probe inconclusive") instead of critical.`,
     howToFix: `Validate the "aud" claim on every incoming bearer token. The expected audience is this MCP server's own resource identifier, the value you publish as "resource" in /.well-known/oauth-protected-resource. Reject any token whose audience does not match with HTTP 401.`,
