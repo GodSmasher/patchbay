@@ -106,7 +106,7 @@ export function McpTokenAudienceValidation() {
       <h2 className={H2}>The fix</h2>
       <ol className="list-decimal list-inside space-y-2 my-4 text-ink-soft">
         <li>
-          Decide on one canonical resource identifier for the MCP server, normally its public URL,
+          Decide on one canonical resource identifier for the MCP server (normally its public URL)
           and publish it as <code>resource</code> in{' '}
           <code>/.well-known/oauth-protected-resource</code>.
         </li>
