@@ -14,4 +14,4 @@
 - `DcrLoopbackResult` type on `RemoteProbe`
 - `probeDcrLoopback` option on `AuditOptions` and `probeRemote`
 
-### Check count: 14 → 15
+### Check count: 15 → 16

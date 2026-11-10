@@ -7,7 +7,7 @@
 > npx -y @patchbay-nebius/agent audit https://mcp.example.com/mcp
 > ```
 >
-> 13 checks against the MCP 2025-03-26 spec. Context-sensitive severity, `--pr-draft` for CI, `--auth` for walled servers. Jump to [the audit section](#patchbay-audit) for the full flag list.
+> 16 checks against the MCP 2025-03-26 spec. Context-sensitive severity, `--pr-draft` for CI, `--auth` for walled servers. Jump to [the audit section](#patchbay-audit) for the full flag list.
 >
 > **Hosted scheduled scans + alerts** coming Q1 2027 for teams. CLI stays free and MIT forever. [Interest check](https://github.com/GodSmasher/patchbay/discussions/2) · [email waitlist](https://tally.so/r/yXMQjd).
 >
@@ -111,7 +111,7 @@ npx -y @patchbay-nebius/agent audit ./my-mcp-server --json
 npx -y @patchbay-nebius/agent audit ./my-mcp-server --sarif > results.sarif
 ```
 
-**12 checks shipped:**
+**16 checks shipped:**
 
 | ID | Severity | What it catches |
 |---|---|---|
@@ -120,6 +120,8 @@ npx -y @patchbay-nebius/agent audit ./my-mcp-server --sarif > results.sarif
 | `AUTH-003` | high | OAuth metadata without PKCE S256 in `code_challenge_methods_supported` |
 | `AUTH-004` | high | No resource indicator support (RFC 8707) — tokens not audience-bound |
 | `AUTH-005` | high | OAuth 2.1 advertised without Dynamic Client Registration endpoint |
+| `AUTH-006` | high | Authorization server rejects loopback redirect URIs (RFC 8252 §7.3). Opt-in via `--probe-dcr-loopback`. |
+| `AUDIENCE-001` | critical | Server accepts bearer tokens minted for a sibling resource on the same AS (RFC 8707). Opt-in via `--probe-audience`. |
 | `SCOPE-001` | high | All tools share one scope or no scopes declared at all |
 | `SCOPE-002` | medium | Write/destructive tools share scope with read tools |
 | `SECRET-001` | critical | Hardcoded `sk-…`, `ghp_…`, `AKIA…`, `xoxb-…` or hex secrets in source |
@@ -127,6 +129,8 @@ npx -y @patchbay-nebius/agent audit ./my-mcp-server --sarif > results.sarif
 | `TRANSPORT-001` | high | Remote server reachable over plain HTTP |
 | `TRANSPORT-002` | medium | Server accepts a spoofed `Origin` header (DNS rebinding) |
 | `REDIRECT-001` | medium | Token endpoint treats `localhost` and `127.0.0.1` inconsistently |
+| `MANIFEST-001` | varies | Tool manifest changed since last pinned scan (`--trust` to re-pin) |
+| `PROBE-001` | info | Probe inconclusive, cannot judge auth posture |
 
 See [patchbay-phase2-plan.md](patchbay-phase2-plan.md) for the roadmap (`--with-auth` connector templates, `--pr-draft`, GitHub Action).
 
