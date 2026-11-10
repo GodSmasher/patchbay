@@ -131,6 +131,22 @@ patchbay pins the tool manifest the first time it audits a server and diffs agai
 If a change is unexpected, do not re-pin. Check the server's release notes, or the deployment log for a self-hosted server, before you let an agent call it again.`,
   },
   {
+    id: 'manifest-002',
+    title: 'Manifest change classified',
+    severity: 'medium',
+    oneLiner: 'The tool manifest changed since the pinned run and this check sorts the change into breaking, additive or semantic drift.',
+    whatItMeans: `MANIFEST-001 fires one line when anything in the tool manifest changes. This check is the breakdown. It sorts every change into one of three buckets so a reviewer can tell at a glance whether client code needs to change.
+
+Breaking (critical): a tool was removed, a parameter was removed, a parameter was made required, a parameter's type was narrowed or an enum lost a value. Existing clients will fail.
+
+Semantic drift (medium): the shape is identical but a tool description changed. The schema that a client codes against has not moved, but the text the model reads to plan has. The tool can start behaving differently without any code change on the client side.
+
+Additive (low): a new tool or a new optional parameter appeared. Existing clients keep working.
+
+MANIFEST-001 and MANIFEST-002 fire on the same change. 001 is the single alert, 002 is the detail. The check stays silent when no earlier run was pinned.`,
+    howToFix: `For breaking changes treat the server like a major version bump: notify clients or hold until they upgrade. For semantic drift read the description diff and confirm it still matches what the tool actually does. For additive changes no action is needed. In all cases re-pin the manifest with \`--trust\` once the change has been reviewed.`,
+  },
+  {
     id: 'resource-001',
     title: 'Protected Resource Metadata missing',
     severity: 'high',
@@ -157,6 +173,49 @@ The check looks for two things:
 
 The medium band works with patterns and can be wrong. A harmless description that says "you must call this tool first" matches too, so read the quoted text before you act on it. The check only sees tools the server lists without credentials. It does not judge what a tool does.`,
     howToFix: `Remove hidden characters from every tool description and schema description and add a check for them to your build. Rewrite flagged descriptions so they say what the tool does for a human reader. If you did not write the flagged text yourself, treat the server as compromised until you know where it came from.`,
+  },
+  {
+    id: 'audience-002',
+    title: 'Server accepts bearer tokens with no audience claim',
+    severity: 'critical',
+    oneLiner: 'tools/list was accepted with a bearer token whose JWT payload has no aud claim at all.',
+    whatItMeans: `AUDIENCE-001 catches servers that accept a token issued for a different resource. This check catches a related mistake: a server whose audience check is written so that a missing aud claim slips through. The common shape is \`if (aud && aud !== me) reject\`. A token with no aud makes the first condition false and the reject never runs.
+
+Per RFC 9068 Section 4, a resource server must reject any JWT whose aud does not contain its own identifier. "Does not contain" includes "is not there at all." A token with no aud is as invalid as a token with the wrong aud.
+
+The check is opt-in because it needs a validly signed bearer token for the server's authorization server whose payload has no aud claim. Without that token the check stays silent.`,
+    howToFix: `Rewrite audience validation so a missing claim is a reject. For a single-string aud: \`if (aud !== me) reject\`. For an array aud: \`if (!Array.isArray(aud) || !aud.includes(me)) reject\`. Never fall back to accepting a token whose aud is absent.`,
+    spec: 'RFC 9068 Section 4',
+    specUrl: 'https://datatracker.ietf.org/doc/html/rfc9068#section-4',
+  },
+  {
+    id: 'headers-001',
+    title: 'Weak transport-security response headers',
+    severity: 'medium',
+    oneLiner: 'The server is missing one or more standard security headers on its responses, or opens itself to any browser origin.',
+    whatItMeans: `The scanner reads the response headers that come back on the first probe and reports four common problems:
+
+  - Access-Control-Allow-Origin set to "*" together with Access-Control-Allow-Credentials "true". Browsers reject this combination and it is often an auth bypass misconfiguration. "*" alone is also flagged with a milder note because it opens the server to any browser origin.
+  - No Strict-Transport-Security header on an HTTPS endpoint. The first connection over HTTPS is still open to a downgrade attack.
+  - No X-Frame-Options and no frame-ancestors directive in a Content-Security-Policy, or a frame-ancestors directive that allows anyone. The response can be framed cross-origin.
+  - X-Content-Type-Options is not "nosniff". Error responses may be MIME-sniffed by browsers.
+
+All four are passive. No extra request is made. The check stays silent if the server was not reachable.`,
+    howToFix: `Set X-Content-Type-Options: nosniff on every response. On HTTPS set Strict-Transport-Security with a max-age of at least 15552000. Set X-Frame-Options: DENY or a Content-Security-Policy with a restrictive frame-ancestors directive (not "*"). Review Access-Control-Allow-Origin if the endpoint is not meant to be reachable from arbitrary browser origins.`,
+  },
+  {
+    id: 'iss-001',
+    title: 'RFC 9207 iss parameter not advertised in OAuth metadata',
+    severity: 'low',
+    oneLiner: 'The authorization server does not set authorization_response_iss_parameter_supported to true.',
+    whatItMeans: `RFC 9207 defines an iss parameter that the authorization server sends back on every authorization response. It names the authorization server that signed the response. A client that validates it catches mix-up attacks between two authorization servers configured for the same resource.
+
+MCP clients must validate this parameter per RFC 9207 Section 2.4, but only when the authorization server advertises support. The signal is authorization_response_iss_parameter_supported: true in the metadata. Without the flag a client has no reason to look for the parameter and the mitigation is off.
+
+The MCP spec marks this as SHOULD today and says a future revision will raise it to MUST. The check is low severity for now and will likely rise.`,
+    howToFix: `Set "authorization_response_iss_parameter_supported": true in /.well-known/oauth-authorization-server. Include the iss parameter in every authorization response, including error responses.`,
+    spec: 'RFC 9207 Section 2.4',
+    specUrl: 'https://datatracker.ietf.org/doc/html/rfc9207#section-2.4',
   },
   {
     id: 'scope-001',

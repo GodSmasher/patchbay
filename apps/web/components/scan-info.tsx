@@ -13,13 +13,15 @@ const CLI_ONLY: Record<string, string> = {
   'secret-002': 'needs the source directory',
   'auth-006': 'opt-in probe',
   'audience-001': 'opt-in probe, needs your token',
+  'audience-002': 'opt-in probe, needs your token',
   'manifest-001': 'needs a pinned earlier run',
+  'manifest-002': 'needs a pinned earlier run',
 }
 
 const GROUPS: { title: string; prefixes: string[] }[] = [
-  { title: 'Authentication and OAuth', prefixes: ['auth-', 'audience-', 'resource-', 'redirect-'] },
+  { title: 'Authentication and OAuth', prefixes: ['auth-', 'audience-', 'resource-', 'redirect-', 'iss-'] },
   { title: 'Scopes', prefixes: ['scope-'] },
-  { title: 'Transport', prefixes: ['transport-'] },
+  { title: 'Transport', prefixes: ['transport-', 'headers-'] },
   { title: 'Secrets', prefixes: ['secret-'] },
   { title: 'Tools', prefixes: ['manifest-', 'poisoning-'] },
 ]
