@@ -68,7 +68,7 @@ export async function sendWelcomeMail(input: WelcomeMailInput): Promise<{ ok: bo
     `We will not send you anything else. One-click unsubscribe:`,
     unsub,
     ``,
-    `— Sarah`,
+    `Sarah`,
     `${BASE}/scan`,
   ].join('\n')
 
@@ -100,7 +100,7 @@ export async function sendWelcomeMail(input: WelcomeMailInput): Promise<{ ok: bo
       Want to scan another MCP server now? <a href="${scanUrl}" style="color:#15161a;">Run another scan</a>.
     </p>
 
-    <p style="margin:24px 0 8px; font-size: 13px; color:#6b6b6b;">— Sarah</p>
+    <p style="margin:24px 0 8px; font-size: 13px; color:#6b6b6b;">Sarah</p>
 
     <hr style="border:none; border-top:1px solid #e8e5dd; margin:32px 0 16px;">
     <p style="font-size: 12px; color:#8a8a8a; margin:0;">
@@ -151,7 +151,7 @@ export async function sendTallyWelcomeMail(input: TallyWelcomeMailInput): Promis
     : `When hosted scans go live, we will match the first batch of features to what early-access respondents told us they need.`
 
   const priceLine = input.priceAnswer
-    ? `You answered "${input.priceAnswer}" on the pricing question — noted. Final pricing will reflect what this group said.`
+    ? `You answered "${input.priceAnswer}" on the pricing question. Noted. Final pricing will reflect what this group said.`
     : ''
 
   const text = [
@@ -160,14 +160,14 @@ export async function sendTallyWelcomeMail(input: TallyWelcomeMailInput): Promis
     useCaseLine,
     priceLine,
     ``,
-    `While hosted scans are being built, the free CLI and the browser scan at ${scanUrl} already give you the same checks — just run manually.`,
+    `While hosted scans are being built, the free CLI and the browser scan at ${scanUrl} already give you the same checks, just run manually.`,
     ``,
     `You will get one email when hosted scans launch (targeting January 2027) and nothing else between now and then.`,
     ``,
     `One-click unsubscribe:`,
     unsub,
     ``,
-    `— Sarah`,
+    `Sarah`,
     `${scanUrl}`,
   ].filter(Boolean).join('\n')
 
@@ -176,7 +176,7 @@ export async function sendTallyWelcomeMail(input: TallyWelcomeMailInput): Promis
     : `<p style="margin:0 0 12px;">When hosted scans go live, we will match the first batch of features to what early-access respondents told us they need.</p>`
 
   const priceHtml = input.priceAnswer
-    ? `<p style="margin:0 0 20px;">You answered <strong>${input.priceAnswer}</strong> on the pricing question — noted. Final pricing will reflect what this group said.</p>`
+    ? `<p style="margin:0 0 20px;">You answered <strong>${input.priceAnswer}</strong> on the pricing question. Noted. Final pricing will reflect what this group said.</p>`
     : ''
 
   const html = `<!doctype html>
@@ -193,7 +193,7 @@ export async function sendTallyWelcomeMail(input: TallyWelcomeMailInput): Promis
     <p style="margin:0 0 20px;">
       While hosted scans are being built, the free CLI and the browser scan at
       <a href="${scanUrl}" style="color:#15161a;">patchbay-mcp.dev/scan</a>
-      already run the same checks — just manually.
+      already run the same checks, just manually.
     </p>
 
     <p style="margin:0 0 24px;">
@@ -204,7 +204,7 @@ export async function sendTallyWelcomeMail(input: TallyWelcomeMailInput): Promis
       You will get one email when hosted scans launch (targeting January 2027) and nothing else between now and then.
     </p>
 
-    <p style="margin:24px 0 8px; font-size: 13px; color:#6b6b6b;">— Sarah</p>
+    <p style="margin:24px 0 8px; font-size: 13px; color:#6b6b6b;">Sarah</p>
 
     <hr style="border:none; border-top:1px solid #e8e5dd; margin:32px 0 16px;">
     <p style="font-size: 12px; color:#8a8a8a; margin:0;">

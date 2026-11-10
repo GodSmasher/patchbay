@@ -90,7 +90,7 @@ export default function ScanPage() {
   }
 
   const shareText = state.kind === 'done'
-    ? `Scanned ${state.target} with patchbay — grade ${state.result.grade}, score ${state.result.score}/100. https://patchbay-mcp.dev/report/${state.result.id}`
+    ? `Scanned ${state.target} with patchbay: grade ${state.result.grade}, score ${state.result.score}/100. https://patchbay-mcp.dev/report/${state.result.id}`
     : ''
   const tweetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`
 

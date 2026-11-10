@@ -3,7 +3,7 @@ import { ImageResponse } from 'next/og'
 export const runtime = 'edge'
 export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'
-export const alt = 'patchbay — scan any MCP server from your browser'
+export const alt = 'patchbay: scan any MCP server from your browser'
 
 /**
  * OG card for /scan. Overrides the root hackathon-themed image so links to

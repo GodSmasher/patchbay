@@ -1,7 +1,7 @@
 import Link from 'next/link'
 
 export const metadata = {
-  title: 'Privacy — patchbay',
+  title: 'Privacy · patchbay',
 }
 
 export default function PrivacyPage() {
@@ -35,7 +35,7 @@ export default function PrivacyPage() {
 
           <div>
             <h2 className="text-xl font-semibold text-ink mb-2">Who sees it</h2>
-            <p>Sarah Vogel (the founder). No employees, no shared access, no third-party processors beyond the infrastructure vendors needed to run the site (Vercel for hosting, Upstash for KV storage). We do not share your email with anyone, do not sell it, and will not ever.</p>
+            <p>Sarah Vogel (the founder). No employees, no shared access, no third-party processors beyond the infrastructure vendors needed to run the site (Vercel for hosting, Upstash for KV storage). We do not share your email with anyone, do not sell it and will not ever.</p>
           </div>
 
           <div>
@@ -50,7 +50,7 @@ export default function PrivacyPage() {
 
           <div>
             <h2 className="text-xl font-semibold text-ink mb-2">The scan itself</h2>
-            <p>Running a scan sends one HTTP request chain to the target MCP endpoint. Patchbay does not attempt to exploit, tool-call, or exfiltrate anything — it reads <code>tools/list</code>, probes for OAuth metadata, and inspects headers. Nothing destructive.</p>
+            <p>Running a scan sends one HTTP request chain to the target MCP endpoint. Patchbay does not attempt to exploit, tool-call, or exfiltrate anything. It reads <code>tools/list</code>, probes for OAuth metadata and inspects headers. Nothing destructive.</p>
           </div>
         </section>
 
