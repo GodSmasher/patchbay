@@ -88,16 +88,19 @@ export function McpDynamicClientRegistrationMissing() {
         <code>npx -y @patchbay-nebius/agent audit https://mcp.example.com/mcp</code>
       </pre>
       <p>
-        A server that advertises OAuth without a registration endpoint gets finding{' '}
+        A server that advertises OAuth with neither a registration endpoint nor metadata document
+        support gets finding{' '}
         <Link href="/docs/auth-005" className={A}>
           AUTH-005
         </Link>{' '}
-        at high severity. No flags are needed and the{' '}
+        at high severity. A server that only offers dynamic registration gets a note at info level
+        that does not affect the grade. No flags are needed. The{' '}
         <Link href="/scan" className={A}>
           browser scanner
         </Link>{' '}
-        runs the same check. The check does not look at Client ID Metadata Documents yet, so a
-        server that supports only those still gets the finding.
+        already works this way. The CLI on npm gets the same logic with its next release. Until
+        then it reports a missing registration endpoint as high even when metadata documents are
+        supported.
       </p>
 
       <h2 className={H2}>The fix</h2>

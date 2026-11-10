@@ -54,13 +54,17 @@ export const DOCS: DocEntry[] = [
   },
   {
     id: 'auth-005',
-    title: 'Dynamic Client Registration not supported',
+    title: 'No client registration mechanism advertised',
     severity: 'high',
-    oneLiner: 'OAuth metadata is served but "registration_endpoint" is missing.',
-    whatItMeans: `MCP clients built by third parties cannot register themselves with your authorization server without a registration endpoint. RFC 7591 defines the dynamic client registration protocol. The current MCP authorization spec (2026-07-28) recommends Client ID Metadata Documents instead and keeps Dynamic Client Registration as a deprecated fallback. This check only looks for registration_endpoint. A server that supports metadata documents but not dynamic registration still gets the finding, although clients built against earlier revisions really cannot connect to it.`,
+    oneLiner: 'OAuth metadata is served but offers neither Client ID Metadata Documents nor a "registration_endpoint".',
+    whatItMeans: `An MCP client needs a client_id before it can start the OAuth flow. The MCP authorization spec (2026-07-28) names three ways to get one: Client ID Metadata Documents, pre-registration and Dynamic Client Registration (RFC 7591). Metadata documents are the recommended route. Dynamic registration is deprecated but still allowed.
+
+This finding is high when the server metadata advertises neither "client_id_metadata_document_supported": true nor a "registration_endpoint". Third party clients then have no automatic way in and every one of them has to be registered by hand.
+
+If the server only offers dynamic registration the finding is reported at info level and does not affect the grade. A server that supports metadata documents passes.`,
     howToFix: `Support Client ID Metadata Documents and advertise "client_id_metadata_document_supported": true in authorization server metadata. For older clients also expose a Dynamic Client Registration endpoint (RFC 7591): POST /register accepts client metadata and returns a client_id. Advertise it as "registration_endpoint".`,
-    spec: 'RFC 7591',
-    specUrl: 'https://datatracker.ietf.org/doc/html/rfc7591',
+    spec: 'MCP authorization spec (2026-07-28), client registration',
+    specUrl: 'https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization',
   },
   {
     id: 'auth-006',
