@@ -30,10 +30,10 @@ export function McpDynamicClientRegistrationMissing() {
         <a href="https://datatracker.ietf.org/doc/html/rfc7591" className={A}>
           RFC 7591
         </a>{' '}
-        (Dynamic Client Registration) solves this. The client sends a POST with its name and
-        redirect URIs to the registration endpoint and receives a <code>client_id</code> in the
-        response. The MCP authorization spec points to it as the way clients are expected to
-        onboard. The client discovers where to register from the metadata document:
+        (Dynamic Client Registration) was the first answer to this. The client sends a POST with
+        its name and redirect URIs to the registration endpoint and receives a{' '}
+        <code>client_id</code> in the response. The client discovers where to register from the
+        metadata document:
       </p>
       <pre className={PRE}>
         <code>
@@ -48,8 +48,30 @@ export function McpDynamicClientRegistrationMissing() {
         </code>
       </pre>
       <p>
-        If the last line is absent, a client that has no pre-issued <code>client_id</code> has
-        nowhere to go.
+        If the last line is absent, a client that relies on dynamic registration has nowhere to go.
+      </p>
+
+      <h2 className={H2}>What the current spec says</h2>
+      <p>
+        The MCP authorization spec has moved on here.{' '}
+        <a href="https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization" className={A}>
+          Revision 2026-07-28
+        </a>{' '}
+        lists three ways for a client to get a <code>client_id</code>: Client ID Metadata
+        Documents, pre-registration and Dynamic Client Registration. Metadata documents are now
+        the recommended route. The client uses an HTTPS URL as its <code>client_id</code> and the
+        authorization server fetches the client&apos;s details from that URL. A server signals
+        support with <code>client_id_metadata_document_supported</code> in its metadata. Dynamic
+        Client Registration is still allowed but marked as deprecated and kept for backwards
+        compatibility.
+      </p>
+      <p>
+        So a missing <code>registration_endpoint</code> is only a problem when the server offers no
+        other automatic route. If your metadata has neither <code>registration_endpoint</code> nor{' '}
+        <code>client_id_metadata_document_supported</code>, a third party client is left with
+        asking the user to type in client details by hand. Clients built against earlier revisions
+        only know dynamic registration, so they are locked out even if you support metadata
+        documents.
       </p>
 
       <h2 className={H2}>How common it is</h2>
@@ -74,23 +96,27 @@ export function McpDynamicClientRegistrationMissing() {
         <Link href="/scan" className={A}>
           browser scanner
         </Link>{' '}
-        runs the same check.
+        runs the same check. The check does not look at Client ID Metadata Documents yet, so a
+        server that supports only those still gets the finding.
       </p>
 
       <h2 className={H2}>The fix</h2>
       <ol className="list-decimal list-inside space-y-2 my-4 text-ink-soft">
         <li>
-          Expose a registration endpoint that accepts client metadata (at least{' '}
-          <code>client_name</code> and <code>redirect_uris</code>) and returns a{' '}
-          <code>client_id</code>. Public clients such as CLIs and desktop apps do not get a secret;
-          they authenticate the flow with PKCE.
+          Add support for Client ID Metadata Documents and advertise{' '}
+          <code>client_id_metadata_document_supported: true</code> in{' '}
+          <code>/.well-known/oauth-authorization-server</code>. This is what the current spec
+          recommends for new implementations.
         </li>
         <li>
-          Advertise it as <code>registration_endpoint</code> in{' '}
-          <code>/.well-known/oauth-authorization-server</code>.
+          Keep or add a registration endpoint for clients that only speak dynamic registration. It
+          accepts client metadata (at least <code>client_name</code> and{' '}
+          <code>redirect_uris</code>) and returns a <code>client_id</code>. Public clients such as
+          CLIs and desktop apps do not get a secret. They protect the flow with PKCE. Advertise the
+          endpoint as <code>registration_endpoint</code>.
         </li>
         <li>
-          Accept loopback redirect URIs at registration, or the next step fails for every native
+          Accept loopback redirect URIs in both cases or the next step fails for every native
           client. That is its own finding,{' '}
           <Link href="/blog/mcp-oauth-login-hangs-loopback-redirect" className={A}>
             covered here
@@ -99,7 +125,7 @@ export function McpDynamicClientRegistrationMissing() {
         </li>
       </ol>
       <p>
-        Most hosted identity providers support dynamic registration but ship with it switched off.
+        Many hosted identity providers support dynamic registration but ship with it switched off.
         Look for that setting before writing an endpoint yourself.
       </p>
 

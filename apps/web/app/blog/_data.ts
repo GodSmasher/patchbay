@@ -20,7 +20,7 @@ export const POSTS: Post[] = [
     title: 'MCP server without a registration_endpoint: why clients cannot connect and how to fix it',
     date: '2026-11-10',
     readingMinutes: 4,
-    summary: 'An MCP server that advertises OAuth but no registration_endpoint leaves third-party clients with no way to get a client_id. What Dynamic Client Registration (RFC 7591) does and how to add it.',
+    summary: 'An MCP server that advertises OAuth but no registration_endpoint leaves third-party clients with no way to get a client_id. What Dynamic Client Registration and Client ID Metadata Documents do and which one to add.',
   },
   {
     slug: 'mcp-oauth-login-hangs-loopback-redirect',
