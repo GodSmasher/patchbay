@@ -48,6 +48,10 @@ describe('auditSnapshot', () => {
           code_challenge_methods_supported: ['S256'],
           resource_indicators_supported: true,
         },
+        oauthProtectedResource: {
+          resource: 'https://x/mcp',
+          authorization_servers: ['https://x'],
+        },
         originValidation: 'strict',
         rawErrors: [],
       },

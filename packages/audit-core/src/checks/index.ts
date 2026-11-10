@@ -7,6 +7,7 @@ import { auth004 } from './auth-004'
 import { auth005 } from './auth-005'
 import { auth006 } from './auth-006'
 import { manifest001 } from './manifest-001'
+import { resource001 } from './resource-001'
 import { probe001 } from './probe-001'
 import { redirect001 } from './redirect-001'
 import { scope001 } from './scope-001'
@@ -32,6 +33,7 @@ export const ALL_CHECKS: Check[] = [
   transport002,
   redirect001,
   manifest001,
+  resource001,
   probe001,
 ]
 
@@ -39,5 +41,6 @@ export {
   audience001,
   auth001, auth002, auth003, auth004, auth005, auth006,
   manifest001,
+  resource001,
   probe001, redirect001, scope001, scope002, secret001, secret002, transport001, transport002,
 }
