@@ -2,15 +2,18 @@
 /**
  * patchbay MCP server (stdio transport).
  *
- * Exposes four tools to any MCP client (Claude Code, Codex, Cursor):
- *   - build_connector: full pipeline, returns generated files (TypeScript or Python)
- *   - research_api:    plan + API research, returns the spec
- *   - scan_repo:       walk a repo and report integration opportunities
- *   - verify_code:     type-check + vitest/pytest an existing connector (with repair loop)
+ * Exposes five tools to any MCP client (Claude Code, Codex, Cursor):
+ *   - audit_mcp_server: scan any remote MCP server URL (or local connector dir)
+ *                       for OAuth 2.1 and security gaps, returns letter grade
+ *                       and full findings list
+ *   - build_connector:  full pipeline, returns generated files (TypeScript or Python)
+ *   - research_api:     plan + API research, returns the spec
+ *   - scan_repo:        walk a repo and report integration opportunities
+ *   - verify_code:      type-check + vitest/pytest an existing connector (with repair loop)
  *
- * Each tool streams patchbay's internal step/log/tests events as MCP logging
- * notifications and, when a client passes a progressToken, as progress updates,
- * so the client can render a live spinner while the agent works.
+ * Each pipeline tool streams patchbay's internal step/log/tests events as MCP
+ * logging notifications and, when a client passes a progressToken, as progress
+ * updates, so the client can render a live spinner while the agent works.
  */
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
@@ -27,6 +30,7 @@ import { z } from 'zod'
 loadRepoEnv()
 
 const { loadConfig, missingLiveKeys, scanRepo, startResearch, startRun, startVerify } = await import('@patchbay-nebius/agent')
+const { auditTarget, letterGrade, score: scoreFn } = await import('@patchbay-nebius/audit-core')
 type GeneratedFile = import('@patchbay-nebius/agent').GeneratedFile
 type Opportunity = import('@patchbay-nebius/agent').Opportunity
 type RunEvent = import('@patchbay-nebius/agent').RunEvent
@@ -56,7 +60,7 @@ function loadRepoEnv(): void {
   }
 }
 
-const VERSION = '0.1.0'
+const VERSION = '0.2.0'
 
 const server = new McpServer({ name: 'patchbay', version: VERSION })
 
@@ -215,6 +219,71 @@ registerTool(
       )
     }
     return runToolStream(extra, startVerify(files, config), { includeFiles: true })
+  },
+)
+
+registerTool(
+  'audit_mcp_server',
+  {
+    title: 'Audit an MCP server for OAuth 2.1 and security gaps',
+    description:
+      'Scan a remote MCP server URL (or a local MCP connector directory) for OAuth 2.1, RFC 8707 ' +
+      'audience validation, RFC 8252 loopback redirects, OAuth metadata, scope posture, secret surface, ' +
+      'tool manifest drift, and tool-description prompt injection patterns. Returns a letter grade, ' +
+      'numeric score and the full findings list. ' +
+      'Runs zero-auth probing by default (metadata-level checks only). Pass "authToken" to probe behind ' +
+      'authentication. Pass "probeAudienceToken" to enable AUDIENCE-001 (cross-audience token check, ' +
+      'RFC 8707). Pass "probeDcrLoopback: true" to enable AUTH-006 (writes a throw-away client ' +
+      'registration to the authorization server). The scanner never calls any of the server\'s tools.',
+    inputSchema: {
+      target: z.string().min(1).describe('MCP server URL (https://...) or absolute path to a local connector directory.'),
+      authToken: z.string().optional().describe('Bearer token to send on every probe request. Use for servers that require authentication beyond initialize.'),
+      probeAudienceToken: z.string().optional().describe('Bearer token minted for a DIFFERENT resource on the same authorization server. Enables AUDIENCE-001 (RFC 8707 cross-audience check).'),
+      probeDcrLoopback: z.boolean().optional().describe('Opt into AUTH-006 active Dynamic Client Registration loopback probe (RFC 8252 Section 7.3). Writes a throw-away client to the authorization server; off by default.'),
+      timeoutMs: z.number().int().min(500).max(30000).optional().describe('Per-request timeout in milliseconds. Default 8000.'),
+    },
+  },
+  async (args) => {
+    const { target, authToken, probeAudienceToken, probeDcrLoopback, timeoutMs } = args as {
+      target: string
+      authToken?: string
+      probeAudienceToken?: string
+      probeDcrLoopback?: boolean
+      timeoutMs?: number
+    }
+    try {
+      const report = await auditTarget(target, {
+        timeoutMs: timeoutMs ?? 8000,
+        authToken,
+        probeAudienceToken,
+        probeDcrLoopback,
+      })
+      const num = scoreFn(report.summary)
+      const grade = letterGrade(num)
+      const bySev = (['critical', 'high', 'medium', 'low', 'info'] as const)
+        .map((s) => `${report.summary[s]} ${s}`)
+        .filter((line) => !line.startsWith('0 '))
+        .join(', ') || 'no findings'
+      const header = `${target} → Grade ${grade} (${num}/100) · ${bySev}`
+      const body = report.findings.length
+        ? '\n\n' + report.findings.map((f) =>
+          `[${f.severity.toUpperCase()}] ${f.id}: ${f.title}\n  Evidence: ${f.evidence}\n  Fix: ${f.fix ?? '(no fix guidance)'}${f.docsUrl ? `\n  Docs: ${f.docsUrl}` : ''}`,
+        ).join('\n\n')
+        : '\n\nEvery check passed. No findings on this scan.'
+      return {
+        content: [{ type: 'text' as const, text: header + body }],
+        structuredContent: {
+          target: report.target,
+          grade,
+          score: num,
+          summary: report.summary,
+          findings: report.findings,
+          durationMs: report.durationMs,
+        },
+      }
+    } catch (error) {
+      return errorResult(error instanceof Error ? error.message : String(error))
+    }
   },
 )
 
