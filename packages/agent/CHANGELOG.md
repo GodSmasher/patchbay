@@ -1,5 +1,11 @@
 # @patchbay-nebius/agent
 
+## 0.6.0 (2026-11-10)
+
+### Dependencies
+- `@patchbay-nebius/audit-core` → 0.4.0 (adds RESOURCE-001, AUTH-007,
+  POISONING-001; tightens AUTH-003; see its changelog).
+
 ## 0.5.2 (2026-11-10)
 
 ### Dependencies

@@ -1,5 +1,37 @@
 # @patchbay-nebius/audit-core
 
+## 0.4.0 (2026-11-10)
+
+### Added
+- **RESOURCE-001** (high). Protected Resource Metadata (RFC 9728) check.
+  Fires when a server that uses OAuth serves no
+  `/.well-known/oauth-protected-resource` document or the document is
+  missing a non-empty `authorization_servers` array. MCP authorization
+  spec makes RFC 9728 mandatory since revision 2025-06-18 (retained in
+  2026-07-28).
+- **AUTH-007** (medium). Wrong HTTP status for an invalid bearer token.
+  Captures the status the server returns to the existing dummy-bearer
+  probe. Fires when that status is not 401 (most commonly 403). Per MCP
+  authorization spec revision 2026-07-28: "Invalid or expired tokens
+  MUST receive a HTTP 401 response." Includes the WWW-Authenticate
+  header in evidence when present. New fields on `RemoteProbe`:
+  `invalidTokenStatus`, `invalidTokenWwwAuthenticate`.
+- **POISONING-001** (high / medium). Scans tool descriptions and
+  input-schema parameter descriptions for prompt-injection payloads.
+  High for hidden Unicode (zero-width characters, BOM, bidi overrides,
+  Tag characters); medium for imperative role-marker patterns
+  (`<SYSTEM>`-style tags, ignore-previous directives, role prefixes,
+  markdown system headers).
+
+### Changed
+- **AUTH-003** evidence and confidence tightened. Previous wording called
+  it a "metadata completeness finding, not a confirmed vulnerability"
+  with medium confidence. The current spec (MCP 2026-07-28 security
+  considerations) says that when `code_challenge_methods_supported` is
+  absent, spec-compliant MCP clients MUST refuse to proceed, so this is
+  a login-block for MCP clients even if the server would still enforce
+  S256 at runtime for non-MCP clients. Confidence is now high.
+
 ## 0.3.4 (2026-11-10)
 
 ### Retired
