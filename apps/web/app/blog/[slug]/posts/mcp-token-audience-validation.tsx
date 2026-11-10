@@ -20,7 +20,7 @@ export function McpTokenAudienceValidation() {
       <h2 className={H2}>The setup that makes this matter</h2>
       <p>
         One authorization server usually issues tokens for several resources. A company runs an
-        internal API, a public API, a billing service and, more recently, an MCP server, all
+        internal API, a public API, a billing service and more recently an MCP server, all
         trusting the same issuer. Every token carries an <code>aud</code> (audience) claim naming
         the resource it was meant for:
       </p>
@@ -37,7 +37,7 @@ export function McpTokenAudienceValidation() {
       <p>
         That token is genuine. Its signature is valid and its issuer is the one your MCP server
         trusts. If the MCP server does not compare <code>aud</code> against its own identifier, it
-        accepts the token, and the holder can call your tools with a credential that was only ever
+        accepts the token and the holder can call your tools with a credential that was only ever
         meant for billing.
       </p>
       <p>
@@ -63,7 +63,7 @@ export function McpTokenAudienceValidation() {
         <a href="https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization" className={A}>
           revision 2025-06-18
         </a>
-        : clients must send the <code>resource</code> parameter, and servers must only accept
+        : clients must send the <code>resource</code> parameter and servers must only accept
         tokens issued for themselves. The earlier 2025-03-26 revision does not mention audience,
         so a server built against it may never have added the check.
       </p>

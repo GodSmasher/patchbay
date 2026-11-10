@@ -16,9 +16,9 @@ export const DOCS: DocEntry[] = [
     id: 'auth-001',
     title: 'No authentication required',
     severity: 'critical',
-    oneLiner: 'Server returns tools/list without any credential, and at least one tool name looks mutating.',
+    oneLiner: 'Server returns tools/list without any credential and at least one tool name looks mutating.',
     whatItMeans: `patchbay audit calls the server's tools/list endpoint without any Authorization or x-api-key header. If the server returns a tool list, no authentication is being enforced. The check is only critical when at least one tool name reads as mutating (create/delete/send/execute/start-...). A server that only exposes read-shaped tools (get/list/search/...) is downgraded to info level and labelled "public read-only server", which the MCP spec documents as a legitimate pattern for public data endpoints.`,
-    howToFix: `Require OAuth 2.1 bearer tokens on initialize and tools/*. Serve /.well-known/oauth-protected-resource pointing to an authorization server, and reject unauthenticated calls with 401. If this server is intended to be public read-only, no action needed; the finding will downgrade automatically once no mutating tool names are present.`,
+    howToFix: `Require OAuth 2.1 bearer tokens on initialize and tools/*. Serve /.well-known/oauth-protected-resource pointing to an authorization server and reject unauthenticated calls with 401. If this server is intended to be public read-only, no action needed; the finding will downgrade automatically once no mutating tool names are present.`,
     spec: 'MCP authorization spec (2025-06-18)',
     specUrl: 'https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization',
   },
@@ -28,7 +28,7 @@ export const DOCS: DocEntry[] = [
     severity: 'critical',
     oneLiner: 'Server accepts bearer or API-key auth but serves no .well-known OAuth metadata.',
     whatItMeans: `The server accepts an Authorization: Bearer or x-api-key header (patchbay confirmed this with a probe token that returned 2xx), but neither /.well-known/oauth-protected-resource nor /.well-known/oauth-authorization-server is served. MCP clients that follow the spec cannot negotiate PKCE, scopes or resource indicators. They have to be configured out of band with a static credential.`,
-    howToFix: `Replace static credentials with OAuth 2.1. Publish discovery metadata at the two well-known paths so clients can auto-configure. Support PKCE with S256, resource indicators (RFC 8707), and dynamic client registration (RFC 7591).`,
+    howToFix: `Replace static credentials with OAuth 2.1. Publish discovery metadata at the two well-known paths so clients can auto-configure. Support PKCE with S256, resource indicators (RFC 8707) and dynamic client registration (RFC 7591).`,
     spec: 'MCP authorization spec (2025-06-18)',
     specUrl: 'https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization',
   },
@@ -72,7 +72,7 @@ export const DOCS: DocEntry[] = [
 This finding fires when patchbay tried to register a client with loopback redirect URIs and the registration endpoint rejected them. For users the symptom is a login that hangs or errors after they click "Allow": the browser flow works, but the client can never receive the callback.
 
 The check is opt-in because it sends a real registration request. Run it with --probe-dcr-loopback. It stays silent if the server has no registration endpoint (see AUTH-005) or if the probe was inconclusive.`,
-    howToFix: `Accept loopback redirect URIs in Dynamic Client Registration and at the authorization endpoint: http://127.0.0.1:PORT/callback and http://localhost:PORT/callback, with any port number. Match on scheme, host and path, and ignore the port for loopback hosts only. Keep rejecting plain http:// redirect URIs for every non-loopback host.
+    howToFix: `Accept loopback redirect URIs in Dynamic Client Registration and at the authorization endpoint: http://127.0.0.1:PORT/callback and http://localhost:PORT/callback, with any port number. Match on scheme, host and path and ignore the port for loopback hosts only. Keep rejecting plain http:// redirect URIs for every non-loopback host.
 
 Re-run to confirm:
   npx -y @patchbay-nebius/agent audit <url> --probe-dcr-loopback`,
@@ -131,7 +131,7 @@ If a change is unexpected, do not re-pin. Check the server's release notes, or t
     title: 'Hardcoded secret in source',
     severity: 'critical',
     oneLiner: 'A credential-shaped string literal is checked into a non-test source file.',
-    whatItMeans: `patchbay audit scans each source file (.ts, .tsx, .js, .mjs, .cjs, .py, .json, .yaml, .yml, .env) for known credential patterns: sk-* (OpenAI/Stripe/Anthropic), AKIA* (AWS), ghp_* (GitHub personal access tokens), xoxb-* (Slack bot tokens), and generic 32+ character hex strings assigned to variables named key/token/secret/password. Test files, fixture directories, docs and example patterns (sk-example, your_key, xxxxx, dummy, placeholder) are skipped to avoid false positives.`,
+    whatItMeans: `patchbay audit scans each source file (.ts, .tsx, .js, .mjs, .cjs, .py, .json, .yaml, .yml, .env) for known credential patterns: sk-* (OpenAI/Stripe/Anthropic), AKIA* (AWS), ghp_* (GitHub personal access tokens), xoxb-* (Slack bot tokens) and generic 32+ character hex strings assigned to variables named key/token/secret/password. Test files, fixture directories, docs and example patterns (sk-example, your_key, xxxxx, dummy, placeholder) are skipped to avoid false positives.`,
     howToFix: `Move the secret into an environment variable. Rotate the leaked value immediately: assume anyone with git history access has it, which includes GitHub search. Add a secret scanner to CI so future leaks are caught before merge.`,
   },
   {
@@ -139,7 +139,7 @@ If a change is unexpected, do not re-pin. Check the server's release notes, or t
     title: 'Long-lived credential in env, no refresh flow',
     severity: 'medium',
     oneLiner: 'Code reads credentials from env but never calls a refresh_token flow.',
-    whatItMeans: `patchbay found environment variables with names matching KEY|TOKEN|SECRET|PASSWORD being read in source, but no code path that handles OAuth refresh tokens. This means the credential rotates only when someone manually updates the env, which in practice is never. Long-lived credentials in env are the most common leak path for connectors because they end up in Docker images, CI logs, and backup files.`,
+    whatItMeans: `patchbay found environment variables with names matching KEY|TOKEN|SECRET|PASSWORD being read in source, but no code path that handles OAuth refresh tokens. This means the credential rotates only when someone manually updates the env, which in practice is never. Long-lived credentials in env are the most common leak path for connectors because they end up in Docker images, CI logs and backup files.`,
     howToFix: `Switch to OAuth 2.1 with refresh tokens. Store only the refresh token; derive access tokens from it on each run with a short TTL. Rotate the refresh token on every refresh.`,
   },
   {
@@ -174,7 +174,7 @@ If a change is unexpected, do not re-pin. Check the server's release notes, or t
     severity: 'info',
     oneLiner: 'patchbay could reach the server but could not learn enough to judge auth posture.',
     whatItMeans: `There are two shapes of this finding. If the server requires auth before any endpoint responds and we have no credentials, we report "Auth-walled server, not audited". This is the expected state for a correctly configured OAuth 2.1 server and is not a problem. The second shape fires when the server responded but no MCP initialize, no tools/list and no .well-known/oauth-* metadata succeeded. The server may use a different transport (stdio, SSE at a path we didn't try), require a specific protocol version, or just be a non-MCP endpoint at this URL.`,
-    howToFix: `For auth-walled servers: no action needed. A future --auth flag will let you pass credentials for a deeper audit. For inconclusive probes: re-run with --json to see the raw snapshot (initializeOk, toolsListOk, rawErrors) and check whether the URL is correct, whether the transport is Streamable HTTP, and whether the server actually serves MCP at this path.`,
+    howToFix: `For auth-walled servers: no action needed. A future --auth flag will let you pass credentials for a deeper audit. For inconclusive probes: re-run with --json to see the raw snapshot (initializeOk, toolsListOk, rawErrors) and check whether the URL is correct, whether the transport is Streamable HTTP and whether the server actually serves MCP at this path.`,
   },
   {
     id: 'check-crashed',

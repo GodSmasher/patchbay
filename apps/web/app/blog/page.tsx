@@ -4,7 +4,7 @@ import { POSTS } from './_data'
 
 export const metadata: Metadata = {
   title: 'MCP security research and audit data · patchbay blog',
-  description: 'Data from scanning public MCP servers: OAuth 2.1 adoption, auth gaps, manifest drift, and how to fix what the scans find.',
+  description: 'Data from scanning public MCP servers: OAuth 2.1 adoption, auth gaps, manifest drift and how to fix what the scans find.',
   alternates: { canonical: '/blog' },
 }
 

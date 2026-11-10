@@ -4,7 +4,7 @@ import { DOCS, type Severity } from './_data'
 
 export const metadata: Metadata = {
   title: 'MCP server security checks: findings reference · patchbay audit',
-  description: 'What each patchbay audit finding means, why it fires, and how to fix it: OAuth 2.1, PKCE, scopes, secrets, transport and redirect checks for MCP servers.',
+  description: 'What each patchbay audit finding means, why it fires and how to fix it: OAuth 2.1, PKCE, scopes, secrets, transport and redirect checks for MCP servers.',
   alternates: { canonical: '/docs' },
 }
 
@@ -32,7 +32,7 @@ export default function DocsIndex() {
         <h1 className="text-3xl font-semibold text-ink mb-4">patchbay audit findings</h1>
         <p className="text-ink-mute mb-10">
           Every finding patchbay surfaces has an id. This page explains what each one means,
-          when it fires, and how to fix it. The scanner is in <code className="text-ink">packages/audit-core</code>.
+          when it fires and how to fix it. The scanner is in <code className="text-ink">packages/audit-core</code>.
         </p>
 
         <div className="rounded border border-paper-line">

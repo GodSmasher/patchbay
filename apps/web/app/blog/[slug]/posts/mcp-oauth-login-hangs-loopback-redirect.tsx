@@ -10,13 +10,13 @@ export function McpOauthLoginHangsLoopbackRedirect() {
       <p>
         You add a remote MCP server to Claude Code, Claude Desktop or another native client. The
         browser opens, you sign in, you click <strong>Allow</strong>. Then nothing. The client keeps
-        waiting, or the browser shows an <code>invalid_redirect_uri</code> error, and the server
+        waiting, or the browser shows an <code>invalid_redirect_uri</code> error and the server
         never shows up as connected.
       </p>
       <p>
         If the server uses OAuth, the most likely cause is on the server side: its authorization
         server does not accept loopback redirect URIs with an arbitrary port. This post explains
-        why that breaks every native client, how to confirm it in one command, and what to change.
+        why that breaks every native client, how to confirm it in one command and what to change.
       </p>
 
       <h2 className={H2}>Why native clients need a loopback redirect</h2>
@@ -44,7 +44,7 @@ export function McpOauthLoginHangsLoopbackRedirect() {
       <h2 className={H2}>Where it goes wrong</h2>
       <p>
         Many authorization servers validate redirect URIs by exact string match. That is the right
-        default for web clients, and it is wrong for loopback. There are two places it bites:
+        default for web clients and it is wrong for loopback. There are two places it bites:
       </p>
       <ul className="list-disc list-inside space-y-2 my-4 text-ink-soft">
         <li>
@@ -55,7 +55,7 @@ export function McpOauthLoginHangsLoopbackRedirect() {
         </li>
         <li>
           <strong>At authorization.</strong> Registration succeeds with one port, but the next
-          login uses a different one. Exact matching now fails, and the user sees the error only
+          login uses a different one. Exact matching now fails and the user sees the error only
           after clicking Allow.
         </li>
       </ul>
@@ -99,14 +99,14 @@ export function McpOauthLoginHangsLoopbackRedirect() {
       <ol className="list-decimal list-inside space-y-2 my-4 text-ink-soft">
         <li>
           If the registered redirect URI has scheme <code>http</code> and host{' '}
-          <code>127.0.0.1</code> or <code>[::1]</code>, compare scheme, host and path, and ignore
+          <code>127.0.0.1</code> or <code>[::1]</code>, compare scheme, host and path and ignore
           the port.
         </li>
         <li>
           Accept those URIs in Dynamic Client Registration, with any port.
         </li>
         <li>
-          Keep exact matching for everything else, and keep rejecting plain <code>http://</code>{' '}
+          Keep exact matching for everything else and keep rejecting plain <code>http://</code>{' '}
           for every non-loopback host.
         </li>
       </ol>
@@ -131,7 +131,7 @@ export function McpOauthLoginHangsLoopbackRedirect() {
       <h2 className={H2}>If it is not your server</h2>
       <p>
         As a user you cannot work around this from the client side. What helps the maintainer most
-        is a precise report: the client you used, the fact that login hangs after consent, and a
+        is a precise report: the client you used, the fact that login hangs after consent and a
         link to RFC 8252 section 7.3. If you run the audit with <code>--publish</code>, you get a
         report URL you can attach to the issue.
       </p>

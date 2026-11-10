@@ -61,13 +61,13 @@ export function StateOfMcpAuthNov2026() {
       </ul>
       <p>
         So the responsible-disclosure loop collapses at the first step: there is no one to tell. Both
-        vendors ship a live MCP endpoint that accepts mutating tool calls without a credential, and
+        vendors ship a live MCP endpoint that accepts mutating tool calls without a credential and
         neither has a channel that accepts a security report.
       </p>
       <p>
         I am going to keep the 90-day embargo running (public naming earliest Jan 31 2027) and try
-        the remaining weak channels — contact forms if any JS-rendered page reveals one, abuse
-        notifications to the registrar — but the actionable observation here is not about these two
+        the remaining weak channels (contact forms if any JS-rendered page reveals one, abuse
+        notifications to the registrar) but the actionable observation here is not about these two
         companies. It is about the MCP ecosystem: <strong>15 of 266 unique hosts across 277 MCP
         servers I scanned this week publish a security.txt</strong> (6 percent). The ones that do
         are the ones you would expect: Atlassian, Sentry, Slack, Zoom, Reddit, Hugging Face,
@@ -112,7 +112,7 @@ export function StateOfMcpAuthNov2026() {
       <h3 className="text-lg font-medium text-ink mt-6 mb-2">OAuth metadata completeness (AUTH-003 / 004 / 005)</h3>
       <p>
         If the server serves <code>/.well-known/oauth-authorization-server</code>, we read it and
-        check for PKCE S256 advertisement, resource indicators, and a dynamic client registration
+        check for PKCE S256 advertisement, resource indicators and a dynamic client registration
         endpoint. These are &quot;not advertised&quot; findings with confidence medium. A server
         can enforce the behaviour without exposing the metadata, so we only flag the metadata gap.
       </p>
@@ -126,7 +126,7 @@ export function StateOfMcpAuthNov2026() {
         The directory-mode checks for hardcoded <code>sk-...</code> / <code>ghp_...</code> /{' '}
         <code>AKIA...</code> patterns in source files (skipping test fixtures and example patterns).
         Remote-mode checks whether the endpoint accepts plain HTTP, accepts a spoofed <code>Origin</code>{' '}
-        header, and treats <code>localhost</code> consistently with <code>127.0.0.1</code> on the
+        header and treats <code>localhost</code> consistently with <code>127.0.0.1</code> on the
         token endpoint.
       </p>
       <h3 className="text-lg font-medium text-ink mt-6 mb-2">Honest probe failures (PROBE-001)</h3>
@@ -204,11 +204,11 @@ npx -y @patchbay-nebius/agent audit ./my-mcp-server --sarif > out.sarif`}
           server can replay its tokens. Credit: @Bloqarl on r/mcp.
         </li>
         <li>SCOPE-002 is name-regex heuristics on tool names. Will produce occasional false positives on names like <code>post_user</code> (meaning &quot;the user who posted&quot; vs. &quot;HTTP POST a user&quot;).</li>
-        <li>The probe tries the given URL, <code>/mcp</code>, <code>/sse</code>, <code>/messages</code>, and <code>/</code>. It won&apos;t find endpoints at unusual paths.</li>
+        <li>The probe tries the given URL, <code>/mcp</code>, <code>/sse</code>, <code>/messages</code> and <code>/</code>. It won&apos;t find endpoints at unusual paths.</li>
         <li>
           <s>Stdio transport servers (local MCP) are out of scope for probing</s>{' '}
           Shipping in 0.4.0: <code>patchbay audit --stdio &quot;npx -y @foo/mcp /path&quot;</code>{' '}
-          spawns the server as a child process, speaks MCP JSON-RPC over stdin/stdout, and
+          spawns the server as a child process, speaks MCP JSON-RPC over stdin/stdout and
           hands the tool list to MANIFEST-001. Finally makes Claude Desktop configs auditable.
           OAuth-family checks (AUTH-*, AUDIENCE-001) still only apply to HTTP targets because
           stdio has no HTTP surface.
