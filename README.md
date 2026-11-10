@@ -16,6 +16,17 @@
 > ```markdown
 > [![patchbay](https://patchbay-mcp.dev/api/badge/https%3A%2F%2Fmcp.example.com%2Fmcp.svg)](https://patchbay-mcp.dev/report/<id>)
 > ```
+>
+> **New in 0.5.0: AUTH-006 (RFC 8252 §7.3 loopback redirect check) + GitHub Action.** Drop this in your CI to fail builds on MCP OAuth gaps:
+>
+> ```yaml
+> - uses: GodSmasher/patchbay-audit@v1
+>   with:
+>     url: https://your-mcp-server.example.com/mcp
+>     fail-on: high
+> ```
+>
+> Separate repo: [GodSmasher/patchbay-audit](https://github.com/GodSmasher/patchbay-audit) · SARIF output into code scanning supported.
 
 ---
 
