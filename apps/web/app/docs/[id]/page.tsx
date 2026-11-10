@@ -20,6 +20,7 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
 
 // Checks that have a longer write-up on the blog.
 const WRITE_UPS: Record<string, { slug: string; title: string }> = {
+  'auth-001': { slug: 'mcp-server-tools-list-without-authentication', title: 'Your MCP server lists its tools to anyone. When that is fine and when it is not' },
   'auth-003': { slug: 'mcp-pkce-missing-from-oauth-metadata', title: 'MCP clients refuse to log in when PKCE is missing from your OAuth metadata' },
   'auth-005': { slug: 'mcp-dynamic-client-registration-missing', title: 'MCP server without a registration_endpoint: why clients cannot connect and how to fix it' },
   'auth-006': { slug: 'mcp-oauth-login-hangs-loopback-redirect', title: 'Why MCP OAuth login hangs after you click Allow and how to fix it' },
