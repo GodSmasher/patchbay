@@ -46,7 +46,7 @@ export default function Image() {
             Scan any MCP server in 2 seconds.
           </div>
           <div style={{ display: 'flex', fontSize: 28, color: '#4a4a4a', lineHeight: 1.4, maxWidth: 980 }}>
-            Paste the URL. 16 checks. Letter grade. Public shareable report. No install, no account.
+            Paste the URL. 15 checks. Letter grade. Public shareable report. No install, no account.
           </div>
         </div>
 

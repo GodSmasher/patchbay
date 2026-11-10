@@ -52,7 +52,8 @@ export const SCAN_FAQ: { q: string; a: string }[] = [
 ]
 
 export function ScanInfo() {
-  const checks = DOCS.filter((d) => d.id !== 'check-crashed' && d.id !== 'probe-001')
+  // auth-004 is retired: it looked for a metadata field no standard defines.
+  const checks = DOCS.filter((d) => !['check-crashed', 'probe-001', 'auth-004'].includes(d.id))
 
   return (
     <div className="bg-paper text-ink px-6 pb-20">

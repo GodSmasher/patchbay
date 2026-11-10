@@ -44,10 +44,10 @@ export const DOCS: DocEntry[] = [
   },
   {
     id: 'auth-004',
-    title: 'Resource indicators flag not present in OAuth metadata',
-    severity: 'medium',
+    title: 'Retired: resource indicators flag in OAuth metadata',
+    severity: 'info',
     oneLiner: 'OAuth metadata does not advertise "resource_indicators_supported": true.',
-    whatItMeans: `This check looks for "resource_indicators_supported": true in the authorization server metadata. Read the result with care: that field is not defined by RFC 8707, it is not in the IANA registry of authorization server metadata and the MCP authorization spec does not mention it. The spec tells clients to send the "resource" parameter whether or not the server announces support. A server without this flag can be fully compliant.
+    whatItMeans: `This check was retired on 2026-11-10 and no longer runs. Reports created before that date are shown without it. It looked for "resource_indicators_supported": true in the authorization server metadata. That field is not defined by RFC 8707, it is not in the IANA registry of authorization server metadata and the MCP authorization spec does not mention it. The spec tells clients to send the "resource" parameter whether or not the server announces support. A server without this flag can be fully compliant.
 
 What actually matters is whether the server binds tokens to its own audience and rejects tokens issued for another resource. Metadata cannot show that. The AUDIENCE-001 probe tests it directly.`,
     howToFix: `No fix is required for this finding on its own. Make sure the authorization server accepts the "resource" parameter on authorization and token requests (RFC 8707) and that the MCP server validates the audience of every token. Then confirm it with the AUDIENCE-001 probe.`,
