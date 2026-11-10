@@ -5,6 +5,7 @@ import { SubscribeBox } from '@/components/subscribe-box'
 import { getPost, POSTS } from '../_data'
 import { McpDynamicClientRegistrationMissing } from './posts/mcp-dynamic-client-registration-missing'
 import { McpOauthLoginHangsLoopbackRedirect } from './posts/mcp-oauth-login-hangs-loopback-redirect'
+import { McpServerToolsListWithoutAuthentication } from './posts/mcp-server-tools-list-without-authentication'
 import { McpPkceMissingFromOauthMetadata } from './posts/mcp-pkce-missing-from-oauth-metadata'
 import { McpTokenAudienceValidation } from './posts/mcp-token-audience-validation'
 import { McpToolsChangeAfterApproval } from './posts/mcp-tools-change-after-approval'
@@ -34,6 +35,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 }
 
 const BODIES: Record<string, () => JSX.Element> = {
+  'mcp-server-tools-list-without-authentication': McpServerToolsListWithoutAuthentication,
   'mcp-pkce-missing-from-oauth-metadata': McpPkceMissingFromOauthMetadata,
   'mcp-tools-change-after-approval': McpToolsChangeAfterApproval,
   'mcp-dynamic-client-registration-missing': McpDynamicClientRegistrationMissing,
