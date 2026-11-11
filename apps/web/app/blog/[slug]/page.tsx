@@ -10,6 +10,7 @@ import { McpTokenMissingAudienceClaimBug } from './posts/mcp-token-missing-audie
 import { McpServerTransportSecurityHeaders } from './posts/mcp-server-transport-security-headers'
 import { McpOauthIssParameterMixUpMitigation } from './posts/mcp-oauth-iss-parameter-mix-up-mitigation'
 import { McpOauthScopeHygieneThreeMistakes } from './posts/mcp-oauth-scope-hygiene-three-mistakes'
+import { McpTransportSecurityOneWeekLater } from './posts/mcp-transport-security-one-week-later'
 import { McpDynamicClientRegistrationMissing } from './posts/mcp-dynamic-client-registration-missing'
 import { McpOauthLoginHangsLoopbackRedirect } from './posts/mcp-oauth-login-hangs-loopback-redirect'
 import { McpServerToolsListWithoutAuthentication } from './posts/mcp-server-tools-list-without-authentication'
@@ -42,6 +43,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 }
 
 const BODIES: Record<string, () => JSX.Element> = {
+  'mcp-transport-security-one-week-later': McpTransportSecurityOneWeekLater,
   'mcp-oauth-scope-hygiene-three-mistakes': McpOauthScopeHygieneThreeMistakes,
   'mcp-oauth-iss-parameter-mix-up-mitigation': McpOauthIssParameterMixUpMitigation,
   'mcp-server-transport-security-headers': McpServerTransportSecurityHeaders,
