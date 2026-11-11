@@ -9,6 +9,14 @@ export interface Post {
 
 export const POSTS: Post[] = [
   {
+    slug: 'mcp-oauth-scope-hygiene-three-mistakes',
+    title: 'Scope hygiene for MCP servers: three mistakes and the checks that catch them',
+    date: '2026-11-11',
+    readingMinutes: 5,
+    summary: 'One scope for every tool, read and write share a scope, no OAuth at all. Three ways scope design fails on MCP servers and the three patchbay checks that read them together so you can fix all three in one pass.',
+    draft: true,
+  },
+  {
     slug: 'mcp-oauth-iss-parameter-mix-up-mitigation',
     title: 'The one-field OAuth flag that stops mix-up attacks on your MCP server',
     date: '2026-11-11',
