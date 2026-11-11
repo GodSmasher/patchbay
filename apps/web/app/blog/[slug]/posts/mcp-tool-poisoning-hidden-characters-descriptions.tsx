@@ -9,7 +9,7 @@ export function McpToolPoisoningHiddenCharactersDescriptions() {
     <>
       <figure className="my-6 overflow-hidden rounded border border-paper-line bg-paper">
         <video
-          src="/videos/patchbay-tool-poisoning.mp4"
+          src="/patchbay-tool-poisoning.mp4"
           className="w-full h-auto"
           controls
           playsInline
