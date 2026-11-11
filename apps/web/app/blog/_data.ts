@@ -14,7 +14,6 @@ export const POSTS: Post[] = [
     date: '2026-11-11',
     readingMinutes: 4,
     summary: 'Wildcard CORS with credentials, no HSTS on HTTPS, no X-Frame-Options or frame-ancestors, no nosniff. Four cheap headers that most MCP servers still miss and that the new HEADERS-001 check reports from a single probe.',
-    draft: true,
   },
   {
     slug: 'mcp-token-missing-audience-claim-bug',
