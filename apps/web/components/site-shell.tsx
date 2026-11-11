@@ -10,6 +10,7 @@ const NAV = [
   { href: '/scan', label: 'Scan' },
   { href: '/docs', label: 'Checks' },
   { href: '/mcp-oauth-checklist', label: 'Checklist' },
+  { href: '/leaderboard', label: 'Leaderboard' },
   { href: '/blog', label: 'Blog' },
 ]
 
@@ -46,6 +47,7 @@ export function SiteFooter() {
           <Link href="/scan" className="hover:text-ink">Scan a server</Link>
           <Link href="/docs" className="hover:text-ink">All checks</Link>
           <Link href="/mcp-oauth-checklist" className="hover:text-ink">OAuth checklist</Link>
+          <Link href="/leaderboard" className="hover:text-ink">Leaderboard</Link>
           <Link href="/blog" className="hover:text-ink">Blog</Link>
           <Link href="/privacy" className="hover:text-ink">Privacy</Link>
           <a href={GITHUB} target="_blank" rel="noopener noreferrer" className="hover:text-ink">GitHub</a>
