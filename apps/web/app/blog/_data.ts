@@ -14,7 +14,6 @@ export const POSTS: Post[] = [
     date: '2026-11-11',
     readingMinutes: 4,
     summary: 'A common defensive pattern reads if aud and aud not equal me then reject. A token with no aud claim at all slips through. Why RFC 9068 covers this, how the new probe catches it and the one-line fix.',
-    draft: true,
   },
   {
     slug: 'mcp-tool-poisoning-hidden-characters-descriptions',
