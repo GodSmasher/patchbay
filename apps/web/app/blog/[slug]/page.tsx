@@ -7,6 +7,7 @@ import { FourOauthChecksMcpAuthorizationEndpoint } from './posts/four-oauth-chec
 import { McpToolChangesBreakingAdditiveSemanticDrift } from './posts/mcp-tool-changes-breaking-additive-semantic-drift'
 import { McpToolPoisoningHiddenCharactersDescriptions } from './posts/mcp-tool-poisoning-hidden-characters-descriptions'
 import { McpTokenMissingAudienceClaimBug } from './posts/mcp-token-missing-audience-claim-bug'
+import { McpServerTransportSecurityHeaders } from './posts/mcp-server-transport-security-headers'
 import { McpDynamicClientRegistrationMissing } from './posts/mcp-dynamic-client-registration-missing'
 import { McpOauthLoginHangsLoopbackRedirect } from './posts/mcp-oauth-login-hangs-loopback-redirect'
 import { McpServerToolsListWithoutAuthentication } from './posts/mcp-server-tools-list-without-authentication'
@@ -39,6 +40,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 }
 
 const BODIES: Record<string, () => JSX.Element> = {
+  'mcp-server-transport-security-headers': McpServerTransportSecurityHeaders,
   'mcp-token-missing-audience-claim-bug': McpTokenMissingAudienceClaimBug,
   'mcp-tool-poisoning-hidden-characters-descriptions': McpToolPoisoningHiddenCharactersDescriptions,
   'mcp-tool-changes-breaking-additive-semantic-drift': McpToolChangesBreakingAdditiveSemanticDrift,
