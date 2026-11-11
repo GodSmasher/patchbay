@@ -9,6 +9,14 @@ export interface Post {
 
 export const POSTS: Post[] = [
   {
+    slug: 'mcp-token-missing-audience-claim-bug',
+    title: 'The two-line audience check that passes AUDIENCE-001 and still fails',
+    date: '2026-11-11',
+    readingMinutes: 4,
+    summary: 'A common defensive pattern reads if aud and aud not equal me then reject. A token with no aud claim at all slips through. Why RFC 9068 covers this, how the new probe catches it and the one-line fix.',
+    draft: true,
+  },
+  {
     slug: 'mcp-tool-poisoning-hidden-characters-descriptions',
     title: 'Hidden characters in MCP tool descriptions: the gap between what you see and what the model sees',
     date: '2026-11-11',
