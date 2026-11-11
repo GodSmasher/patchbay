@@ -9,6 +9,14 @@ export interface Post {
 
 export const POSTS: Post[] = [
   {
+    slug: 'mcp-tool-poisoning-hidden-characters-descriptions',
+    title: 'Hidden characters in MCP tool descriptions: the gap between what you see and what the model sees',
+    date: '2026-11-11',
+    readingMinutes: 5,
+    summary: 'MCP clients pass a tool description to the model as instruction context. Zero-width spaces, bidi overrides and Unicode tag characters let a server hide instructions from the human reader while the model still obeys them. How the attack looks, how the check finds it, how to clean descriptions in CI.',
+    draft: true,
+  },
+  {
     slug: 'mcp-tool-changes-breaking-additive-semantic-drift',
     title: 'When an MCP server changes its tools, which changes actually matter',
     date: '2026-11-11',
