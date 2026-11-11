@@ -14,7 +14,6 @@ export const POSTS: Post[] = [
     date: '2026-11-11',
     readingMinutes: 3,
     summary: 'RFC 9207 mitigates authorization-server mix-up with a single iss parameter on every response. Clients only validate it when the server advertises support. The MCP spec marks this as SHOULD today and will raise it to MUST. A one-line fix.',
-    draft: true,
   },
   {
     slug: 'mcp-server-transport-security-headers',
