@@ -14,7 +14,6 @@ export const POSTS: Post[] = [
     date: '2026-11-11',
     readingMinutes: 5,
     summary: 'OAuth 2.1 removed four things from OAuth 2.0. An MCP authorization server that still ships them is out of spec. Metadata will not tell you. Four new opt-in checks send a crafted request and read what comes back.',
-    draft: true,
   },
   {
     slug: 'mcp-server-tools-list-without-authentication',
