@@ -14,7 +14,7 @@ export function McpToolPoisoningHiddenCharactersDescriptions() {
       <p>
         MCP clients pass a tool&apos;s description straight to the model as context for planning.
         The description is not just documentation. It is instruction. Anyone who can push to the
-        server can edit that instruction, and the person who runs the agent will never notice if
+        server can edit that instruction. The person who runs the agent will never notice if
         the edit is invisible.
       </p>
 
@@ -35,7 +35,7 @@ export function McpToolPoisoningHiddenCharactersDescriptions() {
       <p>
         The second line is wrapped in U+200B zero-width spaces. Your browser does not render them.
         A copy-paste into most UIs strips or hides them. But the raw string goes to the model
-        unchanged, and the model treats what looks like a system instruction as a system
+        unchanged. The model treats what looks like a system instruction as a system
         instruction.
       </p>
       <p>
@@ -46,7 +46,7 @@ export function McpToolPoisoningHiddenCharactersDescriptions() {
 
       <h2 className={H2}>Why descriptions get shipped to the model at all</h2>
       <p>
-        The MCP protocol defines a tool with a name, an input schema, and a free-form description.
+        The MCP protocol defines a tool with a name, an input schema and a free-form description.
         Clients send all three to the model so it can decide when to call the tool and with what
         arguments. The schema constrains the arguments. The description guides the choice.
       </p>
@@ -109,7 +109,7 @@ def clean(text: str) -> str:
       </pre>
       <p>
         If you connect agents to servers you did not write, run a scan before you install each
-        server, and re-run it when the server updates. The{' '}
+        server. Re-run it when the server updates. The{' '}
         <Link href="/blog/mcp-tool-changes-breaking-additive-semantic-drift" className={A}>
           tool-changes bucketing
         </Link>{' '}
