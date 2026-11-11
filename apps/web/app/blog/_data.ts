@@ -9,6 +9,14 @@ export interface Post {
 
 export const POSTS: Post[] = [
   {
+    slug: 'mcp-oauth-iss-parameter-mix-up-mitigation',
+    title: 'The one-field OAuth flag that stops mix-up attacks on your MCP server',
+    date: '2026-11-11',
+    readingMinutes: 3,
+    summary: 'RFC 9207 mitigates authorization-server mix-up with a single iss parameter on every response. Clients only validate it when the server advertises support. The MCP spec marks this as SHOULD today and will raise it to MUST. A one-line fix.',
+    draft: true,
+  },
+  {
     slug: 'mcp-server-transport-security-headers',
     title: 'Four response headers your MCP server probably forgot',
     date: '2026-11-11',
