@@ -14,7 +14,6 @@ export const POSTS: Post[] = [
     date: '2026-11-11',
     readingMinutes: 4,
     summary: 'Not every tool-manifest edit deserves an alert. A follow-up check sorts each change into breaking, additive or semantic drift so a CI gate can fail on the one that actually breaks clients and let the rest through.',
-    draft: true,
   },
   {
     slug: 'four-oauth-checks-mcp-authorization-endpoint',
