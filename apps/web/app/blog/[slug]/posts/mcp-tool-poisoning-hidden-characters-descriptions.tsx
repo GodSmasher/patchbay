@@ -7,6 +7,16 @@ const PRE = 'rounded border border-paper-line bg-paper p-4 text-sm overflow-x-au
 export function McpToolPoisoningHiddenCharactersDescriptions() {
   return (
     <>
+      <figure className="my-6 overflow-hidden rounded border border-paper-line bg-paper">
+        <video
+          src="/videos/patchbay-tool-poisoning.mp4"
+          className="w-full h-auto"
+          controls
+          playsInline
+          preload="metadata"
+          aria-label="Tool poisoning in 34 seconds: what you see versus what the model sees"
+        />
+      </figure>
       <p>
         You read a tool description on a page and it looks fine. The model reads the same
         description and sees something different. That gap is the attack.
