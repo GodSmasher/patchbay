@@ -9,6 +9,14 @@ export interface Post {
 
 export const POSTS: Post[] = [
   {
+    slug: 'mcp-tool-changes-breaking-additive-semantic-drift',
+    title: 'When an MCP server changes its tools, which changes actually matter',
+    date: '2026-11-11',
+    readingMinutes: 4,
+    summary: 'Not every tool-manifest edit deserves an alert. A follow-up check sorts each change into breaking, additive or semantic drift so a CI gate can fail on the one that actually breaks clients and let the rest through.',
+    draft: true,
+  },
+  {
     slug: 'four-oauth-checks-mcp-authorization-endpoint',
     title: 'Four things OAuth 2.1 took out and whether MCP servers got the memo',
     date: '2026-11-11',
