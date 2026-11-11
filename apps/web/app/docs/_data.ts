@@ -218,6 +218,42 @@ The MCP spec marks this as SHOULD today and says a future revision will raise it
     specUrl: 'https://datatracker.ietf.org/doc/html/rfc9207#section-2.4',
   },
   {
+    id: 'pkce-001',
+    title: 'Authorization server issues codes without PKCE',
+    severity: 'critical',
+    oneLiner: 'The /authorize endpoint issued an authorization code for a request that had no code_challenge.',
+    whatItMeans: `OAuth 2.1 Section 7.5.1 requires PKCE on every authorization code flow. The MCP authorization spec revision 2026-07-28 inherits that. An authorization server that still issues codes without a code_challenge offers no protection against a stolen code: anyone who intercepts the authorization response can redeem it.
+
+The check is opt-in. patchbay registers a throw-away client via Dynamic Client Registration, then sends one /authorize request with a valid redirect and no code_challenge parameter. If the server responds with a redirect that carries an authorization code, the check fires critical. If the server rejects the request with an error parameter or a 4xx status, it passes silently.`,
+    howToFix: `Reject any /authorize request that lacks a code_challenge parameter. Return a 302 redirect to the registered redirect_uri with error=invalid_request. Do not accept missing PKCE for confidential clients either. OAuth 2.1 removed that exception.`,
+    spec: 'OAuth 2.1 Section 7.5.1',
+    specUrl: 'https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1-13#section-7.5.1',
+  },
+  {
+    id: 'pkce-002',
+    title: 'Authorization server accepts plain PKCE',
+    severity: 'high',
+    oneLiner: 'The /authorize endpoint accepted code_challenge_method=plain.',
+    whatItMeans: `OAuth 2.1 Section 7.5.2 removes the plain code_challenge_method. With plain the verifier and the challenge are the same string, so anyone who intercepts the authorization request also has the verifier and PKCE adds no protection. Only S256 is allowed.
+
+The check sends one /authorize request with a valid code_challenge value but code_challenge_method=plain. If the server responds with a redirect that carries an authorization code, PKCE-002 fires high. The server may still enforce S256 for other code paths; the check reports what the endpoint actually accepted.`,
+    howToFix: `Reject any /authorize request whose code_challenge_method is not S256. Return a 302 redirect with error=invalid_request. Removal of plain is explicit in OAuth 2.1 and has been RECOMMENDED since RFC 7636.`,
+    spec: 'OAuth 2.1 Section 7.5.2',
+    specUrl: 'https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1-13#section-7.5.2',
+  },
+  {
+    id: 'implicit-001',
+    title: 'Authorization server supports the implicit grant',
+    severity: 'critical',
+    oneLiner: 'The /authorize endpoint honoured response_type=token and issued an access token in the URL fragment.',
+    whatItMeans: `OAuth 2.1 removes the implicit grant. The pattern leaks access tokens via URL fragments and browser history, has no way to bind a token to a sender and offers no refresh. The MCP authorization spec revision 2026-07-28 inherits the removal.
+
+The check sends one /authorize request with response_type=token. If the server responds with an access token in the fragment, IMPLICIT-001 fires critical. Rejecting with error=unsupported_response_type passes silently.`,
+    howToFix: `Reject /authorize requests whose response_type is not code. Return a 302 redirect with error=unsupported_response_type to the registered redirect_uri. Clients that still use the implicit grant should migrate to authorization code with PKCE.`,
+    spec: 'OAuth 2.1 Section 10',
+    specUrl: 'https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1-13#section-10',
+  },
+  {
     id: 'scope-001',
     title: 'No per-tool scopes',
     severity: 'high',
@@ -274,6 +310,18 @@ The MCP spec marks this as SHOULD today and says a future revision will raise it
     howToFix: `Normalise all loopback redirect_uri values before comparison. Treat localhost, 127.0.0.1 and [::1] as equivalent per RFC 8252 §7.3. Accept any port on loopback addresses, since native app ports are ephemeral.`,
     spec: 'RFC 8252 §7.3',
     specUrl: 'https://datatracker.ietf.org/doc/html/rfc8252#section-7.3',
+  },
+  {
+    id: 'redirect-002',
+    title: 'Authorization server accepts unregistered redirect_uri',
+    severity: 'critical',
+    oneLiner: 'The /authorize endpoint delivered a response to a redirect_uri the client never registered.',
+    whatItMeans: `OAuth 2.1 Section 2.3.1 requires exact-match comparison of redirect_uri against the set registered with the client. A server that accepts a redirect_uri the client never registered turns itself into an open redirector and lets an attacker exfiltrate authorization codes to any host they control.
+
+The check registers a client with redirect_uri=http://127.0.0.1:33419/callback, then sends /authorize with redirect_uri=https://attacker.example.com/callback. If the server redirects to the attacker host or issues a code, REDIRECT-002 fires critical.`,
+    howToFix: `Validate redirect_uri with an exact-string comparison against the client's registered redirect_uris, including scheme, host, port, path and trailing slash. Reject with error=invalid_request when no entry matches. Do not perform substring, prefix or host-only comparison.`,
+    spec: 'OAuth 2.1 Section 2.3.1',
+    specUrl: 'https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1-13#section-2.3.1',
   },
   {
     id: 'probe-001',

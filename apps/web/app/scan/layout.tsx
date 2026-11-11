@@ -6,7 +6,7 @@ import { SiteShell } from '@/components/site-shell'
 // without this layout the page inherits the homepage title and description.
 const TITLE = 'MCP server security scanner: free OAuth 2.1 audit | patchbay'
 const DESCRIPTION =
-  'Paste an MCP server URL and get a security grade in seconds. Checks authentication, OAuth 2.1 metadata, PKCE, client registration, scopes and transport. Free, open source, no account. 22 checks in the CLI.'
+  'Paste an MCP server URL and get a security grade in seconds. Checks authentication, OAuth 2.1 metadata, PKCE, client registration, scopes and transport. Free, open source, no account. 26 checks in the CLI.'
 
 export const metadata: Metadata = {
   title: TITLE,

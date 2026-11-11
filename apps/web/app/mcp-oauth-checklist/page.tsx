@@ -86,6 +86,44 @@ const GROUPS: Group[] = [
     ],
   },
   {
+    title: 'Authorization endpoint',
+    intro: 'What the /authorize endpoint accepts in practice, not what the metadata claims. These checks register a throw-away client via DCR and send crafted requests.',
+    items: [
+      {
+        title: 'Require PKCE on every authorization code flow',
+        why: 'OAuth 2.1 and the MCP spec require PKCE on every code flow. A code without PKCE can be redeemed by anyone who intercepts it, so every /authorize request must carry a code_challenge.',
+        basis: 'OAuth 2.1 Section 7.5.1',
+        how: 'flag',
+        flag: '--probe-headless-oauth',
+        doc: 'pkce-001',
+      },
+      {
+        title: 'Reject code_challenge_method plain',
+        why: 'With plain the verifier and the challenge are the same string. OAuth 2.1 removed the method; only S256 is allowed.',
+        basis: 'OAuth 2.1 Section 7.5.2',
+        how: 'flag',
+        flag: '--probe-headless-oauth',
+        doc: 'pkce-002',
+      },
+      {
+        title: 'Do not honour response_type=token',
+        why: 'OAuth 2.1 removes the implicit grant. Access tokens in URL fragments leak via browser history and referer headers and cannot be refreshed.',
+        basis: 'OAuth 2.1 Section 10',
+        how: 'flag',
+        flag: '--probe-headless-oauth',
+        doc: 'implicit-001',
+      },
+      {
+        title: 'Use exact-match comparison for redirect_uri',
+        why: 'Accepting a redirect_uri the client never registered turns the authorization server into an open redirector for code exfiltration. Exact-string match, including scheme, host, port, path and trailing slash.',
+        basis: 'OAuth 2.1 Section 2.3.1',
+        how: 'flag',
+        flag: '--probe-headless-oauth',
+        doc: 'redirect-002',
+      },
+    ],
+  },
+  {
     title: 'Tokens',
     intro: 'What the server does with a token once it arrives.',
     items: [

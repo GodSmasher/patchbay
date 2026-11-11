@@ -16,10 +16,14 @@ const CLI_ONLY: Record<string, string> = {
   'audience-002': 'opt-in probe, needs your token',
   'manifest-001': 'needs a pinned earlier run',
   'manifest-002': 'needs a pinned earlier run',
+  'pkce-001': 'opt-in probe, registers a client via DCR',
+  'pkce-002': 'opt-in probe, registers a client via DCR',
+  'implicit-001': 'opt-in probe, registers a client via DCR',
+  'redirect-002': 'opt-in probe, registers a client via DCR',
 }
 
 const GROUPS: { title: string; prefixes: string[] }[] = [
-  { title: 'Authentication and OAuth', prefixes: ['auth-', 'audience-', 'resource-', 'redirect-', 'iss-'] },
+  { title: 'Authentication and OAuth', prefixes: ['auth-', 'audience-', 'resource-', 'redirect-', 'iss-', 'pkce-', 'implicit-'] },
   { title: 'Scopes', prefixes: ['scope-'] },
   { title: 'Transport', prefixes: ['transport-', 'headers-'] },
   { title: 'Secrets', prefixes: ['secret-'] },
