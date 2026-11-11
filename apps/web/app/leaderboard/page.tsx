@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { loadLeaderboardSnapshot, type LeaderboardEntry, type LeaderboardGrade } from '@/lib/leaderboard-store'
 
 export const runtime = 'nodejs'
-export const revalidate = 300
+export const revalidate = 60
 
 const SITE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://patchbay-mcp.dev'
 const TITLE = 'MCP Server Security Leaderboard · patchbay'

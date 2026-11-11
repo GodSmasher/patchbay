@@ -103,18 +103,10 @@ function writeDevJson(path: string, value: unknown): void {
 }
 
 export async function saveLeaderboardSnapshot(snapshot: LeaderboardSnapshot): Promise<void> {
-  console.log('[leaderboard-store] save: kvAvailable=' + kvAvailable() + ' entries=' + snapshot.entries.length)
   if (kvAvailable()) {
-    try {
-      await kv.set(SNAPSHOT_KEY, snapshot, { ex: TTL_SECONDS })
-      console.log('[leaderboard-store] snapshot set ok')
-      for (const entry of snapshot.entries) {
-        await kv.set(HOST_PREFIX + entry.slug, entry, { ex: TTL_SECONDS })
-      }
-      console.log('[leaderboard-store] all host entries set')
-    } catch (e) {
-      console.error('[leaderboard-store] save failed', e)
-      throw e
+    await kv.set(SNAPSHOT_KEY, snapshot, { ex: TTL_SECONDS })
+    for (const entry of snapshot.entries) {
+      await kv.set(HOST_PREFIX + entry.slug, entry, { ex: TTL_SECONDS })
     }
     return
   }
@@ -130,10 +122,8 @@ export async function saveLeaderboardSnapshot(snapshot: LeaderboardSnapshot): Pr
 }
 
 export async function loadLeaderboardSnapshot(): Promise<LeaderboardSnapshot | null> {
-  console.log('[leaderboard-store] load: kvAvailable=' + kvAvailable())
   if (kvAvailable()) {
     const snap = await kv.get<LeaderboardSnapshot>(SNAPSHOT_KEY)
-    console.log('[leaderboard-store] load result: ' + (snap ? 'found cohortSize=' + snap.cohortSize : 'null'))
     return snap ?? null
   }
   if (devFileAvailable()) {

@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server'
 import { loadLeaderboardSnapshot } from '@/lib/leaderboard-store'
 
 export const runtime = 'nodejs'
-export const revalidate = 300
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 /**
  * GET /api/leaderboard
@@ -17,6 +18,6 @@ export async function GET(): Promise<Response> {
     return NextResponse.json({ error: 'no-snapshot-yet' }, { status: 404 })
   }
   return NextResponse.json(snapshot, {
-    headers: { 'cache-control': 'public, max-age=60, s-maxage=300' },
+    headers: { 'cache-control': 'no-store' },
   })
 }
