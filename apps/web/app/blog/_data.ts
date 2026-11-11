@@ -9,6 +9,14 @@ export interface Post {
 
 export const POSTS: Post[] = [
   {
+    slug: 'four-oauth-checks-mcp-authorization-endpoint',
+    title: 'Four things OAuth 2.1 took out, and whether MCP servers got the memo',
+    date: '2026-11-11',
+    readingMinutes: 5,
+    summary: 'OAuth 2.1 removed four things from OAuth 2.0. An MCP authorization server that still ships them is out of spec, and metadata will not tell you. Four new opt-in checks that send a crafted request and read what comes back.',
+    draft: true,
+  },
+  {
     slug: 'mcp-server-tools-list-without-authentication',
     title: 'Your MCP server lists its tools to anyone. When that is fine and when it is not',
     date: '2026-11-10',

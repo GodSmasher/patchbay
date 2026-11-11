@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { SubscribeBox } from '@/components/subscribe-box'
 import { getPost, POSTS } from '../_data'
+import { FourOauthChecksMcpAuthorizationEndpoint } from './posts/four-oauth-checks-mcp-authorization-endpoint'
 import { McpDynamicClientRegistrationMissing } from './posts/mcp-dynamic-client-registration-missing'
 import { McpOauthLoginHangsLoopbackRedirect } from './posts/mcp-oauth-login-hangs-loopback-redirect'
 import { McpServerToolsListWithoutAuthentication } from './posts/mcp-server-tools-list-without-authentication'
@@ -35,6 +36,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 }
 
 const BODIES: Record<string, () => JSX.Element> = {
+  'four-oauth-checks-mcp-authorization-endpoint': FourOauthChecksMcpAuthorizationEndpoint,
   'mcp-server-tools-list-without-authentication': McpServerToolsListWithoutAuthentication,
   'mcp-pkce-missing-from-oauth-metadata': McpPkceMissingFromOauthMetadata,
   'mcp-tools-change-after-approval': McpToolsChangeAfterApproval,
