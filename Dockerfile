@@ -26,7 +26,7 @@ RUN addgroup -S patchbay && adduser -S patchbay -G patchbay
 
 WORKDIR /app
 
-RUN npm install --omit=dev --no-fund --no-audit @patchbay-nebius/mcp@0.4.0 \
+RUN npm install --omit=dev --no-fund --no-audit @patchbay-nebius/mcp@0.4.1 \
  && npm cache clean --force \
  && chown -R patchbay:patchbay /app
 
