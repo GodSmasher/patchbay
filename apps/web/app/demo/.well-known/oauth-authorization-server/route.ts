@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic'
  *   - `code_challenge_methods_supported` includes plain → PKCE-002 (high, opt-in)
  *   - `response_types_supported` includes "token"       → IMPLICIT-001 (critical, opt-in)
  *   - `authorization_response_iss_parameter_supported` false → ISS-001 (low)
- *   - no `registration_endpoint`, no `cimd_*` fields    → AUTH-005 (high)
+ *   - `registration_endpoint` present but unauthenticated → wires DCR for the headless probe
  *   - no `dpop_signing_alg_values_supported`            → part of posture
  *
  * The matching /authorize endpoint deliberately accepts crafted requests
@@ -27,6 +27,7 @@ export async function GET(req: Request): Promise<Response> {
     issuer: base,
     authorization_endpoint: base + '/authorize',
     token_endpoint: base + '/token',
+    registration_endpoint: base + '/register',
     response_types_supported: ['code', 'token'],
     grant_types_supported: ['authorization_code', 'implicit'],
     code_challenge_methods_supported: ['plain'],
