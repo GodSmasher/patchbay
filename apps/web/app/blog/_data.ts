@@ -9,6 +9,14 @@ export interface Post {
 
 export const POSTS: Post[] = [
   {
+    slug: 'mcp-transport-security-one-week-later',
+    title: 'One week later: 97 percent of tracked MCP servers trip the new transport-security check',
+    date: '2026-11-12',
+    readingMinutes: 5,
+    summary: 'A second passive sweep of the same cohort as last week shows 121 of 125 reachable MCP servers missing at least one of four transport-security headers. Ten hosts lost a letter grade without changing any code. Which ones and what the fix is.',
+    draft: true,
+  },
+  {
     slug: 'mcp-oauth-scope-hygiene-three-mistakes',
     title: 'Scope hygiene for MCP servers: three mistakes and the checks that catch them',
     date: '2026-11-11',
