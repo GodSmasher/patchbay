@@ -1,0 +1,425 @@
+{
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/Schemata/sarif-schema-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "patchbay-audit",
+          "version": "0.1.0",
+          "informationUri": "https://patchbay-mcp.dev",
+          "rules": [
+            {
+              "id": "AUTH-001",
+              "name": "AUTH-001",
+              "shortDescription": {
+                "text": "No authentication required (server has write tools)"
+              },
+              "fullDescription": {
+                "text": "Require OAuth 2.1 bearer tokens. Serve /.well-known/oauth-protected-resource and reject unauthenticated requests on initialize and tools/* endpoints."
+              },
+              "helpUri": "https://patchbay-mcp.dev/docs/auth-001",
+              "defaultConfiguration": {
+                "level": "error"
+              }
+            },
+            {
+              "id": "REDIRECT-002",
+              "name": "REDIRECT-002",
+              "shortDescription": {
+                "text": "Authorization code delivered to unregistered redirect_uri"
+              },
+              "fullDescription": {
+                "text": "Validate redirect_uri with an exact-string comparison (including scheme, host, port, path, and trailing slash) against the client's registered redirect_uris. Reject with error=invalid_request when no entry matches. Do not perform a substring, prefix, or host-only comparison."
+              },
+              "helpUri": "https://patchbay-mcp.dev/docs/redirect-002",
+              "defaultConfiguration": {
+                "level": "error"
+              }
+            },
+            {
+              "id": "PKCE-001",
+              "name": "PKCE-001",
+              "shortDescription": {
+                "text": "Authorization code issued without PKCE"
+              },
+              "fullDescription": {
+                "text": "Reject any /authorize request that lacks a `code_challenge` parameter. Return a 302 redirect with error=invalid_request to the registered redirect_uri, per OAuth 2.1 Section 7.5.1. Do not accept missing PKCE for confidential clients either — OAuth 2.1 removed that exception."
+              },
+              "helpUri": "https://patchbay-mcp.dev/docs/pkce-001",
+              "defaultConfiguration": {
+                "level": "error"
+              }
+            },
+            {
+              "id": "IMPLICIT-001",
+              "name": "IMPLICIT-001",
+              "shortDescription": {
+                "text": "Implicit grant (response_type=token) still enabled"
+              },
+              "fullDescription": {
+                "text": "Reject /authorize requests whose response_type is not `code`. Return a 302 redirect with error=unsupported_response_type to the registered redirect_uri. Clients that still rely on the implicit grant should migrate to authorization code + PKCE."
+              },
+              "helpUri": "https://patchbay-mcp.dev/docs/implicit-001",
+              "defaultConfiguration": {
+                "level": "error"
+              }
+            },
+            {
+              "id": "AUTH-003",
+              "name": "AUTH-003",
+              "shortDescription": {
+                "text": "PKCE S256 not advertised in OAuth metadata"
+              },
+              "fullDescription": {
+                "text": "Advertise PKCE in /.well-known/oauth-authorization-server with \"code_challenge_methods_supported\": [\"S256\"] and enforce S256 server-side on the token endpoint."
+              },
+              "helpUri": "https://patchbay-mcp.dev/docs/auth-003",
+              "defaultConfiguration": {
+                "level": "error"
+              }
+            },
+            {
+              "id": "SCOPE-001",
+              "name": "SCOPE-001",
+              "shortDescription": {
+                "text": "No per-tool scopes declared"
+              },
+              "fullDescription": {
+                "text": "Give every tool its own OAuth scope (`tool:name:action`). Reject tool calls whose token lacks the required scope."
+              },
+              "helpUri": "https://patchbay-mcp.dev/docs/scope-001",
+              "defaultConfiguration": {
+                "level": "error"
+              }
+            },
+            {
+              "id": "PKCE-002",
+              "name": "PKCE-002",
+              "shortDescription": {
+                "text": "Authorization server accepts plain PKCE"
+              },
+              "fullDescription": {
+                "text": "Reject any /authorize request whose code_challenge_method is not `S256`. Return a 302 redirect with error=invalid_request. The removal of `plain` is explicit in OAuth 2.1 and has been RECOMMENDED since RFC 7636."
+              },
+              "helpUri": "https://patchbay-mcp.dev/docs/pkce-002",
+              "defaultConfiguration": {
+                "level": "error"
+              }
+            },
+            {
+              "id": "POISONING-001",
+              "name": "POISONING-001",
+              "shortDescription": {
+                "text": "Hidden Unicode in tool metadata"
+              },
+              "fullDescription": {
+                "text": "Strip zero-width characters (U+200B U+200C U+200D U+FEFF), bidi overrides (U+202A..U+202E, U+2066..U+2069) and any opaque tag markers from every tool description and input-schema description before publishing. Normalise with NFC and ASCII-print-filter in CI."
+              },
+              "helpUri": "https://patchbay-mcp.dev/docs/poisoning-001",
+              "defaultConfiguration": {
+                "level": "error"
+              }
+            },
+            {
+              "id": "RESOURCE-001",
+              "name": "RESOURCE-001",
+              "shortDescription": {
+                "text": "Protected Resource Metadata missing authorization_servers"
+              },
+              "fullDescription": {
+                "text": "Add an \"authorization_servers\" field to /.well-known/oauth-protected-resource as a JSON array of at least one issuer URL (the same issuer you advertise in /.well-known/oauth-authorization-server)."
+              },
+              "helpUri": "https://patchbay-mcp.dev/docs/resource-001",
+              "defaultConfiguration": {
+                "level": "error"
+              }
+            },
+            {
+              "id": "HEADERS-001",
+              "name": "HEADERS-001",
+              "shortDescription": {
+                "text": "3 transport-security header gap(s)"
+              },
+              "fullDescription": {
+                "text": "Set the missing headers on every response from the MCP endpoint. Start with X-Content-Type-Options: nosniff, Strict-Transport-Security on HTTPS (max-age at least 15552000), and either X-Frame-Options: DENY or a Content-Security-Policy frame-ancestors directive. Review Access-Control-Allow-Origin if the endpoint is not meant to be reachable from arbitrary browser origins."
+              },
+              "helpUri": "https://patchbay-mcp.dev/docs/headers-001",
+              "defaultConfiguration": {
+                "level": "warning"
+              }
+            },
+            {
+              "id": "TRANSPORT-002",
+              "name": "TRANSPORT-002",
+              "shortDescription": {
+                "text": "Server does not reject spoofed Origin header"
+              },
+              "fullDescription": {
+                "text": "If this endpoint can be called from browser clients (Streamable HTTP in a webapp), validate the Origin header against an allowlist. Otherwise ignore this finding."
+              },
+              "helpUri": "https://patchbay-mcp.dev/docs/transport-002",
+              "defaultConfiguration": {
+                "level": "note"
+              }
+            },
+            {
+              "id": "ISS-001",
+              "name": "ISS-001",
+              "shortDescription": {
+                "text": "RFC 9207 iss parameter not advertised in OAuth metadata"
+              },
+              "fullDescription": {
+                "text": "Set \"authorization_response_iss_parameter_supported\": true in /.well-known/oauth-authorization-server and include the iss parameter in every authorization response (including error responses)."
+              },
+              "helpUri": "https://patchbay-mcp.dev/docs/iss-001",
+              "defaultConfiguration": {
+                "level": "note"
+              }
+            },
+            {
+              "id": "AUTH-005",
+              "name": "AUTH-005",
+              "shortDescription": {
+                "text": "Dynamic Client Registration used but deprecated"
+              },
+              "fullDescription": {
+                "text": "Add support for OAuth Client ID Metadata Documents (the current MCP spec primary registration mechanism) and advertise it by setting \"client_id_metadata_document_supported\": true in /.well-known/oauth-authorization-server. Existing DCR endpoint can stay for backwards compatibility."
+              },
+              "helpUri": "https://patchbay-mcp.dev/docs/auth-005",
+              "defaultConfiguration": {
+                "level": "note"
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "AUTH-001",
+          "level": "error",
+          "message": {
+            "text": "No authentication required (server has write tools): tools/list returned 3 tool(s) without credentials at https://demo.patchbay-mcp.dev/mcp. Mutating tool(s) detected: delete_everything."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "https://demo.patchbay-mcp.dev/mcp"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "REDIRECT-002",
+          "level": "error",
+          "message": {
+            "text": "Authorization code delivered to unregistered redirect_uri: https://demo.patchbay-mcp.dev/demo/authorize issued a redirect for redirect_uri=https://attacker.example.com/callback although the probe client was registered with redirect_uri=http://127.0.0.1:33419/callback (HTTP 302). OAuth 2.1 Section 2.3.1 requires exact-match comparison of redirect_uri against the registered set. Accepting an unregistered redirect turns this authorization server into an open redirector for code exfiltration."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "https://demo.patchbay-mcp.dev/mcp"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "PKCE-001",
+          "level": "error",
+          "message": {
+            "text": "Authorization code issued without PKCE: https://demo.patchbay-mcp.dev/demo/authorize issued a redirect with an authorization code for a request that had NO code_challenge parameter (HTTP 302). OAuth 2.1 Section 7.5.1 requires PKCE on every authorization code flow; the MCP authorization spec revision 2026-07-28 makes this mandatory for MCP servers. Without PKCE, a stolen authorization code can be redeemed by any party that intercepts it."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "https://demo.patchbay-mcp.dev/mcp"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "IMPLICIT-001",
+          "level": "error",
+          "message": {
+            "text": "Implicit grant (response_type=token) still enabled: https://demo.patchbay-mcp.dev/demo/authorize responded to response_type=token with access token issued in fragment (implicit grant) (HTTP 302). OAuth 2.1 removes the implicit grant; the MCP authorization spec revision 2026-07-28 inherits that. Access tokens delivered in the URL fragment leak into browser history and referer headers."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "https://demo.patchbay-mcp.dev/mcp"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "AUTH-003",
+          "level": "error",
+          "message": {
+            "text": "PKCE S256 not advertised in OAuth metadata: code_challenge_methods_supported = [\"plain\"] at https://demo.patchbay-mcp.dev/mcp. Per MCP authorization spec revision 2026-07-28 security considerations, when this field does not include \"S256\" the authorization server is treated as not supporting PKCE and spec-compliant MCP clients MUST refuse to proceed. The server may still enforce S256 at runtime for non-MCP clients, but the MCP flow is blocked before login."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "https://demo.patchbay-mcp.dev/mcp"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "SCOPE-001",
+          "level": "error",
+          "message": {
+            "text": "No per-tool scopes declared: 3 tools listed via tools/list on an OAuth-protected server, none declare scopes."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "https://demo.patchbay-mcp.dev/mcp"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "PKCE-002",
+          "level": "error",
+          "message": {
+            "text": "Authorization server accepts plain PKCE: https://demo.patchbay-mcp.dev/demo/authorize issued an authorization code for a request with code_challenge_method=plain (HTTP 302). OAuth 2.1 Section 7.5.2 removed the plain method; the server must require S256. With plain, challenge and verifier are identical, so intercepting the authorization request also reveals the verifier."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "https://demo.patchbay-mcp.dev/mcp"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "POISONING-001",
+          "level": "error",
+          "message": {
+            "text": "Hidden Unicode in tool metadata: 2 hidden-character occurrence(s) across 1 tool(s). Examples: fetch_doc description: U+200B zero-width space; fetch_doc description: bidi override U+202A..E. These characters do not render in a catalog UI but are fed verbatim to the model."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "https://demo.patchbay-mcp.dev/mcp"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "RESOURCE-001",
+          "level": "error",
+          "message": {
+            "text": "Protected Resource Metadata missing authorization_servers: https://demo.patchbay-mcp.dev/mcp serves /.well-known/oauth-protected-resource but the document does not include a non-empty \"authorization_servers\" array of strings. Per RFC 9728 and MCP authorization spec revision 2025-06-18, this field MUST be present with at least one authorization server issuer URL."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "https://demo.patchbay-mcp.dev/mcp"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "POISONING-001",
+          "level": "warning",
+          "message": {
+            "text": "Imperative or role-marker patterns in tool metadata: 2 pattern match(es) across 1 tool(s): fetch_doc description: \"<SYSTEM>\"; fetch_doc description: \"Ignore previous instructions\". Tool descriptions and input-schema descriptions are read by the model as instruction context; patterns that look like system prompts or role switches steer it directly."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "https://demo.patchbay-mcp.dev/mcp"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "HEADERS-001",
+          "level": "warning",
+          "message": {
+            "text": "3 transport-security header gap(s): At https://demo.patchbay-mcp.dev/mcp:\n- Access-Control-Allow-Origin \"*\" combined with Access-Control-Allow-Credentials \"true\" is a browser-rejected anti-pattern and often an auth-bypass misconfiguration.\n- No X-Frame-Options and no frame-ancestors directive in Content-Security-Policy. Response can be framed cross-origin.\n- X-Content-Type-Options is not \"nosniff\". Error responses may be MIME-sniffed by browsers."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "https://demo.patchbay-mcp.dev/mcp"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "TRANSPORT-002",
+          "level": "note",
+          "message": {
+            "text": "Server does not reject spoofed Origin header: https://demo.patchbay-mcp.dev/mcp answered a tools/list call with Origin: https://attacker.example without rejecting it. Only relevant for servers intended to accept browser clients; server-to-server MCP endpoints do not need Origin validation."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "https://demo.patchbay-mcp.dev/mcp"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "ISS-001",
+          "level": "note",
+          "message": {
+            "text": "RFC 9207 iss parameter not advertised in OAuth metadata: https://demo.patchbay-mcp.dev/mcp's authorization-server metadata does not set \"authorization_response_iss_parameter_supported\": true. MCP spec revision 2026-07-28 SHOULD-requires MCP authorization servers to send the iss parameter in authorization responses; without the metadata flag, clients cannot know to validate it per RFC 9207 Section 2.4."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "https://demo.patchbay-mcp.dev/mcp"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "AUTH-005",
+          "level": "note",
+          "message": {
+            "text": "Dynamic Client Registration used but deprecated: https://demo.patchbay-mcp.dev/mcp advertises a \"registration_endpoint\" (RFC 7591 Dynamic Client Registration) but no \"client_id_metadata_document_supported\". DCR is deprecated in MCP authorization spec revision 2026-07-28 and retained for backwards compatibility only."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "https://demo.patchbay-mcp.dev/mcp"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
