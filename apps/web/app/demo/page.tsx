@@ -1,5 +1,4 @@
 import type { Metadata } from 'next'
-import Link from 'next/link'
 
 export const runtime = 'nodejs'
 export const revalidate = 3600
@@ -19,7 +18,7 @@ export default function DemoPage() {
   return (
     <main style={{ maxWidth: 820, margin: '0 auto', padding: '2rem 1rem', fontFamily: 'ui-sans-serif, system-ui, sans-serif', lineHeight: 1.55 }}>
       <nav style={{ marginBottom: '1.5rem' }}>
-        <Link href="/" style={{ color: '#6366f1' }}>← patchbay</Link>
+        <a href="https://patchbay-mcp.dev/" style={{ color: '#6366f1' }}>← patchbay</a>
       </nav>
 
       <h1 style={{ fontSize: '2rem', margin: '0 0 0.5rem' }}>Demo MCP server</h1>
@@ -49,10 +48,8 @@ npx -y @patchbay-nebius/agent audit https://patchbay-mcp.dev/demo/mcp --probe-he
         <tbody>
           <tr style={{ borderBottom: '1px solid #f3f4f6' }}><td style={{ padding: '0.4rem 0.25rem' }}><code>AUTH-001</code></td><td style={{ padding: '0.4rem 0.25rem' }}><code>tools/list</code> succeeds without credentials</td></tr>
           <tr style={{ borderBottom: '1px solid #f3f4f6' }}><td style={{ padding: '0.4rem 0.25rem' }}><code>AUTH-003</code></td><td style={{ padding: '0.4rem 0.25rem' }}>OAuth metadata lists only <code>plain</code> PKCE, no S256</td></tr>
-          <tr style={{ borderBottom: '1px solid #f3f4f6' }}><td style={{ padding: '0.4rem 0.25rem' }}><code>AUTH-005</code></td><td style={{ padding: '0.4rem 0.25rem' }}>No CIMD, no DCR registration endpoint</td></tr>
           <tr style={{ borderBottom: '1px solid #f3f4f6' }}><td style={{ padding: '0.4rem 0.25rem' }}><code>RESOURCE-001</code></td><td style={{ padding: '0.4rem 0.25rem' }}>Protected Resource Metadata missing <code>authorization_servers</code></td></tr>
           <tr style={{ borderBottom: '1px solid #f3f4f6' }}><td style={{ padding: '0.4rem 0.25rem' }}><code>SCOPE-001</code></td><td style={{ padding: '0.4rem 0.25rem' }}>Every tool uses one scope (<code>read</code>)</td></tr>
-          <tr style={{ borderBottom: '1px solid #f3f4f6' }}><td style={{ padding: '0.4rem 0.25rem' }}><code>SCOPE-002</code></td><td style={{ padding: '0.4rem 0.25rem' }}><code>delete_everything</code> shares scope with reads</td></tr>
           <tr style={{ borderBottom: '1px solid #f3f4f6' }}><td style={{ padding: '0.4rem 0.25rem' }}><code>HEADERS-001</code></td><td style={{ padding: '0.4rem 0.25rem' }}>Wildcard CORS with credentials, no HSTS, no X-Frame, no nosniff</td></tr>
           <tr style={{ borderBottom: '1px solid #f3f4f6' }}><td style={{ padding: '0.4rem 0.25rem' }}><code>POISONING-001</code></td><td style={{ padding: '0.4rem 0.25rem' }}>Zero-width Unicode and <code>&lt;SYSTEM&gt;</code> marker in a tool description</td></tr>
           <tr style={{ borderBottom: '1px solid #f3f4f6' }}><td style={{ padding: '0.4rem 0.25rem' }}><code>ISS-001</code></td><td style={{ padding: '0.4rem 0.25rem' }}><code>authorization_response_iss_parameter_supported: false</code></td></tr>
