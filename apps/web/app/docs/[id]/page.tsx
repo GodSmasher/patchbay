@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { SubscribeBox } from '@/components/subscribe-box'
+import { DemoCTA } from '@/components/demo-cta'
 import { DOCS, getDoc, type Severity } from '../_data'
 
 export function generateStaticParams() {
@@ -93,6 +94,8 @@ export default function DocPage({ params }: { params: { id: string } }) {
             </Link>
           </section>
         )}
+
+        <DemoCTA checkId={doc.id} />
 
         <section className="border-t border-paper-line pt-8 mt-16">
           <p className="text-sm text-ink-mute">
