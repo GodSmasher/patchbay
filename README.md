@@ -41,6 +41,7 @@
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![nebius](https://img.shields.io/badge/powered%20by-Nebius%20Token%20Factory-0F172A)](https://tokenfactory.nebius.com)
 [![Listed on mcpservers.org](https://mcpservers.org/badge.svg)](https://mcpservers.org/servers/godsmasher/patchbay)
+[![patchbay MCP server](https://mcprush.com/badge/patchbay-mcp/card.svg?theme=light)](https://mcprush.com/to/patchbay-mcp?ref=badge)
 
 ### Works with
 
