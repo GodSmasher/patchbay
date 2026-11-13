@@ -14,18 +14,21 @@ Usage:
   patchbay verify  [--watch] <directory>
   patchbay scan    <directory> [--build-top=<n>] [--json]
   patchbay audit   <url|directory|--stdio "<cmd>"> [--json] [--sarif] [--pr-draft] [--out=<path>] [--publish] [--auth=<token>] [--probe-audience=<token>] [--probe-dcr-loopback] [--trust] [--ci] [--fail-on=<severity>] [--no-cta]
+  patchbay audit-oauth <url> [--client-id=<id>] [--scope=<s>] [--timeout=<seconds>] [--no-open] [--verbose] [plus any "patchbay audit" flag]
   patchbay add     <run-dir> [--target=<dir>]
   patchbay push    <run-dir> --repo=owner/name [--path=connectors/<name>] [--branch=<branch>] [--dry-run]
   patchbay help
 
 Commands:
-  build     Full pipeline: plan → research → generate → verify (with repair). Default if you pass a prompt.
-  research  Plan + API research only. Prints the spec, no code.
-  verify    Type-check and vitest an existing connector folder (needs src/connector.ts + tests).
-  scan      Walk a repo and report integration opportunities patchbay could build.
-  add       Drop a recorded run's connector files into another project.
-  push      Open a pull request on a GitHub repo with the generated files.
-  help      Show this message.
+  build        Full pipeline: plan → research → generate → verify (with repair). Default if you pass a prompt.
+  research     Plan + API research only. Prints the spec, no code.
+  verify       Type-check and vitest an existing connector folder (needs src/connector.ts + tests).
+  scan         Walk a repo and report integration opportunities patchbay could build.
+  audit        Scan an MCP server URL, --stdio command, or local directory for OAuth / security gaps.
+  audit-oauth  Browser-based OAuth login first, then audit. Handles DCR + PKCE + loopback redirect for you.
+  add          Drop a recorded run's connector files into another project.
+  push         Open a pull request on a GitHub repo with the generated files.
+  help         Show this message.
 
 Flags:
   --record     build only. Writes runs/<timestamp>/ with generated files and the event log.
@@ -68,6 +71,7 @@ async function main() {
   if (first === 'push') return push(argv.slice(1))
   if (first === 'scan') return scan(argv.slice(1))
   if (first === 'audit') return audit(argv.slice(1))
+  if (first === 'audit-oauth') return auditOauth(argv.slice(1))
 
   switch (cmd) {
     case 'build':
@@ -396,6 +400,46 @@ async function audit(args: string[]) {
       process.exit(1)
     }
   }
+}
+
+async function auditOauth(args: string[]) {
+  const positional = args.filter((a) => !a.startsWith('--'))
+  const url = positional[0]
+  if (!url || !/^https?:\/\//i.test(url)) {
+    console.error('patchbay audit-oauth: missing or invalid URL')
+    console.error('usage: patchbay audit-oauth <url> [--client-id=<id>] [--scope=<s>] [--timeout=<seconds>] [--no-open] [--verbose] [any patchbay audit flag]')
+    process.exit(2)
+  }
+  const clientId = flagValue(args, '--client-id')
+  const scope = flagValue(args, '--scope')
+  const timeoutStr = flagValue(args, '--timeout')
+  const timeoutSeconds = timeoutStr ? Math.max(10, parseInt(timeoutStr, 10) || 300) : 300
+  const noOpen = args.includes('--no-open')
+  const verbose = args.includes('--verbose')
+
+  const { loginAndGetToken } = await import('./oauth-login')
+  let token: string
+  try {
+    const result = await loginAndGetToken(url, { clientId, scope, timeoutSeconds, noOpen, verbose })
+    process.stderr.write('  Got token (' + (result.scope ?? 'no scope') + ', expires in ' + (result.expiresIn ?? '?') + 's)\n\n')
+    token = result.accessToken
+  } catch (e) {
+    console.error('patchbay audit-oauth: login failed - ' + (e as Error).message)
+    process.exit(1)
+    return
+  }
+
+  // Delegate to the existing audit path with the token wired in. Strip
+  // audit-oauth-only flags so the audit arg parser does not choke.
+  const AUDIT_OAUTH_FLAGS = new Set(['--client-id', '--scope', '--timeout', '--no-open', '--verbose'])
+  const forwarded = args.filter((a) => {
+    const name = a.split('=')[0] ?? a
+    if (AUDIT_OAUTH_FLAGS.has(name)) return false
+    if (a.startsWith('--auth=')) return false  // we are supplying the auth
+    return true
+  })
+  forwarded.push('--auth=' + token)
+  return audit(forwarded)
 }
 
 function flagValue(args: string[], flag: string): string | undefined {
