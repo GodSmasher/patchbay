@@ -1,17 +1,37 @@
-// Copies bench/variance.json from the repo root into apps/web/public/ before every build
-// so the /bench page always renders against the latest benchmark run.
+// Copies committed bench/*.json files from the repo root into apps/web/public/
+// (and apps/web/data/ for static imports) before every build so pages always
+// render against the latest committed data.
 import { copyFileSync, existsSync, mkdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const source = resolve(here, '..', '..', '..', 'bench', 'variance.json')
-const target = resolve(here, '..', 'public', 'variance.json')
+const repoBench = resolve(here, '..', '..', '..', 'bench')
+const publicDir = resolve(here, '..', 'public')
+const dataDir = resolve(here, '..', 'data')
 
-if (!existsSync(source)) {
-  console.warn(`copy-bench: ${source} not found, keeping whatever is in public/`)
-  process.exit(0)
+const copies = [
+  { from: 'variance.json',             toPublic: true,  toData: false },
+  { from: 'impersonation-public.json', toPublic: false, toData: true  },
+]
+
+mkdirSync(publicDir, { recursive: true })
+mkdirSync(dataDir, { recursive: true })
+
+for (const c of copies) {
+  const src = resolve(repoBench, c.from)
+  if (!existsSync(src)) {
+    console.warn('copy-bench: ' + src + ' not found, skipping')
+    continue
+  }
+  if (c.toPublic) {
+    const dst = resolve(publicDir, c.from)
+    copyFileSync(src, dst)
+    console.log('copy-bench: ' + src + ' → ' + dst)
+  }
+  if (c.toData) {
+    const dst = resolve(dataDir, c.from)
+    copyFileSync(src, dst)
+    console.log('copy-bench: ' + src + ' → ' + dst)
+  }
 }
-mkdirSync(dirname(target), { recursive: true })
-copyFileSync(source, target)
-console.log(`copy-bench: ${source} → ${target}`)

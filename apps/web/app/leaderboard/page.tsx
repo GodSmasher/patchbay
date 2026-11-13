@@ -100,11 +100,14 @@ export default async function LeaderboardPage() {
         <Link href="/" style={{ color: '#6366f1' }}>← patchbay</Link>
       </nav>
       <h1 style={{ fontSize: '2rem', margin: '0 0 0.25rem' }}>MCP Server Security Leaderboard</h1>
-      <p style={{ color: '#6b7280', margin: '0 0 1rem' }}>
+      <p style={{ color: '#6b7280', margin: '0 0 0.5rem' }}>
         {reachable.length} of {snapshot.cohortSize} public MCP servers audited on {capturedDate}. Passive checks only (OAuth metadata, response headers, manifest drift). No tool calls, no OAuth flows against third-party servers.
         {embargoedCount > 0 && (
           <> · <span title="Under coordinated-disclosure embargo: operator notified, 90-day fix window running." style={{ color: '#a16207' }}>{embargoedCount} entr{embargoedCount === 1 ? 'y' : 'ies'} under disclosure embargo</span></>
         )}
+      </p>
+      <p style={{ color: '#6b7280', margin: '0 0 1rem', fontSize: '0.9rem' }}>
+        Also: <Link href="/leaderboard/impersonation" style={{ color: '#6366f1' }}>MCP Registry impersonation report</Link> — 313 brand lookalikes and 3,633 cross-owner near-name pairs.
       </p>
 
       <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
