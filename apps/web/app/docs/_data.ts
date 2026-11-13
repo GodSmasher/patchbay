@@ -175,6 +175,20 @@ The medium band works with patterns and can be wrong. A harmless description tha
     howToFix: `Remove hidden characters from every tool description and schema description and add a check for them to your build. Rewrite flagged descriptions so they say what the tool does for a human reader. If you did not write the flagged text yourself, treat the server as compromised until you know where it came from.`,
   },
   {
+    id: 'poisoning-002',
+    title: 'Resource content or prompt template contains prompt injection patterns',
+    severity: 'high',
+    oneLiner: 'A resource body or prompt-template message contains hidden characters or text that addresses the model.',
+    whatItMeans: `Beyond tools, MCP servers also expose resources/read (document contents) and prompts/get (rendered prompt templates). Both get pasted verbatim into the model's context when a client loads them. A compromised server can hide zero-width Unicode or role markers inside a resource body or a prompt message and the user never sees the payload before it steers the agent — tool-description scanners (POISONING-001) miss this because they only look at the tool catalog.
+
+The check looks for the same two things POISONING-001 looks for, but in a wider surface:
+  high: hidden characters (zero-width, bidirectional overrides, soft hyphens, Unicode tag characters) in a resource name, description or content body, or in a prompt description, argument description or message text.
+  medium: visible text aimed at the model (<system> style tags, role prefixes, ignore-previous directives) in the same slots.
+
+The check only fires when the audit was allowed to call resources/read and prompts/get — our third-party crawl skips those by default; this runs against your own servers and the patchbay demo.`,
+    howToFix: `Strip hidden characters from every resource body and prompt message before publishing. Rewrite flagged content so it describes the data for the human reader instead of addressing the model. If you did not author the flagged text, treat the server as compromised and rotate any credentials it had access to.`,
+  },
+  {
     id: 'audience-002',
     title: 'Server accepts bearer tokens with no audience claim',
     severity: 'critical',

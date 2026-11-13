@@ -17,6 +17,7 @@ const DEMO_FIRES = new Set([
   'resource-001',
   'scope-001',
   'poisoning-001',
+  'poisoning-002',
   'headers-001',
   'transport-002',
   'iss-001',
