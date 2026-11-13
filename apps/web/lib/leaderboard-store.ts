@@ -26,6 +26,13 @@ import { kv } from '@vercel/kv'
 
 export type LeaderboardGrade = 'A' | 'B' | 'C' | 'D' | 'F'
 export type LeaderboardCategory = 'oauth-protected' | 'public-by-design' | 'internal' | 'unreachable'
+export type LeaderboardScanSource =
+  | 'live-metadata+source'
+  | 'live-metadata'
+  | 'source'
+  | 'authenticated'
+  | 'operator-verified'
+  | 'unreachable'
 
 export interface LeaderboardFindingCounts {
   critical: number
@@ -47,6 +54,26 @@ export interface LeaderboardEntry {
   category: LeaderboardCategory
   lastScanned: string
   reportId?: string
+  /**
+   * Which tier(s) of the dual-tier crawler produced this entry's findings.
+   * 'live-metadata+source' means both tiers ran; 'live-metadata' means
+   * source clone was skipped or failed; 'source' means the live URL was
+   * unreachable but the repo audited fine; 'authenticated' / 'operator-
+   * verified' are Tier C flavours. UI shows a badge per tier.
+   */
+  scanSource?: LeaderboardScanSource
+  /** True when the live probe hit 401/403 on tools/list. */
+  authRequired?: boolean
+  /** The repository.url the registry listed for this server, if any. */
+  repositoryUrl?: string
+  /** Which registry fed us this entry. */
+  registrySource?: 'modelcontextprotocol.io' | 'manual' | 'community-submit'
+  /**
+   * Original MCP server name as registered (registry entries carry a
+   * canonical dotted name like "ac.inference.sh/mcp" that is nicer to
+   * show than the raw host).
+   */
+  registryName?: string
 }
 
 export interface LeaderboardSnapshot {
