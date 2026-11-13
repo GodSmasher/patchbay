@@ -16,6 +16,7 @@ import { manifest002 } from './manifest-002'
 import { pkce001 } from './pkce-001'
 import { pkce002 } from './pkce-002'
 import { poisoning001 } from './poisoning-001'
+import { poisoning002 } from './poisoning-002'
 import { resource001 } from './resource-001'
 import { probe001 } from './probe-001'
 import { redirect001 } from './redirect-001'
@@ -51,6 +52,7 @@ export const ALL_CHECKS: Check[] = [
   manifest001,
   manifest002,
   poisoning001,
+  poisoning002,
   resource001,
   headers001,
   iss001,
@@ -69,6 +71,7 @@ export {
   pkce001,
   pkce002,
   poisoning001,
+  poisoning002,
   resource001,
   probe001, redirect001, redirect002, scope001, scope002, secret001, secret002, transport001, transport002,
 }

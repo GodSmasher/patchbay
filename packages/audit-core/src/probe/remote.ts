@@ -211,6 +211,44 @@ export async function probeRemote(url: string, opts: RemoteProbeOptions = {}): P
     } else if (listRes && (listRes.status === 401 || listRes.status === 403)) {
       probe.authRequired = true
     }
+
+    // resources/list + prompts/list are part of the standard MCP read-only
+    // surface a client reaches on first contact. We also fetch resources/read
+    // and prompts/get for the first few entries so POISONING-002 can scan
+    // actual content, not just metadata. Both are gated on the same
+    // "not auth-required, not legacy-sse, not metadata-only" conditions
+    // as the tools/list call above.
+    const resList = await postRpc(endpoint, { jsonrpc: '2.0', id: 20, method: 'resources/list', params: {} })
+    if (resList && resList.ok && streamOk(resList)) {
+      probe.resources = await parseResources(resList, errors)
+      // Fetch content for up to 5 resources. Larger fan-out would be rude
+      // against third-party hosts; five is enough to cover a server's
+      // "greeting", "system prompt" or "readme" resources where poisoning
+      // tends to live.
+      const toFetch = (probe.resources ?? []).slice(0, 5)
+      for (let i = 0; i < toFetch.length; i++) {
+        const r = toFetch[i]!
+        if (!r.uri) continue
+        const rd = await postRpc(endpoint, { jsonrpc: '2.0', id: 21 + i, method: 'resources/read', params: { uri: r.uri } })
+        if (rd && rd.ok && streamOk(rd)) {
+          r.contents = await parseResourceContents(rd, errors)
+        }
+      }
+    }
+
+    const promptList = await postRpc(endpoint, { jsonrpc: '2.0', id: 30, method: 'prompts/list', params: {} })
+    if (promptList && promptList.ok && streamOk(promptList)) {
+      probe.prompts = await parsePrompts(promptList, errors)
+      const toGet = (probe.prompts ?? []).slice(0, 5)
+      for (let i = 0; i < toGet.length; i++) {
+        const p = toGet[i]!
+        if (!p.name) continue
+        const pg = await postRpc(endpoint, { jsonrpc: '2.0', id: 31 + i, method: 'prompts/get', params: { name: p.name } })
+        if (pg && pg.ok && streamOk(pg)) {
+          p.messages = await parsePromptMessages(pg, errors)
+        }
+      }
+    }
   }
 
   if (opts.authToken && probe.toolsListOk) {
@@ -468,6 +506,78 @@ async function parseTools(res: Response, errors: string[]): Promise<RemoteProbe[
     errors.push(`tools/list parse: ${(e as Error).message}`)
     return []
   }
+}
+
+async function parseJsonRpcResult<T>(res: Response, errors: string[], label: string): Promise<T | undefined> {
+  const ct = res.headers.get('content-type') ?? ''
+  try {
+    if (ct.includes('text/event-stream')) {
+      const text = await res.text()
+      for (const line of text.split('\n')) {
+        if (!line.startsWith('data:')) continue
+        try {
+          const j = JSON.parse(line.slice(5).trim()) as { result?: T }
+          if (j.result !== undefined) return j.result
+        } catch {}
+      }
+      return undefined
+    }
+    const j = (await res.json()) as { result?: T }
+    return j.result
+  } catch (e) {
+    errors.push(label + ' parse: ' + (e as Error).message)
+    return undefined
+  }
+}
+
+async function parseResources(res: Response, errors: string[]): Promise<NonNullable<RemoteProbe['resources']>> {
+  const result = await parseJsonRpcResult<{ resources?: Array<Record<string, unknown>> }>(res, errors, 'resources/list')
+  const list = result?.resources ?? []
+  return list.map((r) => ({
+    uri: typeof r.uri === 'string' ? r.uri : '',
+    name: typeof r.name === 'string' ? r.name : undefined,
+    description: typeof r.description === 'string' ? r.description : undefined,
+    mimeType: typeof r.mimeType === 'string' ? r.mimeType : undefined,
+  })).filter((r) => r.uri)
+}
+
+async function parseResourceContents(res: Response, errors: string[]): Promise<NonNullable<NonNullable<RemoteProbe['resources']>[number]['contents']>> {
+  const result = await parseJsonRpcResult<{ contents?: Array<Record<string, unknown>> }>(res, errors, 'resources/read')
+  const list = result?.contents ?? []
+  return list.map((c) => ({
+    uri: typeof c.uri === 'string' ? c.uri : undefined,
+    mimeType: typeof c.mimeType === 'string' ? c.mimeType : undefined,
+    text: typeof c.text === 'string' ? c.text : undefined,
+  }))
+}
+
+async function parsePrompts(res: Response, errors: string[]): Promise<NonNullable<RemoteProbe['prompts']>> {
+  const result = await parseJsonRpcResult<{ prompts?: Array<Record<string, unknown>> }>(res, errors, 'prompts/list')
+  const list = result?.prompts ?? []
+  return list.map((p) => ({
+    name: typeof p.name === 'string' ? p.name : '',
+    description: typeof p.description === 'string' ? p.description : undefined,
+    arguments: Array.isArray(p.arguments) ? (p.arguments as Array<Record<string, unknown>>).map((a) => ({
+      name: typeof a.name === 'string' ? a.name : undefined,
+      description: typeof a.description === 'string' ? a.description : undefined,
+      required: typeof a.required === 'boolean' ? a.required : undefined,
+    })) : undefined,
+  })).filter((p) => p.name)
+}
+
+async function parsePromptMessages(res: Response, errors: string[]): Promise<NonNullable<NonNullable<RemoteProbe['prompts']>[number]['messages']>> {
+  const result = await parseJsonRpcResult<{ messages?: Array<Record<string, unknown>> }>(res, errors, 'prompts/get')
+  const list = result?.messages ?? []
+  return list.map((m) => {
+    const content = m.content as Record<string, unknown> | undefined
+    return {
+      role: typeof m.role === 'string' ? m.role : undefined,
+      content: content ? {
+        type: typeof content.type === 'string' ? content.type : undefined,
+        text: typeof content.text === 'string' ? content.text : undefined,
+      } : undefined,
+    }
+  })
 }
 
 export { pathCandidates }

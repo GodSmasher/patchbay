@@ -16,6 +16,21 @@ export interface RemoteProbe {
   authRequired: boolean
   acceptedAuthHeader?: 'bearer' | 'api-key' | 'none'
   tools: Array<ToolDescriptor>
+  /**
+   * Resources advertised by the server via resources/list, and the
+   * contents of the first few fetched via resources/read. Powers
+   * POISONING-002 content-level scanning. Only populated when the
+   * crawler is in non-metadata-only mode (resources/read returns
+   * actual data that we should not pull from third-party servers
+   * without authorisation).
+   */
+  resources?: Array<ResourceDescriptor>
+  /**
+   * Prompts advertised via prompts/list and the materialised argument
+   * descriptions + example messages from prompts/get. Second half of
+   * the POISONING-002 surface.
+   */
+  prompts?: Array<PromptDescriptor>
   oauthProtectedResource?: Record<string, unknown>
   oauthAuthServer?: Record<string, unknown>
   originValidation?: 'strict' | 'permissive' | 'unknown'
@@ -152,6 +167,34 @@ export interface ToolDescriptor {
   description?: string
   scopes?: string[]
   inputSchema?: Record<string, unknown>
+}
+
+/**
+ * Resource advertised by the server. `uri`, `name` and `description` come
+ * from resources/list; `contents` holds the text returned by a follow-up
+ * resources/read when the crawler was allowed to fetch it. POISONING-002
+ * scans all text fields for hidden Unicode and role-marker patterns.
+ */
+export interface ResourceDescriptor {
+  uri: string
+  name?: string
+  description?: string
+  mimeType?: string
+  contents?: Array<{ uri?: string; mimeType?: string; text?: string }>
+}
+
+/**
+ * Prompt template advertised by the server. `arguments[].description`
+ * comes from prompts/list; `messages[].content.text` is the materialised
+ * example from prompts/get. Both are read as instruction context by the
+ * model when a client uses the prompt, so POISONING-002 scans them with
+ * the same patterns it applies to tool descriptions.
+ */
+export interface PromptDescriptor {
+  name: string
+  description?: string
+  arguments?: Array<{ name?: string; description?: string; required?: boolean }>
+  messages?: Array<{ role?: string; content?: { type?: string; text?: string } }>
 }
 
 /**
