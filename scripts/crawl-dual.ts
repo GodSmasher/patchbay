@@ -102,21 +102,54 @@ async function runLiveTier(entry: IndexEntry): Promise<CrawlResult['liveTier']> 
   }
 }
 
+const CLONE_HARD_TIMEOUT_MS = 90_000
+const CLONE_SOFT_TIMEOUT_MS = 100_000  // outer guard, must be > hard
+const CLONE_MAX_ATTEMPTS = 2
+const CLONE_RETRY_DELAY_MS = 2_000
+
 async function cloneShallow(repoUrl: string, dst: string): Promise<void> {
   await new Promise<void>((resolve, reject) => {
-    const p = spawn('git', ['clone', '--depth=1', '--filter=blob:none', '--single-branch', '--quiet', repoUrl, dst], {
+    // --depth=1 --single-branch keeps the clone small and the critical
+    // path network-bound only during the initial fetch; we deliberately
+    // skip --filter=blob:none here so the clone is self-contained and
+    // the subsequent audit step never has to go back to GitHub for
+    // blobs on demand (which was the source of the "exit null" kills
+    // we saw in v2 when the audit triggered lazy blob fetches that
+    // raced the per-step SIGKILL timer).
+    const p = spawn('git', ['clone', '--depth=1', '--single-branch', '--quiet', repoUrl, dst], {
       stdio: ['ignore', 'ignore', 'pipe'],
       env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_ASKPASS: 'true', GIT_USER_AGENT: USER_AGENT },
     })
     let stderr = ''
     p.stderr?.on('data', (d) => { stderr += d.toString() })
-    const killTimer = setTimeout(() => p.kill('SIGKILL'), 45_000)
+    const killTimer = setTimeout(() => p.kill('SIGKILL'), CLONE_HARD_TIMEOUT_MS)
     p.on('close', (code) => {
       clearTimeout(killTimer)
       if (code === 0) resolve()
-      else reject(new Error('git clone exit ' + code + (stderr ? ': ' + stderr.slice(0, 300) : '')))
+      else {
+        const detail = stderr.slice(0, 300)
+        reject(new Error('git clone exit ' + code + (detail ? ': ' + detail : '')))
+      }
     })
   })
+}
+
+async function cloneWithRetry(repoUrl: string, dst: string): Promise<void> {
+  let lastErr: Error | undefined
+  for (let attempt = 1; attempt <= CLONE_MAX_ATTEMPTS; attempt++) {
+    try {
+      await withTimeout(cloneShallow(repoUrl, dst), CLONE_SOFT_TIMEOUT_MS, 'git clone attempt ' + attempt)
+      return
+    } catch (e) {
+      lastErr = e as Error
+      try { rmSync(dst, { recursive: true, force: true }) } catch { /* ignore */ }
+      // Permanent failures are not worth a retry
+      const msg = (e as Error).message
+      if (/exit 128/.test(msg) && /(not found|does not exist|Repository not found|authentication failed)/i.test(msg)) break
+      if (attempt < CLONE_MAX_ATTEMPTS) await new Promise((r) => setTimeout(r, CLONE_RETRY_DELAY_MS))
+    }
+  }
+  throw lastErr ?? new Error('git clone failed')
 }
 
 async function runSourceTier(entry: IndexEntry): Promise<CrawlResult['sourceTier']> {
@@ -125,8 +158,8 @@ async function runSourceTier(entry: IndexEntry): Promise<CrawlResult['sourceTier
   const dst = join(CLONE_ROOT, slugFor(entry.name) + '-' + Date.now().toString(36))
   try {
     mkdirSync(CLONE_ROOT, { recursive: true })
-    await withTimeout(cloneShallow(entry.repositoryUrl, dst), 60_000, 'git clone')
-    const report = await withTimeout(auditTarget(dst, { timeoutMs: 15000 }), PER_TIER_TIMEOUT_MS, 'source tier')
+    await cloneWithRetry(entry.repositoryUrl, dst)
+    const report = await withTimeout(auditTarget(dst, { timeoutMs: 15000 }), PER_TIER_TIMEOUT_MS, 'source tier audit')
     return { ok: true, findings: report.findings, durationMs: Date.now() - start, summary: report.summary }
   } catch (e) {
     return { ok: false, findings: [], durationMs: Date.now() - start, error: (e as Error).message, summary: { critical:0, high:0, medium:0, low:0, info:0 } }
