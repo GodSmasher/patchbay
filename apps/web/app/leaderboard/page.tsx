@@ -107,7 +107,7 @@ export default async function LeaderboardPage() {
         )}
       </p>
       <p style={{ color: '#6b7280', margin: '0 0 1rem', fontSize: '0.9rem' }}>
-        Also: <Link href="/leaderboard/impersonation" style={{ color: '#6366f1' }}>MCP Registry impersonation report</Link> · <Link href="/cve" style={{ color: '#6366f1' }}>CVE database</Link> · <Link href="/about-crawler" style={{ color: '#6366f1' }}>about the crawler</Link>
+        Also: <Link href="/cve" style={{ color: '#6366f1' }}>CVE database</Link> · <Link href="/about-crawler" style={{ color: '#6366f1' }}>about the crawler</Link>
       </p>
 
       <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>

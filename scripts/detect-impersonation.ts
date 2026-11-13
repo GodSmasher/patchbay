@@ -235,29 +235,58 @@ function main(): void {
     }
   }
 
-  // Brand lookalike pass: for every registry entry, score against
-  // each known brand. Flag when the entry's normalised name is within
-  // the edit distance OR contains the brand token but the owner/host
-  // is not a legitimate one.
+  // Brand lookalike pass (v2 — strict):
+  //
+  // v1 used edit distance 1-2 on the normalised entry name, which produced
+  // three unseparable classes of flags: real typosquats, independent
+  // products with coincidental letter overlap (openaq ≠ openai, eigma ≠
+  // figma), and legitimate third-party wrappers using the brand name as a
+  // noun inside a namespace they own (com.hasdata/shopify, com.jocktaxes/
+  // claude). v2 narrows to signals that cannot be explained by reverse-DNS
+  // naming conventions:
+  //
+  //   S1 exact-token-match-in-namespace:
+  //      The dotted namespace prefix itself matches the brand (e.g.
+  //      "com.linear/*", "io.notion/*"). Legit unless the owner matches.
+  //      Captures brand-namespace squats.
+  //
+  //   S2 exact-token-match-with-typo-distance-1:
+  //      The repo portion of the name is an edit-distance-1 near-miss of
+  //      the brand (e.g. "linaer", "stirpe"). Classic typosquat.
+  //
+  // We deliberately drop the "contains the brand" heuristic entirely
+  // ("linearmcp" matched Linear before). Third-party wrappers legitimately
+  // use the brand as the product noun; without content-level verification
+  // we cannot tell wrapper from impostor. That filter moves to an offline
+  // manual review stage, not this detector.
   const brandRisks: WellKnownRisk[] = []
   for (const e of entries) {
-    const n = normalise(e.name)
-    if (n.length < args.minLength) continue
     const owner = repoOwnerOf(e.repositoryUrl) ?? ''
     const host = hostOf(e.remoteUrl)
+    const [nsRaw, repoRaw] = e.name.includes('/') ? e.name.split('/', 2) as [string, string] : [e.name, '']
+    const nsTail = (nsRaw.split('.').pop() ?? '').toLowerCase()
+    const repoLc = repoRaw.toLowerCase()
+
     for (const [brand, meta] of Object.entries(BRANDS)) {
       const legit = meta.legitOwners.some((o) => owner === o || host.includes(o + '.'))
-      if (legit) continue  // this is the legitimate server for the brand
+      if (legit) continue
+
       let signal: string | undefined
       let distance = Number.MAX_SAFE_INTEGER
+
       for (const t of meta.tokens) {
-        const d = editDistance(n, t)
-        if (d <= args.maxDistance && d < distance) { distance = d; signal = 'brand-name-edit-distance' }
-        // Contains the brand plus something else — e.g. "linearmcp"
-        if (n.includes(t) && n !== t && distance > 0) {
-          const containsDistance = Math.max(1, n.length - t.length)
-          if (containsDistance < distance) { distance = containsDistance; signal = 'brand-name-contains' }
-        }
+        // Only d=0 matches survive. Rationale: short brand strings (4-7
+        // chars) have too many independent products at edit distance 1
+        // (openaq vs openai, eigma vs figma, mondo vs mongodb). Those
+        // matches cannot be distinguished from typosquats without
+        // offline manual review, so we do not output them from an
+        // automated detector.
+        //
+        // S1 — namespace-tail squats: "com.<brand>/*" where the owner
+        // of that namespace is not the legitimate brand. Cannot be a
+        // naming coincidence; someone registered the brand's exact
+        // reverse-DNS prefix.
+        if (nsTail === t) { signal = 's1-namespace-tail-is-brand'; distance = 0; break }
       }
       if (!signal) continue
       brandRisks.push({ target: brand, candidate: pickEntry(e), editDistance: distance, signal })
