@@ -19,6 +19,9 @@ import { annotations001 } from './annotations-001'
 import { poisoning001 } from './poisoning-001'
 import { poisoning002 } from './poisoning-002'
 import { poisoning003 } from './poisoning-003'
+import { uriTemplate001 } from './uritemplate-001'
+import { sampling001 } from './sampling-001'
+import { deprecated001 } from './deprecated-001'
 import { resource001 } from './resource-001'
 import { probe001 } from './probe-001'
 import { redirect001 } from './redirect-001'
@@ -57,6 +60,9 @@ export const ALL_CHECKS: Check[] = [
   poisoning002,
   poisoning003,
   annotations001,
+  uriTemplate001,
+  sampling001,
+  deprecated001,
   resource001,
   headers001,
   iss001,
@@ -78,6 +84,9 @@ export {
   poisoning002,
   poisoning003,
   annotations001,
+  uriTemplate001,
+  sampling001,
+  deprecated001,
   resource001,
   probe001, redirect001, redirect002, scope001, scope002, secret001, secret002, transport001, transport002,
 }

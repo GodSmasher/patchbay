@@ -176,6 +176,19 @@ export async function probeRemote(url: string, opts: RemoteProbeOptions = {}): P
       probe.transport = 'streamable-http'
       probe.initializeOk = true
       initRes = res
+      // Capture advertised server capabilities + protocolVersion for
+      // SAMPLING-001 / DEPRECATED-001. Clone the response so the later
+      // tools/list code path can still consume the body.
+      try {
+        const cloned = res.clone()
+        const initResult = await parseJsonRpcResult<{ capabilities?: Record<string, unknown>; protocolVersion?: string }>(cloned, errors, 'initialize')
+        if (initResult?.capabilities && typeof initResult.capabilities === 'object') {
+          probe.advertisedCapabilities = initResult.capabilities
+        }
+        if (typeof initResult?.protocolVersion === 'string') {
+          probe.protocolVersion = initResult.protocolVersion
+        }
+      } catch { /* best-effort */ }
       break
     }
     if (res.status < 500 && res.status !== 404) {
@@ -232,6 +245,13 @@ export async function probeRemote(url: string, opts: RemoteProbeOptions = {}): P
     const resList = await postRpc(endpoint, { jsonrpc: '2.0', id: 20, method: 'resources/list', params: {} })
     if (resList && resList.ok && streamOk(resList)) {
       probe.resources = await parseResources(resList, errors)
+      // Resource templates live under a separate endpoint; pull them so
+      // URITEMPLATE-001 can scan them for path-traversal-shaped expansions.
+      const tmplList = await postRpc(endpoint, { jsonrpc: '2.0', id: 25, method: 'resources/templates/list', params: {} })
+      if (tmplList && tmplList.ok && streamOk(tmplList)) {
+        const tpls = await parseResourceTemplates(tmplList, errors)
+        probe.resources.push(...tpls)
+      }
       // Fetch content for up to 5 resources. Larger fan-out would be rude
       // against third-party hosts; five is enough to cover a server's
       // "greeting", "system prompt" or "readme" resources where poisoning
@@ -584,6 +604,18 @@ async function parseResources(res: Response, errors: string[]): Promise<NonNulla
     description: typeof r.description === 'string' ? r.description : undefined,
     mimeType: typeof r.mimeType === 'string' ? r.mimeType : undefined,
   })).filter((r) => r.uri)
+}
+
+async function parseResourceTemplates(res: Response, errors: string[]): Promise<NonNullable<RemoteProbe['resources']>> {
+  const result = await parseJsonRpcResult<{ resourceTemplates?: Array<Record<string, unknown>> }>(res, errors, 'resources/templates/list')
+  const list = result?.resourceTemplates ?? []
+  return list.map((r) => ({
+    uri: typeof r.uriTemplate === 'string' ? r.uriTemplate : '',
+    uriTemplate: typeof r.uriTemplate === 'string' ? r.uriTemplate : undefined,
+    name: typeof r.name === 'string' ? r.name : undefined,
+    description: typeof r.description === 'string' ? r.description : undefined,
+    mimeType: typeof r.mimeType === 'string' ? r.mimeType : undefined,
+  })).filter((r) => r.uriTemplate)
 }
 
 async function parseResourceContents(res: Response, errors: string[]): Promise<NonNullable<NonNullable<RemoteProbe['resources']>[number]['contents']>> {

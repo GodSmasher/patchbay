@@ -211,6 +211,35 @@ The check only runs when the audit was explicitly allowed to invoke tools (opt-i
     howToFix: `Sanitise every tool output before returning it. Strip zero-width characters, bidi overrides, soft hyphens and tag characters. Treat upstream data (search results, scraped content, third-party APIs) as untrusted at the server layer and normalise with NFC + ASCII-print-filter before sending to the client. Never relay raw model-addressed text (System:, <SYSTEM>, "ignore previous instructions") through a tool result — if your business logic needs to emit such strings, tag them as a code span or quoted literal so the model does not read them as instructions.`,
   },
   {
+    id: 'uritemplate-001',
+    title: 'Resource URI template expands without path-traversal guards',
+    severity: 'high',
+    oneLiner: 'A resource URI template places a path parameter inside a filesystem-shaped scheme without evident sanitisation.',
+    whatItMeans: `MCP resources/templates/list returns parameterised URIs like \`file:///docs/{path}\` or \`s3://bucket/{path*}\`. When the server inserts the parameter into the filesystem path without allowlist or path-traversal checks, any client (or a model picking a value) can read anything the process has access to: \`{path} = ../../etc/passwd\`, \`{path} = ..%2F..%2Froot%2F.ssh%2Fid_rsa\`, \`{path} = /etc/shadow\`.
+
+The check reads the template string, not the server's sanitiser — it's a metadata signal, not a confirmed exploit. Three bands:
+  high: unbounded \`{path*}\` explode directly inside a filesystem-shaped scheme (file://, s3://, gs://, azure://, ftp:, no scheme)
+  medium: simple \`{name}\` segment in a filesystem-shaped URI
+  info: same patterns under https:// (API endpoints — less likely to be local traversal, but still worth noting)`,
+    howToFix: `Scope every template to a specific base directory and enforce it server-side. Reject expansions containing \`..\`, \`./\`, URL-encoded separators (\`%2F\`, \`%5C\`), absolute paths or null bytes before resolving. Prefer \`{id}\` with a server-maintained id→path mapping over raw filesystem exposure. The Python MCP SDK ships \`secure_filename\`-style helpers; many other SDKs do not.`,
+  },
+  {
+    id: 'sampling-001',
+    title: 'Server advertises deprecated sampling capability',
+    severity: 'medium',
+    oneLiner: 'The server advertises the `sampling` capability, which is deprecated in MCP 2026-07-28 and scheduled for removal 2027-07-28.',
+    whatItMeans: `Sampling lets the server request LLM completions from the client's model. Beyond the deprecation window, the attack surface is notable: the server's prompts reach the client's model with no boundary against user-originated prompts (direct prompt-injection pathway), and the client pays for completions the server demanded (quota exfiltration). Many servers advertise sampling because an SDK template left it on, not because they need it.`,
+    howToFix: `Remove \`sampling\` from the advertised capabilities if the server does not actually use it. If it is needed, document the exact use case, enforce human-in-the-loop on every sampling request client-side, and plan a migration before the 2027-07-28 removal window.`,
+  },
+  {
+    id: 'deprecated-001',
+    title: 'Server advertises deprecated MCP capabilities',
+    severity: 'low',
+    oneLiner: 'The server negotiates `logging` or `roots`, which are deprecated in MCP 2026-07-28.',
+    whatItMeans: `\`logging\` and \`roots\` are scheduled for earliest removal 2027-07-28. \`logging\` lets the server stream arbitrary text into the client's context (same injection surface as a poisoned resource). \`roots\` has the client expose filesystem roots to the server. A server still advertising them is a leading indicator that it hasn't tracked the spec in roughly the last four months, which correlates with lagging on other hardening work.`,
+    howToFix: `Remove the deprecated capability from the advertised set if unused. Plan a replacement before the removal window: structured progress / result messages instead of \`logging\`; explicit resource URIs instead of \`roots\`.`,
+  },
+  {
     id: 'audience-002',
     title: 'Server accepts bearer tokens with no audience claim',
     severity: 'critical',

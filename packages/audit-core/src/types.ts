@@ -24,6 +24,15 @@ export interface RemoteProbe {
    * actual data that we should not pull from third-party servers
    * without authorisation).
    */
+  /**
+   * Capabilities the server advertised in its initialize result. Powers
+   * SAMPLING-001 and DEPRECATED-001 (server still negotiating the
+   * sampling / logging / roots capabilities that were deprecated in the
+   * 2026-07-28 spec revision).
+   */
+  advertisedCapabilities?: Record<string, unknown>
+  /** Server protocolVersion from initialize result. */
+  protocolVersion?: string
   resources?: Array<ResourceDescriptor>
   /**
    * Prompts advertised via prompts/list and the materialised argument
@@ -210,6 +219,12 @@ export interface ResourceDescriptor {
   description?: string
   mimeType?: string
   contents?: Array<{ uri?: string; mimeType?: string; text?: string }>
+  /**
+   * If this entry came from resources/templates/list, the raw RFC 6570
+   * URI template string. Powers URITEMPLATE-001 (path traversal / unbounded
+   * expansion checks).
+   */
+  uriTemplate?: string
 }
 
 /**
