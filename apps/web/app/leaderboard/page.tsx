@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { loadLeaderboardSnapshot, type LeaderboardEntry, type LeaderboardGrade } from '@/lib/leaderboard-store'
+import { loadLeaderboardSnapshot, type LeaderboardEntry, type LeaderboardGrade, type LeaderboardScanSource } from '@/lib/leaderboard-store'
 
 export const runtime = 'nodejs'
 export const revalidate = 60
@@ -41,6 +41,26 @@ function gradeCounts(entries: LeaderboardEntry[]): Record<LeaderboardGrade, numb
   const out: Record<LeaderboardGrade, number> = { A: 0, B: 0, C: 0, D: 0, F: 0 }
   for (const e of entries) if (e.reachable) out[e.grade] += 1
   return out
+}
+
+const COVERAGE_LABEL: Record<LeaderboardScanSource, { icon: string; text: string; title: string }> = {
+  'live-metadata+source': { icon: '✅', text: 'full', title: 'Live metadata probe plus static source audit of the linked repo' },
+  'live-metadata': { icon: '🔍', text: 'metadata', title: 'Live metadata only — repo not available or clone failed' },
+  'source': { icon: '📦', text: 'source', title: 'Static source audit only — the live URL was unreachable' },
+  'authenticated': { icon: '🔑', text: 'auth', title: 'Scanned with a user-submitted bearer token' },
+  'operator-verified': { icon: '👤', text: 'operator', title: 'Submitted by the server operator (verified ownership)' },
+  'unreachable': { icon: '🚨', text: 'unreachable', title: 'Not reachable during the last scan' },
+}
+
+function CoverageBadge({ entry }: { entry: LeaderboardEntry }) {
+  const s = entry.scanSource
+  if (!s) return <span style={{ color: '#9ca3af' }}>—</span>
+  const l = COVERAGE_LABEL[s]
+  return (
+    <span title={l.title} style={{ color: '#4b5563' }}>
+      <span style={{ marginRight: '0.3rem' }}>{l.icon}</span>{l.text}
+    </span>
+  )
 }
 
 export default async function LeaderboardPage() {
@@ -109,7 +129,7 @@ export default async function LeaderboardPage() {
             <th style={{ padding: '0.5rem 0.25rem' }}>Grade</th>
             <th style={{ padding: '0.5rem 0.25rem', textAlign: 'right' }}>Score</th>
             <th style={{ padding: '0.5rem 0.25rem', textAlign: 'right' }}>Findings</th>
-            <th style={{ padding: '0.5rem 0.25rem' }}>Category</th>
+            <th style={{ padding: '0.5rem 0.25rem' }}>Coverage</th>
           </tr>
         </thead>
         <tbody>
@@ -132,7 +152,9 @@ export default async function LeaderboardPage() {
                 </td>
                 <td style={{ padding: '0.5rem 0.25rem', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{e.score}</td>
                 <td style={{ padding: '0.5rem 0.25rem', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{totalFindings}</td>
-                <td style={{ padding: '0.5rem 0.25rem', color: '#6b7280', fontSize: '0.85rem' }}>{e.category}</td>
+                <td style={{ padding: '0.5rem 0.25rem', fontSize: '0.8rem' }}>
+                  <CoverageBadge entry={e} />
+                </td>
               </tr>
             )
           })}
@@ -151,10 +173,12 @@ export default async function LeaderboardPage() {
       <section style={{ marginTop: '2rem', padding: '1rem', background: '#f9fafb', borderRadius: 8, fontSize: '0.9rem' }}>
         <h2 style={{ margin: '0 0 0.5rem', fontSize: '1rem' }}>Methodology</h2>
         <ul style={{ margin: 0, paddingLeft: '1.25rem', color: '#4b5563' }}>
-          <li>Hosts: public MCP server URLs announced by their owners on X / Reddit / project docs.</li>
-          <li>Probes: passive only. No DCR writes, no crafted authorize requests.</li>
+          <li>Hosts: every server in the <a href="https://registry.modelcontextprotocol.io" target="_blank" rel="noopener noreferrer">official MCP Registry</a>, plus submitted entries.</li>
+          <li>Each host is scanned in two tiers: live metadata (public well-known OAuth documents + response headers, nothing authenticated) and static source (shallow-cloned from <code>repository.url</code> when available).</li>
+          <li>Never authenticates against a third-party host. See <Link href="/about-crawler">about the crawler</Link> for guard-rails and opt-out.</li>
+          <li>Coverage badges: <strong>🔍 metadata</strong> live probe only · <strong>📦 source</strong> repo-only audit · <strong>✅ full</strong> both tiers merged · <strong>👤 operator</strong> operator-verified Tier C.</li>
           <li>Checks: see the <Link href="/docs">docs</Link>. Grade = 100 − Σ(finding × severity weight).</li>
-          <li>Frequency: rescan weekly, more often on request. API at <code>/api/leaderboard</code>.</li>
+          <li>Frequency: full rescan weekly. API at <code>/api/leaderboard</code>.</li>
         </ul>
       </section>
 
