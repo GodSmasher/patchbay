@@ -60,6 +60,16 @@ export interface RemoteProbeOptions {
    * Off by default because it writes to the AS registration_endpoint.
    */
   probeHeadlessOauth?: boolean
+  /**
+   * Public-metadata-only mode. The probe fetches the well-known OAuth
+   * metadata documents, HEAD + initial GET on the MCP endpoint, and
+   * records response headers — but does NOT send `tools/list` or any
+   * other post-initialize request. Intended for third-party crawls
+   * where we want to respect auth walls completely while still grading
+   * the public metadata posture. Overrides probeDcrLoopback and
+   * probeHeadlessOauth, both of which are forced off in this mode.
+   */
+  metadataOnly?: boolean
 }
 
 const MCP_ACCEPT = 'application/json, text/event-stream'
@@ -193,7 +203,7 @@ export async function probeRemote(url: string, opts: RemoteProbeOptions = {}): P
 
   probe.effectiveEndpoint = endpoint
 
-  if (endpoint && !probe.authRequired && probe.transport !== 'legacy-sse') {
+  if (endpoint && !probe.authRequired && probe.transport !== 'legacy-sse' && !opts.metadataOnly) {
     const listRes = await postRpc(endpoint, { jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} })
     if (listRes && listRes.ok && streamOk(listRes)) {
       probe.toolsListOk = true
@@ -209,7 +219,7 @@ export async function probeRemote(url: string, opts: RemoteProbeOptions = {}): P
     // would carry our real token in authedHeaders anyway and give a confusing
     // result).
     probe.acceptedAuthHeader = 'bearer'
-  } else if (endpoint && probe.authRequired) {
+  } else if (endpoint && probe.authRequired && !opts.metadataOnly) {
     const bearer = await postRpc(endpoint, { jsonrpc: '2.0', id: 3, method: 'tools/list', params: {} }, { authorization: 'Bearer patchbay-probe-token' })
     if (bearer && bearer.ok && streamOk(bearer)) probe.acceptedAuthHeader = 'bearer'
     if (bearer && !(bearer.ok && streamOk(bearer))) {
@@ -280,7 +290,7 @@ export async function probeRemote(url: string, opts: RemoteProbeOptions = {}): P
     }
   }
 
-  if (opts.probeDcrLoopback && authServer && typeof authServer === 'object') {
+  if (opts.probeDcrLoopback && !opts.metadataOnly && authServer && typeof authServer === 'object') {
     const regEndpoint = typeof authServer.registration_endpoint === 'string' ? authServer.registration_endpoint : undefined
     if (!regEndpoint) {
       probe.dcrLoopback = { attempted: true, outcome: 'no-endpoint' }
@@ -334,7 +344,7 @@ export async function probeRemote(url: string, opts: RemoteProbeOptions = {}): P
 
   void initRes
 
-  if (endpoint && opts.probeAudienceToken) {
+  if (endpoint && opts.probeAudienceToken && !opts.metadataOnly) {
     const probeToken = opts.probeAudienceToken
     const res = await postRpc(
       endpoint,
@@ -357,7 +367,7 @@ export async function probeRemote(url: string, opts: RemoteProbeOptions = {}): P
     }
   }
 
-  if (endpoint && opts.probeMissingAudToken) {
+  if (endpoint && opts.probeMissingAudToken && !opts.metadataOnly) {
     const probeToken = opts.probeMissingAudToken
     const res = await postRpc(
       endpoint,
@@ -380,7 +390,7 @@ export async function probeRemote(url: string, opts: RemoteProbeOptions = {}): P
     }
   }
 
-  if (opts.probeHeadlessOauth && authServer && typeof authServer === 'object') {
+  if (opts.probeHeadlessOauth && !opts.metadataOnly && authServer && typeof authServer === 'object') {
     probe.headlessOauth = await runHeadlessOauthProbe(
       authServer as Record<string, unknown>,
       f,

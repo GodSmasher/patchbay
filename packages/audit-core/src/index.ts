@@ -70,6 +70,17 @@ export interface AuditOptions {
    * for Claude Desktop-style MCP servers.
    */
   stdio?: boolean
+  /**
+   * Public-metadata-only mode. Skips every probe that would require an
+   * authenticated tools/list response — we never touch tools/list at all,
+   * and we skip anything that needs tool-level evidence (POISONING-001,
+   * SCOPE-001/002, AUTH-001 downgrade logic). Reads only the RFC 9728 PRM
+   * and RFC 8414 AS metadata documents, plus response headers. Intended
+   * for the leaderboard crawler against login-walled servers where we do
+   * not want to send any request a spec-compliant unauthenticated client
+   * would not already make.
+   */
+  metadataOnly?: boolean
 }
 
 export async function auditTarget(target: string, opts: AuditOptions = {}): Promise<AuditReport> {
@@ -98,6 +109,7 @@ async function resolveTarget(target: string, opts: AuditOptions): Promise<Target
       probeMissingAudToken: opts.probeMissingAudToken,
       probeDcrLoopback: opts.probeDcrLoopback,
       probeHeadlessOauth: opts.probeHeadlessOauth,
+      metadataOnly: opts.metadataOnly,
     })
   }
   return probeDirectory(target)
