@@ -489,19 +489,25 @@ function pathCandidates(url: string): string[] {
 async function parseTools(res: Response, errors: string[]): Promise<RemoteProbe['tools']> {
   const ct = res.headers.get('content-type') ?? ''
   try {
+    // The JSON-RPC response's `result.tools` is an array of whatever the
+    // server published — we want name, description, inputSchema AND
+    // annotations (for ANNOTATIONS-001). Cast to the known shape so we
+    // don't drop fields on the way through.
+    type RawTool = { name: string; description?: string; inputSchema?: Record<string, unknown>; annotations?: Record<string, unknown> }
+    const absorb = (list: RawTool[] | undefined): RemoteProbe['tools'] => list ?? []
     if (ct.includes('text/event-stream')) {
       const text = await res.text()
       for (const line of text.split('\n')) {
         if (!line.startsWith('data:')) continue
         try {
-          const j = JSON.parse(line.slice(5).trim()) as { result?: { tools?: Array<{ name: string }> } }
-          if (j.result?.tools) return j.result.tools
+          const j = JSON.parse(line.slice(5).trim()) as { result?: { tools?: RawTool[] } }
+          if (j.result?.tools) return absorb(j.result.tools)
         } catch {}
       }
       return []
     }
-    const j = (await res.json()) as { result?: { tools?: Array<{ name: string }> } }
-    return j.result?.tools ?? []
+    const j = (await res.json()) as { result?: { tools?: RawTool[] } }
+    return absorb(j.result?.tools)
   } catch (e) {
     errors.push(`tools/list parse: ${(e as Error).message}`)
     return []

@@ -189,6 +189,18 @@ The check only fires when the audit was allowed to call resources/read and promp
     howToFix: `Strip hidden characters from every resource body and prompt message before publishing. Rewrite flagged content so it describes the data for the human reader instead of addressing the model. If you did not author the flagged text, treat the server as compromised and rotate any credentials it had access to.`,
   },
   {
+    id: 'annotations-001',
+    title: 'Tool annotations contradict the tool name',
+    severity: 'high',
+    oneLiner: 'A tool with a destructive-sounding name advertises destructiveHint:false, or a write-shaped name advertises readOnlyHint:true.',
+    whatItMeans: `MCP 2026-07-28 added an \`annotations\` object on tools (\`readOnlyHint\`, \`destructiveHint\`, \`idempotentHint\`, \`openWorldHint\`, \`title\`). Clients use these hints to decide whether to show a confirmation prompt, whether to allow the tool into an auto-approve set, how to render the tool in a catalog. The spec and the official MCP blog are blunt: these are a UX layer, not a security layer — "clients MUST consider these untrusted unless the server is trusted".
+
+The check catches the specific case where a server is lying with the hints. A tool named \`delete_everything\` that sets \`destructiveHint: false\` has disabled the UX confirmation the hint was meant to govern. A tool named \`create_user\` that sets \`readOnlyHint: true\` has the same effect.
+
+Short list of unambiguous verbs (delete/drop/send/transfer/pay/charge, etc.) keeps false positives low. Ambiguous names are not flagged.`,
+    howToFix: `Set annotations that match the tool's real behaviour. If a destructive tool was intentionally marked non-destructive to skip a confirmation dialog, either rename the tool (so the hint matches the name) or leave the hint absent (clients default to the safe side when annotations are missing). Client-side, do not take annotations on faith: validate them against the tool name or input schema before using them to skip user prompts.`,
+  },
+  {
     id: 'audience-002',
     title: 'Server accepts bearer tokens with no audience claim',
     severity: 'critical',

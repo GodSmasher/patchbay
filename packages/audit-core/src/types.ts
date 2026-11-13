@@ -167,6 +167,22 @@ export interface ToolDescriptor {
   description?: string
   scopes?: string[]
   inputSchema?: Record<string, unknown>
+  /**
+   * Per MCP 2026-07-28, tools may carry an `annotations` object with
+   * `readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`
+   * and a human `title`. The spec and the MCP blog are blunt: these are
+   * UX hints, not security guarantees — a server CAN set them to any
+   * value. ANNOTATIONS-001 catches the case where the server is lying
+   * (destructive-sounding name + destructiveHint:false, or write-looking
+   * name + readOnlyHint:true).
+   */
+  annotations?: {
+    title?: string
+    readOnlyHint?: boolean
+    destructiveHint?: boolean
+    idempotentHint?: boolean
+    openWorldHint?: boolean
+  }
 }
 
 /**
