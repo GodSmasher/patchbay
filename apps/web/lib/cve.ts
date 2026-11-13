@@ -3,7 +3,7 @@ import { join } from 'node:path'
 
 export type CveSeverity = 'critical' | 'high' | 'medium' | 'low' | 'info'
 export type CveStatus = 'open' | 'fixed' | 'withdrawn'
-export type CveDisclosureState = 'embargoed' | 'public'
+export type CveDisclosureState = 'embargoed' | 'public' | 'withdrawn'
 
 export interface CveEntry {
   id: string
@@ -14,6 +14,8 @@ export interface CveEntry {
   status: CveStatus
   disclosureState: CveDisclosureState
   embargoUntil?: string
+  withdrawnAt?: string
+  withdrawnReason?: string
   title: string
   summary?: string
   description?: string

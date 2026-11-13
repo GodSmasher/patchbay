@@ -56,27 +56,47 @@ interface WellKnownRisk {
 // worth flagging even against a single-entry comparison. Format:
 //   canonicalBrand -> list of canonical tokens that appear in their
 //   legitimate name OR the GitHub owner of the real repo
-const BRANDS: Record<string, { tokens: string[]; legitOwners: string[] }> = {
-  linear:    { tokens: ['linear'],      legitOwners: ['linear'] },
-  notion:    { tokens: ['notion'],      legitOwners: ['makenotion'] },
-  supabase:  { tokens: ['supabase'],    legitOwners: ['supabase'] },
-  github:    { tokens: ['github'],      legitOwners: ['github'] },
-  slack:     { tokens: ['slack'],       legitOwners: ['slackhq'] },
-  stripe:    { tokens: ['stripe'],      legitOwners: ['stripe'] },
-  shopify:   { tokens: ['shopify'],     legitOwners: ['shopify'] },
-  vercel:    { tokens: ['vercel'],      legitOwners: ['vercel', 'vercel-labs'] },
-  cloudflare:{ tokens: ['cloudflare'],  legitOwners: ['cloudflare'] },
-  figma:     { tokens: ['figma'],       legitOwners: ['figma'] },
-  anthropic: { tokens: ['anthropic'],   legitOwners: ['anthropics'] },
-  openai:    { tokens: ['openai'],      legitOwners: ['openai'] },
-  mongodb:   { tokens: ['mongodb', 'mongo'], legitOwners: ['mongodb'] },
-  postgres:  { tokens: ['postgres'],    legitOwners: ['postgres', 'supabase'] },
-  airtable:  { tokens: ['airtable'],    legitOwners: ['airtable'] },
-  atlassian: { tokens: ['atlassian', 'jira', 'confluence'], legitOwners: ['atlassian'] },
-  hubspot:   { tokens: ['hubspot'],     legitOwners: ['hubspot'] },
-  salesforce:{ tokens: ['salesforce'],  legitOwners: ['salesforce'] },
-  notionhq:  { tokens: ['notionhq'],    legitOwners: ['makenotion'] },
-  claude:    { tokens: ['claude'],      legitOwners: ['anthropics'] },
+// canonicalHosts: hostnames (or hostname suffixes) owned by the brand.
+// When the registry entry has no repositoryUrl set, the owner check
+// alone cannot clear a legitimate first-party server (e.g. the real
+// Notion server lives at mcp.notion.com with no makenotion/* repo in
+// the registry metadata). Matching the remoteUrl host against the
+// brand's canonical domain clears those first-party entries without
+// weakening the typosquat signal.
+const BRANDS: Record<string, { tokens: string[]; legitOwners: string[]; canonicalHosts: string[] }> = {
+  linear:    { tokens: ['linear'],      legitOwners: ['linear'],                 canonicalHosts: ['linear.app'] },
+  notion:    { tokens: ['notion'],      legitOwners: ['makenotion'],             canonicalHosts: ['notion.com', 'notion.so'] },
+  supabase:  { tokens: ['supabase'],    legitOwners: ['supabase'],               canonicalHosts: ['supabase.com', 'supabase.co'] },
+  github:    { tokens: ['github'],      legitOwners: ['github'],                 canonicalHosts: ['github.com'] },
+  slack:     { tokens: ['slack'],       legitOwners: ['slackhq'],                canonicalHosts: ['slack.com'] },
+  stripe:    { tokens: ['stripe'],      legitOwners: ['stripe'],                 canonicalHosts: ['stripe.com'] },
+  shopify:   { tokens: ['shopify'],     legitOwners: ['shopify'],                canonicalHosts: ['shopify.com', 'shopify.dev'] },
+  vercel:    { tokens: ['vercel'],      legitOwners: ['vercel', 'vercel-labs'],  canonicalHosts: ['vercel.com'] },
+  cloudflare:{ tokens: ['cloudflare'],  legitOwners: ['cloudflare'],             canonicalHosts: ['cloudflare.com'] },
+  figma:     { tokens: ['figma'],       legitOwners: ['figma'],                  canonicalHosts: ['figma.com'] },
+  anthropic: { tokens: ['anthropic'],   legitOwners: ['anthropics'],             canonicalHosts: ['anthropic.com', 'claude.com', 'claude.ai'] },
+  openai:    { tokens: ['openai'],      legitOwners: ['openai'],                 canonicalHosts: ['openai.com'] },
+  mongodb:   { tokens: ['mongodb', 'mongo'], legitOwners: ['mongodb'],           canonicalHosts: ['mongodb.com'] },
+  postgres:  { tokens: ['postgres'],    legitOwners: ['postgres', 'supabase'],   canonicalHosts: ['postgresql.org'] },
+  airtable:  { tokens: ['airtable'],    legitOwners: ['airtable'],               canonicalHosts: ['airtable.com'] },
+  atlassian: { tokens: ['atlassian', 'jira', 'confluence'], legitOwners: ['atlassian'], canonicalHosts: ['atlassian.com', 'atlassian.net'] },
+  hubspot:   { tokens: ['hubspot'],     legitOwners: ['hubspot'],                canonicalHosts: ['hubspot.com'] },
+  salesforce:{ tokens: ['salesforce'],  legitOwners: ['salesforce'],             canonicalHosts: ['salesforce.com', 'force.com'] },
+  notionhq:  { tokens: ['notionhq'],    legitOwners: ['makenotion'],             canonicalHosts: ['notion.com', 'notion.so'] },
+  claude:    { tokens: ['claude'],      legitOwners: ['anthropics'],             canonicalHosts: ['anthropic.com', 'claude.com', 'claude.ai'] },
+}
+
+// Match a registry entry's remote host against a brand's canonical hosts.
+// Accepts an exact match ("notion.com") or a subdomain suffix
+// ("mcp.notion.com" ends with ".notion.com"). Never a bare substring
+// match — that would clear "attacker-notion.com".
+function hostMatchesBrand(host: string, canonicalHosts: string[]): boolean {
+  if (!host) return false
+  for (const c of canonicalHosts) {
+    if (host === c) return true
+    if (host.endsWith('.' + c)) return true
+  }
+  return false
 }
 
 function normalise(name: string): string {
@@ -268,8 +288,9 @@ function main(): void {
     const repoLc = repoRaw.toLowerCase()
 
     for (const [brand, meta] of Object.entries(BRANDS)) {
-      const legit = meta.legitOwners.some((o) => owner === o || host.includes(o + '.'))
-      if (legit) continue
+      const legitByOwner = meta.legitOwners.some((o) => owner === o || host.includes(o + '.'))
+      const legitByHost = hostMatchesBrand(host, meta.canonicalHosts)
+      if (legitByOwner || legitByHost) continue
 
       let signal: string | undefined
       let distance = Number.MAX_SAFE_INTEGER

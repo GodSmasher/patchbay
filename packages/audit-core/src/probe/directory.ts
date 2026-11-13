@@ -2,17 +2,31 @@ import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { extname, join, relative } from 'node:path'
 import type { DirectoryProbe, TargetSnapshot } from '../types'
 
+// Real OpenAI keys are `sk-<48 chars of base62>` or `sk-proj-<base62>`;
+// they NEVER contain hyphens or underscores in the secret portion. The
+// old `/\bsk-[A-Za-z0-9_-]{20,}\b/g` happily matched product URL slugs
+// like `sk-ct-sys-9222976908814636794` and variable names like
+// `sk-live-secret-material`. Tighten to no-dash body, 40+ chars.
+// Slack bot tokens have the shape `xoxb-<team id>-<bot id>-<signature>`
+// where each segment is numeric or base62; the old pattern matched
+// placeholder env values of the form `xoxb-your-<...>-token` because
+// dashes were allowed. Pin the three-segment structure.
 const SECRET_PATTERNS: Array<{ name: string; re: RegExp }> = [
-  { name: 'openai-key', re: /\bsk-[A-Za-z0-9_-]{20,}\b/g },
+  { name: 'openai-key', re: /\bsk-(?:proj-)?[A-Za-z0-9]{40,}\b/g },
   { name: 'aws-access-key', re: /\bAKIA[0-9A-Z]{16}\b/g },
   { name: 'github-token', re: /\bghp_[A-Za-z0-9]{30,}\b/g },
-  { name: 'slack-bot-token', re: /\bxoxb-[A-Za-z0-9-]{20,}\b/g },
+  { name: 'slack-bot-token', re: /\bxoxb-\d{10,}-\d{10,}-[A-Za-z0-9]{20,}\b/g },
   { name: 'generic-hex-secret', re: /(?:key|token|secret|password)\s*[:=]\s*['"][A-Fa-f0-9]{32,}['"]/g },
 ]
 
+// Keep `your-<anything>-(key|token|secret)` with intermediate words,
+// e.g. `your-slack-bot-token`. Add explicit "fixture" and "mock" too,
+// since test material often uses them in a path we did not catch.
 const EXAMPLE_PATTERNS = [
-  /example/i, /sample/i, /dummy/i, /placeholder/i, /your[-_]?(key|token|secret)/i,
+  /example/i, /sample/i, /dummy/i, /placeholder/i,
+  /your[-_][a-z0-9_-]*(key|token|secret)/i,
   /xxxx|xxxxxx|aaaaaa|bbbbbb|000000/i, /test[-_]?(key|token)/i, /fake[-_]?/i,
+  /fixture/i, /mock/i, /must[-_]?not[-_]?surface/i,
   /^sk-(xxx|example|test|dummy|aaaa)/i,
 ]
 

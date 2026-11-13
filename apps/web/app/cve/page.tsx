@@ -53,7 +53,7 @@ export default function CveIndexPage() {
       </p>
 
       <section style={{ padding: '1rem', background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8, marginBottom: '1.5rem' }}>
-        <strong>What this is.</strong> A catalogue of concrete findings against specific MCP servers (or server versions), with a stable identifier you can cite. The <code>CVE-PATCHBAY-YYYY-NNNN</code> scheme is patchbay-assigned and separate from MITRE CVE — we fill the gap until MCP servers are routinely assigned CVEs through standard channels. Advisories move through <em>embargoed</em> (operator notified, 90 days to fix) → <em>open</em> (details published) → <em>fixed</em> (operator confirmed rotation / patch).
+        <strong>What this is.</strong> A catalogue of concrete findings against specific MCP servers (or server versions), with a stable identifier you can cite. The <code>CVE-PATCHBAY-YYYY-NNNN</code> scheme is patchbay-assigned and separate from MITRE CVE — we fill the gap until MCP servers are routinely assigned CVEs through standard channels. Advisories move through <em>embargoed</em> (operator notified, 90 days to fix) → <em>open</em> (details published) → <em>fixed</em> (operator confirmed rotation / patch). Advisories that turn out to be false positives after verification are marked <em>withdrawn</em> and kept in the index so the retraction is also citable.
       </section>
 
       {all.length === 0 ? (
@@ -83,12 +83,15 @@ export default function CveIndexPage() {
                   <Link href={`/docs/${e.findingId.toLowerCase()}`} style={{ color: '#6366f1' }}>{e.findingId}</Link>
                 </td>
                 <td style={{ padding: '0.5rem 0.25rem' }}>
-                  <Link href={`/cve/${e.id}`} style={{ color: '#111827', textDecoration: 'none' }}>{e.title}</Link>
+                  <Link href={`/cve/${e.id}`} style={{ color: e.status === 'withdrawn' ? '#9ca3af' : '#111827', textDecoration: e.status === 'withdrawn' ? 'line-through' : 'none' }}>{e.title}</Link>
                   {isEmbargoActive(e) && (
                     <> · <span style={{ color: '#a16207', fontSize: '0.8rem' }}>embargoed until {e.embargoUntil?.slice(0, 10)}</span></>
                   )}
+                  {e.status === 'withdrawn' && (
+                    <> · <span style={{ color: '#6b7280', fontSize: '0.8rem' }}>withdrawn {e.withdrawnAt?.slice(0, 10)} — false positive</span></>
+                  )}
                 </td>
-                <td style={{ padding: '0.5rem 0.25rem', fontSize: '0.85rem', color: '#6b7280' }}>{e.status}</td>
+                <td style={{ padding: '0.5rem 0.25rem', fontSize: '0.85rem', color: e.status === 'withdrawn' ? '#9ca3af' : '#6b7280' }}>{e.status}</td>
                 <td style={{ padding: '0.5rem 0.25rem', fontSize: '0.85rem', color: '#6b7280' }}>{e.published.slice(0, 10)}</td>
               </tr>
             ))}
