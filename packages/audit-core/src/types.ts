@@ -33,6 +33,20 @@ export interface RemoteProbe {
   advertisedCapabilities?: Record<string, unknown>
   /** Server protocolVersion from initialize result. */
   protocolVersion?: string
+  /**
+   * Server-identifying strings extracted from response headers (Server,
+   * X-Powered-By, mcp-server-version, X-MCP-SDK) plus the initialize
+   * response's `serverInfo`. SDK-CVE-001 / SESSION-BINDING-001 use
+   * these to cross-reference against known-vulnerable version ranges.
+   */
+  serverIdentification?: {
+    serverHeader?: string
+    xPoweredBy?: string
+    mcpServerVersion?: string
+    xMcpSdk?: string
+    serverInfoName?: string
+    serverInfoVersion?: string
+  }
   resources?: Array<ResourceDescriptor>
   /**
    * Prompts advertised via prompts/list and the materialised argument

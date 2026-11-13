@@ -24,6 +24,8 @@ const DEMO_FIRES = new Set([
   'uritemplate-001',
   'sampling-001',
   'deprecated-001',
+  'oauth-revocation-001',
+  'sdk-cve-001',
   'headers-001',
   'transport-002',
   'iss-001',

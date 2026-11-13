@@ -240,6 +240,30 @@ The check reads the template string, not the server's sanitiser — it's a metad
     howToFix: `Remove the deprecated capability from the advertised set if unused. Plan a replacement before the removal window: structured progress / result messages instead of \`logging\`; explicit resource URIs instead of \`roots\`.`,
   },
   {
+    id: 'oauth-revocation-001',
+    title: 'OAuth server mints refresh tokens but exposes no revocation endpoint',
+    severity: 'medium',
+    oneLiner: 'AS metadata advertises refresh_token in grant_types_supported but has no revocation_endpoint for RFC 7009 token revocation.',
+    whatItMeans: `RFC 7009 defines a \`revocation_endpoint\` so a client that discovers a refresh token was leaked can tell the AS to invalidate it. A server that mints refresh tokens without wiring the revocation route effectively lets leaked tokens live until their expiry window closes. Common operator mistake in Auth0/Clerk/WorkOS templates where the revocation toggle was never flipped.
+
+The check reads metadata only — if the server does revoke tokens but doesn't advertise the endpoint, it should.`,
+    howToFix: `Implement RFC 7009 token revocation and advertise the endpoint as \`revocation_endpoint\` in /.well-known/oauth-authorization-server. Most OAuth hosts (Auth0, Clerk, WorkOS, Keycloak) ship this out of the box — the fix is usually a configuration toggle plus the metadata update. If you deliberately do not revoke tokens (short-lived, one-shot sessions), remove \`refresh_token\` from grant_types_supported so clients do not store a token they cannot cancel.`,
+  },
+  {
+    id: 'sdk-cve-001',
+    title: 'Server identifies as an MCP SDK in a known-vulnerable version range',
+    severity: 'high',
+    oneLiner: 'The server exposes its SDK + version via Server header / serverInfo and that version matches a public MCP CVE.',
+    whatItMeans: `Several MCP SDKs ship bugs that let an attacker leak session state or hijack conversations between clients. Patchbay keeps a small in-process table of known-vulnerable version ranges and cross-references it against the server identification fingerprint we read passively from response headers (\`Server\`, \`X-Powered-By\`, \`mcp-server-version\`, \`X-MCP-SDK\`) and the initialize result's \`serverInfo.name/version\`.
+
+Currently tracked:
+  - CVE-2026-52869: MCP Python SDK < 1.27.2 — session-ID routing lets an authenticated client inject into another client's session.
+  - CVE-2026-25536: MCP TypeScript SDK 1.10.0–1.25.3 — a reused McpServer + StreamableHTTPServerTransport leaks responses cross-client.
+
+Confidence is medium because version strings are self-reported — an operator that patched behind their reverse proxy without updating headers will show a false positive.`,
+    howToFix: `Upgrade to the fixed version listed in the finding (mcp >= 1.27.2 for Python, @modelcontextprotocol/sdk >= 1.25.4 for TypeScript). If upgrading in place is not possible immediately, front the server with a reverse proxy that enforces per-principal session isolation. Also strip the SDK version from your \`Server\` header if you don't want it to show up in scans at all — but note that fixing the bug is cheaper than hiding the string.`,
+  },
+  {
     id: 'audience-002',
     title: 'Server accepts bearer tokens with no audience claim',
     severity: 'critical',

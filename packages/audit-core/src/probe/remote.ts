@@ -181,12 +181,24 @@ export async function probeRemote(url: string, opts: RemoteProbeOptions = {}): P
       // tools/list code path can still consume the body.
       try {
         const cloned = res.clone()
-        const initResult = await parseJsonRpcResult<{ capabilities?: Record<string, unknown>; protocolVersion?: string }>(cloned, errors, 'initialize')
+        const initResult = await parseJsonRpcResult<{ capabilities?: Record<string, unknown>; protocolVersion?: string; serverInfo?: { name?: string; version?: string } }>(cloned, errors, 'initialize')
         if (initResult?.capabilities && typeof initResult.capabilities === 'object') {
           probe.advertisedCapabilities = initResult.capabilities
         }
         if (typeof initResult?.protocolVersion === 'string') {
           probe.protocolVersion = initResult.protocolVersion
+        }
+        // Server-identification fingerprint — powers SDK-CVE-001 /
+        // SESSION-BINDING-001. Pulled from response headers plus the
+        // initialize result's serverInfo. Everything is best-effort,
+        // optional, and never required for the probe to succeed.
+        probe.serverIdentification = {
+          serverHeader: res.headers.get('server') ?? undefined,
+          xPoweredBy: res.headers.get('x-powered-by') ?? undefined,
+          mcpServerVersion: res.headers.get('mcp-server-version') ?? undefined,
+          xMcpSdk: res.headers.get('x-mcp-sdk') ?? undefined,
+          serverInfoName: typeof initResult?.serverInfo?.name === 'string' ? initResult.serverInfo.name : undefined,
+          serverInfoVersion: typeof initResult?.serverInfo?.version === 'string' ? initResult.serverInfo.version : undefined,
         }
       } catch { /* best-effort */ }
       break

@@ -29,7 +29,11 @@ export async function GET(req: Request): Promise<Response> {
     token_endpoint: base + '/token',
     registration_endpoint: base + '/register',
     response_types_supported: ['code', 'token'],
-    grant_types_supported: ['authorization_code', 'implicit'],
+    // Include refresh_token in grant types but DO NOT advertise a
+    // revocation_endpoint so OAUTH-REVOCATION-001 fires. Classic
+    // Auth0/Clerk template leftover: operator enabled refresh tokens
+    // without wiring the revoke route.
+    grant_types_supported: ['authorization_code', 'implicit', 'refresh_token'],
     code_challenge_methods_supported: ['plain'],
     scopes_supported: ['read', 'write', 'admin'],
     token_endpoint_auth_methods_supported: ['none'],

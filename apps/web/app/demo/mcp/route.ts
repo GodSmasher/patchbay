@@ -147,8 +147,20 @@ export async function POST(req: Request): Promise<Response> {
   if (method === 'initialize') {
     return reply({
       protocolVersion: '2026-07-28',
-      serverInfo: { name: 'patchbay-demo', version: '0.1.0' },
-      capabilities: { tools: {} },
+      // Fake serverInfo identifying as MCP Python SDK 1.26.3, which falls
+      // inside the CVE-2026-52869 vulnerable range (< 1.27.2). SDK-CVE-001
+      // cross-references this against the known-vulnerable version table.
+      serverInfo: { name: 'patchbay-demo (modelcontextprotocol/python-sdk 1.26.3)', version: '0.1.0' },
+      // Intentionally advertise deprecated + sampling capabilities so the
+      // audit against demo trips SAMPLING-001 and DEPRECATED-001.
+      capabilities: {
+        tools: {},
+        resources: {},
+        prompts: {},
+        sampling: {},
+        logging: {},
+        roots: {},
+      },
     })
   }
   if (method === 'tools/list') {
@@ -166,6 +178,19 @@ export async function POST(req: Request): Promise<Response> {
   }
   if (method === 'resources/list') {
     return reply({ resources: RESOURCES })
+  }
+  if (method === 'resources/templates/list') {
+    return reply({
+      resourceTemplates: [
+        // High: {path*} unbounded explode directly in a filesystem URI.
+        // URITEMPLATE-001 flags this as path-traversal surface.
+        { uriTemplate: 'file:///demo-store/{path*}', name: 'file-anywhere', description: 'Read a file from the demo store (no sanitisation, intentionally).' },
+        // Medium: {name} simple segment in a filesystem URI.
+        { uriTemplate: 'file:///demo-store/{name}', name: 'file-named', description: 'Read a named file. Still ungated against %2F.' },
+        // Benign: https:// template is API-shaped, should not be flagged.
+        { uriTemplate: 'https://api.buywhere.demo/v1/products/{id}', name: 'product', description: 'Fetch a product by id.' },
+      ],
+    })
   }
   if (method === 'resources/read') {
     const uri = (body.params as { uri?: string } | undefined)?.uri
