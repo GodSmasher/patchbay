@@ -65,6 +65,8 @@ function CoverageBadge({ entry }: { entry: LeaderboardEntry }) {
 
 export default async function LeaderboardPage() {
   const snapshot = await loadLeaderboardSnapshot()
+  const fullSnapshot = await loadLeaderboardSnapshot(true)
+  const embargoedCount = fullSnapshot && snapshot ? fullSnapshot.entries.length - snapshot.entries.length : 0
   if (!snapshot) {
     return (
       <main style={{ maxWidth: 820, margin: '0 auto', padding: '2rem 1rem' }}>
@@ -100,6 +102,9 @@ export default async function LeaderboardPage() {
       <h1 style={{ fontSize: '2rem', margin: '0 0 0.25rem' }}>MCP Server Security Leaderboard</h1>
       <p style={{ color: '#6b7280', margin: '0 0 1rem' }}>
         {reachable.length} of {snapshot.cohortSize} public MCP servers audited on {capturedDate}. Passive checks only (OAuth metadata, response headers, manifest drift). No tool calls, no OAuth flows against third-party servers.
+        {embargoedCount > 0 && (
+          <> · <span title="Under coordinated-disclosure embargo: operator notified, 90-day fix window running." style={{ color: '#a16207' }}>{embargoedCount} entr{embargoedCount === 1 ? 'y' : 'ies'} under disclosure embargo</span></>
+        )}
       </p>
 
       <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>

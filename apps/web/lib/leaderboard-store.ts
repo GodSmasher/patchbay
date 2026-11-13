@@ -74,6 +74,19 @@ export interface LeaderboardEntry {
    * show than the raw host).
    */
   registryName?: string
+  /**
+   * Coordinated-disclosure state. 'embargoed' hides the entry from the
+   * public leaderboard list and the per-host page until the embargo
+   * lifts (`embargoUntil` reached, or the operator asks us to publish
+   * sooner). Entries with secret-level findings default to embargoed
+   * on first ingest and move to 'public' after the window expires or
+   * the operator claims the listing with a "resolved" state.
+   */
+  disclosureState?: 'public' | 'embargoed'
+  /** ISO date when the embargo lifts automatically. */
+  embargoUntil?: string
+  /** Free-form note for the leaderboard "under disclosure" badge. */
+  disclosureNote?: string
 }
 
 export interface LeaderboardSnapshot {
@@ -148,26 +161,51 @@ export async function saveLeaderboardSnapshot(snapshot: LeaderboardSnapshot): Pr
   memory.byHost = new Map(snapshot.entries.map((e) => [e.slug, e]))
 }
 
-export async function loadLeaderboardSnapshot(): Promise<LeaderboardSnapshot | null> {
-  if (kvAvailable()) {
-    const snap = await kv.get<LeaderboardSnapshot>(SNAPSHOT_KEY)
-    return snap ?? null
-  }
-  if (devFileAvailable()) {
-    return readDevJson<LeaderboardSnapshot>(devSnapshotPath())
-  }
-  return memory.snapshot
+function filterPublic(snapshot: LeaderboardSnapshot | null): LeaderboardSnapshot | null {
+  if (!snapshot) return null
+  const now = new Date().toISOString()
+  const visible = snapshot.entries.filter((e) => {
+    if (e.disclosureState !== 'embargoed') return true
+    return e.embargoUntil ? e.embargoUntil <= now : false
+  })
+  return { ...snapshot, entries: visible, cohortSize: visible.length }
 }
 
-export async function loadLeaderboardEntry(slug: string): Promise<LeaderboardEntry | null> {
+/**
+ * Returns the public view of the snapshot — embargoed entries are
+ * hidden until their embargo date passes. Pass includeEmbargoed=true
+ * from the admin/report pipelines only.
+ */
+export async function loadLeaderboardSnapshot(includeEmbargoed = false): Promise<LeaderboardSnapshot | null> {
   if (kvAvailable()) {
-    const entry = await kv.get<LeaderboardEntry>(HOST_PREFIX + slug)
-    return entry ?? null
+    const snap = await kv.get<LeaderboardSnapshot>(SNAPSHOT_KEY)
+    return includeEmbargoed ? (snap ?? null) : filterPublic(snap ?? null)
   }
   if (devFileAvailable()) {
-    return readDevJson<LeaderboardEntry>(devHostPath(slug))
+    const snap = readDevJson<LeaderboardSnapshot>(devSnapshotPath())
+    return includeEmbargoed ? snap : filterPublic(snap)
   }
-  return memory.byHost.get(slug) ?? null
+  return includeEmbargoed ? memory.snapshot : filterPublic(memory.snapshot)
+}
+
+function isPublic(entry: LeaderboardEntry | null): LeaderboardEntry | null {
+  if (!entry) return null
+  if (entry.disclosureState !== 'embargoed') return entry
+  if (entry.embargoUntil && entry.embargoUntil <= new Date().toISOString()) return entry
+  return null
+}
+
+export async function loadLeaderboardEntry(slug: string, includeEmbargoed = false): Promise<LeaderboardEntry | null> {
+  if (kvAvailable()) {
+    const entry = await kv.get<LeaderboardEntry>(HOST_PREFIX + slug)
+    return includeEmbargoed ? (entry ?? null) : isPublic(entry ?? null)
+  }
+  if (devFileAvailable()) {
+    const entry = readDevJson<LeaderboardEntry>(devHostPath(slug))
+    return includeEmbargoed ? entry : isPublic(entry)
+  }
+  const entry = memory.byHost.get(slug) ?? null
+  return includeEmbargoed ? entry : isPublic(entry)
 }
 
 export function slugForHost(host: string): string {
