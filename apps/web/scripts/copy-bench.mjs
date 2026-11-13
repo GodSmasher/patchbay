@@ -14,6 +14,7 @@ const cveDataDir = resolve(dataDir, 'cve')
 const singleCopies = [
   { from: 'variance.json',             toPublic: true,  toData: false },
   { from: 'impersonation-public.json', toPublic: false, toData: true  },
+  { from: 'check-owasp-mapping.json',  toPublic: false, toData: true  },
 ]
 
 mkdirSync(publicDir, { recursive: true })
@@ -45,6 +46,12 @@ if (existsSync(srcCveDir)) {
   for (const f of cveFiles) {
     copyFileSync(resolve(srcCveDir, f), resolve(cveDataDir, f))
     console.log('copy-bench: ' + resolve(srcCveDir, f) + ' → ' + resolve(cveDataDir, f))
+  }
+  // Also copy the external CVE index (synced from mcp-cve-project)
+  const externalCves = resolve(srcCveDir, 'external-cves.json')
+  if (existsSync(externalCves)) {
+    copyFileSync(externalCves, resolve(cveDataDir, 'external-cves.json'))
+    console.log('copy-bench: ' + externalCves + ' → ' + resolve(cveDataDir, 'external-cves.json'))
   }
 } else {
   console.warn('copy-bench: ' + srcCveDir + ' not found, no CVE data to copy')

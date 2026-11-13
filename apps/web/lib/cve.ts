@@ -68,3 +68,55 @@ export function isEmbargoActive(entry: CveEntry): boolean {
   const now = new Date().toISOString()
   return entry.disclosureState === 'embargoed' && (!entry.embargoUntil || entry.embargoUntil > now)
 }
+
+export type OwaspMcpCategory =
+  | 'MCP01' | 'MCP02' | 'MCP03' | 'MCP04' | 'MCP05'
+  | 'MCP06' | 'MCP07' | 'MCP08' | 'MCP09' | 'MCP10'
+
+export interface ExternalCve {
+  id: string
+  date: string
+  owaspCategory?: OwaspMcpCategory
+  owaspLabel?: string
+  affectedProduct: string
+  upstreamUrl: string
+}
+
+export interface ExternalCveIndex {
+  source: string
+  fetchedAt: string
+  count: number
+  byOwaspCategory: Record<string, number>
+  cves: ExternalCve[]
+}
+
+const EXTERNAL_CVE_FILE = join(process.cwd(), 'data', 'cve', 'external-cves.json')
+
+export function loadExternalCves(): ExternalCveIndex | null {
+  try { return JSON.parse(readFileSync(EXTERNAL_CVE_FILE, 'utf8')) as ExternalCveIndex } catch { return null }
+}
+
+export const OWASP_LABELS: Record<OwaspMcpCategory, string> = {
+  MCP01: 'Token Mismanagement & Secret Exposure',
+  MCP02: 'Privilege Escalation via Scope Creep',
+  MCP03: 'Tool Poisoning',
+  MCP04: 'Software Supply Chain Attacks & Dependency Tampering',
+  MCP05: 'Command Injection & Execution',
+  MCP06: 'Prompt Injection via Contextual Payloads',
+  MCP07: 'Insufficient Authentication & Authorization',
+  MCP08: 'Lack of Audit and Telemetry',
+  MCP09: 'Shadow MCP Servers',
+  MCP10: 'Context Injection & Over-Sharing',
+}
+
+const CHECK_MAPPING_FILE = join(process.cwd(), 'data', 'check-owasp-mapping.json')
+
+export interface CheckOwaspMapping {
+  owaspMcpTop10: string
+  source: string
+  checks: Record<string, { owaspCategory: OwaspMcpCategory | null; label?: string; note?: string }>
+}
+
+export function loadCheckOwaspMapping(): CheckOwaspMapping | null {
+  try { return JSON.parse(readFileSync(CHECK_MAPPING_FILE, 'utf8')) as CheckOwaspMapping } catch { return null }
+}
