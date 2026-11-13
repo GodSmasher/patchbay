@@ -1,7 +1,7 @@
 // Copies committed bench/*.json files from the repo root into apps/web/public/
 // (and apps/web/data/ for static imports) before every build so pages always
 // render against the latest committed data.
-import { copyFileSync, existsSync, mkdirSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -9,16 +9,18 @@ const here = dirname(fileURLToPath(import.meta.url))
 const repoBench = resolve(here, '..', '..', '..', 'bench')
 const publicDir = resolve(here, '..', 'public')
 const dataDir = resolve(here, '..', 'data')
+const cveDataDir = resolve(dataDir, 'cve')
 
-const copies = [
+const singleCopies = [
   { from: 'variance.json',             toPublic: true,  toData: false },
   { from: 'impersonation-public.json', toPublic: false, toData: true  },
 ]
 
 mkdirSync(publicDir, { recursive: true })
 mkdirSync(dataDir, { recursive: true })
+mkdirSync(cveDataDir, { recursive: true })
 
-for (const c of copies) {
+for (const c of singleCopies) {
   const src = resolve(repoBench, c.from)
   if (!existsSync(src)) {
     console.warn('copy-bench: ' + src + ' not found, skipping')
@@ -34,4 +36,16 @@ for (const c of copies) {
     copyFileSync(src, dst)
     console.log('copy-bench: ' + src + ' → ' + dst)
   }
+}
+
+// CVE directory: copy every CVE-PATCHBAY-*.json so the /cve routes can read them.
+const srcCveDir = resolve(repoBench, 'cve')
+if (existsSync(srcCveDir)) {
+  const cveFiles = readdirSync(srcCveDir).filter((f) => /^CVE-PATCHBAY-\d{4}-\d{4,}\.json$/.test(f))
+  for (const f of cveFiles) {
+    copyFileSync(resolve(srcCveDir, f), resolve(cveDataDir, f))
+    console.log('copy-bench: ' + resolve(srcCveDir, f) + ' → ' + resolve(cveDataDir, f))
+  }
+} else {
+  console.warn('copy-bench: ' + srcCveDir + ' not found, no CVE data to copy')
 }
