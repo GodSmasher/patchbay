@@ -61,6 +61,17 @@ export interface RemoteProbeOptions {
    */
   probeHeadlessOauth?: boolean
   /**
+   * When true, the probe calls tools/call on the first few tools whose
+   * annotations claim read-only + non-destructive AND whose input
+   * schema requires no arguments. Powers POISONING-003: a server can
+   * ship a tool whose RESULT contains prompt-injection payloads that
+   * never show up in the tool catalog. Off by default — tool invocation
+   * has side effects even on "safe" tools (rate limits, audit logs,
+   * cost) and should only be run against servers you own or against
+   * the patchbay demo.
+   */
+  probeToolCalls?: boolean
+  /**
    * Public-metadata-only mode. The probe fetches the well-known OAuth
    * metadata documents, HEAD + initial GET on the MCP endpoint, and
    * records response headers — but does NOT send `tools/list` or any
@@ -232,6 +243,34 @@ export async function probeRemote(url: string, opts: RemoteProbeOptions = {}): P
         const rd = await postRpc(endpoint, { jsonrpc: '2.0', id: 21 + i, method: 'resources/read', params: { uri: r.uri } })
         if (rd && rd.ok && streamOk(rd)) {
           r.contents = await parseResourceContents(rd, errors)
+        }
+      }
+    }
+
+    // POISONING-003: opt-in tool-call probe. Only invokes tools whose
+    // annotations and input schema both signal "safe to call without
+    // arguments" — read-only hint on, destructive hint off, required
+    // input list empty. Caps at 3 calls per audit so a misclassified
+    // safe tool can't blow a hole in the target's quota.
+    if (opts.probeToolCalls && probe.tools.length > 0) {
+      const callable = probe.tools.filter(isSafeToProbe).slice(0, 3)
+      for (let i = 0; i < callable.length; i++) {
+        const t = callable[i]!
+        const callRes = await postRpc(endpoint, { jsonrpc: '2.0', id: 40 + i, method: 'tools/call', params: { name: t.name, arguments: {} } })
+        if (callRes && callRes.ok && streamOk(callRes)) {
+          const result = await parseJsonRpcResult<{ content?: Array<{ type?: string; text?: string }>; isError?: boolean }>(callRes, errors, 'tools/call ' + t.name)
+          t.callProbe = {
+            attempted: true,
+            outcome: 'ok',
+            content: result?.content ?? [],
+            isError: result?.isError,
+          }
+        } else {
+          t.callProbe = {
+            attempted: true,
+            outcome: 'error',
+            reason: callRes ? 'HTTP ' + callRes.status : 'no response',
+          }
         }
       }
     }
@@ -584,6 +623,17 @@ async function parsePromptMessages(res: Response, errors: string[]): Promise<Non
       } : undefined,
     }
   })
+}
+
+function isSafeToProbe(t: { name: string; annotations?: { readOnlyHint?: boolean; destructiveHint?: boolean }; inputSchema?: Record<string, unknown> }): boolean {
+  if (!t.annotations?.readOnlyHint) return false
+  if (t.annotations.destructiveHint === true) return false
+  // Reject names that look destructive even if hints say otherwise
+  if (/(delete|drop|remove|purge|erase|wipe|destroy|send|transfer|pay|charge|refund|revoke|cancel|kill)/i.test(t.name)) return false
+  // Require no required input arguments
+  const required = (t.inputSchema as { required?: unknown } | undefined)?.required
+  if (Array.isArray(required) && required.length > 0) return false
+  return true
 }
 
 export { pathCandidates }

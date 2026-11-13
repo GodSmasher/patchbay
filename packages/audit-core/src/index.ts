@@ -65,6 +65,13 @@ export interface AuditOptions {
    */
   probeHeadlessOauth?: boolean
   /**
+   * When true, the probe calls tools/call on tools whose annotations
+   * and schema signal "safe to call without arguments" and scans the
+   * result content for POISONING-003 patterns. Off by default because
+   * invocation has side effects even on "safe" tools.
+   */
+  probeToolCalls?: boolean
+  /**
    * When set, `target` is treated as a shell command to spawn as an MCP
    * server over stdio, not as a URL or directory. Enables MANIFEST-001
    * for Claude Desktop-style MCP servers.
@@ -109,6 +116,7 @@ async function resolveTarget(target: string, opts: AuditOptions): Promise<Target
       probeMissingAudToken: opts.probeMissingAudToken,
       probeDcrLoopback: opts.probeDcrLoopback,
       probeHeadlessOauth: opts.probeHeadlessOauth,
+      probeToolCalls: opts.probeToolCalls,
       metadataOnly: opts.metadataOnly,
     })
   }

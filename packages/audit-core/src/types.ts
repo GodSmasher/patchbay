@@ -183,6 +183,19 @@ export interface ToolDescriptor {
     idempotentHint?: boolean
     openWorldHint?: boolean
   }
+  /**
+   * Result of calling this tool via tools/call. Populated only when the
+   * crawler was explicitly allowed to invoke tools (opt-in via
+   * probeToolCalls) AND the tool was classified safe-to-probe. Powers
+   * POISONING-003 (tool-call result content scanning).
+   */
+  callProbe?: {
+    attempted: boolean
+    outcome: 'ok' | 'skipped' | 'error'
+    reason?: string
+    content?: Array<{ type?: string; text?: string }>
+    isError?: boolean
+  }
 }
 
 /**

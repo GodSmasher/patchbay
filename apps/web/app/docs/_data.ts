@@ -201,6 +201,16 @@ Short list of unambiguous verbs (delete/drop/send/transfer/pay/charge, etc.) kee
     howToFix: `Set annotations that match the tool's real behaviour. If a destructive tool was intentionally marked non-destructive to skip a confirmation dialog, either rename the tool (so the hint matches the name) or leave the hint absent (clients default to the safe side when annotations are missing). Client-side, do not take annotations on faith: validate them against the tool name or input schema before using them to skip user prompts.`,
   },
   {
+    id: 'poisoning-003',
+    title: 'Tool call result contains prompt-injection patterns',
+    severity: 'high',
+    oneLiner: 'A tool whose annotations look safe returns content that addresses the model.',
+    whatItMeans: `MCP tools can return arbitrary text via tools/call. Clients paste that text into the model's context, same as a resource body or a prompt message. POISONING-001 scans tool metadata, POISONING-002 scans resources/read and prompts/get — POISONING-003 scans the tool CALL RESULT itself. A compromised server can ship a tool whose annotations look benign (read-only hint on, no required arguments, boring name) and never show the payload in the catalog. The user sees a safe-looking "greeting" tool; the model sees a system prompt injection hidden in the greeting text.
+
+The check only runs when the audit was explicitly allowed to invoke tools (opt-in via --probe-tool-calls). Against third-party servers we skip this — calling a stranger's tool has side effects. Against our demo server and operator-authorised audits the check fires normally and finds the hidden characters and role markers that POISONING-001 and POISONING-002 would never see.`,
+    howToFix: `Sanitise every tool output before returning it. Strip zero-width characters, bidi overrides, soft hyphens and tag characters. Treat upstream data (search results, scraped content, third-party APIs) as untrusted at the server layer and normalise with NFC + ASCII-print-filter before sending to the client. Never relay raw model-addressed text (System:, <SYSTEM>, "ignore previous instructions") through a tool result — if your business logic needs to emit such strings, tag them as a code span or quoted literal so the model does not read them as instructions.`,
+  },
+  {
     id: 'audience-002',
     title: 'Server accepts bearer tokens with no audience claim',
     severity: 'critical',

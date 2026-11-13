@@ -331,6 +331,7 @@ async function audit(args: string[]) {
   const probeMissingAudToken = flagValue(args, '--probe-missing-aud') ?? process.env.PATCHBAY_PROBE_MISSING_AUD_TOKEN
   const probeDcrLoopback = args.includes('--probe-dcr-loopback') || process.env.PATCHBAY_PROBE_DCR_LOOPBACK === '1'
   const probeHeadlessOauth = args.includes('--probe-headless-oauth') || process.env.PATCHBAY_PROBE_HEADLESS_OAUTH === '1'
+  const probeToolCalls = args.includes('--probe-tool-calls') || process.env.PATCHBAY_PROBE_TOOL_CALLS === '1'
   const trustCurrentManifest = args.includes('--trust')
   const publish = args.includes('--publish')
   const ci = args.includes('--ci')
@@ -351,7 +352,7 @@ async function audit(args: string[]) {
 
   const { auditTarget, renderTerminal, renderJson, renderSarif, renderMarkdown } = await import('@patchbay-nebius/audit-core')
   const resolved = stdio ? target : (/^https?:\/\//i.test(target) ? target : resolve(target))
-  const report = await auditTarget(resolved, { authToken, trustCurrentManifest, probeAudienceToken, probeMissingAudToken, probeDcrLoopback, probeHeadlessOauth, stdio })
+  const report = await auditTarget(resolved, { authToken, trustCurrentManifest, probeAudienceToken, probeMissingAudToken, probeDcrLoopback, probeHeadlessOauth, probeToolCalls, stdio })
 
   if (publish) {
     try {
