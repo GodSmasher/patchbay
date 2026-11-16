@@ -8,7 +8,12 @@
 
 set -euo pipefail
 
-staged() { git diff --cached --name-only --diff-filter=ACMR -- ':!bench/disclosures.md'; }
+# Exclude bench/disclosures.md (operator write-up with redacted evidence)
+# and bench/validation/** (SECRET-001 validation corpora — by design
+# these files contain realistic-looking strings so the scanner can be
+# tested against them, so of course the scanner would flag them if run
+# over them).
+staged() { git diff --cached --name-only --diff-filter=ACMR -- ':!bench/disclosures.md' ':!bench/validation/**'; }
 
 FILES=$(staged)
 if [ -z "$FILES" ]; then
