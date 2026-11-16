@@ -1,4 +1,4 @@
-import type { Check, Finding } from '../types'
+import type { Check, CheckOutput } from '../types'
 
 /**
  * REDIRECT-002: authorization server accepts unregistered redirect_uri.
@@ -19,7 +19,7 @@ export const redirect002: Check = {
   id: 'REDIRECT-002',
   severity: 'critical',
   title: 'Authorization server accepts unregistered redirect_uri',
-  run: (snapshot): Finding[] => {
+  run: (snapshot): CheckOutput[] => {
     const r = snapshot.remote
     const hp = r?.headlessOauth
     if (!r || !hp || !hp.attempted || !hp.redirectMismatch) return []

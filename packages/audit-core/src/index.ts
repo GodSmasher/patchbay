@@ -1,13 +1,15 @@
 import { ALL_CHECKS } from './checks'
+import { resolveCheckMetadata } from './check-metadata'
 import { probeDirectory } from './probe/directory'
 import { probeRemote } from './probe/remote'
 import { probeStdio } from './probe/stdio'
-import type { AuditReport, Check, Finding, Severity, TargetSnapshot } from './types'
+import type { AuditReport, Check, CheckOutput, Finding, Severity, TargetSnapshot } from './types'
 
 export type {
-  AuditReport, AudienceProbeResult, Check, Finding, Severity, StdioProbe, TargetSnapshot,
+  AuditReport, AudienceProbeResult, Check, CheckOutput, Finding, FindingVerification, Severity, StdioProbe, TargetSnapshot,
   ManifestDelta, ManifestDeltaItem, ManifestDeltaKind, ManifestEntry, ToolDescriptor,
 } from './types'
+export { CHECK_METADATA, resolveCheckMetadata, type CheckMetadata } from './check-metadata'
 export { ALL_CHECKS } from './checks'
 export { probeRemote, probeDirectory, probeStdio, parseCommand } from './probe'
 export { renderTerminal, renderJson, renderSarif, renderMarkdown } from './report'
@@ -123,12 +125,31 @@ async function resolveTarget(target: string, opts: AuditOptions): Promise<Target
   return probeDirectory(target)
 }
 
+function enrichFinding(raw: CheckOutput, target: string): Finding {
+  const meta = resolveCheckMetadata(raw.id)
+  const sub = (s: string) => s.replace(/\{\{target\}\}/g, target)
+  return {
+    id: raw.id,
+    severity: raw.severity,
+    confidence: raw.confidence,
+    title: raw.title,
+    evidence: raw.evidence,
+    fix: raw.fix,
+    docsUrl: raw.docsUrl,
+    autofixTemplate: raw.autofixTemplate,
+    verification: raw.verification ?? meta.verification,
+    affectedComponents: raw.affectedComponents ?? meta.affectedComponents.map(sub),
+    reproductionSteps: raw.reproductionSteps ?? sub(meta.reproductionSteps),
+    remediation: raw.remediation ?? sub(meta.remediation),
+  }
+}
+
 function runChecks(snapshot: TargetSnapshot, checks: Check[], start: number): AuditReport {
-  const findings: Finding[] = []
+  const rawFindings: CheckOutput[] = []
   for (const c of checks) {
-    try { findings.push(...c.run(snapshot)) }
+    try { rawFindings.push(...c.run(snapshot)) }
     catch (e) {
-      findings.push({
+      rawFindings.push({
         id: c.id,
         severity: 'info',
         confidence: 'low',
@@ -136,9 +157,14 @@ function runChecks(snapshot: TargetSnapshot, checks: Check[], start: number): Au
         evidence: (e as Error).message,
         fix: 'Report this to patchbay.',
         docsUrl: 'https://patchbay-mcp.dev/docs/check-crashed',
+        verification: 'potential-fp',
+        affectedComponents: ['audit-core (' + c.id + ')'],
+        reproductionSteps: 'Re-run the audit against the same target. If the crash reproduces, open an issue at github.com/GodSmasher/patchbay with the stack.',
+        remediation: 'This is a patchbay bug, not a finding on the target. No operator action.',
       })
     }
   }
+  const findings: Finding[] = rawFindings.map((f) => enrichFinding(f, snapshot.target))
   findings.sort((a, b) => sevRank(a.severity) - sevRank(b.severity))
   const summary: Record<Severity, number> = { critical: 0, high: 0, medium: 0, low: 0, info: 0 }
   for (const f of findings) summary[f.severity]++

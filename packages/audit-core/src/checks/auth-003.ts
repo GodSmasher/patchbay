@@ -1,4 +1,4 @@
-import type { Check, Finding } from '../types'
+import type { Check, CheckOutput } from '../types'
 
 /**
  * AUTH-003: PKCE S256 not advertised in authorization-server metadata.
@@ -13,7 +13,7 @@ export const auth003: Check = {
   id: 'AUTH-003',
   severity: 'high',
   title: 'PKCE S256 not advertised in OAuth metadata',
-  run: (snapshot): Finding[] => {
+  run: (snapshot): CheckOutput[] => {
     const r = snapshot.remote
     if (!r || !r.oauthAuthServer) return []
     const meta = r.oauthAuthServer

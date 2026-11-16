@@ -1,4 +1,4 @@
-import type { Check, Finding } from '../types'
+import type { Check, CheckOutput } from '../types'
 
 /**
  * AUTH-005: No client-registration mechanism advertised.
@@ -30,7 +30,7 @@ export const auth005: Check = {
   id: 'AUTH-005',
   severity: 'high',
   title: 'No client-registration mechanism advertised',
-  run: (snapshot): Finding[] => {
+  run: (snapshot): CheckOutput[] => {
     const r = snapshot.remote
     if (!r || !r.oauthAuthServer) return []
     const meta = r.oauthAuthServer

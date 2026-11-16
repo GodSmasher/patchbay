@@ -1,4 +1,4 @@
-import type { Check, Finding } from '../types'
+import type { Check, CheckOutput } from '../types'
 
 /**
  * PKCE-002: authorization server accepts plain PKCE.
@@ -16,7 +16,7 @@ export const pkce002: Check = {
   id: 'PKCE-002',
   severity: 'high',
   title: 'Authorization server accepts plain PKCE',
-  run: (snapshot): Finding[] => {
+  run: (snapshot): CheckOutput[] => {
     const r = snapshot.remote
     const hp = r?.headlessOauth
     if (!r || !hp || !hp.attempted || !hp.pkcePlain) return []

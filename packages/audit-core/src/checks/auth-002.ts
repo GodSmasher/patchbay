@@ -1,10 +1,10 @@
-import type { Check, Finding } from '../types'
+import type { Check, CheckOutput } from '../types'
 
 export const auth002: Check = {
   id: 'AUTH-002',
   severity: 'critical',
   title: 'Static API key accepted, no OAuth discovery',
-  run: (snapshot): Finding[] => {
+  run: (snapshot): CheckOutput[] => {
     const r = snapshot.remote
     if (!r || !r.reachable) return []
     if (!r.authRequired) return []

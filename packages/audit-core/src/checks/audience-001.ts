@@ -1,4 +1,4 @@
-import type { Check, Finding } from '../types'
+import type { Check, CheckOutput } from '../types'
 
 /**
  * AUDIENCE-001: the server accepted a bearer token that was minted for a
@@ -24,7 +24,7 @@ export const audience001: Check = {
   id: 'AUDIENCE-001',
   severity: 'critical',
   title: 'Server accepts cross-audience bearer tokens',
-  run: (snapshot): Finding[] => {
+  run: (snapshot): CheckOutput[] => {
     const r = snapshot.remote
     if (!r || !r.audienceProbe || !r.audienceProbe.attempted) return []
 

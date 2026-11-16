@@ -1,4 +1,4 @@
-import type { Check, Finding, ToolDescriptor } from '../types'
+import type { Check, CheckOutput, ToolDescriptor } from '../types'
 
 /**
  * ANNOTATIONS-001: tool annotations that contradict the tool's name.
@@ -29,7 +29,7 @@ export const annotations001: Check = {
   id: 'ANNOTATIONS-001',
   severity: 'high',
   title: 'Tool annotations contradict the tool name',
-  run: (snapshot): Finding[] => {
+  run: (snapshot): CheckOutput[] => {
     const tools = snapshot.remote?.tools ?? snapshot.stdio?.tools ?? []
     if (tools.length === 0) return []
 
@@ -52,7 +52,7 @@ export const annotations001: Check = {
 
     if (liars.length === 0) return []
 
-    const findings: Finding[] = []
+    const findings: CheckOutput[] = []
     const sample = liars.slice(0, 5).map((h) => h.tool + ' — ' + h.why).join('; ')
     findings.push({
       id: 'ANNOTATIONS-001',

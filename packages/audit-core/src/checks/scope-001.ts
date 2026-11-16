@@ -1,10 +1,10 @@
-import type { Check, Finding } from '../types'
+import type { Check, CheckOutput } from '../types'
 
 export const scope001: Check = {
   id: 'SCOPE-001',
   severity: 'high',
   title: 'No per-tool scopes',
-  run: (snapshot): Finding[] => {
+  run: (snapshot): CheckOutput[] => {
     const r = snapshot.remote
     const d = snapshot.directory
     if (d?.scopeManifest) {
@@ -29,7 +29,7 @@ export const scope001: Check = {
   },
 }
 
-function finding(evidence: string): Finding {
+function finding(evidence: string): CheckOutput {
   return {
     id: 'SCOPE-001',
     severity: 'high',

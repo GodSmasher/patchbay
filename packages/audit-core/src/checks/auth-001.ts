@@ -1,11 +1,11 @@
-import type { Check, Finding } from '../types'
+import type { Check, CheckOutput } from '../types'
 import { hasWriteTools } from './tool-shapes'
 
 export const auth001: Check = {
   id: 'AUTH-001',
   severity: 'critical',
   title: 'No authentication required',
-  run: (snapshot): Finding[] => {
+  run: (snapshot): CheckOutput[] => {
     const r = snapshot.remote
     if (!r || !r.reachable) return []
     if (!r.toolsListOk) return []

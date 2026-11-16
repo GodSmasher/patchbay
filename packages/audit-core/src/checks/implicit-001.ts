@@ -1,4 +1,4 @@
-import type { Check, Finding } from '../types'
+import type { Check, CheckOutput } from '../types'
 
 /**
  * IMPLICIT-001: authorization server supports the implicit grant.
@@ -17,7 +17,7 @@ export const implicit001: Check = {
   id: 'IMPLICIT-001',
   severity: 'critical',
   title: 'Authorization server supports the implicit grant',
-  run: (snapshot): Finding[] => {
+  run: (snapshot): CheckOutput[] => {
     const r = snapshot.remote
     const hp = r?.headlessOauth
     if (!r || !hp || !hp.attempted || !hp.implicit) return []

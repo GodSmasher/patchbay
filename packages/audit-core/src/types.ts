@@ -345,6 +345,30 @@ export interface StdioProbe {
   rawErrors: string[]
 }
 
+/**
+ * How the finding was established. Added in audit-core 0.12.0 after
+ * TC Antony (RagLeap, design partner) asked for enterprise-security-report
+ * shape where confirmed source hits, runtime-verified behaviours and
+ * potential false positives are not conflated.
+ *
+ *   source-confirmed: a deterministic static read of server metadata, a
+ *                     code file, or a declared annotation. No ambiguity
+ *                     about the signal; the only question is whether it
+ *                     means in context what the check thinks it means.
+ *
+ *   runtime-verified: an active probe observed the server actually
+ *                     behave this way (e.g. POSTed tools/list without a
+ *                     token and got 200, sent a crafted /authorize and
+ *                     got a code back). The server is doing the thing.
+ *
+ *   potential-fp:     a pattern matched but the context (test fixture
+ *                     path, env.example filename, placeholder marker)
+ *                     suggests the match may not be a real instance of
+ *                     the problem. Downgraded but kept in output so a
+ *                     human reviewer can decide.
+ */
+export type FindingVerification = 'source-confirmed' | 'runtime-verified' | 'potential-fp'
+
 export interface Finding {
   id: string
   severity: Severity
@@ -353,14 +377,38 @@ export interface Finding {
   evidence: string
   fix: string
   docsUrl: string
+  /**
+   * The five fields below are the audit-core 0.12.0 "Finding Schema v2"
+   * contract, required on every finding so downstream consumers (TC
+   * Antony's engineering team, SARIF-importing scanners, our own web
+   * pages and the dashboard) can render them consistently without each
+   * check reinventing the shape. The three new fields on top of the
+   * legacy (evidence, fix) are filled from check-metadata.ts defaults
+   * when a check does not set them inline.
+   */
+  verification: FindingVerification
+  affectedComponents: string[]
+  reproductionSteps: string
+  remediation: string
   autofixTemplate?: string
 }
+
+/**
+ * What a check's run() may return. The four fields the Finding Schema v2
+ * requires (verification, affectedComponents, reproductionSteps,
+ * remediation) are OPTIONAL here so individual checks do not need to fill
+ * them inline — the enrichment layer fills missing ones from
+ * check-metadata.ts before the AuditReport is built. Checks that want to
+ * override the metadata defaults can still set any of the four fields.
+ */
+export type CheckOutput = Omit<Finding, 'verification' | 'affectedComponents' | 'reproductionSteps' | 'remediation'>
+  & Partial<Pick<Finding, 'verification' | 'affectedComponents' | 'reproductionSteps' | 'remediation'>>
 
 export interface Check {
   id: string
   severity: Severity
   title: string
-  run: (snapshot: TargetSnapshot) => Finding[]
+  run: (snapshot: TargetSnapshot) => CheckOutput[]
 }
 
 export interface AuditReport {

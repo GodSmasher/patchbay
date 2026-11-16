@@ -1,4 +1,4 @@
-import type { Check, Finding } from '../types'
+import type { Check, CheckOutput } from '../types'
 
 /**
  * OAUTH-REVOCATION-001: AS metadata advertises refresh tokens but no
@@ -23,7 +23,7 @@ export const oauthRevocation001: Check = {
   id: 'OAUTH-REVOCATION-001',
   severity: 'medium',
   title: 'AS metadata missing revocation_endpoint on server that mints refresh tokens',
-  run: (snapshot): Finding[] => {
+  run: (snapshot): CheckOutput[] => {
     const as = snapshot.remote?.oauthAuthServer
     if (!as || typeof as !== 'object') return []
 

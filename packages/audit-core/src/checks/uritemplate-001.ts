@@ -1,4 +1,4 @@
-import type { Check, Finding, ResourceDescriptor } from '../types'
+import type { Check, CheckOutput, ResourceDescriptor } from '../types'
 
 /**
  * URITEMPLATE-001: resource URI templates (RFC 6570) that expand to
@@ -34,7 +34,7 @@ export const uriTemplate001: Check = {
   id: 'URITEMPLATE-001',
   severity: 'high',
   title: 'Resource URI template expands without path-traversal guards',
-  run: (snapshot): Finding[] => {
+  run: (snapshot): CheckOutput[] => {
     const resources = snapshot.remote?.resources ?? []
     const templates = resources.filter((r) => r.uriTemplate)
     if (templates.length === 0) return []
@@ -49,7 +49,7 @@ export const uriTemplate001: Check = {
       else if (classification === 'medium') mediumHits.push({ tpl, name: r.name })
     }
 
-    const findings: Finding[] = []
+    const findings: CheckOutput[] = []
     if (highHits.length > 0) {
       const sample = highHits.slice(0, 5).map((h) => (h.name ? h.name + ' — ' : '') + h.tpl).join('; ')
       findings.push({

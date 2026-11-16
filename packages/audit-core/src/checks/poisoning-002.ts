@@ -1,4 +1,4 @@
-import type { Check, Finding, PromptDescriptor, ResourceDescriptor } from '../types'
+import type { Check, CheckOutput, PromptDescriptor, ResourceDescriptor } from '../types'
 
 /**
  * POISONING-002: resource content and prompt-template content contain
@@ -30,7 +30,7 @@ export const poisoning002: Check = {
   id: 'POISONING-002',
   severity: 'high',
   title: 'Resource or prompt-template content contains prompt-injection patterns',
-  run: (snapshot): Finding[] => {
+  run: (snapshot): CheckOutput[] => {
     const resources = snapshot.remote?.resources ?? []
     const prompts = snapshot.remote?.prompts ?? []
     if (resources.length === 0 && prompts.length === 0) return []
@@ -53,7 +53,7 @@ export const poisoning002: Check = {
       }
     }
 
-    const findings: Finding[] = []
+    const findings: CheckOutput[] = []
 
     if (hiddenHits.length > 0) {
       const sample = hiddenHits.slice(0, 5).map((h) => h.surface + ' ' + h.where + ': ' + h.marker).join('; ')

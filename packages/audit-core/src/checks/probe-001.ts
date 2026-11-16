@@ -1,10 +1,10 @@
-import type { Check, Finding } from '../types'
+import type { Check, CheckOutput } from '../types'
 
 export const probe001: Check = {
   id: 'PROBE-001',
   severity: 'info',
   title: 'Probe inconclusive',
-  run: (snapshot): Finding[] => {
+  run: (snapshot): CheckOutput[] => {
     const r = snapshot.remote
     if (!r) return []
     if (!r.reachable) {
@@ -30,7 +30,7 @@ export const probe001: Check = {
   },
 }
 
-function finding(evidence: string, rawErrors: string[]): Finding {
+function finding(evidence: string, rawErrors: string[]): CheckOutput {
   const errSuffix = rawErrors.length > 0 ? ` First error: ${rawErrors[0]}` : ''
   return {
     id: 'PROBE-001',

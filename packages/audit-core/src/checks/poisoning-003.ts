@@ -1,4 +1,4 @@
-import type { Check, Finding } from '../types'
+import type { Check, CheckOutput } from '../types'
 
 /**
  * POISONING-003: tool CALL RESULT content contains prompt-injection
@@ -26,7 +26,7 @@ export const poisoning003: Check = {
   id: 'POISONING-003',
   severity: 'high',
   title: 'Tool call result contains prompt-injection patterns',
-  run: (snapshot): Finding[] => {
+  run: (snapshot): CheckOutput[] => {
     const tools = snapshot.remote?.tools ?? []
     const calls = tools.filter((t) => t.callProbe?.outcome === 'ok')
     if (calls.length === 0) return []
@@ -45,7 +45,7 @@ export const poisoning003: Check = {
       }
     }
 
-    const findings: Finding[] = []
+    const findings: CheckOutput[] = []
     if (hiddenHits.length > 0) {
       const sample = hiddenHits.slice(0, 5).map((h) => h.tool + ' ' + h.where + ': ' + h.marker).join('; ')
       findings.push({

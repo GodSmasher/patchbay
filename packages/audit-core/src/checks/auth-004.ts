@@ -1,4 +1,4 @@
-import type { Check, Finding } from '../types'
+import type { Check, CheckOutput } from '../types'
 
 /**
  * AUTH-004 (RETIRED in audit-core 0.3.4, 2026-11-10).
@@ -25,5 +25,5 @@ export const auth004: Check = {
   id: 'AUTH-004',
   severity: 'info',
   title: 'Resource indicators metadata flag (retired)',
-  run: (): Finding[] => [],
+  run: (): CheckOutput[] => [],
 }

@@ -1,10 +1,10 @@
-import type { Check, Finding } from '../types'
+import type { Check, CheckOutput } from '../types'
 
 export const transport001: Check = {
   id: 'TRANSPORT-001',
   severity: 'high',
   title: 'Remote server reachable over plain HTTP',
-  run: (snapshot): Finding[] => {
+  run: (snapshot): CheckOutput[] => {
     const r = snapshot.remote
     if (!r) return []
     if (r.usesTls) return []

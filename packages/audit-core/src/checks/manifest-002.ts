@@ -1,4 +1,4 @@
-import type { Check, Finding, ManifestDelta, ManifestDeltaItem, Severity } from '../types'
+import type { Check, CheckOutput, ManifestDelta, ManifestDeltaItem, Severity } from '../types'
 
 /**
  * MANIFEST-002: classifies a manifest delta into breaking, additive and
@@ -33,7 +33,7 @@ export const manifest002: Check = {
   id: 'MANIFEST-002',
   severity: 'medium',
   title: 'Manifest change classified',
-  run: (snapshot): Finding[] => {
+  run: (snapshot): CheckOutput[] => {
     const source = snapshot.remote?.manifestDelta
       ? { delta: snapshot.remote.manifestDelta, surface: `at ${snapshot.remote.url}` }
       : snapshot.stdio?.manifestDelta
@@ -44,7 +44,7 @@ export const manifest002: Check = {
     const { delta, surface } = source
     const buckets = bucketChanges(delta)
 
-    const out: Finding[] = []
+    const out: CheckOutput[] = []
     if (buckets.breaking.length) {
       out.push({
         id: 'MANIFEST-002',

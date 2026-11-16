@@ -1,4 +1,4 @@
-import type { Check, Finding } from '../types'
+import type { Check, CheckOutput } from '../types'
 
 import { isRead, isWrite } from './tool-shapes'
 
@@ -6,10 +6,10 @@ export const scope002: Check = {
   id: 'SCOPE-002',
   severity: 'medium',
   title: 'Write and read tools share scope',
-  run: (snapshot): Finding[] => {
+  run: (snapshot): CheckOutput[] => {
     const manifest = scopeManifest(snapshot)
     if (!manifest) return []
-    const findings: Finding[] = []
+    const findings: CheckOutput[] = []
     const seen = new Set<string>()
     for (const [tool, scopes] of Object.entries(manifest)) {
       if (!isWrite(tool)) continue

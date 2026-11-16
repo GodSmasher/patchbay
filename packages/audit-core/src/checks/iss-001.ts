@@ -1,4 +1,4 @@
-import type { Check, Finding } from '../types'
+import type { Check, CheckOutput } from '../types'
 
 /**
  * ISS-001: authorization server does not advertise RFC 9207 iss parameter.
@@ -21,7 +21,7 @@ export const iss001: Check = {
   id: 'ISS-001',
   severity: 'low',
   title: 'RFC 9207 iss parameter not advertised in OAuth metadata',
-  run: (snapshot): Finding[] => {
+  run: (snapshot): CheckOutput[] => {
     const r = snapshot.remote
     if (!r || !r.oauthAuthServer) return []
     const meta = r.oauthAuthServer

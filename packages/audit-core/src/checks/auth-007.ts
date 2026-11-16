@@ -1,4 +1,4 @@
-import type { Check, Finding } from '../types'
+import type { Check, CheckOutput } from '../types'
 
 /**
  * AUTH-007: wrong HTTP status for an invalid bearer token.
@@ -23,7 +23,7 @@ export const auth007: Check = {
   id: 'AUTH-007',
   severity: 'medium',
   title: 'Invalid bearer token returns wrong HTTP status',
-  run: (snapshot): Finding[] => {
+  run: (snapshot): CheckOutput[] => {
     const r = snapshot.remote
     if (!r || !r.authRequired) return []
     if (r.acceptedAuthHeader === 'bearer') return [] // AUTH-002 land

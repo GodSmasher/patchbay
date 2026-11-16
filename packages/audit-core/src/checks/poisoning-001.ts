@@ -1,4 +1,4 @@
-import type { Check, Finding, ToolDescriptor } from '../types'
+import type { Check, CheckOutput, ToolDescriptor } from '../types'
 
 /**
  * POISONING-001: tool metadata contains hidden Unicode or instruction
@@ -27,7 +27,7 @@ export const poisoning001: Check = {
   id: 'POISONING-001',
   severity: 'high',
   title: 'Tool metadata contains prompt-injection patterns',
-  run: (snapshot): Finding[] => {
+  run: (snapshot): CheckOutput[] => {
     const tools = snapshot.remote?.tools ?? snapshot.stdio?.tools ?? []
     if (tools.length === 0) return []
 
@@ -44,7 +44,7 @@ export const poisoning001: Check = {
       }
     }
 
-    const findings: Finding[] = []
+    const findings: CheckOutput[] = []
 
     if (hiddenHits.length > 0) {
       const sample = hiddenHits.slice(0, 5).map((h) => `${h.tool} ${h.where}: ${h.marker}`).join('; ')

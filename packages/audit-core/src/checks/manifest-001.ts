@@ -1,4 +1,4 @@
-import type { Check, Finding, ManifestDelta, ManifestDeltaItem, Severity, ToolDescriptor } from '../types'
+import type { Check, CheckOutput, ManifestDelta, ManifestDeltaItem, Severity, ToolDescriptor } from '../types'
 import { hasWriteTools } from './tool-shapes'
 
 /**
@@ -25,7 +25,7 @@ export const manifest001: Check = {
   id: 'MANIFEST-001',
   severity: 'medium',
   title: 'Tool manifest changed since last run',
-  run: (snapshot): Finding[] => {
+  run: (snapshot): CheckOutput[] => {
     // Both HTTP and stdio probes populate .manifestDelta on their respective
     // branches. Pick whichever branch has a delta.
     const source = snapshot.remote?.manifestDelta

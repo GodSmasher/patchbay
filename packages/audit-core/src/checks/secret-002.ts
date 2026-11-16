@@ -1,10 +1,10 @@
-import type { Check, Finding } from '../types'
+import type { Check, CheckOutput } from '../types'
 
 export const secret002: Check = {
   id: 'SECRET-002',
   severity: 'medium',
   title: 'Secret from env with no refresh path',
-  run: (snapshot): Finding[] => {
+  run: (snapshot): CheckOutput[] => {
     const d = snapshot.directory
     if (!d) return []
     if (d.secretEnvVarsUsed.length === 0) return []

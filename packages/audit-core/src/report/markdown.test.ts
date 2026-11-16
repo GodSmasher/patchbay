@@ -11,6 +11,10 @@ function finding(overrides: Partial<Finding> = {}): Finding {
     evidence: 'tools/list returned 6 tool(s) without credentials.',
     fix: 'Require OAuth 2.1.',
     docsUrl: 'https://patchbay-mcp.dev/docs/auth-001',
+    verification: 'runtime-verified',
+    affectedComponents: ['https://mcp.example.com/mcp'],
+    reproductionSteps: 'POST tools/list without Authorization. 200 + tools array means the check fires.',
+    remediation: 'Require a valid bearer on every MCP call. Return 401 with WWW-Authenticate otherwise.',
     ...overrides,
   }
 }

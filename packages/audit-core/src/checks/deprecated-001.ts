@@ -1,4 +1,4 @@
-import type { Check, Finding } from '../types'
+import type { Check, CheckOutput } from '../types'
 
 /**
  * DEPRECATED-001: server still negotiates capabilities that were marked
@@ -17,7 +17,7 @@ export const deprecated001: Check = {
   id: 'DEPRECATED-001',
   severity: 'low',
   title: 'Server advertises deprecated MCP capabilities',
-  run: (snapshot): Finding[] => {
+  run: (snapshot): CheckOutput[] => {
     const caps = snapshot.remote?.advertisedCapabilities
     if (!caps || typeof caps !== 'object') return []
 

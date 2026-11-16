@@ -1,4 +1,4 @@
-import type { Check, Finding } from '../types'
+import type { Check, CheckOutput } from '../types'
 
 /**
  * AUDIENCE-002: server accepts a bearer token whose JWT payload has no
@@ -28,7 +28,7 @@ export const audience002: Check = {
   id: 'AUDIENCE-002',
   severity: 'critical',
   title: 'Server accepts bearer tokens with no audience claim',
-  run: (snapshot): Finding[] => {
+  run: (snapshot): CheckOutput[] => {
     const r = snapshot.remote
     if (!r || !r.missingAudProbe || !r.missingAudProbe.attempted) return []
     const p = r.missingAudProbe

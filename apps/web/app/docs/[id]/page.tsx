@@ -4,6 +4,19 @@ import { notFound } from 'next/navigation'
 import { SubscribeBox } from '@/components/subscribe-box'
 import { DemoCTA } from '@/components/demo-cta'
 import { DOCS, getDoc, type Severity } from '../_data'
+import { resolveCheckMetadata, type FindingVerification } from '@patchbay-nebius/audit-core'
+
+const VERIFICATION_LABEL: Record<FindingVerification, string> = {
+  'source-confirmed': 'source-confirmed',
+  'runtime-verified': 'runtime-verified',
+  'potential-fp': 'potential false positive',
+}
+
+const VERIFICATION_PILL: Record<FindingVerification, string> = {
+  'source-confirmed': 'bg-ink/5 text-ink border-ink/20',
+  'runtime-verified': 'bg-warn-soft text-warn border-warn/30',
+  'potential-fp': 'bg-neutral-500/10 text-ink-mute border-neutral-500/30',
+}
 
 export function generateStaticParams() {
   return DOCS.map((d) => ({ id: d.id }))
@@ -53,11 +66,22 @@ export default function DocPage({ params }: { params: { id: string } }) {
           <span className="text-ink-soft font-mono">{doc.id}</span>
         </nav>
 
-        <div className="flex items-center gap-3 mb-4">
+        <div className="flex items-center gap-3 mb-4 flex-wrap">
           <span className={`inline-block rounded border px-2 py-0.5 text-xs font-mono ${SEV_COLOR[doc.severity]}`}>
             {doc.severity}
           </span>
           <span className="font-mono text-xs text-ink-mute">{doc.id.toUpperCase()}</span>
+          {(() => {
+            const meta = resolveCheckMetadata(doc.id.toUpperCase())
+            return (
+              <span
+                className={`inline-block rounded border px-2 py-0.5 text-xs font-mono ${VERIFICATION_PILL[meta.verification]}`}
+                title="How patchbay establishes this finding: source-confirmed = deterministic static read; runtime-verified = active probe observed the behaviour; potential-fp = pattern matched but context may downgrade it."
+              >
+                {VERIFICATION_LABEL[meta.verification]}
+              </span>
+            )
+          })()}
         </div>
         <h1 className="text-3xl font-semibold text-ink mb-6">{doc.title}</h1>
 

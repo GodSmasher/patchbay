@@ -1,10 +1,10 @@
-import type { Check, Finding } from '../types'
+import type { Check, CheckOutput } from '../types'
 
 export const transport002: Check = {
   id: 'TRANSPORT-002',
   severity: 'medium',
   title: 'Missing Origin validation',
-  run: (snapshot): Finding[] => {
+  run: (snapshot): CheckOutput[] => {
     const r = snapshot.remote
     if (!r || !r.reachable) return []
     if (r.originValidation !== 'permissive') return []

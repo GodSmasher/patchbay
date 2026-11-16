@@ -1,7 +1,8 @@
-import type { AuditReport, Finding, Severity } from '../types'
+import type { AuditReport, Finding, FindingVerification, Severity } from '../types'
 
 const CSI = '\x1b['
 const RESET = `${CSI}0m`
+const DIM = `${CSI}2m`
 const COLOR: Record<Severity, string> = {
   critical: `${CSI}31;1m`,
   high: `${CSI}31m`,
@@ -15,6 +16,11 @@ const MARK: Record<Severity, string> = {
   medium: '!',
   low: '-',
   info: '-',
+}
+const VERIFICATION_BADGE: Record<FindingVerification, string> = {
+  'source-confirmed': '[source-confirmed]',
+  'runtime-verified': '[runtime-verified]',
+  'potential-fp':     '[potential-fp]    ',
 }
 
 export interface TerminalReportOptions {
@@ -36,10 +42,17 @@ export function renderTerminal(report: AuditReport, opts: TerminalReportOptions 
     lines.push('  0 findings.')
   } else {
     for (const f of report.findings) {
-      const head = `  ${MARK[f.severity]} ${f.id.padEnd(10)} ${f.severity.padEnd(9)} ${f.title}`
+      const badge = VERIFICATION_BADGE[f.verification]
+      const head = `  ${MARK[f.severity]} ${f.id.padEnd(10)} ${f.severity.padEnd(9)} ${badge} ${f.title}`
       lines.push(paint(f.severity, head))
       for (const l of wrap(f.evidence, 72)) lines.push(`      ${l}`)
-      for (const l of wrap(`Fix: ${f.fix}`, 72)) lines.push(`      ${l}`)
+      if (f.affectedComponents.length > 0) {
+        lines.push(color ? `${DIM}      affected: ${f.affectedComponents.join(', ')}${RESET}` : `      affected: ${f.affectedComponents.join(', ')}`)
+      }
+      for (const l of wrap(`reproduction: ${f.reproductionSteps}`, 72)) {
+        lines.push(color ? `${DIM}      ${l}${RESET}` : `      ${l}`)
+      }
+      for (const l of wrap(`remediation: ${f.remediation}`, 72)) lines.push(`      ${l}`)
       lines.push(`      → ${f.docsUrl}`)
       lines.push('')
     }
@@ -96,12 +109,24 @@ export function renderSarif(report: AuditReport): string {
     level: sarifLevel(f.severity),
     message: { text: `${f.title}: ${f.evidence}` },
     locations: [{ physicalLocation: { artifactLocation: { uri: report.target } } }],
+    // Finding Schema v2 fields surfaced to SARIF consumers. verification
+    // tells an importer whether the finding was reproduced at runtime vs
+    // statically inferred, which matters when a security team routes
+    // remediation. The other three are plain-text so any SARIF viewer
+    // can show them without custom property handling.
+    properties: {
+      verification: f.verification,
+      affectedComponents: f.affectedComponents,
+      reproductionSteps: f.reproductionSteps,
+      remediation: f.remediation,
+      confidence: f.confidence,
+    },
   }))
   const rules = unique(report.findings, (f) => f.id).map((f) => ({
     id: f.id,
     name: f.id,
     shortDescription: { text: f.title },
-    fullDescription: { text: f.fix },
+    fullDescription: { text: f.remediation },
     helpUri: f.docsUrl,
     defaultConfiguration: { level: sarifLevel(f.severity) },
   }))

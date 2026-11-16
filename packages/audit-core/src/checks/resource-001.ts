@@ -1,4 +1,4 @@
-import type { Check, Finding } from '../types'
+import type { Check, CheckOutput } from '../types'
 
 /**
  * RESOURCE-001: Protected Resource Metadata (RFC 9728) missing or malformed.
@@ -20,7 +20,7 @@ export const resource001: Check = {
   id: 'RESOURCE-001',
   severity: 'high',
   title: 'Protected Resource Metadata (RFC 9728) missing',
-  run: (snapshot): Finding[] => {
+  run: (snapshot): CheckOutput[] => {
     const r = snapshot.remote
     if (!r) return []
 

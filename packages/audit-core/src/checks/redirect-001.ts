@@ -1,10 +1,10 @@
-import type { Check, Finding } from '../types'
+import type { Check, CheckOutput } from '../types'
 
 export const redirect001: Check = {
   id: 'REDIRECT-001',
   severity: 'medium',
   title: 'Redirect URI validation inconsistent for localhost / 127.0.0.1',
-  run: (snapshot): Finding[] => {
+  run: (snapshot): CheckOutput[] => {
     const r = snapshot.remote
     if (!r || !r.redirectLocalhostInconsistent) return []
     return [

@@ -1,10 +1,10 @@
-import type { Check, Finding } from '../types'
+import type { Check, CheckOutput } from '../types'
 
 export const auth006: Check = {
   id: 'AUTH-006',
   severity: 'high',
   title: 'Authorization server rejects loopback redirect URIs',
-  run: (snapshot): Finding[] => {
+  run: (snapshot): CheckOutput[] => {
     const r = snapshot.remote
     if (!r || !r.dcrLoopback || !r.dcrLoopback.attempted) return []
     const p = r.dcrLoopback

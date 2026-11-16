@@ -1,4 +1,4 @@
-import type { Check, Finding } from '../types'
+import type { Check, CheckOutput } from '../types'
 
 /**
  * HEADERS-001: weak transport-security response headers.
@@ -27,7 +27,7 @@ export const headers001: Check = {
   id: 'HEADERS-001',
   severity: 'medium',
   title: 'Weak transport-security response headers',
-  run: (snapshot): Finding[] => {
+  run: (snapshot): CheckOutput[] => {
     const r = snapshot.remote
     if (!r || !r.reachable || !r.responseHeaders) return []
     const h = r.responseHeaders

@@ -1,10 +1,10 @@
-import type { Check, Finding } from '../types'
+import type { Check, CheckOutput } from '../types'
 
 export const secret001: Check = {
   id: 'SECRET-001',
   severity: 'critical',
   title: 'Hardcoded secret in source',
-  run: (snapshot): Finding[] => {
+  run: (snapshot): CheckOutput[] => {
     const d = snapshot.directory
     if (!d || d.secretHits.length === 0) return []
     return d.secretHits.map((hit) => ({
