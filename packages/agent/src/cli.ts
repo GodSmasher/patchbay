@@ -319,12 +319,23 @@ async function audit(args: string[]) {
   const target = stdioCmd ?? positional[0]
   if (!target) {
     console.error('patchbay audit: missing target (url, directory, or --stdio "<command>")')
-    console.error('usage: patchbay audit <url|dir> [--stdio "<cmd>"] [--json] [--sarif] [--pr-draft] [--out=<path>] [--auth=<token>] [--probe-audience=<token>] [--probe-dcr-loopback] [--trust] [--ci] [--no-cta]')
+    console.error('usage: patchbay audit <url|dir> [--stdio "<cmd>"] [--format=terminal|json|sarif|markdown] [--json] [--sarif] [--pr-draft] [--out=<path>] [--auth=<token>] [--probe-audience=<token>] [--probe-dcr-loopback] [--trust] [--ci] [--no-cta]')
     process.exit(2)
   }
-  const asJson = args.includes('--json')
-  const asSarif = args.includes('--sarif')
-  const asPrDraft = args.includes('--pr-draft')
+  const FORMATS = ['terminal', 'json', 'sarif', 'markdown'] as const
+  type Format = typeof FORMATS[number]
+  const formatRaw = flagValue(args, '--format')
+  let format: Format | undefined
+  if (formatRaw) {
+    if (!(FORMATS as readonly string[]).includes(formatRaw)) {
+      console.error(`patchbay audit: --format must be one of ${FORMATS.join(', ')}`)
+      process.exit(2)
+    }
+    format = formatRaw as Format
+  }
+  const asJson = format === 'json' || args.includes('--json')
+  const asSarif = format === 'sarif' || args.includes('--sarif')
+  const asPrDraft = format === 'markdown' || args.includes('--pr-draft')
   const outPath = flagValue(args, '--out')
   const authToken = flagValue(args, '--auth') ?? process.env.PATCHBAY_AUDIT_TOKEN
   const probeAudienceToken = flagValue(args, '--probe-audience') ?? process.env.PATCHBAY_PROBE_AUDIENCE_TOKEN
