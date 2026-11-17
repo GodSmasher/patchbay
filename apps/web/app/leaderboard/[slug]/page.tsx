@@ -5,7 +5,49 @@ import {
   loadLeaderboardEntry,
   loadLeaderboardSnapshot,
   type LeaderboardGrade,
+  type LeaderboardVerification,
 } from '@/lib/leaderboard-store'
+
+const VERIFICATION_LABEL: Record<LeaderboardVerification, string> = {
+  'source-confirmed': 'source-confirmed',
+  'runtime-verified': 'runtime-verified',
+  'potential-fp': 'potential-fp',
+}
+const VERIFICATION_STYLE: Record<LeaderboardVerification, { fg: string; bg: string; title: string }> = {
+  'source-confirmed': {
+    fg: '#047857', bg: '#d1fae5',
+    title: 'patchbay saw the code path in source. Safe to cite in cold-mail outreach.',
+  },
+  'runtime-verified': {
+    fg: '#4338ca', bg: '#e0e7ff',
+    title: 'patchbay reproduced the issue live against the endpoint.',
+  },
+  'potential-fp': {
+    fg: '#9ca3af', bg: '#f3f4f6',
+    title: 'Pattern matched but not confirmed. Manual verification required before public claim.',
+  },
+}
+
+function VerificationBadge({ v }: { v?: LeaderboardVerification }) {
+  if (!v) return <span style={{ color: '#9ca3af', fontSize: '0.75rem', fontStyle: 'italic' }}>pending rescan</span>
+  const s = VERIFICATION_STYLE[v]
+  return (
+    <span
+      title={s.title}
+      style={{
+        display: 'inline-block', padding: '0.05rem 0.4rem', borderRadius: 4,
+        fontSize: '0.7rem', fontWeight: 500, color: s.fg, background: s.bg,
+        fontVariantNumeric: 'tabular-nums',
+      }}
+    >
+      {VERIFICATION_LABEL[v]}
+    </span>
+  )
+}
+
+const SEVERITY_COLOR: Record<string, string> = {
+  critical: '#ef4444', high: '#f97316', medium: '#eab308', low: '#6366f1', info: '#6b7280',
+}
 
 export const runtime = 'nodejs'
 export const revalidate = 300
@@ -84,9 +126,55 @@ export default async function LeaderboardHostPage({ params }: { params: { slug: 
         </div>
       </section>
 
-      {entry.topFindingIds.length > 0 && (
+      {entry.verificationCounts && (
+        <section style={{ marginBottom: '1.5rem', padding: '1rem', background: '#f9fafb', borderRadius: 8 }}>
+          <h2 style={{ margin: '0 0 0.5rem', fontSize: '1rem' }}>Verification breakdown</h2>
+          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', fontVariantNumeric: 'tabular-nums' }}>
+            <span><strong style={{ color: '#047857' }}>{entry.verificationCounts['source-confirmed']}</strong> source-confirmed</span>
+            <span><strong style={{ color: '#4338ca' }}>{entry.verificationCounts['runtime-verified']}</strong> runtime-verified</span>
+            <span><strong style={{ color: '#9ca3af' }}>{entry.verificationCounts['potential-fp']}</strong> potential-fp</span>
+          </div>
+          <p style={{ margin: '0.5rem 0 0', fontSize: '0.8rem', color: '#6b7280' }}>
+            Cold-outreach quality gate: only <strong>source-confirmed</strong> findings may be cited to operators by name.
+            See <Link href="/docs" style={{ color: '#6366f1' }}>Finding Schema v2 docs</Link> for tier definitions.
+          </p>
+        </section>
+      )}
+
+      {entry.findingsDetail && entry.findingsDetail.length > 0 ? (
+        <section style={{ marginBottom: '1.5rem' }}>
+          <h2 style={{ margin: '0 0 0.5rem', fontSize: '1rem' }}>Findings ({entry.findingsDetail.length})</h2>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+            <thead>
+              <tr style={{ textAlign: 'left', borderBottom: '1px solid #e5e7eb', color: '#6b7280' }}>
+                <th style={{ padding: '0.4rem 0.25rem' }}>Check</th>
+                <th style={{ padding: '0.4rem 0.25rem' }}>Severity</th>
+                <th style={{ padding: '0.4rem 0.25rem' }}>Verification</th>
+              </tr>
+            </thead>
+            <tbody>
+              {entry.findingsDetail.map((f, i) => (
+                <tr key={i} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                  <td style={{ padding: '0.4rem 0.25rem' }}>
+                    <Link href={`/docs/${f.id.toLowerCase()}`} style={{ color: '#6366f1' }}>{f.id}</Link>
+                  </td>
+                  <td style={{ padding: '0.4rem 0.25rem' }}>
+                    <span style={{ color: SEVERITY_COLOR[f.severity] ?? '#6b7280', fontWeight: 500 }}>{f.severity}</span>
+                  </td>
+                  <td style={{ padding: '0.4rem 0.25rem' }}>
+                    <VerificationBadge v={f.verification} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      ) : entry.topFindingIds.length > 0 && (
         <section style={{ marginBottom: '1.5rem' }}>
           <h2 style={{ margin: '0 0 0.5rem', fontSize: '1rem' }}>Top finding IDs</h2>
+          <p style={{ margin: '0 0 0.5rem', fontSize: '0.85rem', color: '#9ca3af' }}>
+            This entry was scanned before Finding Schema v2 — per-finding verification tier will populate on next rescan.
+          </p>
           <ul>
             {entry.topFindingIds.map((id) => (
               <li key={id}><Link href={`/docs/${id.toLowerCase()}`} style={{ color: '#6366f1' }}>{id}</Link></li>

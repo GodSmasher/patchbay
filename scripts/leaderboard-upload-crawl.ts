@@ -15,12 +15,25 @@ import {
   slugForHost,
   type LeaderboardCategory,
   type LeaderboardEntry,
+  type LeaderboardFinding,
   type LeaderboardFindingCounts,
   type LeaderboardScanSource,
   type LeaderboardSnapshot,
+  type LeaderboardVerification,
+  type LeaderboardVerificationCounts,
 } from '../apps/web/lib/leaderboard-store'
 
-interface CrawlFinding { id: string; severity: Severity; title?: string; source: 'live' | 'source' }
+interface CrawlFinding {
+  id: string
+  severity: Severity
+  title?: string
+  source: 'live' | 'source'
+  verification?: LeaderboardVerification
+}
+
+function emptyVerificationCounts(): LeaderboardVerificationCounts {
+  return { 'source-confirmed': 0, 'runtime-verified': 0, 'potential-fp': 0 }
+}
 interface CrawlTier { ok: boolean; findings: CrawlFinding[]; error?: string }
 interface CrawlResult {
   name: string
@@ -74,6 +87,28 @@ function mapEntry(r: CrawlResult): LeaderboardEntry {
     .filter((f) => f.severity === 'critical' || f.severity === 'high' || f.severity === 'medium')
     .slice(0, 5)
     .map((f) => f.id)
+
+  // Schema v2: carry verification tier through to the leaderboard so
+  // /leaderboard (list) can show the Pill-Row and /leaderboard/<host>
+  // can render a badge per finding. Findings from pre-Schema-v2 crawls
+  // have no `verification`; we leave the counts/detail unset so the UI
+  // shows "verification pending next rescan" instead of lying 100% fp.
+  const hasVerification = r.mergedFindings.some((f) => f.verification !== undefined)
+  let verificationCounts: LeaderboardVerificationCounts | undefined
+  let findingsDetail: LeaderboardFinding[] | undefined
+  if (hasVerification) {
+    verificationCounts = emptyVerificationCounts()
+    for (const f of r.mergedFindings) {
+      const tier: LeaderboardVerification = f.verification ?? 'potential-fp'
+      verificationCounts[tier] += 1
+    }
+    findingsDetail = r.mergedFindings.slice(0, 50).map((f) => ({
+      id: f.id,
+      severity: f.severity,
+      verification: f.verification,
+    }))
+  }
+
   return {
     slug: slugForHost(host),
     host,
@@ -82,6 +117,8 @@ function mapEntry(r: CrawlResult): LeaderboardEntry {
     grade,
     findings: counts,
     topFindingIds,
+    verificationCounts,
+    findingsDetail,
     reachable,
     category: categoryFor(r),
     lastScanned: r.capturedAt,

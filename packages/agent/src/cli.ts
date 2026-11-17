@@ -319,7 +319,7 @@ async function audit(args: string[]) {
   const target = stdioCmd ?? positional[0]
   if (!target) {
     console.error('patchbay audit: missing target (url, directory, or --stdio "<command>")')
-    console.error('usage: patchbay audit <url|dir> [--stdio "<cmd>"] [--format=terminal|json|sarif|markdown] [--json] [--sarif] [--pr-draft] [--out=<path>] [--auth=<token>] [--probe-audience=<token>] [--probe-dcr-loopback] [--trust] [--ci] [--no-cta]')
+    console.error('usage: patchbay audit <url|dir> [--stdio "<cmd>"] [--format=terminal|json|sarif|markdown] [--only-verified] [--only-tier=source-confirmed|runtime-verified|potential-fp] [--json] [--sarif] [--pr-draft] [--out=<path>] [--auth=<token>] [--probe-audience=<token>] [--probe-dcr-loopback] [--trust] [--ci] [--no-cta]')
     process.exit(2)
   }
   const FORMATS = ['terminal', 'json', 'sarif', 'markdown'] as const
@@ -361,9 +361,40 @@ async function audit(args: string[]) {
     failOn = failOnRaw as FailSeverity
   }
 
+  // Verification-tier filter. --only-verified is shorthand for
+  // --only-tier=source-confirmed (what cold-mail outreach needs: patchbay
+  // only cites findings it saw in source). --only-tier=<tier> picks any
+  // single tier — useful for triage ("show me what still needs manual
+  // verification" → --only-tier=potential-fp).
+  const VERIFICATION_TIERS = ['source-confirmed', 'runtime-verified', 'potential-fp'] as const
+  type VerificationTier = typeof VERIFICATION_TIERS[number]
+  const onlyTierRaw = flagValue(args, '--only-tier')
+  const onlyVerified = args.includes('--only-verified')
+  let onlyTier: VerificationTier | undefined
+  if (onlyTierRaw) {
+    if (!(VERIFICATION_TIERS as readonly string[]).includes(onlyTierRaw)) {
+      console.error(`patchbay audit: --only-tier must be one of ${VERIFICATION_TIERS.join(', ')}`)
+      process.exit(2)
+    }
+    onlyTier = onlyTierRaw as VerificationTier
+  } else if (onlyVerified) {
+    onlyTier = 'source-confirmed'
+  }
+
   const { auditTarget, renderTerminal, renderJson, renderSarif, renderMarkdown } = await import('@patchbay-nebius/audit-core')
   const resolved = stdio ? target : (/^https?:\/\//i.test(target) ? target : resolve(target))
   const report = await auditTarget(resolved, { authToken, trustCurrentManifest, probeAudienceToken, probeMissingAudToken, probeDcrLoopback, probeHeadlessOauth, probeToolCalls, stdio })
+
+  if (onlyTier) {
+    const before = report.findings.length
+    report.findings = report.findings.filter((f) => f.verification === onlyTier)
+    const after = report.findings.length
+    // Recompute summary so --ci and --fail-on see the filtered set.
+    const sev: Record<'critical'|'high'|'medium'|'low'|'info', number> = { critical: 0, high: 0, medium: 0, low: 0, info: 0 }
+    for (const f of report.findings) sev[f.severity]++
+    report.summary = sev
+    console.error(`patchbay audit: filtered to --only-tier=${onlyTier} (${after}/${before} findings kept)`)
+  }
 
   if (publish) {
     try {

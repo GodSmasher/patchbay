@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { loadLeaderboardSnapshot, type LeaderboardEntry, type LeaderboardGrade, type LeaderboardScanSource } from '@/lib/leaderboard-store'
+import { loadLeaderboardSnapshot, type LeaderboardEntry, type LeaderboardGrade, type LeaderboardScanSource, type LeaderboardVerificationCounts } from '@/lib/leaderboard-store'
 
 export const runtime = 'nodejs'
 export const revalidate = 60
@@ -50,6 +50,51 @@ const COVERAGE_LABEL: Record<LeaderboardScanSource, { icon: string; text: string
   'authenticated': { icon: '🔑', text: 'auth', title: 'Scanned with a user-submitted bearer token' },
   'operator-verified': { icon: '👤', text: 'operator', title: 'Submitted by the server operator (verified ownership)' },
   'unreachable': { icon: '🚨', text: 'unreachable', title: 'Not reachable during the last scan' },
+}
+
+function VerificationPills({ counts }: { counts: LeaderboardVerificationCounts | undefined }) {
+  // No data = pre-Schema-v2 snapshot or empty entry. Show a quiet marker
+  // instead of implying everything is a potential FP.
+  if (!counts) {
+    return (
+      <span
+        title="This entry was scanned before Schema v2 — verification tier will populate on next rescan."
+        style={{ fontSize: '0.72rem', color: '#9ca3af', fontStyle: 'italic' }}
+      >
+        tier pending
+      </span>
+    )
+  }
+  const total = counts['source-confirmed'] + counts['runtime-verified'] + counts['potential-fp']
+  if (total === 0) {
+    return <span style={{ fontSize: '0.72rem', color: '#9ca3af' }}>—</span>
+  }
+  const pills: Array<[string, number, string, string]> = [
+    ['confirmed', counts['source-confirmed'], '#047857', '#d1fae5'],
+    ['verified', counts['runtime-verified'], '#4338ca', '#e0e7ff'],
+    ['fp', counts['potential-fp'], '#9ca3af', '#f3f4f6'],
+  ]
+  return (
+    <span
+      title="Finding Schema v2 breakdown. source-confirmed = patchbay saw the code path · runtime-verified = reproduced live against the endpoint · potential-fp = pattern matched, manual verification required."
+      style={{ display: 'inline-flex', gap: '0.25rem', fontVariantNumeric: 'tabular-nums', fontSize: '0.72rem' }}
+    >
+      {pills.map(([label, n, fg, bg]) => (
+        <span
+          key={label}
+          style={{
+            padding: '0.05rem 0.35rem',
+            borderRadius: 4,
+            color: fg,
+            background: bg,
+            opacity: n === 0 ? 0.45 : 1,
+          }}
+        >
+          {n} {label}
+        </span>
+      ))}
+    </span>
+  )
 }
 
 function CoverageBadge({ entry }: { entry: LeaderboardEntry }) {
@@ -137,6 +182,7 @@ export default async function LeaderboardPage() {
             <th style={{ padding: '0.5rem 0.25rem' }}>Grade</th>
             <th style={{ padding: '0.5rem 0.25rem', textAlign: 'right' }}>Score</th>
             <th style={{ padding: '0.5rem 0.25rem', textAlign: 'right' }}>Findings</th>
+            <th style={{ padding: '0.5rem 0.25rem' }}>Verification</th>
             <th style={{ padding: '0.5rem 0.25rem' }}>Coverage</th>
           </tr>
         </thead>
@@ -160,6 +206,9 @@ export default async function LeaderboardPage() {
                 </td>
                 <td style={{ padding: '0.5rem 0.25rem', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{e.score}</td>
                 <td style={{ padding: '0.5rem 0.25rem', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{totalFindings}</td>
+                <td style={{ padding: '0.5rem 0.25rem' }}>
+                  <VerificationPills counts={e.verificationCounts} />
+                </td>
                 <td style={{ padding: '0.5rem 0.25rem', fontSize: '0.8rem' }}>
                   <CoverageBadge entry={e} />
                 </td>
@@ -185,6 +234,7 @@ export default async function LeaderboardPage() {
           <li>Each host is scanned in two tiers: live metadata (public well-known OAuth documents + response headers, nothing authenticated) and static source (shallow-cloned from <code>repository.url</code> when available).</li>
           <li>Never authenticates against a third-party host. See <Link href="/about-crawler">about the crawler</Link> for guard-rails and opt-out.</li>
           <li>Coverage badges: <strong>🔍 metadata</strong> live probe only · <strong>📦 source</strong> repo-only audit · <strong>✅ full</strong> both tiers merged · <strong>👤 operator</strong> operator-verified Tier C.</li>
+          <li>Verification pills (Finding Schema v2): <strong>confirmed</strong> = patchbay saw the code path in source · <strong>verified</strong> = patchbay reproduced the issue live against the endpoint · <strong>fp</strong> = pattern matched, manual verification required. Cold-outreach only cites <em>confirmed</em> findings.</li>
           <li>Checks: see the <Link href="/docs">docs</Link>. Grade = 100 − Σ(finding × severity weight).</li>
           <li>Frequency: full rescan weekly. API at <code>/api/leaderboard</code>.</li>
         </ul>

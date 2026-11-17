@@ -42,6 +42,25 @@ export interface LeaderboardFindingCounts {
   info: number
 }
 
+export type LeaderboardVerification = 'source-confirmed' | 'runtime-verified' | 'potential-fp'
+
+/**
+ * Per-tier counts of findings on an entry. Added with Finding Schema v2
+ * (audit-core 0.12.0). Optional so snapshots uploaded before Schema v2
+ * still render — UI falls back to "verification pending next rescan".
+ */
+export interface LeaderboardVerificationCounts {
+  'source-confirmed': number
+  'runtime-verified': number
+  'potential-fp': number
+}
+
+export interface LeaderboardFinding {
+  id: string
+  severity: keyof LeaderboardFindingCounts
+  verification?: LeaderboardVerification
+}
+
 export interface LeaderboardEntry {
   slug: string
   host: string
@@ -50,6 +69,20 @@ export interface LeaderboardEntry {
   grade: LeaderboardGrade
   findings: LeaderboardFindingCounts
   topFindingIds: string[]
+  /**
+   * Per-verification-tier breakdown of this entry's findings. Introduced
+   * with Schema v2 so the F / D / C grade on the leaderboard card can be
+   * read as "F from 3 source-confirmed criticals" vs "F from 4
+   * potential-fps". Cold-mail outreach consumes this: only
+   * source-confirmed findings may be cited to operators.
+   */
+  verificationCounts?: LeaderboardVerificationCounts
+  /**
+   * Full list of findings for /leaderboard/<host> so the detail page can
+   * render a verification badge per row. Kept small (≤50) — the full
+   * report with evidence lives behind `reportId`.
+   */
+  findingsDetail?: LeaderboardFinding[]
   reachable: boolean
   category: LeaderboardCategory
   lastScanned: string
