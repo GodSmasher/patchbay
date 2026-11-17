@@ -7,6 +7,7 @@ import { Timeline } from '@/components/timeline'
 import { GitHubBadge, useGhUser } from '@/components/github-badge'
 import { GitHubPush } from '@/components/github-push'
 import { ScanPanel } from '@/components/scan-panel'
+import { NewsletterSignup } from '@/components/newsletter-signup'
 import { useRun, type RunState } from '@/lib/use-run'
 
 const RECORDED_PROMPT =
@@ -337,6 +338,8 @@ export default function Home() {
           </div>
         ))}
       </section>
+
+      <NewsletterSignup source="home" />
 
       <footer className="mt-16 flex flex-wrap items-center justify-between gap-3 border-t border-paper-line pt-6 text-xs text-ink-mute">
         <span>

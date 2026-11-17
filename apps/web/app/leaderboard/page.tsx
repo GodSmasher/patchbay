@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { loadLeaderboardSnapshot, type LeaderboardEntry, type LeaderboardGrade, type LeaderboardScanSource, type LeaderboardVerificationCounts } from '@/lib/leaderboard-store'
+import { NewsletterSignup } from '@/components/newsletter-signup'
 
 export const runtime = 'nodejs'
 export const revalidate = 60
@@ -239,6 +240,13 @@ export default async function LeaderboardPage() {
           <li>Frequency: full rescan weekly. API at <code>/api/leaderboard</code>.</li>
         </ul>
       </section>
+
+      <NewsletterSignup
+        source="leaderboard"
+        heading="Weekly leaderboard changes, in your inbox."
+        pitch="Grade movements, new findings, resolved CVEs. One Tuesday email."
+        variant="inline"
+      />
 
       <script
         type="application/ld+json"

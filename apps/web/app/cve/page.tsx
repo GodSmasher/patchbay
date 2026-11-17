@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { loadAllCves, viewForPublic, isEmbargoActive, loadExternalCves, loadCheckOwaspMapping, OWASP_LABELS, type CveSeverity, type OwaspMcpCategory } from '@/lib/cve'
+import { NewsletterSignup } from '@/components/newsletter-signup'
 
 export const runtime = 'nodejs'
 export const revalidate = 300
@@ -139,6 +140,13 @@ export default function CveIndexPage() {
         <h2 style={{ fontSize: '1rem', margin: '0 0 0.5rem' }}>Reporting a finding</h2>
         <p>Found something on a public MCP server? Email <a href="mailto:security@patchbay-mcp.dev">security@patchbay-mcp.dev</a>. We will coordinate disclosure, assign a <code>CVE-PATCHBAY</code> identifier, and help you contact the operator. Include URL, finding category and evidence. We do not pay bounties, but we credit discoverers in the advisory.</p>
       </section>
+
+      <NewsletterSignup
+        source="cve"
+        heading="Track new MCP CVEs."
+        pitch="We email the Tuesday digest when a new CVE lands, an embargo lifts, or an OWASP category moves."
+        variant="inline"
+      />
     </main>
   )
 }
