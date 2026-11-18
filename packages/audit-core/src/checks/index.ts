@@ -10,6 +10,7 @@ import { auth006 } from './auth-006'
 import { auth007 } from './auth-007'
 import { headers001 } from './headers-001'
 import { identity001 } from './identity-001'
+import { identity002 } from './identity-002'
 import { implicit001 } from './implicit-001'
 import { iss001 } from './iss-001'
 import { manifest001 } from './manifest-001'
@@ -71,6 +72,7 @@ export const ALL_CHECKS: Check[] = [
   resource001,
   headers001,
   identity001,
+  identity002,
   iss001,
   probe001,
 ]
@@ -81,6 +83,7 @@ export {
   auth001, auth002, auth003, auth004, auth005, auth006, auth007,
   headers001,
   identity001,
+  identity002,
   implicit001,
   iss001,
   manifest001,

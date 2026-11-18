@@ -48,6 +48,13 @@ describe('auditSnapshot', () => {
           code_challenge_methods_supported: ['S256'],
           resource_indicators_supported: true,
           authorization_response_iss_parameter_supported: true,
+          grant_types_supported: [
+            'authorization_code',
+            'refresh_token',
+            'urn:ietf:params:oauth:grant-type:token-exchange',
+          ],
+          token_endpoint_auth_methods_supported: ['client_secret_basic'],
+          revocation_endpoint: 'https://x/revoke',
         },
         oauthProtectedResource: {
           resource: 'https://x/mcp',

@@ -267,6 +267,12 @@ export const CHECK_METADATA: Record<string, CheckMetadata> = {
     reproductionSteps: 'GET {{target}}/.well-known/oauth-authorization-server. Inspect `grant_types_supported`. If the array does not include `urn:ietf:params:oauth:grant-type:token-exchange`, clients cannot discover OBO support; every agent-driven tools/call reaches the MCP server with only the agent\'s identity.',
     remediation: 'Add `urn:ietf:params:oauth:grant-type:token-exchange` to `grant_types_supported` and implement RFC 8693 at the token endpoint so an AI agent can exchange its own access token plus a user assertion for a token whose `sub` identifies the end user.',
   },
+  'IDENTITY-002': {
+    verification: 'source-confirmed',
+    affectedComponents: ['{{target}}/.well-known/oauth-authorization-server'],
+    reproductionSteps: 'GET {{target}}/.well-known/oauth-authorization-server. If `grant_types_supported` includes `urn:ietf:params:oauth:grant-type:token-exchange` AND `token_endpoint_auth_methods_supported` is present and contains only `"none"`, the token endpoint will mint tokens for any asserted `sub` without authenticating the client.',
+    remediation: 'Require client authentication on the token endpoint. Use `client_secret_basic`, `client_secret_post`, `private_key_jwt`, or `tls_client_auth`. Public MCP clients that cannot keep a secret should use `tls_client_auth` with per-agent mTLS certificates or `private_key_jwt` with a per-agent key — not `none`.',
+  },
 
   // ===== ISS parameter =====
   'ISS-001': {

@@ -312,6 +312,25 @@ Severity today is medium. It rises to high for servers that advertise multi-tena
     specUrl: 'https://datatracker.ietf.org/doc/html/rfc8693',
   },
   {
+    id: 'identity-002',
+    title: 'Token exchange advertised but token endpoint accepts unauthenticated clients',
+    severity: 'high',
+    oneLiner: 'grant_types_supported lists urn:ietf:params:oauth:grant-type:token-exchange but token_endpoint_auth_methods_supported is ["none"] — anyone can mint a token for any end-user identity they assert.',
+    whatItMeans: `IDENTITY-002 is the companion to IDENTITY-001. IDENTITY-001 fires when an authorization server does NOT advertise RFC 8693 token exchange at all: the agent-identity propagation story is missing. IDENTITY-002 fires when the server DOES advertise it but the token endpoint accepts unauthenticated clients. The feature is present on paper and broken in practice.
+
+patchbay reads the authorization server metadata at /.well-known/oauth-authorization-server and checks two fields: \`grant_types_supported\` must include \`urn:ietf:params:oauth:grant-type:token-exchange\`, AND \`token_endpoint_auth_methods_supported\` must be present and contain only \`"none"\`. When both hold, any party that can reach the token endpoint can perform a token exchange and assert an arbitrary \`sub\` in the subject_token. There is no cryptographic binding between the agent performing the exchange and the end-user identity it mints a token for.
+
+Consequences:
+  - An attacker who discovers the token endpoint can mint access tokens for any user identity the AS is willing to issue, without ever authenticating as a client.
+  - Downstream MCP servers that enforce authorisation based on the \`sub\` claim treat forged tokens as legitimate.
+  - Audit trails record the attacker's chosen identity, not the attacker.
+
+Severity is high: this is a missing authentication boundary, not a missing feature flag. OBO works only if the AS can tell which agent is asking.`,
+    howToFix: `Require client authentication on the token endpoint. Set \`token_endpoint_auth_methods_supported\` to one of \`client_secret_basic\`, \`client_secret_post\`, \`private_key_jwt\`, or \`tls_client_auth\` — and enforce it. Public MCP clients that cannot keep a shared secret should use \`tls_client_auth\` with per-agent mTLS certificates, or \`private_key_jwt\` with a per-agent key. Never use \`none\` for a grant that mints tokens on behalf of a third-party user identity. If your AS cannot distinguish the token-exchange grant from an authorization-code grant for the purpose of client auth, the simplest fix is to require authenticated clients for all grants and migrate public clients to \`private_key_jwt\`.`,
+    spec: 'RFC 8693 §2.1 / RFC 8414 §2 (token_endpoint_auth_methods_supported)',
+    specUrl: 'https://datatracker.ietf.org/doc/html/rfc8693#section-2.1',
+  },
+  {
     id: 'iss-001',
     title: 'RFC 9207 iss parameter not advertised in OAuth metadata',
     severity: 'low',
