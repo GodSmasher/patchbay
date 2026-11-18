@@ -29,22 +29,21 @@ export const metadata: Metadata = {
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  // Plausible Analytics — self-hosted or plausible.io, gated on the env var
-  // so it never injects a tag in dev or on preview deployments where the
-  // domain is not set. Enable in production by setting
-  // NEXT_PUBLIC_PLAUSIBLE_DOMAIN=patchbay-mcp.dev (and optionally
-  // NEXT_PUBLIC_PLAUSIBLE_SRC for a custom host).
-  const plausibleDomain = process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN
-  const plausibleSrc = process.env.NEXT_PUBLIC_PLAUSIBLE_SRC || 'https://plausible.io/js/script.tagged-events.outbound-links.js'
+  // Umami Cloud — Sarah picked Umami over Plausible on 2026-11-18 (free
+  // tier up to 10k events/month). Website id is not secret; env-gate so
+  // dev / preview can override, fall back to the production id when not
+  // set so the prod deploy never silently drops analytics.
+  const umamiWebsiteId = process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID || 'f49ceef8-1492-4db4-907a-57d4bb6fceee'
+  const umamiSrc = process.env.NEXT_PUBLIC_UMAMI_SRC || 'https://cloud.umami.is/script.js'
   return (
     <html lang="en">
       <body>
         {children}
-        {plausibleDomain && (
+        {umamiWebsiteId && (
           <Script
             defer
-            data-domain={plausibleDomain}
-            src={plausibleSrc}
+            data-website-id={umamiWebsiteId}
+            src={umamiSrc}
             strategy="afterInteractive"
           />
         )}

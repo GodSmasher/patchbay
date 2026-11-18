@@ -55,7 +55,7 @@ export function NewsletterSignup({
 
   if (state.kind === 'ok') {
     return (
-      <aside className={containerClass} aria-label="Newsletter signup" data-plausible-event-name="newsletter_subscribed">
+      <aside className={containerClass} aria-label="Newsletter signup" data-umami-event="newsletter-subscribed">
         <div role="status">
           <p className="text-ink font-medium mb-1">Check your inbox.</p>
           <p className="text-sm text-ink-soft">
@@ -93,9 +93,9 @@ export function NewsletterSignup({
           <button
             type="submit"
             disabled={state.kind === 'submitting'}
-            className="plausible-event-name=newsletter_signup_click px-5 py-3 bg-ink text-paper rounded font-medium hover:opacity-90 disabled:opacity-50"
-            data-plausible-event-name="newsletter_signup_click"
-            data-plausible-event-source={source}
+            className="px-5 py-3 bg-ink text-paper rounded font-medium hover:opacity-90 disabled:opacity-50"
+            data-umami-event="newsletter-signup-submit"
+            data-umami-event-source={source}
           >
             {state.kind === 'submitting' ? 'Saving…' : 'Get the digest'}
           </button>
