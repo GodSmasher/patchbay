@@ -293,6 +293,25 @@ All four are passive. No extra request is made. The check stays silent if the se
     howToFix: `Set X-Content-Type-Options: nosniff on every response. On HTTPS set Strict-Transport-Security with a max-age of at least 15552000. Set X-Frame-Options: DENY or a Content-Security-Policy with a restrictive frame-ancestors directive (not "*"). Review Access-Control-Allow-Origin if the endpoint is not meant to be reachable from arbitrary browser origins.`,
   },
   {
+    id: 'identity-001',
+    title: 'Agent-identity propagation not advertised (RFC 8693 token exchange)',
+    severity: 'medium',
+    oneLiner: 'grant_types_supported does not include urn:ietf:params:oauth:grant-type:token-exchange — AI agents cannot mint per-user tokens.',
+    whatItMeans: `An MCP server used by an AI agent that is itself used by many end-users needs a way to pass user identity down to each tools/call. The standard mechanism is RFC 8693 On-Behalf-Of (OBO): the agent presents its own access token plus an assertion identifying the end user and the authorization server issues a new access token whose \`sub\` identifies that end user.
+
+patchbay reads the authorization server metadata at /.well-known/oauth-authorization-server and checks whether \`urn:ietf:params:oauth:grant-type:token-exchange\` is listed in \`grant_types_supported\`. If it is not, a conformant client has no machine-readable way to discover OBO support and will not attempt it. Every tools/call will reach the MCP server with only the agent's identity.
+
+Consequences:
+  - Audit trails on the downstream system cannot attribute actions to the actual end user.
+  - Per-user rate limits and per-user authorisation rules cannot be enforced server-side.
+  - In a multi-tenant deployment the isolation reduces to "we trust the agent not to cross tenants", which is a trust-based control, not a token-based one.
+
+Severity today is medium. It rises to high for servers that advertise multi-tenant data access (we track that signal separately). First flagged publicly by Christophe Aboulicam (STOA) on X, November 2026.`,
+    howToFix: `Add \`urn:ietf:params:oauth:grant-type:token-exchange\` to \`grant_types_supported\` in /.well-known/oauth-authorization-server. Implement RFC 8693 at the token endpoint: accept the agent's own access token as \`subject_token\` together with an \`actor_token\` or \`subject_token_type=urn:ietf:params:oauth:token-type:jwt\` asserting the end-user identity, and return an access token whose \`sub\` identifies that end user. Downstream MCP method handlers then read \`sub\` from the validated access token for authorisation and audit logging.`,
+    spec: 'RFC 8693 (OAuth 2.0 Token Exchange)',
+    specUrl: 'https://datatracker.ietf.org/doc/html/rfc8693',
+  },
+  {
     id: 'iss-001',
     title: 'RFC 9207 iss parameter not advertised in OAuth metadata',
     severity: 'low',

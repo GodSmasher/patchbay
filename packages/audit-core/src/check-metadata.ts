@@ -260,6 +260,14 @@ export const CHECK_METADATA: Record<string, CheckMetadata> = {
     remediation: 'Add HSTS, X-Frame-Options: DENY, X-Content-Type-Options: nosniff, and a strict CORS origin list. Never pair access-control-allow-origin: * with access-control-allow-credentials: true.',
   },
 
+  // ===== Agent-identity propagation =====
+  'IDENTITY-001': {
+    verification: 'source-confirmed',
+    affectedComponents: ['{{target}}/.well-known/oauth-authorization-server'],
+    reproductionSteps: 'GET {{target}}/.well-known/oauth-authorization-server. Inspect `grant_types_supported`. If the array does not include `urn:ietf:params:oauth:grant-type:token-exchange`, clients cannot discover OBO support; every agent-driven tools/call reaches the MCP server with only the agent\'s identity.',
+    remediation: 'Add `urn:ietf:params:oauth:grant-type:token-exchange` to `grant_types_supported` and implement RFC 8693 at the token endpoint so an AI agent can exchange its own access token plus a user assertion for a token whose `sub` identifies the end user.',
+  },
+
   // ===== ISS parameter =====
   'ISS-001': {
     verification: 'source-confirmed',
