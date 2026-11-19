@@ -94,6 +94,17 @@ export async function POST(request: Request): Promise<Response> {
   const num = score(report.summary)
   const grade = letterGrade(num)
 
+  // Top-3 source-confirmed findings for the /audit landing's inline report.
+  // Severity order: critical < high < medium < low < info. Only
+  // source-confirmed slips through the gate — never promote a potential-fp
+  // to a landing-page preview.
+  const sevOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3, info: 4 }
+  const topFindings = [...report.findings]
+    .filter((f) => f.verification === 'source-confirmed')
+    .sort((a, b) => (sevOrder[a.severity] ?? 99) - (sevOrder[b.severity] ?? 99))
+    .slice(0, 3)
+    .map((f) => ({ id: f.id, severity: f.severity, title: f.title, docsUrl: f.docsUrl }))
+
   if (email) {
     await saveLead({
       email,
@@ -115,5 +126,6 @@ export async function POST(request: Request): Promise<Response> {
     grade,
     score: num,
     findings: report.summary,
+    topFindings,
   })
 }
