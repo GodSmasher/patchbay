@@ -6,18 +6,19 @@ export const maxDuration = 300
 
 const TIER5_SEGMENT_ID = '5260059d-27f8-4f3c-9678-256cdb174701'
 const API = 'https://api.resend.com'
-const WARMING_START_DATE = process.env.WARMING_START_DATE ?? '2026-11-24'
+// Thu 2026-11-19 is businessDay 0 under the revised today-go ramp.
+// The cron runs Mon-Fri only; Sat+Sun sends still need a manual trigger
+// or the PC being on. Fable's revised plan: 10/25/30/31/70/100.
+const WARMING_START_DATE = process.env.WARMING_START_DATE ?? '2026-11-19'
 
 const PLAN: Array<{ businessDay: number; quota: number; label: string }> = [
-  { businessDay: 0, quota: 5,  label: 'warming-mon' },
-  { businessDay: 1, quota: 10, label: 'warming-tue' },
-  { businessDay: 2, quota: 20, label: 'warming-wed' },
-  { businessDay: 3, quota: 35, label: 'warming-thu' },
-  { businessDay: 4, quota: 50, label: 'warming-fri' },
-  { businessDay: 5, quota: 65, label: 'ramp-week2-mon' },
-  { businessDay: 6, quota: 80, label: 'ramp-week2-tue' },
-  { businessDay: 7, quota: 95, label: 'ramp-week2-wed' },
-  { businessDay: 8, quota: 100, label: 'cap-nikolaus' },
+  { businessDay: 0, quota: 10,  label: 'warming-thu' },
+  { businessDay: 1, quota: 25,  label: 'warming-fri' },
+  { businessDay: 2, quota: 70,  label: 'ramp-mon' },
+  { businessDay: 3, quota: 100, label: 'cap-tue' },
+  { businessDay: 4, quota: 100, label: 'steady-wed' },
+  { businessDay: 5, quota: 100, label: 'steady-thu' },
+  { businessDay: 6, quota: 100, label: 'steady-fri' },
 ]
 
 function isAuthorised(req: Request): boolean {
@@ -92,6 +93,9 @@ export async function GET(req: Request): Promise<NextResponse> {
   const ready = contacts.data
     .filter((c) => !c.unsubscribed)
     .filter((c) => c.properties?.ready_to_send === '1' || c.properties?.ready_to_send === 1)
+    // Idempotency gate: a contact that already carries a sent_at stamp
+    // has been through the cron before; never re-ship the same body.
+    .filter((c) => !c.properties?.sent_at)
     .slice(0, today.quota)
 
   const sent: string[] = []
@@ -113,7 +117,23 @@ export async function GET(req: Request): Promise<NextResponse> {
           subject,
           text: body,
           tags: [{ name: 'campaign', value: today.label }],
+          headers: {
+            'List-Unsubscribe': '<mailto:sarah@patchbay-mcp.dev?subject=unsubscribe>',
+            'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+          },
         }),
+      })
+      // Stamp sent_at + flip ready_to_send so this contact cannot be
+      // picked up again by a later cron run. Both go in one PATCH.
+      await resendFetch(apiKey, `/contacts/${c.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          properties: { sent_at: new Date().toISOString(), ready_to_send: '0' },
+        }),
+      }).catch((e) => {
+        // Non-fatal: the send already succeeded; a failed stamp just
+        // means the next cron run may re-send. Record it so we see it.
+        errors.push(`${c.email}: send ok but could not stamp sent_at: ${e instanceof Error ? e.message : String(e)}`)
       })
       sent.push(c.email)
     } catch (err) {
