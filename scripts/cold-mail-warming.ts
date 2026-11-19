@@ -34,9 +34,10 @@
  *   DRY_RUN            if "1", prints picks but does not send
  */
 
-import { readFileSync, existsSync } from 'node:fs'
+import { readFileSync, existsSync, appendFileSync, mkdirSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { auditTarget } from '../packages/audit-core/src/index'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = join(__dirname, '..')
@@ -177,18 +178,44 @@ async function main() {
   const contacts = await fetchReadyContacts(apiKey, segmentId, remaining)
   console.log(`picked ${contacts.length} ready contact(s)`)
   const tmpl = loadTemplate('pilot-mails-tier5-top3.md')
+  const fallbackTmpl = loadTemplate('generic-intro-tier5.md')
+  mkdirSync(join(ROOT, 'scratchpad', 'tier5-prescans'), { recursive: true })
+  const runLog = join(ROOT, 'scratchpad', 'tier5-prescans', '_warming-run.log')
   for (const c of contacts) {
+    const mcpUrl = String(c.properties?.mcp_url ?? '')
+    const expectedCheck = String(c.properties?.expected_check_id ?? '')
+    let useTmpl = tmpl
+    let pivotReason: string | null = null
+    if (mcpUrl && expectedCheck) {
+      try {
+        const report = await auditTarget(mcpUrl, { timeoutMs: 8000 })
+        const stillThere = report.findings.some((f) => f.id === expectedCheck && f.verification === 'source-confirmed')
+        if (!stillThere) {
+          pivotReason = `pre-send rescan of ${mcpUrl}: ${expectedCheck} no longer source-confirmed; falling back to generic intro`
+          useTmpl = fallbackTmpl
+        }
+      } catch (err) {
+        pivotReason = `pre-send rescan of ${mcpUrl} failed (${err instanceof Error ? err.message : String(err)}); falling back to generic intro`
+        useTmpl = fallbackTmpl
+      }
+    }
     const ctx = {
       name: c.first_name ?? 'there',
       company: String(c.properties?.company ?? c.email.split('@')[1] ?? ''),
+      check_id: expectedCheck,
+      check_one_line: String(c.properties?.check_one_line ?? ''),
+      context_paragraph: String(c.properties?.context_paragraph ?? ''),
+      product_shape: String(c.properties?.product_shape ?? 'an MCP product'),
       finding_snippet: String(c.properties?.finding_snippet ?? ''),
     }
-    const rendered = render(tmpl, ctx)
+    const rendered = render(useTmpl, ctx)
+    if (pivotReason) appendFileSync(runLog, `[${new Date().toISOString()}] ${c.email} PIVOT ${pivotReason}\n`)
     if (dryRun) {
-      console.log(`DRY ${c.email}\n  subj: ${rendered.subject}\n  body: ${rendered.body.slice(0, 120)}…`)
+      console.log(`DRY ${c.email}${pivotReason ? ' [PIVOT]' : ''}\n  subj: ${rendered.subject}\n  body: ${rendered.body.slice(0, 120)}…`)
     } else {
       await sendOne(apiKey, c.email, rendered, today.label)
-      console.log(`SENT ${c.email}`)
+      appendFileSync(runLog, `[${new Date().toISOString()}] ${c.email} SENT subj="${rendered.subject}"\n`)
+      console.log(`SENT ${c.email}${pivotReason ? ' [PIVOT]' : ''}`)
     }
   }
 }
