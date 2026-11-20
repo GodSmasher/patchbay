@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { SiteShell } from '@/components/site-shell'
 
 export const metadata: Metadata = {
   title: 'Audit your MCP server in 30 seconds · patchbay',
@@ -12,5 +13,5 @@ export const metadata: Metadata = {
 }
 
 export default function AuditLayout({ children }: { children: React.ReactNode }) {
-  return children
+  return <SiteShell>{children}</SiteShell>
 }
