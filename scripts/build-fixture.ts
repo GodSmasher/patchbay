@@ -3,7 +3,7 @@
  * API keys are configured. The code of both attempts is real and the test reports come from
  * actually running tsc + vitest on it, through the same parser the sandbox path uses.
  */
-import { execSync } from 'node:child_process'
+import { execFileSync } from 'node:child_process'
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { renderFixtures, withContract } from '../packages/agent/src/contract'
@@ -37,13 +37,13 @@ function test(dir: string): TestReport {
     let tscOut = ''
     let tscCode = 0
     try {
-      tscOut = execSync(`"${bin('tsc')}" --noEmit -p tsconfig.json`, { cwd: work, encoding: 'utf8' })
+      tscOut = execFileSync(bin('tsc'), ['--noEmit', '-p', 'tsconfig.json'], { cwd: work, encoding: 'utf8' })
     } catch (error) {
       tscCode = 1
       tscOut = String((error as { stdout?: string }).stdout ?? '')
     }
     try {
-      execSync(`"${bin('vitest')}" run --reporter=json --outputFile=result.json`, { cwd: work, stdio: 'ignore' })
+      execFileSync(bin('vitest'), ['run', '--reporter=json', '--outputFile=result.json'], { cwd: work, stdio: 'ignore' })
     } catch {
       // failing tests exit non-zero; the JSON report is still written
     }
