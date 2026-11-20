@@ -1,9 +1,10 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { loadLeaderboardSnapshot, type LeaderboardEntry, type LeaderboardGrade, type LeaderboardScanSource, type LeaderboardVerificationCounts } from '@/lib/leaderboard-store'
+import { loadLeaderboardSnapshot, type LeaderboardEntry, type LeaderboardGrade } from '@/lib/leaderboard-store'
 import { NewsletterSignup } from '@/components/newsletter-signup'
 import { SiteShell } from '@/components/site-shell'
 import { GlowShape } from '@/components/glow'
+import { LeaderboardTable } from '@/components/leaderboard-table'
 
 export const runtime = 'nodejs'
 export const revalidate = 60
@@ -45,71 +46,6 @@ function gradeCounts(entries: LeaderboardEntry[]): Record<LeaderboardGrade, numb
   const out: Record<LeaderboardGrade, number> = { A: 0, B: 0, C: 0, D: 0, F: 0 }
   for (const e of entries) if (e.reachable) out[e.grade] += 1
   return out
-}
-
-const COVERAGE_LABEL: Record<LeaderboardScanSource, { icon: string; text: string; title: string }> = {
-  'live-metadata+source': { icon: '✅', text: 'full', title: 'Live metadata probe plus static source audit of the linked repo' },
-  'live-metadata': { icon: '🔍', text: 'metadata', title: 'Live metadata only — repo not available or clone failed' },
-  'source': { icon: '📦', text: 'source', title: 'Static source audit only — the live URL was unreachable' },
-  'authenticated': { icon: '🔑', text: 'auth', title: 'Scanned with a user-submitted bearer token' },
-  'operator-verified': { icon: '👤', text: 'operator', title: 'Submitted by the server operator (verified ownership)' },
-  'unreachable': { icon: '🚨', text: 'unreachable', title: 'Not reachable during the last scan' },
-}
-
-function VerificationPills({ counts }: { counts: LeaderboardVerificationCounts | undefined }) {
-  // No data = pre-Schema-v2 snapshot or empty entry. Show a quiet marker
-  // instead of implying everything is a potential FP.
-  if (!counts) {
-    return (
-      <span
-        title="This entry was scanned before Schema v2 — verification tier will populate on next rescan."
-        className="rounded-full border border-white/15 px-2 py-0.5 font-mono text-[10.5px] text-ink-mute"
-      >
-        tier pending
-      </span>
-    )
-  }
-  const total = counts['source-confirmed'] + counts['runtime-verified'] + counts['potential-fp']
-  if (total === 0) {
-    return <span className="text-ink-mute">—</span>
-  }
-  const pills: Array<[string, number, string, string]> = [
-    ['confirmed', counts['source-confirmed'], '#000000', '#ffffff'],
-    ['verified', counts['runtime-verified'], '#c3c8ff', 'rgba(109,108,255,.18)'],
-    ['fp', counts['potential-fp'], '#a3a3ad', 'rgba(255,255,255,.06)'],
-  ]
-  return (
-    <span
-      title="Finding Schema v2 breakdown. source-confirmed = patchbay saw the code path · runtime-verified = reproduced live against the endpoint · potential-fp = pattern matched, manual verification required."
-      style={{ display: 'inline-flex', gap: '0.25rem', fontVariantNumeric: 'tabular-nums', fontSize: '0.72rem' }}
-    >
-      {pills.map(([label, n, fg, bg]) => (
-        <span
-          key={label}
-          style={{
-            padding: '0.05rem 0.35rem',
-            borderRadius: 999,
-            color: fg,
-            background: bg,
-            opacity: n === 0 ? 0.45 : 1,
-          }}
-        >
-          {n} {label}
-        </span>
-      ))}
-    </span>
-  )
-}
-
-function CoverageBadge({ entry }: { entry: LeaderboardEntry }) {
-  const s = entry.scanSource
-  if (!s) return <span className="text-ink-mute">—</span>
-  const l = COVERAGE_LABEL[s]
-  return (
-    <span title={l.title} className="text-ink-soft">
-      <span style={{ marginRight: '0.3rem' }}>{l.icon}</span>{l.text}
-    </span>
-  )
 }
 
 export default async function LeaderboardPage() {
@@ -209,71 +145,20 @@ export default async function LeaderboardPage() {
         </section>
 
         <section className="relative z-10 mx-auto max-w-6xl px-5 sm:px-8">
-          {/* Desktop: table. Phone: the same rows as a compact list. */}
-          <div className="g-glass hidden overflow-x-auto px-6 pb-3 pt-2 md:block">
-            <table className="w-full border-collapse text-sm">
-              <thead>
-                <tr className="border-b border-white/15 text-left text-[11px] uppercase tracking-[.12em] text-ink-mute">
-                  <th scope="col" className="px-1 py-3 font-normal">#</th>
-                  <th scope="col" className="px-1 py-3 font-normal">host</th>
-                  <th scope="col" className="px-1 py-3 font-normal">grade</th>
-                  <th scope="col" className="px-1 py-3 text-right font-normal">score</th>
-                  <th scope="col" className="px-1 py-3 text-right font-normal">findings</th>
-                  <th scope="col" className="px-1 py-3 pl-6 font-normal">verification</th>
-                  <th scope="col" className="px-1 py-3 font-normal">coverage</th>
-                </tr>
-              </thead>
-              <tbody>
-                {reachable.map((e, i) => {
-                  const totalFindings = e.findings.critical + e.findings.high + e.findings.medium + e.findings.low
-                  return (
-                    <tr key={e.slug} className="border-b border-white/[.07] last:border-b-0">
-                      <td className="px-1 py-3 font-mono text-xs tabular-nums text-ink-mute">{i + 1}</td>
-                      <td className="px-1 py-3">
-                        <Link href={`/leaderboard/${e.slug}`} className="font-mono text-[13px] text-ink hover:text-white">
-                          {e.host}
-                        </Link>
-                      </td>
-                      <td className="px-1 py-3"><span className={`g-grade g-grade-${e.grade}`}>{e.grade}</span></td>
-                      <td className="font-display px-1 py-3 text-right text-xl tabular-nums">{e.score}</td>
-                      <td className="px-1 py-3 text-right tabular-nums text-ink-soft">{totalFindings}</td>
-                      <td className="px-1 py-3 pl-6"><VerificationPills counts={e.verificationCounts} /></td>
-                      <td className="px-1 py-3 text-xs"><CoverageBadge entry={e} /></td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          <ol className="md:hidden">
-            {reachable.map((e, i) => {
-              const totalFindings = e.findings.critical + e.findings.high + e.findings.medium + e.findings.low
-              return (
-                <li key={e.slug} className="border-b border-white/[.07]">
-                  <Link href={`/leaderboard/${e.slug}`} className="grid grid-cols-[32px_1fr_34px] items-center gap-3 py-3">
-                    <span className="font-mono text-[11px] text-ink-mute">{i + 1}</span>
-                    <span className="min-w-0">
-                      <span className="block truncate font-mono text-[13px] text-ink">{e.host}</span>
-                      <span className="text-[11.5px] text-ink-mute">
-                        {e.score} · {totalFindings} finding{totalFindings === 1 ? '' : 's'}
-                      </span>
-                    </span>
-                    <span className={`g-grade g-grade-${e.grade}`}>{e.grade}</span>
-                  </Link>
-                </li>
-              )
-            })}
-          </ol>
-
-          {unreachable.length > 0 && (
-            <details className="mt-6 text-sm text-ink-mute">
-              <summary className="cursor-pointer">{unreachable.length} host(s) unreachable on {capturedDate} — not scored</summary>
-              <ul className="mt-2 columns-1 font-mono text-xs sm:columns-3">
-                {unreachable.map((e) => <li key={e.slug}>{e.host}</li>)}
-              </ul>
-            </details>
-          )}
+          <LeaderboardTable
+            entries={reachable}
+            capturedDate={capturedDate}
+            unreachable={
+              unreachable.length > 0 ? (
+                <details className="mt-6 text-sm text-ink-mute">
+                  <summary className="cursor-pointer">{unreachable.length} host(s) unreachable on {capturedDate} — not scored</summary>
+                  <ul className="mt-2 columns-1 font-mono text-xs sm:columns-3">
+                    {unreachable.map((e) => <li key={e.slug}>{e.host}</li>)}
+                  </ul>
+                </details>
+              ) : null
+            }
+          />
         </section>
 
         <section className="relative z-10 mx-auto grid max-w-6xl gap-4 px-5 pt-14 sm:px-8 lg:grid-cols-[7fr_5fr]">
