@@ -2,7 +2,7 @@
 
 ## 0.7.1 (2026-11-20) — SECURITY
 
-Fixes CVE-XXXX-NNNNN (GHSA-xxxx-xxxx-xxxx): command injection via the
+Fixes CVE-XXXX-NNNNN (GHSA-wv32-8ppf-r6ww): command injection via the
 `scan_repo` MCP tool when the supplied URL passes the
 `https://github.com/` prefix check but contains `$(...)` command
 substitution, backticks, or other shell metacharacters.
@@ -21,4 +21,4 @@ fix in the `patchbay scan` CLI code path.
 
 Reported and patched by Pietro Procaccini (responsible disclosure,
 2026-11-20). Advisory text at
-https://github.com/GodSmasher/patchbay/security/advisories/GHSA-xxxx-xxxx-xxxx.
+https://github.com/GodSmasher/patchbay/security/advisories/GHSA-wv32-8ppf-r6ww.

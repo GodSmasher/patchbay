@@ -2,7 +2,7 @@
 
 ## 0.17.1 (2026-11-20) — SECURITY
 
-Fixes CVE-XXXX-NNNNN (GHSA-xxxx-xxxx-xxxx): command injection via
+Fixes CVE-XXXX-NNNNN (GHSA-wv32-8ppf-r6ww): command injection via
 `patchbay scan <github-url>` when the URL passes the `https://github.com/`
 prefix check but contains `$(...)` command substitution, backticks, or
 other shell metacharacters.
@@ -14,7 +14,7 @@ parsed as a flag.
 
 Reported and patched by Pietro Procaccini (responsible disclosure,
 2026-11-20). Advisory text at
-https://github.com/GodSmasher/patchbay/security/advisories/GHSA-xxxx-xxxx-xxxx.
+https://github.com/GodSmasher/patchbay/security/advisories/GHSA-wv32-8ppf-r6ww.
 
 ## 0.17.0 and earlier (post-0.7.1)
 
