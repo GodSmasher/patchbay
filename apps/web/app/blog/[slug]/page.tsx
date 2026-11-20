@@ -3,7 +3,9 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { SubscribeBox } from '@/components/subscribe-box'
 import { getPost, POSTS } from '../_data'
+import { Auth004RetirementStory } from './posts/auth-004-retirement-story'
 import { FourOauthChecksMcpAuthorizationEndpoint } from './posts/four-oauth-checks-mcp-authorization-endpoint'
+import { McpPoisoning003ToolCallReturnContent } from './posts/mcp-poisoning-003-tool-call-return-content'
 import { McpToolChangesBreakingAdditiveSemanticDrift } from './posts/mcp-tool-changes-breaking-additive-semantic-drift'
 import { McpToolPoisoningHiddenCharactersDescriptions } from './posts/mcp-tool-poisoning-hidden-characters-descriptions'
 import { McpTokenMissingAudienceClaimBug } from './posts/mcp-token-missing-audience-claim-bug'
@@ -43,6 +45,8 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 }
 
 const BODIES: Record<string, () => JSX.Element> = {
+  'auth-004-retirement-story': Auth004RetirementStory,
+  'mcp-poisoning-003-tool-call-return-content': McpPoisoning003ToolCallReturnContent,
   'mcp-transport-security-one-week-later': McpTransportSecurityOneWeekLater,
   'mcp-oauth-scope-hygiene-three-mistakes': McpOauthScopeHygieneThreeMistakes,
   'mcp-oauth-iss-parameter-mix-up-mitigation': McpOauthIssParameterMixUpMitigation,

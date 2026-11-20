@@ -9,6 +9,20 @@ export interface Post {
 
 export const POSTS: Post[] = [
   {
+    slug: 'auth-004-retirement-story',
+    title: 'The check we retired. AUTH-004 asked for metadata no spec defines',
+    date: '2026-11-22',
+    readingMinutes: 4,
+    summary: 'Patchbay audit-core 0.3.4 killed AUTH-004 off the list. The check used to flag OAuth metadata that lacked resource_indicators_supported. We added it in the first draft because the field looked load-bearing. On verification pass: no RFC defines it, no MCP spec references it. We were asking servers to signal something that is not a thing. Kept it alive through two releases on the assumption surely this is somewhere. Finally sat down with the spec stack and confirmed the field is invented. Retired.',
+  },
+  {
+    slug: 'mcp-poisoning-003-tool-call-return-content',
+    title: 'What static MCP scanners miss: tool-call return content',
+    date: '2026-11-21',
+    readingMinutes: 5,
+    summary: 'Patchbay started as a passive scanner. One finding category still slipped past it: the content coming back from a tool call. POISONING-003 is the new opt-in runtime check that invokes a selected tool and inspects the return envelope for role-marker patterns, hidden Unicode and imperative directives. Separate from POISONING-001, which stays static on the tool description.',
+  },
+  {
     slug: 'mcp-transport-security-one-week-later',
     title: 'One week later: 97 percent of tracked MCP servers trip the new transport-security check',
     date: '2026-11-12',
