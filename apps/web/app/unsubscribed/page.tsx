@@ -14,7 +14,7 @@ export default function UnsubscribedPage({
     <main className="min-h-screen bg-paper text-ink px-6 py-20">
       <div className="mx-auto max-w-xl">
         <nav className="mb-10 text-sm text-ink-mute">
-          <Link href="/" className="hover:text-ink">patchbay</Link>
+          <Link href="/audit" className="hover:text-ink">patchbay</Link>
         </nav>
 
         {ok && (
@@ -52,7 +52,7 @@ export default function UnsubscribedPage({
           </>
         )}
 
-        <Link href="/" className="text-sm text-ink underline underline-offset-4 hover:text-ink">
+        <Link href="/audit" className="text-sm text-ink underline underline-offset-4 hover:text-ink">
           ← Back to patchbay
         </Link>
       </div>

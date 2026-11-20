@@ -17,13 +17,13 @@ export const metadata: Metadata = {
 
 export default function AboutCrawlerPage() {
   return (
-    <main style={{ maxWidth: 820, margin: '0 auto', padding: '2rem 1rem', fontFamily: 'ui-sans-serif, system-ui, sans-serif', lineHeight: 1.6 }}>
+    <main style={{ maxWidth: 820, margin: '0 auto', padding: '2rem 1rem', lineHeight: 1.6 }}>
       <nav style={{ marginBottom: '1.5rem' }}>
-        <Link href="/leaderboard" style={{ color: '#6366f1' }}>← Leaderboard</Link>
+        <Link href="/leaderboard" style={{ color: '#ffb38a' }}>← Leaderboard</Link>
       </nav>
 
       <h1 style={{ fontSize: '2rem', margin: '0 0 0.5rem' }}>About the patchbay crawler</h1>
-      <p style={{ color: '#6b7280', margin: '0 0 1.5rem' }}>
+      <p style={{ color: 'var(--color-ink-soft)', margin: '0 0 1.5rem' }}>
         Who we are, what we send, and how to opt out.
       </p>
 
@@ -75,7 +75,7 @@ export default function AboutCrawlerPage() {
         <p>Operators can claim their listing to get an "operator verified" badge and opt into authenticated scans (which cover the five checks the public crawler cannot reach). Verify ownership with a DNS TXT record <code>_patchbay=operator:&lt;your-email&gt;</code> on the MCP endpoint's domain, or a file at <code>/.well-known/patchbay-ownership.txt</code> served from the same origin as the MCP endpoint.</p>
       </section>
 
-      <section style={{ marginTop: '2rem', padding: '1rem', background: '#f9fafb', borderRadius: 8, fontSize: '0.9rem', color: '#4b5563' }}>
+      <section style={{ marginTop: '2rem', padding: '1rem', background: 'rgba(255,255,255,.04)', borderRadius: 8, fontSize: '0.9rem', color: 'var(--color-ink-soft)' }}>
         <strong>Contact:</strong> <a href="mailto:hello@patchbay-mcp.dev">hello@patchbay-mcp.dev</a> ·
         <strong style={{ marginLeft: '0.5rem' }}>Opt-out:</strong> <a href="mailto:crawler-opt-out@patchbay-mcp.dev">crawler-opt-out@patchbay-mcp.dev</a> ·
         <strong style={{ marginLeft: '0.5rem' }}>Source:</strong> <a href="https://github.com/GodSmasher/patchbay" target="_blank" rel="noopener noreferrer">github.com/GodSmasher/patchbay</a>

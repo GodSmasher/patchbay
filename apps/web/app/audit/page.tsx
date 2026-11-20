@@ -187,7 +187,7 @@ export default function AuditPage() {
         <section className="relative mx-auto max-w-6xl px-5 py-10 sm:px-8" aria-live="polite">
           <div className="grid gap-4 lg:grid-cols-[5fr_7fr]">
             <div className="g-glass relative flex min-h-[340px] flex-col items-center justify-center overflow-hidden bg-[#08080b] p-6">
-              <GlowShape className="left-1/2 top-6 h-[290px] w-[300px] -translate-x-1/2" />
+              <GlowShape className="inset-x-0 mx-auto top-6 h-[290px] w-[300px] " />
               <span className="font-display relative z-10 text-[160px] font-light leading-[.85]">{state.result.grade}</span>
               <span className="relative z-10 text-sm text-ink-soft">
                 score <b className="font-semibold text-white">{state.result.score}</b> / 100
@@ -355,7 +355,7 @@ export default function AuditPage() {
 
       {/* ── waitlist ─────────────────────────────────────────── */}
       <section id="waitlist" className="relative mx-auto mt-16 max-w-6xl scroll-mt-6 px-5 sm:px-8">
-        <GlowShape className="left-1/2 top-4 h-[360px] w-[340px] -translate-x-1/2 lg:h-[460px] lg:w-[520px]" delay={-3} />
+        <GlowShape className="inset-x-0 mx-auto top-4 h-[360px] w-[340px]  lg:h-[460px] lg:w-[520px]" delay={-3} />
         <div className="relative z-10 mx-auto flex min-h-[460px] max-w-xl flex-col items-center justify-center gap-4 text-center">
           <span className="g-eyebrow">hosted scans · January 2027</span>
           <h2 className="text-[clamp(40px,6vw,60px)] leading-none">get told when a server you trust changes.</h2>

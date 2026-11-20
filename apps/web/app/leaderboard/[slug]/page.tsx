@@ -1,11 +1,10 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { SiteShell } from '@/components/site-shell'
+import { GlowShape, SEV_CLASS } from '@/components/glow'
 import {
   loadLeaderboardEntry,
   loadLeaderboardSnapshot,
-  type LeaderboardGrade,
   type LeaderboardVerification,
 } from '@/lib/leaderboard-store'
 
@@ -16,42 +15,34 @@ const VERIFICATION_LABEL: Record<LeaderboardVerification, string> = {
 }
 const VERIFICATION_STYLE: Record<LeaderboardVerification, { fg: string; bg: string; title: string }> = {
   'source-confirmed': {
-    fg: '#d1fae5', bg: 'rgba(4, 120, 87, 0.3)',
+    fg: '#000000', bg: '#ffffff',
     title: 'patchbay saw the code path in source. Safe to cite in cold-mail outreach.',
   },
   'runtime-verified': {
-    fg: '#e0e7ff', bg: 'rgba(67, 56, 202, 0.35)',
+    fg: '#c3c8ff', bg: 'rgba(109,108,255,.18)',
     title: 'patchbay reproduced the issue live against the endpoint.',
   },
   'potential-fp': {
-    fg: '#d6d6dc', bg: 'rgba(255, 255, 255, 0.08)',
+    fg: 'var(--color-ink-mute)', bg: 'rgba(255,255,255,.06)',
     title: 'Pattern matched but not confirmed. Manual verification required before public claim.',
   },
 }
 
 function VerificationBadge({ v }: { v?: LeaderboardVerification }) {
-  if (!v) return <span className="text-[11px] italic text-ink-mute">pending rescan</span>
+  if (!v) return <span style={{ color: 'var(--color-ink-mute)', fontSize: '0.75rem', fontStyle: 'italic' }}>pending rescan</span>
   const s = VERIFICATION_STYLE[v]
   return (
     <span
       title={s.title}
       style={{
-        display: 'inline-block', padding: '2px 8px', borderRadius: 999,
-        fontSize: '11px', fontWeight: 500, color: s.fg, background: s.bg,
+        display: 'inline-block', padding: '0.05rem 0.5rem', borderRadius: 999,
+        fontSize: '0.7rem', fontWeight: 500, color: s.fg, background: s.bg,
         fontVariantNumeric: 'tabular-nums',
       }}
     >
       {VERIFICATION_LABEL[v]}
     </span>
   )
-}
-
-const SEVERITY_STYLE: Record<string, string> = {
-  critical: 'g-sev g-sev-critical',
-  high: 'g-sev g-sev-high',
-  medium: 'g-sev g-sev-medium',
-  low: 'g-sev g-sev-low',
-  info: 'g-sev g-sev-info',
 }
 
 export const runtime = 'nodejs'
@@ -98,128 +89,122 @@ export default async function LeaderboardHostPage({ params }: { params: { slug: 
     ratingExplanation: `MCP security grade ${entry.grade} on patchbay. ${totalFindings} open finding(s).`,
   }
 
-  const gradeClass = `g-grade g-grade-${entry.grade satisfies LeaderboardGrade}`
+  const sevs = ['critical', 'high', 'medium', 'low', 'info'] as const
+  const watchUrl = `/early-access?ref=leaderboard-${entry.slug}&url=${encodeURIComponent(entry.url)}`
 
   return (
-    <SiteShell>
-      <main className="relative z-10 mx-auto max-w-4xl px-5 py-8 sm:px-8 sm:py-12">
-        <nav className="mb-6 text-sm">
-          <Link href="/leaderboard" className="text-ink-mute hover:text-white">
-            ← Leaderboard
-          </Link>
-        </nav>
-
-        <header className="flex items-center gap-4">
-          <span className={gradeClass} style={{ width: 48, height: 48, fontSize: 22 }}>{entry.grade}</span>
-          <h1 className="font-display text-3xl text-ink sm:text-4xl">{entry.host}</h1>
-        </header>
-        <p className="mt-2 font-mono text-[12px] text-ink-mute tabular-nums">
-          Score {entry.score}/100 · Last scanned {entry.lastScanned.slice(0, 10)} · {entry.category}
-        </p>
-
-        <section className="g-glass g-tint-b mt-8 p-6">
-          <h2 className="g-eyebrow mb-3">Findings</h2>
-          <div className="flex flex-wrap gap-x-6 gap-y-2 font-mono text-[13px] text-ink tabular-nums">
-            <span><span className="font-display text-xl">{entry.findings.critical}</span> <span className="text-ink-mute">critical</span></span>
-            <span><span className="font-display text-xl">{entry.findings.high}</span> <span className="text-ink-mute">high</span></span>
-            <span><span className="font-display text-xl">{entry.findings.medium}</span> <span className="text-ink-mute">medium</span></span>
-            <span><span className="font-display text-xl">{entry.findings.low}</span> <span className="text-ink-mute">low</span></span>
-            <span><span className="font-display text-xl">{entry.findings.info}</span> <span className="text-ink-mute">info</span></span>
-          </div>
-        </section>
-
-        {entry.verificationCounts && (
-          <section className="g-glass mt-6 p-6">
-            <h2 className="g-eyebrow mb-3">Verification breakdown</h2>
-            <div className="flex flex-wrap gap-x-6 gap-y-2 font-mono text-[13px] tabular-nums">
-              <span><span className="font-display text-xl text-ink">{entry.verificationCounts['source-confirmed']}</span> <span className="text-ink-mute">source-confirmed</span></span>
-              <span><span className="font-display text-xl text-ink">{entry.verificationCounts['runtime-verified']}</span> <span className="text-ink-mute">runtime-verified</span></span>
-              <span><span className="font-display text-xl text-ink">{entry.verificationCounts['potential-fp']}</span> <span className="text-ink-mute">potential-fp</span></span>
+    <main>
+      <section className="relative">
+        <div className="relative z-10 mx-auto grid max-w-6xl gap-10 px-5 pb-8 pt-10 sm:px-8 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:items-center">
+          <div>
+            <nav aria-label="Breadcrumb" className="flex gap-2 font-mono text-xs text-ink-mute">
+              <Link href="/leaderboard" className="hover:text-white">leaderboard</Link>
+              <span>/</span>
+              <span className="text-ink-soft">{entry.host}</span>
+            </nav>
+            <p className="g-eyebrow mt-8">last scanned {entry.lastScanned.slice(0, 10)} · {entry.category}</p>
+            <h1 className="mt-5 break-words text-[clamp(40px,6vw,72px)] leading-[.95]">{entry.host}</h1>
+            <p className="mt-6 max-w-xl text-[15px] leading-relaxed text-ink-soft">
+              Passive audit of <code className="break-all">{entry.url}</code>. No OAuth flows, no client
+              registration, no tool calls.
+            </p>
+            <div className="mt-7 flex flex-wrap gap-2">
+              {entry.reportId && (
+                <Link href={`/report/${entry.reportId}`} className="g-btn g-btn-o">full audit report →</Link>
+              )}
+              <Link href={watchUrl} className="g-btn g-btn-ghost">watch this server</Link>
             </div>
-            <p className="mt-3 text-[12px] text-ink-mute">
-              Cold-outreach quality gate: only <strong className="text-ink">source-confirmed</strong> findings may be cited to operators by name.{' '}
-              See <Link href="/docs" className="text-ink underline underline-offset-2 hover:text-white">Finding Schema v2 docs</Link> for tier definitions.
-            </p>
-          </section>
-        )}
+          </div>
 
-        {entry.findingsDetail && entry.findingsDetail.length > 0 ? (
-          <section className="g-glass mt-6 p-6">
-            <h2 className="g-eyebrow mb-4">Findings ({entry.findingsDetail.length})</h2>
-            <table className="w-full border-collapse font-mono text-[13px]">
-              <thead>
-                <tr className="border-b border-white/15 text-left text-[11px] uppercase tracking-[.12em] text-ink-mute">
-                  <th className="px-1 py-2 font-medium">Check</th>
-                  <th className="px-1 py-2 font-medium">Severity</th>
-                  <th className="px-1 py-2 font-medium">Verification</th>
-                </tr>
-              </thead>
-              <tbody>
-                {entry.findingsDetail.map((f, i) => (
-                  <tr key={i} className="border-b border-white/[.07] last:border-b-0">
-                    <td className="px-1 py-3">
-                      <Link href={`/docs/${f.id.toLowerCase()}`} className="text-ink hover:text-white underline underline-offset-2">
-                        {f.id}
-                      </Link>
-                    </td>
-                    <td className="px-1 py-3">
-                      <span className={SEVERITY_STYLE[f.severity] ?? 'g-sev g-sev-info'}>{f.severity}</span>
-                    </td>
-                    <td className="px-1 py-3">
+          <div className="relative flex h-[340px] flex-col items-center justify-center">
+            <GlowShape className="inset-x-0 mx-auto top-2 h-[320px] w-[320px] " />
+            <span className="font-display relative z-10 text-[180px] font-light leading-[.85]">{entry.grade}</span>
+            <span className="relative z-10 text-sm text-ink-soft">
+              score <b className="font-semibold tabular-nums text-white">{entry.score}</b> / 100
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <section className="relative z-10 mx-auto max-w-6xl px-5 sm:px-8">
+        <div className="g-glass grid grid-cols-5 overflow-hidden rounded-2xl">
+          {sevs.map((s) => (
+            <div key={s} className="border-r border-white/10 p-4 last:border-r-0 sm:p-5">
+              <div className="font-display text-3xl tabular-nums sm:text-4xl">{entry.findings[s]}</div>
+              <span className={SEV_CLASS[s]}>{s === 'critical' ? 'crit' : s}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="relative z-10 mx-auto grid max-w-6xl gap-4 px-5 pt-10 sm:px-8 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
+        <div>
+          <h2 className="text-[clamp(32px,4vw,44px)] leading-none">findings</h2>
+          {entry.findingsDetail && entry.findingsDetail.length > 0 ? (
+            <ul className="mt-6 flex flex-col gap-2">
+              {entry.findingsDetail.map((f, i) => (
+                <li key={i}>
+                  <Link href={`/docs/${f.id.toLowerCase()}`} className="g-glass flex items-center justify-between gap-4 rounded-2xl px-5 py-4 hover:border-white/20">
+                    <span className="font-mono text-sm text-ink">{f.id} →</span>
+                    <span className="flex items-center gap-2">
                       <VerificationBadge v={f.verification} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </section>
-        ) : entry.topFindingIds.length > 0 && (
-          <section className="g-glass mt-6 p-6">
-            <h2 className="g-eyebrow mb-3">Top finding IDs</h2>
-            <p className="mb-3 text-[12px] text-ink-mute">
-              This entry was scanned before Finding Schema v2. Per-finding verification tier will populate on next rescan.
-            </p>
-            <ul className="list-disc space-y-1 pl-5 font-mono text-[13px]">
-              {entry.topFindingIds.map((id) => (
-                <li key={id}>
-                  <Link href={`/docs/${id.toLowerCase()}`} className="text-ink hover:text-white underline underline-offset-2">
-                    {id}
+                      <span className={SEV_CLASS[f.severity] ?? SEV_CLASS.info}>{f.severity}</span>
+                    </span>
                   </Link>
                 </li>
               ))}
             </ul>
-          </section>
-        )}
+          ) : entry.topFindingIds.length > 0 ? (
+            <>
+              <p className="mt-4 text-sm text-ink-mute">
+                Scanned before Finding Schema v2 — per-finding verification fills in on the next rescan.
+              </p>
+              <ul className="mt-4 flex flex-col gap-2">
+                {entry.topFindingIds.map((id) => (
+                  <li key={id}>
+                    <Link href={`/docs/${id.toLowerCase()}`} className="g-glass flex items-center justify-between rounded-2xl px-5 py-4 font-mono text-sm hover:border-white/20">
+                      {id} <span className="text-ink-mute">→</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <p className="mt-4 text-ink-soft">Nothing to fix from the outside. Nice.</p>
+          )}
+        </div>
 
-        {entry.reportId && (
-          <p className="mt-6">
-            <Link
-              href={`/report/${entry.reportId}`}
-              className="inline-flex items-center gap-2 font-mono text-[13px] text-ink underline underline-offset-4 hover:text-white"
-            >
-              Full audit report →
-            </Link>
-          </p>
-        )}
+        <aside className="flex flex-col gap-4">
+          {entry.verificationCounts && (
+            <div className="g-glass g-tint-b p-6">
+              <p className="text-[11px] uppercase tracking-[.12em] text-ink-mute">verification</p>
+              <div className="mt-4 grid grid-cols-3 gap-3">
+                <div><div className="font-display text-3xl tabular-nums">{entry.verificationCounts['source-confirmed']}</div><div className="text-xs text-ink-soft">source-confirmed</div></div>
+                <div><div className="font-display text-3xl tabular-nums text-[#c3c8ff]">{entry.verificationCounts['runtime-verified']}</div><div className="text-xs text-ink-soft">runtime-verified</div></div>
+                <div><div className="font-display text-3xl tabular-nums text-ink-mute">{entry.verificationCounts['potential-fp']}</div><div className="text-xs text-ink-soft">potential-fp</div></div>
+              </div>
+              <p className="mt-4 text-xs leading-relaxed text-ink-mute">
+                Only source-confirmed findings are cited to operators by name. Tiers are explained in the{' '}
+                <Link href="/docs" className="text-[#ffb38a] hover:text-white">docs</Link>.
+              </p>
+            </div>
+          )}
+          <div className="g-glass g-tint-o p-6">
+            <p className="font-display text-2xl">run this server?</p>
+            <p className="mt-2 text-sm leading-relaxed text-ink-soft">
+              Want a re-scan or think a finding is wrong? Open an issue on the{' '}
+              <a href="https://github.com/GodSmasher/patchbay/issues" className="text-[#ffb38a] hover:text-white">patchbay repo</a>.
+              Or get told when this grade changes.
+            </p>
+            <Link href={watchUrl} className="g-btn g-btn-w mt-4">watch this server</Link>
+          </div>
+        </aside>
+      </section>
 
-        <section className="mt-10 border-t border-white/10 pt-6 text-[12px] leading-relaxed text-ink-mute">
-          <p>
-            This grade comes from a passive audit of{' '}
-            <code className="rounded bg-white/5 px-1.5 py-0.5 font-mono text-[11px] text-ink">{entry.url}</code>.
-            No OAuth flows were initiated, no Dynamic Client Registration was written, no tool calls were made.
-            If you operate this server and want a re-scan or want to dispute a finding, open an issue on the{' '}
-            <a href="https://github.com/GodSmasher/patchbay/issues" className="text-ink underline underline-offset-2 hover:text-white">
-              patchbay repo
-            </a>
-            .
-          </p>
-        </section>
-
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(rating) }}
-        />
-      </main>
-    </SiteShell>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(rating) }}
+      />
+    </main>
   )
 }

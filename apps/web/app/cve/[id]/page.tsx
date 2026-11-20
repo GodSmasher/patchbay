@@ -23,11 +23,11 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
 }
 
 const SEV_COLOR: Record<CveSeverity, string> = {
-  critical: '#dc2626',
-  high: '#ea580c',
-  medium: '#d97706',
-  low: '#6b7280',
-  info: '#6b7280',
+  critical: '#ff6a2b',
+  high: '#ff8a55',
+  medium: '#ffb38a',
+  low: 'var(--color-ink-soft)',
+  info: 'var(--color-ink-soft)',
 }
 
 export default function CveDetailPage({ params }: { params: { id: string } }) {
@@ -37,31 +37,31 @@ export default function CveDetailPage({ params }: { params: { id: string } }) {
   const embargoActive = isEmbargoActive(raw)
 
   return (
-    <main style={{ maxWidth: 820, margin: '0 auto', padding: '2rem 1rem', fontFamily: 'ui-sans-serif, system-ui, sans-serif', lineHeight: 1.6 }}>
+    <main style={{ maxWidth: 820, margin: '0 auto', padding: '2rem 1rem', lineHeight: 1.6 }}>
       <nav style={{ marginBottom: '1.5rem' }}>
-        <Link href="/cve" style={{ color: '#6366f1' }}>← CVE database</Link>
+        <Link href="/cve" style={{ color: '#ffb38a' }}>← CVE database</Link>
       </nav>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
-        <span style={{ padding: '0.15rem 0.5rem', borderRadius: 4, background: SEV_COLOR[e.severity], color: 'white', fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase' }}>{e.severity}</span>
-        <code style={{ fontFamily: 'monospace', color: '#6b7280' }}>{e.id}</code>
-        <span style={{ color: '#6b7280', fontSize: '0.9rem' }}>· {e.status}</span>
+        <span style={{ padding: '0.15rem 0.5rem', borderRadius: 4, background: SEV_COLOR[e.severity], color: '#000', fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase' }}>{e.severity}</span>
+        <code style={{ fontFamily: 'monospace', color: 'var(--color-ink-soft)' }}>{e.id}</code>
+        <span style={{ color: 'var(--color-ink-soft)', fontSize: '0.9rem' }}>· {e.status}</span>
       </div>
 
       <h1 style={{ fontSize: '1.8rem', margin: '0 0 1rem' }}>{e.title}</h1>
 
       {embargoActive && (
-        <section style={{ padding: '1rem', background: '#fef3c7', border: '1px solid #f59e0b', borderRadius: 8, marginBottom: '1.5rem', fontSize: '0.9rem' }}>
+        <section style={{ padding: '1rem', background: 'rgba(255,106,43,.12)', border: '1px solid #ffcfb3', borderRadius: 8, marginBottom: '1.5rem', fontSize: '0.9rem' }}>
           <strong>This advisory is under a coordinated-disclosure embargo until {raw.embargoUntil?.slice(0, 10)}.</strong> The server name, repository URL and evidence are withheld while the operator has time to rotate / patch. The finding category, severity and generic fix are published so other operators can proactively check their own systems.
         </section>
       )}
 
-      {e.summary && <p style={{ fontSize: '1.05rem', color: '#374151' }}>{e.summary}</p>}
+      {e.summary && <p style={{ fontSize: '1.05rem', color: 'var(--color-ink-soft)' }}>{e.summary}</p>}
 
       <section style={{ marginTop: '1.5rem' }}>
         <h2 style={{ fontSize: '1.1rem' }}>Finding</h2>
         <p>
-          Check <Link href={`/docs/${e.findingId.toLowerCase()}`} style={{ color: '#6366f1', fontFamily: 'monospace' }}>{e.findingId}</Link>
+          Check <Link href={`/docs/${e.findingId.toLowerCase()}`} style={{ color: '#ffb38a', fontFamily: 'monospace' }}>{e.findingId}</Link>
           {e.severityRationale && <> · {e.severityRationale}</>}
         </p>
       </section>
@@ -91,7 +91,7 @@ export default function CveDetailPage({ params }: { params: { id: string } }) {
       {e.evidence && (
         <section style={{ marginTop: '1rem' }}>
           <h2 style={{ fontSize: '1.1rem' }}>Evidence</h2>
-          <pre style={{ background: '#f3f4f6', padding: '0.75rem 1rem', borderRadius: 6, overflowX: 'auto', fontSize: '0.85rem' }}>{e.evidence}</pre>
+          <pre style={{ background: 'rgba(255,255,255,.06)', padding: '0.75rem 1rem', borderRadius: 6, overflowX: 'auto', fontSize: '0.85rem' }}>{e.evidence}</pre>
         </section>
       )}
 
@@ -111,7 +111,7 @@ export default function CveDetailPage({ params }: { params: { id: string } }) {
         </section>
       )}
 
-      <section style={{ marginTop: '1rem', color: '#4b5563', fontSize: '0.9rem' }}>
+      <section style={{ marginTop: '1rem', color: 'var(--color-ink-soft)', fontSize: '0.9rem' }}>
         <h2 style={{ fontSize: '1rem' }}>Credit</h2>
         <p>
           {e.credit?.discovered && <>Discovered by: {e.credit.discovered}<br /></>}
@@ -119,7 +119,7 @@ export default function CveDetailPage({ params }: { params: { id: string } }) {
         </p>
       </section>
 
-      <section style={{ marginTop: '2rem', fontSize: '0.85rem', color: '#6b7280' }}>
+      <section style={{ marginTop: '2rem', fontSize: '0.85rem', color: 'var(--color-ink-soft)' }}>
         <p>Published {e.published.slice(0, 10)} · Last modified {e.lastModified.slice(0, 10)}</p>
         <p>Source: <a href={`https://github.com/GodSmasher/patchbay/blob/main/bench/cve/${e.id}.json`} target="_blank" rel="noopener noreferrer">bench/cve/{e.id}.json</a></p>
       </section>
