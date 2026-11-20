@@ -151,11 +151,11 @@ registerTool(
       // without having it checked out locally.
       if (/^https?:\/\/github\.com\//i.test(path) || /^git@github\.com:/i.test(path)) {
         const { tmpdir } = await import('node:os')
-        const { execSync } = await import('node:child_process')
+        const { execFileSync } = await import('node:child_process')
         const { rm } = await import('node:fs/promises')
         const { join } = await import('node:path')
         const target = join(tmpdir(), `patchbay-mcp-scan-${Date.now()}`)
-        execSync(`git clone --depth=1 "${path}" "${target}"`, { stdio: 'pipe' })
+        execFileSync('git', ['clone', '--depth=1', '--', path, target], { stdio: 'pipe' })
         scanPath = target
         cleanup = async () => { await rm(target, { recursive: true, force: true }) }
       }

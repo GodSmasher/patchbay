@@ -1,5 +1,27 @@
 # @patchbay-nebius/agent
 
+## 0.17.1 (2026-11-20) — SECURITY
+
+Fixes CVE-XXXX-NNNNN (GHSA-xxxx-xxxx-xxxx): command injection via
+`patchbay scan <github-url>` when the URL passes the `https://github.com/`
+prefix check but contains `$(...)` command substitution, backticks, or
+other shell metacharacters.
+
+Replaces the `execSync` call in `packages/agent/src/cli.ts` with
+`execFileSync('git', ['clone', '--depth=1', '--', first, target])` — argv
+array, no shell, `--` separator so a URL starting with `-` cannot be
+parsed as a flag.
+
+Reported and patched by Pietro Procaccini (responsible disclosure,
+2026-11-20). Advisory text at
+https://github.com/GodSmasher/patchbay/security/advisories/GHSA-xxxx-xxxx-xxxx.
+
+## 0.17.0 and earlier (post-0.7.1)
+
+Changelog entries for 0.8.0–0.17.0 live in git history; this file has
+not been kept in sync since 0.7.1. The 0.17.1 release is the first to
+resume changelog maintenance.
+
 ## 0.7.1 (2026-11-10)
 
 0.7.0 was staged on npm but never published (prior publish attempt
