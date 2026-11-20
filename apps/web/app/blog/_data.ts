@@ -9,6 +9,13 @@ export interface Post {
 
 export const POSTS: Post[] = [
   {
+    slug: 'sec-001-command-injection',
+    title: 'The scanner got scanned: command injection in our own MCP server, fixed and disclosed',
+    date: '2026-11-20',
+    readingMinutes: 6,
+    summary: 'On 2026-11-20 at 00:11 local, Pietro Procaccini privately disclosed a command injection vulnerability in two of our npm packages. Twelve hours later both affected packages were patched on npm, a GitHub Security Advisory was published, and the regression that would stop the pattern being reintroduced was running in our CI. This is how it happened and how it was caught.',
+  },
+  {
     slug: 'auth-004-retirement-story',
     title: 'The check we retired. AUTH-004 asked for metadata no spec defines',
     date: '2026-11-22',
