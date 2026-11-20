@@ -118,3 +118,8 @@ export const POSTS: Post[] = [
 export function getPost(slug: string): Post | undefined {
   return POSTS.find((p) => p.slug === slug)
 }
+
+// Weekly rescan reports live in `./_weekly.ts`. They are a separate module
+// because reading `public/weekly/index.json` needs `node:fs`, which is
+// incompatible with the edge-runtime OG image handler that imports this
+// file. Routes that need weekly helpers import from `./_weekly` directly.

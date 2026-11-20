@@ -62,6 +62,7 @@ export default function DashboardPage() {
         <nav className="flex items-center gap-4 text-xs text-ink-soft">
           <Link href="/leaderboard" className="hover:text-ink">Leaderboard</Link>
           <Link href="/cve" className="hover:text-ink">CVE</Link>
+          <Link href="/blog" className="hover:text-ink">Blog</Link>
           <Link href="/bench" className="hover:text-ink">Benchmark</Link>
           <a href="https://github.com/GodSmasher/patchbay" className="hover:text-ink">GitHub</a>
         </nav>

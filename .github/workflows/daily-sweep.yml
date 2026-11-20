@@ -60,12 +60,18 @@ jobs:
           path: bench/mcp-sweep-${{ steps.sweep.outputs.DATE }}-full.json
           retention-days: 90
 
-      - name: Commit anonymized aggregate
+      - name: Sync dashboard + weekly blog artifacts
+        # Keeps apps/web/public/dashboard/latest-aggregate.json fresh for the
+        # /dashboard route, and (idempotently) refreshes public/weekly/ so
+        # the /blog/weekly index does not go stale between Sunday runs.
+        run: npx tsx scripts/sync-dashboard-data.ts
+
+      - name: Commit anonymized aggregate + synced artifacts
         run: |
           DATE=${{ steps.sweep.outputs.DATE }}
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add "bench/mcp-sweep-${DATE}-aggregate.json"
+          git add "bench/mcp-sweep-${DATE}-aggregate.json" apps/web/public/dashboard/ apps/web/public/weekly/
           if git diff --cached --quiet; then
             echo "No aggregate changes to commit"
           else
