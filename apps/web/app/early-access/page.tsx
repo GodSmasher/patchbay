@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { GlowShape } from '@/components/glow'
 import { FoundingClaim } from '@/components/founding-claim'
-import { claimedCount, FOUNDING_LIMIT, PRICE_FOUNDING, PRICE_REGULAR } from '@/lib/founding-store'
+import { claimedCount, FOUNDING_LIMIT, PRICE_FOUNDING, PRICE_MONTHLY, PRICE_REGULAR } from '@/lib/founding-store'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -15,7 +15,7 @@ const FAQ: { q: string; a: string }[] = [
   },
   {
     q: 'What happens after the first 100?',
-    a: 'The counter stops at 100 and the offer closes. Later sign-ups land on the regular waitlist and pay the regular price.',
+    a: 'The founding counter stops at 100 and the annual founding price closes. Later sign-ups land on the regular waitlist. The monthly plan at $29.99/mo stays open at any time.',
   },
   {
     q: 'Does the CLI stay free?',
@@ -78,6 +78,9 @@ export default async function EarlyAccessPage({
               </span>
               <span className="g-sev g-sev-critical mb-3">−50%</span>
             </div>
+            <p className="mt-5 text-sm text-ink-soft">
+              Prefer monthly? <span className="text-white">${PRICE_MONTHLY}/mo</span> at launch. No founding cap, cancel any time.
+            </p>
           </div>
 
           <div className="g-glass flex flex-col gap-6 self-start bg-[rgba(10,10,13,.78)] p-7 lg:mt-16">
@@ -107,7 +110,7 @@ export default async function EarlyAccessPage({
           <li className="g-glass flex min-h-[200px] flex-col justify-between p-7" style={{ background: 'radial-gradient(120% 80% at 100% 0%, rgba(77,76,255,.24), transparent 60%), #0d0d11' }}>
             <span className="font-mono text-[11px] text-[#ffb38a]">03 · your call</span>
             <span>
-              <span className="font-display block text-[28px] leading-tight">start at ${PRICE_FOUNDING}, or don&apos;t</span>
+              <span className="font-display block text-[28px] leading-tight">start at ${PRICE_FOUNDING}/yr or ${PRICE_MONTHLY}/mo, or don&apos;t</span>
               <span className="mt-2 block text-sm text-ink-soft">No card on file, nothing charged without you clicking.</span>
             </span>
           </li>
@@ -126,7 +129,7 @@ export default async function EarlyAccessPage({
           </ul>
         </div>
         <div className="g-glass g-tint-o p-7">
-          <p className="g-eyebrow">hosted · ${PRICE_FOUNDING} a year for founders</p>
+          <p className="g-eyebrow">hosted · ${PRICE_FOUNDING}/yr for founders · ${PRICE_MONTHLY}/mo any time</p>
           <p className="font-display mt-3 text-3xl">the hosted plan</p>
           <ul className="mt-4 space-y-2 text-sm text-ink-soft">
             <li>Scheduled rescans of your servers</li>

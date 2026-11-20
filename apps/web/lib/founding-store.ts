@@ -15,6 +15,7 @@ import { kv } from '@vercel/kv'
 export const FOUNDING_LIMIT = 100
 export const PRICE_REGULAR = 298
 export const PRICE_FOUNDING = 149
+export const PRICE_MONTHLY = 29.99
 
 export interface FoundingClaim {
   email: string
