@@ -18,11 +18,11 @@ export const metadata: Metadata = {
 }
 
 const SEV_COLOR: Record<CveSeverity, string> = {
-  critical: '#dc2626',
-  high: '#ea580c',
-  medium: '#d97706',
-  low: '#6b7280',
-  info: '#6b7280',
+  critical: '#ff6a2b',
+  high: '#ff8a55',
+  medium: '#ffb38a',
+  low: 'var(--color-ink-soft)',
+  info: 'var(--color-ink-soft)',
 }
 
 export default function CveIndexPage() {
@@ -43,17 +43,17 @@ export default function CveIndexPage() {
   }
 
   return (
-    <main style={{ maxWidth: 1000, margin: '0 auto', padding: '2rem 1rem', fontFamily: 'ui-sans-serif, system-ui, sans-serif', lineHeight: 1.55 }}>
+    <main style={{ maxWidth: 1000, margin: '0 auto', padding: '2rem 1rem', lineHeight: 1.55 }}>
       <nav style={{ marginBottom: '1.5rem' }}>
-        <Link href="/" style={{ color: '#6366f1' }}>← patchbay</Link>
+        <Link href="/audit" style={{ color: '#ffb38a' }}>← patchbay audit</Link>
       </nav>
 
       <h1 style={{ fontSize: '2rem', margin: '0 0 0.25rem' }}>Patchbay CVE database</h1>
-      <p style={{ color: '#6b7280', margin: '0 0 1rem' }}>
+      <p style={{ color: 'var(--color-ink-soft)', margin: '0 0 1rem' }}>
         {all.length} published advisor{all.length === 1 ? 'y' : 'ies'} covering public MCP server vulnerabilities · {openCount} open · {embargoed} under coordinated-disclosure embargo.
       </p>
 
-      <section style={{ padding: '1rem', background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8, marginBottom: '1.5rem' }}>
+      <section style={{ padding: '1rem', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.1)', borderRadius: 8, marginBottom: '1.5rem' }}>
         <strong>What this is.</strong> A catalogue of concrete findings against specific MCP servers (or server versions), with a stable identifier you can cite. The <code>CVE-PATCHBAY-YYYY-NNNN</code> scheme is patchbay-assigned and separate from MITRE CVE — we fill the gap until MCP servers are routinely assigned CVEs through standard channels. Advisories move through <em>embargoed</em> (operator notified, 90 days to fix) → <em>open</em> (details published) → <em>fixed</em> (operator confirmed rotation / patch). Advisories that turn out to be false positives after verification are marked <em>withdrawn</em> and kept in the index so the retraction is also citable.
       </section>
 
@@ -62,7 +62,7 @@ export default function CveIndexPage() {
       ) : (
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.92rem' }}>
           <thead>
-            <tr style={{ textAlign: 'left', borderBottom: '2px solid #e5e7eb' }}>
+            <tr style={{ textAlign: 'left', borderBottom: '2px solid rgba(255,255,255,.1)' }}>
               <th style={{ padding: '0.5rem 0.25rem' }}>ID</th>
               <th style={{ padding: '0.5rem 0.25rem' }}>Severity</th>
               <th style={{ padding: '0.5rem 0.25rem' }}>Finding</th>
@@ -73,27 +73,27 @@ export default function CveIndexPage() {
           </thead>
           <tbody>
             {all.map((e) => (
-              <tr key={e.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
+              <tr key={e.id} style={{ borderBottom: '1px solid rgba(255,255,255,.06)' }}>
                 <td style={{ padding: '0.5rem 0.25rem', fontFamily: 'monospace' }}>
-                  <Link href={`/cve/${e.id}`} style={{ color: '#111827', textDecoration: 'none', fontWeight: 500 }}>{e.id}</Link>
+                  <Link href={`/cve/${e.id}`} style={{ color: 'var(--color-ink)', textDecoration: 'none', fontWeight: 500 }}>{e.id}</Link>
                 </td>
                 <td style={{ padding: '0.5rem 0.25rem' }}>
-                  <span style={{ display: 'inline-block', padding: '0.1rem 0.4rem', borderRadius: 4, background: SEV_COLOR[e.severity], color: 'white', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase' }}>{e.severity}</span>
+                  <span style={{ display: 'inline-block', padding: '0.1rem 0.4rem', borderRadius: 4, background: SEV_COLOR[e.severity], color: '#000', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase' }}>{e.severity}</span>
                 </td>
                 <td style={{ padding: '0.5rem 0.25rem', fontFamily: 'monospace' }}>
-                  <Link href={`/docs/${e.findingId.toLowerCase()}`} style={{ color: '#6366f1' }}>{e.findingId}</Link>
+                  <Link href={`/docs/${e.findingId.toLowerCase()}`} style={{ color: '#ffb38a' }}>{e.findingId}</Link>
                 </td>
                 <td style={{ padding: '0.5rem 0.25rem' }}>
-                  <Link href={`/cve/${e.id}`} style={{ color: e.status === 'withdrawn' ? '#9ca3af' : '#111827', textDecoration: e.status === 'withdrawn' ? 'line-through' : 'none' }}>{e.title}</Link>
+                  <Link href={`/cve/${e.id}`} style={{ color: e.status === 'withdrawn' ? 'var(--color-ink-mute)' : 'var(--color-ink)', textDecoration: e.status === 'withdrawn' ? 'line-through' : 'none' }}>{e.title}</Link>
                   {isEmbargoActive(e) && (
-                    <> · <span style={{ color: '#a16207', fontSize: '0.8rem' }}>embargoed until {e.embargoUntil?.slice(0, 10)}</span></>
+                    <> · <span style={{ color: '#ffb38a', fontSize: '0.8rem' }}>embargoed until {e.embargoUntil?.slice(0, 10)}</span></>
                   )}
                   {e.status === 'withdrawn' && (
-                    <> · <span style={{ color: '#6b7280', fontSize: '0.8rem' }}>withdrawn {e.withdrawnAt?.slice(0, 10)} — false positive</span></>
+                    <> · <span style={{ color: 'var(--color-ink-soft)', fontSize: '0.8rem' }}>withdrawn {e.withdrawnAt?.slice(0, 10)} — false positive</span></>
                   )}
                 </td>
-                <td style={{ padding: '0.5rem 0.25rem', fontSize: '0.85rem', color: e.status === 'withdrawn' ? '#9ca3af' : '#6b7280' }}>{e.status}</td>
-                <td style={{ padding: '0.5rem 0.25rem', fontSize: '0.85rem', color: '#6b7280' }}>{e.published.slice(0, 10)}</td>
+                <td style={{ padding: '0.5rem 0.25rem', fontSize: '0.85rem', color: e.status === 'withdrawn' ? 'var(--color-ink-mute)' : 'var(--color-ink-soft)' }}>{e.status}</td>
+                <td style={{ padding: '0.5rem 0.25rem', fontSize: '0.85rem', color: 'var(--color-ink-soft)' }}>{e.published.slice(0, 10)}</td>
               </tr>
             ))}
           </tbody>
@@ -102,12 +102,12 @@ export default function CveIndexPage() {
 
       <section style={{ marginTop: '2.5rem' }}>
         <h2 style={{ fontSize: '1.25rem', marginBottom: '0.25rem' }}>OWASP MCP Top 10 (2025) overlay</h2>
-        <p style={{ color: '#6b7280', fontSize: '0.9rem', marginTop: 0 }}>
+        <p style={{ color: 'var(--color-ink-soft)', fontSize: '0.9rem', marginTop: 0 }}>
           How patchbay&apos;s checks and the public MCP CVE index break down across the ten OWASP MCP risk categories. <a href="https://owasp.org/www-project-mcp-top-10/" target="_blank" rel="noopener noreferrer">OWASP MCP Top 10</a> · CVE index: <a href="https://github.com/mcp-security-project/mcp-cve-project" target="_blank" rel="noopener noreferrer">mcp-security-project/mcp-cve-project</a> ({external?.count ?? 0} CVEs indexed, last synced {external ? external.fetchedAt.slice(0, 10) : '—'}).
         </p>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.92rem', marginTop: '0.75rem' }}>
           <thead>
-            <tr style={{ textAlign: 'left', borderBottom: '2px solid #e5e7eb' }}>
+            <tr style={{ textAlign: 'left', borderBottom: '2px solid rgba(255,255,255,.1)' }}>
               <th style={{ padding: '0.5rem 0.25rem' }}>Category</th>
               <th style={{ padding: '0.5rem 0.25rem', textAlign: 'right' }}>Public CVEs</th>
               <th style={{ padding: '0.5rem 0.25rem' }}>Patchbay checks</th>
@@ -115,20 +115,20 @@ export default function CveIndexPage() {
           </thead>
           <tbody>
             {(Object.keys(OWASP_LABELS) as OwaspMcpCategory[]).map((cat) => (
-              <tr key={cat} style={{ borderBottom: '1px solid #f3f4f6' }}>
+              <tr key={cat} style={{ borderBottom: '1px solid rgba(255,255,255,.06)' }}>
                 <td style={{ padding: '0.5rem 0.25rem', fontFamily: 'monospace', fontWeight: 600 }}>
                   {cat}
-                  <div style={{ color: '#6b7280', fontSize: '0.8rem', fontFamily: 'ui-sans-serif, system-ui, sans-serif', fontWeight: 400 }}>{OWASP_LABELS[cat]}</div>
+                  <div style={{ color: 'var(--color-ink-soft)', fontSize: '0.8rem', fontWeight: 400 }}>{OWASP_LABELS[cat]}</div>
                 </td>
                 <td style={{ padding: '0.5rem 0.25rem', textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{owaspTotals[cat] ?? 0}</td>
                 <td style={{ padding: '0.5rem 0.25rem', fontSize: '0.85rem' }}>
                   {(checksByCategory[cat] ?? []).length
                     ? (checksByCategory[cat] ?? []).map((c, i) => (
                         <span key={c}>
-                          <Link href={`/docs/${c.toLowerCase()}`} style={{ color: '#6366f1', fontFamily: 'monospace' }}>{c}</Link>{i < (checksByCategory[cat] ?? []).length - 1 ? ', ' : ''}
+                          <Link href={`/docs/${c.toLowerCase()}`} style={{ color: '#ffb38a', fontFamily: 'monospace' }}>{c}</Link>{i < (checksByCategory[cat] ?? []).length - 1 ? ', ' : ''}
                         </span>
                       ))
-                    : <span style={{ color: '#9ca3af' }}>— (not yet covered)</span>}
+                    : <span style={{ color: 'var(--color-ink-mute)' }}>— (not yet covered)</span>}
                 </td>
               </tr>
             ))}
@@ -136,7 +136,7 @@ export default function CveIndexPage() {
         </table>
       </section>
 
-      <section style={{ marginTop: '2rem', padding: '1rem', background: '#f9fafb', borderRadius: 8, fontSize: '0.9rem', color: '#4b5563' }}>
+      <section style={{ marginTop: '2rem', padding: '1rem', background: 'rgba(255,255,255,.04)', borderRadius: 8, fontSize: '0.9rem', color: 'var(--color-ink-soft)' }}>
         <h2 style={{ fontSize: '1rem', margin: '0 0 0.5rem' }}>Reporting a finding</h2>
         <p>Found something on a public MCP server? Email <a href="mailto:security@patchbay-mcp.dev">security@patchbay-mcp.dev</a>. We will coordinate disclosure, assign a <code>CVE-PATCHBAY</code> identifier, and help you contact the operator. Include URL, finding category and evidence. We do not pay bounties, but we credit discoverers in the advisory.</p>
       </section>
