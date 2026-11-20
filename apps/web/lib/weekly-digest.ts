@@ -39,6 +39,18 @@ function readDashboardText(name: string): string | null {
   try { return readFileSync(abs, 'utf8') } catch { return null }
 }
 
+/** Latest weekly report slug (e.g. "2026-W47") for /blog/weekly/* linking. */
+function readLatestWeeklySlug(): string | null {
+  const abs = join(process.cwd(), 'public', 'weekly', 'index.json')
+  if (!existsSync(abs)) return null
+  try {
+    const list = JSON.parse(readFileSync(abs, 'utf8')) as Array<{ slug: string }>
+    return list[0]?.slug ?? null
+  } catch {
+    return null
+  }
+}
+
 export interface WeeklyDigest {
   subject: string
   previewText: string
@@ -50,6 +62,8 @@ export interface WeeklyDigest {
 export function buildWeeklyDigest(unsubUrl: string): WeeklyDigest {
   const aggregate = readDashboard<Aggregate>('latest-aggregate.json')
   const weekly = readDashboardText('latest-weekly.md')
+  const weeklySlug = readLatestWeeklySlug()
+  const weeklyUrl = weeklySlug ? `${BASE}/blog/weekly/${weeklySlug}` : null
 
   if (!aggregate) {
     const subject = `${BRAND}: digest skipped — no fresh sweep data`
@@ -85,13 +99,14 @@ export function buildWeeklyDigest(unsubUrl: string): WeeklyDigest {
     '--- Weekly rescan excerpt ---',
     weeklyExcerpt,
     '',
+    ...(weeklyUrl ? [`Full weekly report: ${weeklyUrl}`, ''] : []),
     `Full dashboard: ${BASE}/dashboard`,
     `Leaderboard:   ${BASE}/leaderboard`,
     '',
     `Unsubscribe: ${unsubUrl}`,
   ].join('\n')
 
-  const html = wrapHtml(renderBodyHtml({ aggregate, topChecks, weekly, date, reachPct }), unsubUrl)
+  const html = wrapHtml(renderBodyHtml({ aggregate, topChecks, weekly, weeklyUrl, date, reachPct }), unsubUrl)
 
   return { subject, previewText, html, text, dataAvailable: true }
 }
@@ -100,10 +115,11 @@ function renderBodyHtml(input: {
   aggregate: Aggregate
   topChecks: Array<[string, number]>
   weekly: string | null
+  weeklyUrl: string | null
   date: string
   reachPct: string
 }): string {
-  const { aggregate, topChecks, weekly, date, reachPct } = input
+  const { aggregate, topChecks, weekly, weeklyUrl, date, reachPct } = input
   const sevRow = (['critical', 'high', 'medium', 'low', 'info'] as const)
     .map((s) => `<td style="padding:8px 12px;text-align:center;border:1px solid #e5e7eb"><div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.04em">${s}</div><div style="font-size:18px;font-weight:600;color:#111827">${aggregate.totals[s]}</div></td>`)
     .join('')
@@ -128,6 +144,7 @@ function renderBodyHtml(input: {
 
     <h2 style="font-size:14px;color:#374151;margin:24px 0 8px;text-transform:uppercase;letter-spacing:.04em">Weekly rescan report</h2>
     ${weeklyBlock}
+    ${weeklyUrl ? `<p style="margin:10px 0 0"><a href="${weeklyUrl}" style="color:#4338ca;font-weight:500;text-decoration:none">Read the full report on the blog →</a></p>` : ''}
 
     <p style="margin:24px 0 8px"><a href="${BASE}/dashboard" style="color:#4338ca;font-weight:500;text-decoration:none">Open the full dashboard →</a></p>
     <p style="margin:0"><a href="${BASE}/leaderboard" style="color:#4338ca;font-weight:500;text-decoration:none">Open the leaderboard →</a></p>
