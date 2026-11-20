@@ -92,10 +92,10 @@ async function scan(args: string[]) {
   const first = positional[0] ?? ''
   if (/^https?:\/\/github\.com\//i.test(first) || /^git@github\.com:/i.test(first)) {
     const { tmpdir } = await import('node:os')
-    const { execSync } = await import('node:child_process')
+    const { execFileSync } = await import('node:child_process')
     const target = join(tmpdir(), `patchbay-scan-${Date.now()}`)
     console.log(`cloning ${first} → ${target} (shallow)…`)
-    execSync(`git clone --depth=1 "${first}" "${target}"`, { stdio: 'inherit' })
+    execFileSync('git', ['clone', '--depth=1', '--', first, target], { stdio: 'inherit' })
     dir = target
   }
   if (!existsSync(dir)) return usageError(`No such directory: ${dir}`)

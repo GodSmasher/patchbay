@@ -23,7 +23,8 @@ name: publish
 #     Workflow filename:   publish.yml
 #     Environment name:    (leave empty)
 #
-# Do that for both @patchbay-nebius/audit-core and @patchbay-nebius/agent.
+# Do that for all three: @patchbay-nebius/audit-core, @patchbay-nebius/agent
+# and @patchbay-nebius/mcp.
 
 on:
   push:
@@ -57,6 +58,9 @@ jobs:
       - name: Build agent
         run: npm run build -w @patchbay-nebius/agent
 
+      - name: Build mcp
+        run: npm run build -w @patchbay-nebius/mcp
+
       - name: Run full test suite
         run: npm test
         env:
@@ -86,9 +90,22 @@ jobs:
             npm publish -w "$pkg" --provenance --access public
           fi
 
+      - name: Publish @patchbay-nebius/mcp (if version is new)
+        run: |
+          pkg=@patchbay-nebius/mcp
+          local_version=$(node -p "require('./packages/mcp/package.json').version")
+          published=$(npm view "$pkg" versions --json 2>/dev/null || echo '[]')
+          if echo "$published" | jq -e --arg v "$local_version" 'index($v)' > /dev/null; then
+            echo "$pkg@$local_version already on npm, skipping"
+          else
+            echo "publishing $pkg@$local_version"
+            npm publish -w "$pkg" --provenance --access public
+          fi
+
       - name: Summary
         if: always()
         run: |
           echo "## Published versions" >> "$GITHUB_STEP_SUMMARY"
           echo "- @patchbay-nebius/audit-core@$(node -p "require('./packages/audit-core/package.json').version")" >> "$GITHUB_STEP_SUMMARY"
           echo "- @patchbay-nebius/agent@$(node -p "require('./packages/agent/package.json').version")" >> "$GITHUB_STEP_SUMMARY"
+          echo "- @patchbay-nebius/mcp@$(node -p "require('./packages/mcp/package.json').version")" >> "$GITHUB_STEP_SUMMARY"
