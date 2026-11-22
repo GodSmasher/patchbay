@@ -1,58 +1,59 @@
 # Weekly Rescan Report — 2026-W47
 
-**Window:** 2026-11-09 → 2026-11-16 (6 daily sweeps)
-**Captured:** 2026-11-16T10:57:58.232Z
+**Window:** 2026-11-16 → 2026-11-22 (7 daily sweeps)
+**Captured:** 2026-11-22T11:02:32.516Z
 
 ## Executive summary
 
-- **Targets scanned:** 145 (±0 vs 2026-11-09)
+- **Targets scanned:** 145 (±0 vs 2026-11-16)
 - **Reachable:** 140/145 (96.6%)
-- **Findings end-of-week:** critical 3, high 8, medium 143, low 16, info 20
+- **Findings end-of-week:** critical 3, high 8, medium 153, low 15, info 19
 
 ## Severity drift (week-over-week)
 
 | Severity | Start of week | End of week | Delta |
 |---|---:|---:|---:|
 | critical | 3 | 3 | ±0 |
-| high | 3 | 8 | ▲ +5 |
-| medium | 11 | 143 | ▲ +132 |
-| low | 6 | 16 | ▲ +10 |
-| info | 14 | 20 | ▲ +6 |
+| high | 8 | 8 | ±0 |
+| medium | 143 | 153 | ▲ +10 |
+| low | 16 | 15 | ▼ -1 |
+| info | 20 | 19 | ▼ -1 |
 
 ## Daily trajectory
 
 | Date | Reachable | Critical | High | Medium | Low | Info |
 |---|---:|---:|---:|---:|---:|---:|
-| 2026-11-09 | 140/145 | 3 | 3 | 11 | 6 | 14 |
-| 2026-11-12 | 140/145 | 3 | 8 | 138 | 12 | 20 |
-| 2026-11-13 | 140/145 | 3 | 8 | 138 | 12 | 20 |
-| 2026-11-14 | 140/145 | 3 | 8 | 143 | 16 | 20 |
-| 2026-11-15 | 140/145 | 3 | 8 | 143 | 16 | 20 |
 | 2026-11-16 | 140/145 | 3 | 8 | 143 | 16 | 20 |
+| 2026-11-17 | 140/145 | 3 | 8 | 143 | 16 | 20 |
+| 2026-11-18 | 140/145 | 3 | 8 | 143 | 15 | 19 |
+| 2026-11-19 | 140/145 | 3 | 8 | 152 | 15 | 19 |
+| 2026-11-20 | 140/145 | 3 | 8 | 153 | 15 | 19 |
+| 2026-11-21 | 140/145 | 3 | 8 | 153 | 15 | 19 |
+| 2026-11-22 | 140/145 | 3 | 8 | 153 | 15 | 19 |
 
 ## Check movement (top 20 by |delta|)
 
 | Check | Start | End | Delta |
 |---|---:|---:|---:|
-| HEADERS-001 | 0 | 135 | ▲ +135 |
-| AUTH-004 | 11 | 0 | ▼ -11 |
-| ISS-001 | 0 | 6 | ▲ +6 |
-| AUTH-005 | 0 | 6 | ▲ +6 |
-| RESOURCE-001 | 0 | 5 | ▲ +5 |
-| OAUTH-REVOCATION-001 | 0 | 5 | ▲ +5 |
-| DEPRECATED-001 | 0 | 4 | ▲ +4 |
-| AUTH-007 | 0 | 2 | ▲ +2 |
-| POISONING-001 | 0 | 1 | ▲ +1 |
+| IDENTITY-001 | 0 | 9 | ▲ +9 |
+| HEADERS-001 | 135 | 136 | ▲ +1 |
+| ISS-001 | 6 | 5 | ▼ -1 |
+| AUTH-005 | 6 | 5 | ▼ -1 |
 | PROBE-001 | 9 | 9 | ±0 |
 | AUTH-001 | 8 | 8 | ±0 |
 | TRANSPORT-002 | 6 | 6 | ±0 |
+| RESOURCE-001 | 5 | 5 | ±0 |
+| OAUTH-REVOCATION-001 | 5 | 5 | ±0 |
+| DEPRECATED-001 | 4 | 4 | ±0 |
 | SCOPE-001 | 3 | 3 | ±0 |
+| AUTH-007 | 2 | 2 | ±0 |
+| POISONING-001 | 1 | 1 | ±0 |
 
 ## Signals
 
-- **Resolved during the week:** 1 check types trended down (total 11 findings).
-- **Newly opened during the week:** 8 check types trended up (total 164 findings).
-- **Net findings delta:** +153 across all severities.
+- **Resolved during the week:** 2 check types trended down (total 2 findings).
+- **Newly opened during the week:** 2 check types trended up (total 10 findings).
+- **Net findings delta:** +8 across all severities.
 
 ---
 
