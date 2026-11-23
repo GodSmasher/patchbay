@@ -9,8 +9,8 @@ export function HistoricalSnapshot({ cohort }: { cohort: string }) {
   return (
     <div className="my-6 rounded border border-paper-line bg-paper px-4 py-3 text-sm text-ink-soft">
       <strong className="text-ink">Historical snapshot.</strong> This post is based on the{' '}
-      {cohort} registry sweep. Current numbers (1,373 of 1,445 public MCP servers graded as of
-      20 Nov 2026) live on the{' '}
+      {cohort} registry sweep. Current numbers (1,379 reachable of 1,455 public MCP servers
+      graded as of 23 Nov 2026) live on the{' '}
       <Link
         href="/leaderboard"
         className="underline underline-offset-4 hover:text-ink"

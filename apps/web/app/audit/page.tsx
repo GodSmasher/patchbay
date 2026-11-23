@@ -116,7 +116,7 @@ export default function AuditPage() {
           <div className="mt-12 grid gap-10 lg:grid-cols-[minmax(0,1fr)_220px] lg:items-end">
             <div>
               <p className="max-w-md text-[17px] leading-relaxed text-ink-soft">
-                Paste the endpoint URL. 37 checks run server-side and you get the grade, the top
+                Paste the endpoint URL. 38 checks run server-side and you get the grade, the top
                 findings and a shareable report — no sign-up, no install.
               </p>
 
@@ -160,22 +160,22 @@ export default function AuditPage() {
               )}
             </div>
 
-            {/* Snapshot from the 2026-11-06 sweep — same numbers as /scan. */}
+            {/* Snapshot from the 2026-11-23 full-registry sweep, rescanned weekly. */}
             <dl className="-mx-5 flex gap-3 overflow-x-auto px-5 lg:mx-0 lg:flex-col lg:overflow-visible lg:px-0">
               <div className="g-glass flex-none rounded-2xl p-4 lg:w-auto" style={{ width: 160 }}>
                 <dt className="sr-only">public servers scanned</dt>
-                <dd className="font-display text-4xl leading-none">277</dd>
-                <dd className="mt-1 text-xs text-ink-soft">public servers scanned</dd>
+                <dd className="font-display text-4xl leading-none">1,455</dd>
+                <dd className="mt-1 text-xs text-ink-soft">public MCP servers scanned</dd>
               </div>
               <div className="g-glass flex-none rounded-2xl p-4 lg:w-auto" style={{ width: 160 }}>
-                <dt className="sr-only">answered without auth</dt>
-                <dd className="font-display text-4xl leading-none">55</dd>
-                <dd className="mt-1 text-xs text-ink-soft">answered tools/list without auth</dd>
+                <dt className="sr-only">public by design</dt>
+                <dd className="font-display text-4xl leading-none">632</dd>
+                <dd className="mt-1 text-xs text-ink-soft">public-by-design (no auth)</dd>
               </div>
               <div className="g-glass g-tint-o flex-none rounded-2xl p-4 lg:w-auto" style={{ width: 160 }}>
-                <dt className="sr-only">exposed write tools</dt>
-                <dd className="font-display text-4xl leading-none text-[#ffb38a]">6</dd>
-                <dd className="mt-1 text-xs text-ink-soft">of those exposed tools that can write</dd>
+                <dt className="sr-only">D or F grade</dt>
+                <dd className="font-display text-4xl leading-none text-[#ffb38a]">309</dd>
+                <dd className="mt-1 text-xs text-ink-soft">carry grade D or F</dd>
               </div>
             </dl>
           </div>
