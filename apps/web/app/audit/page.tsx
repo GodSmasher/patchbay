@@ -242,10 +242,14 @@ export default function AuditPage() {
                 </div>
               ) : (
                 <form onSubmit={onSave}>
-                  <p className="font-display text-2xl">save this report + get rescan alerts</p>
+                  <p className="font-display text-2xl">watch this server — weekly diffs by email</p>
                   <p className="mb-4 mt-2 text-sm text-ink-soft">
-                    We email you if a new finding surfaces on this host, plus a short weekly digest. One-click
-                    unsubscribe. See the <Link href="/privacy" className="underline underline-offset-2 hover:text-white">privacy policy</Link>.
+                    {state.result.grade === 'A' || state.result.grade === 'B'
+                      ? `Grade ${state.result.grade} today. Keep it that way — we rescan weekly and email you if any finding changes on this host.`
+                      : state.result.grade === 'C'
+                      ? `Grade C today. Most C-grade MCP servers regress within six weeks of our first scan. Weekly diffs catch it.`
+                      : `Grade ${state.result.grade} today. Fix the findings above, then let patchbay watch — weekly rescan, email on any change.`}
+                    {' '}One-click unsubscribe. See the <Link href="/privacy" className="underline underline-offset-2 hover:text-white">privacy policy</Link>.
                   </p>
                   <div className="g-glass g-pill g-field mb-3">
                     <label htmlFor="save-email" className="sr-only">Email</label>
@@ -349,7 +353,7 @@ export default function AuditPage() {
           ))}
         </div>
         <p className="mt-6 text-center text-sm text-ink-mute">
-          Methodology is public: <Link href="/scanning" className="text-[#ffb38a] hover:text-white">what we read and never do</Link> · <Link href="/docs" className="text-[#ffb38a] hover:text-white">every check</Link>
+          Methodology is public: <Link href="/scanning" className="text-[#ffb38a] hover:text-white">what we read and never do</Link> · <Link href="/docs" className="text-[#ffb38a] hover:text-white">every check</Link> · <Link href="/leaderboard" className="text-[#ffb38a] hover:text-white">see how the public registry grades today</Link>
         </p>
       </section>
 
@@ -360,10 +364,12 @@ export default function AuditPage() {
           <span className="g-eyebrow">hosted scans · January 2027</span>
           <h2 className="text-[clamp(40px,6vw,60px)] leading-none">get told when a server you trust changes.</h2>
           <p className="text-[15px] text-ink-soft">
-            Scheduled rescans, drift alerts, history per server. The first 100 teams get 50% off the
-            annual plan — $149 instead of $298.
+            Scheduled rescans, drift alerts, history per server. Most servers on today&apos;s leaderboard
+            that start at a C regress to D within six weeks. Weekly diffs catch it. The first 100 teams
+            get 50% off the annual plan — $149 instead of $298.
           </p>
           <Link href="/early-access" className="g-btn g-btn-o mt-2 px-8 py-4 text-[15px]">claim a founding spot</Link>
+          <Link href="/leaderboard" className="text-sm text-ink-mute hover:text-white">or see the full cohort →</Link>
         </div>
       </section>
     </main>
