@@ -18,6 +18,7 @@ import { manifest002 } from './manifest-002'
 import { pkce001 } from './pkce-001'
 import { pkce002 } from './pkce-002'
 import { annotations001 } from './annotations-001'
+import { authorityAttestation001 } from './authority-attestation-001'
 import { poisoning001 } from './poisoning-001'
 import { poisoning002 } from './poisoning-002'
 import { poisoning003 } from './poisoning-003'
@@ -64,6 +65,7 @@ export const ALL_CHECKS: Check[] = [
   poisoning002,
   poisoning003,
   annotations001,
+  authorityAttestation001,
   uriTemplate001,
   sampling001,
   deprecated001,
@@ -94,6 +96,7 @@ export {
   poisoning002,
   poisoning003,
   annotations001,
+  authorityAttestation001,
   uriTemplate001,
   sampling001,
   deprecated001,

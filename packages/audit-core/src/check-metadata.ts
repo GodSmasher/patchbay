@@ -282,6 +282,14 @@ export const CHECK_METADATA: Record<string, CheckMetadata> = {
     remediation: 'Set authorization_response_iss_parameter_supported to true and include the `iss` parameter in authorization responses.',
   },
 
+  // ===== Novel positive patterns (info-level signals, not defects) =====
+  'AUTHORITY-ATTESTATION-001': {
+    verification: 'runtime-verified',
+    affectedComponents: ['{{target}}'],
+    reproductionSteps: 'POST /initialize and inspect response headers for `X-MCP-Authority: did:…`, `Link: ... rel="authority-attestation"`, or `Link: ... rel="mcp-manifest"`. Present signals indicate the server advertises off-chain authority attestation.',
+    remediation: 'No action required. This is a positive signal surfaced for operators who may want to expose it in client UIs.',
+  },
+
   // ===== META =====
   'PROBE-001': {
     verification: 'potential-fp',
