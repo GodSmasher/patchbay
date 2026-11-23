@@ -116,7 +116,7 @@ export default function AuditPage() {
           <div className="mt-12 grid gap-10 lg:grid-cols-[minmax(0,1fr)_220px] lg:items-end">
             <div>
               <p className="max-w-md text-[17px] leading-relaxed text-ink-soft">
-                Paste the endpoint URL. 37 checks run server-side and you get the grade, the top
+                Paste the endpoint URL. 38 checks run server-side and you get the grade, the top
                 findings and a shareable report — no sign-up, no install.
               </p>
 
@@ -160,22 +160,22 @@ export default function AuditPage() {
               )}
             </div>
 
-            {/* Snapshot from the 2026-11-06 sweep — same numbers as /scan. */}
+            {/* Snapshot from the 2026-11-23 full-registry sweep, rescanned weekly. */}
             <dl className="-mx-5 flex gap-3 overflow-x-auto px-5 lg:mx-0 lg:flex-col lg:overflow-visible lg:px-0">
               <div className="g-glass flex-none rounded-2xl p-4 lg:w-auto" style={{ width: 160 }}>
                 <dt className="sr-only">public servers scanned</dt>
-                <dd className="font-display text-4xl leading-none">277</dd>
-                <dd className="mt-1 text-xs text-ink-soft">public servers scanned</dd>
+                <dd className="font-display text-4xl leading-none">1,455</dd>
+                <dd className="mt-1 text-xs text-ink-soft">public MCP servers scanned</dd>
               </div>
               <div className="g-glass flex-none rounded-2xl p-4 lg:w-auto" style={{ width: 160 }}>
-                <dt className="sr-only">answered without auth</dt>
-                <dd className="font-display text-4xl leading-none">55</dd>
-                <dd className="mt-1 text-xs text-ink-soft">answered tools/list without auth</dd>
+                <dt className="sr-only">public by design</dt>
+                <dd className="font-display text-4xl leading-none">632</dd>
+                <dd className="mt-1 text-xs text-ink-soft">public-by-design (no auth)</dd>
               </div>
               <div className="g-glass g-tint-o flex-none rounded-2xl p-4 lg:w-auto" style={{ width: 160 }}>
-                <dt className="sr-only">exposed write tools</dt>
-                <dd className="font-display text-4xl leading-none text-[#ffb38a]">6</dd>
-                <dd className="mt-1 text-xs text-ink-soft">of those exposed tools that can write</dd>
+                <dt className="sr-only">D or F grade</dt>
+                <dd className="font-display text-4xl leading-none text-[#ffb38a]">309</dd>
+                <dd className="mt-1 text-xs text-ink-soft">carry grade D or F</dd>
               </div>
             </dl>
           </div>
@@ -242,10 +242,14 @@ export default function AuditPage() {
                 </div>
               ) : (
                 <form onSubmit={onSave}>
-                  <p className="font-display text-2xl">save this report + get rescan alerts</p>
+                  <p className="font-display text-2xl">watch this server — weekly diffs by email</p>
                   <p className="mb-4 mt-2 text-sm text-ink-soft">
-                    We email you if a new finding surfaces on this host, plus a short weekly digest. One-click
-                    unsubscribe. See the <Link href="/privacy" className="underline underline-offset-2 hover:text-white">privacy policy</Link>.
+                    {state.result.grade === 'A' || state.result.grade === 'B'
+                      ? `Grade ${state.result.grade} today. Keep it that way — we rescan weekly and email you if any finding changes on this host.`
+                      : state.result.grade === 'C'
+                      ? `Grade C today. Most C-grade MCP servers regress within six weeks of our first scan. Weekly diffs catch it.`
+                      : `Grade ${state.result.grade} today. Fix the findings above, then let patchbay watch — weekly rescan, email on any change.`}
+                    {' '}One-click unsubscribe. See the <Link href="/privacy" className="underline underline-offset-2 hover:text-white">privacy policy</Link>.
                   </p>
                   <div className="g-glass g-pill g-field mb-3">
                     <label htmlFor="save-email" className="sr-only">Email</label>
@@ -349,7 +353,7 @@ export default function AuditPage() {
           ))}
         </div>
         <p className="mt-6 text-center text-sm text-ink-mute">
-          Methodology is public: <Link href="/scanning" className="text-[#ffb38a] hover:text-white">what we read and never do</Link> · <Link href="/docs" className="text-[#ffb38a] hover:text-white">every check</Link>
+          Methodology is public: <Link href="/scanning" className="text-[#ffb38a] hover:text-white">what we read and never do</Link> · <Link href="/docs" className="text-[#ffb38a] hover:text-white">every check</Link> · <Link href="/leaderboard" className="text-[#ffb38a] hover:text-white">see how the public registry grades today</Link>
         </p>
       </section>
 
@@ -360,10 +364,12 @@ export default function AuditPage() {
           <span className="g-eyebrow">hosted scans · January 2027</span>
           <h2 className="text-[clamp(40px,6vw,60px)] leading-none">get told when a server you trust changes.</h2>
           <p className="text-[15px] text-ink-soft">
-            Scheduled rescans, drift alerts, history per server. The first 100 teams get 50% off the
-            annual plan — $149 instead of $298.
+            Scheduled rescans, drift alerts, history per server. Most servers on today&apos;s leaderboard
+            that start at a C regress to D within six weeks. Weekly diffs catch it. The first 100 teams
+            get 50% off the annual plan — $149 instead of $298.
           </p>
           <Link href="/early-access" className="g-btn g-btn-o mt-2 px-8 py-4 text-[15px]">claim a founding spot</Link>
+          <Link href="/leaderboard" className="text-sm text-ink-mute hover:text-white">or see the full cohort →</Link>
         </div>
       </section>
     </main>

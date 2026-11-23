@@ -16,7 +16,7 @@ export default function LIAPage() {
         </nav>
 
         <h1 className="text-3xl font-semibold text-ink mb-2">GDPR Legitimate Interest Assessment (LIA)</h1>
-        <p className="text-ink-mute text-sm mb-10">Grundlage: Art 6(1)(f) DSGVO. Stand: 2026-11-19.</p>
+        <p className="text-ink-mute text-sm mb-10">Grundlage: Art 6(1)(f) DSGVO. Stand: 2026-11-23.</p>
 
         <section className="space-y-8 text-ink-soft">
           <div>
