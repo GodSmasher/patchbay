@@ -174,7 +174,7 @@ export default function AuditPage() {
               </div>
               <div className="g-glass g-tint-o flex-none rounded-2xl p-4 lg:w-auto" style={{ width: 160 }}>
                 <dt className="sr-only">D or F grade</dt>
-                <dd className="font-display text-4xl leading-none text-[#ffb38a]">309</dd>
+                <dd className="font-display text-4xl leading-none text-[#ffb38a]">130</dd>
                 <dd className="mt-1 text-xs text-ink-soft">carry grade D or F</dd>
               </div>
             </dl>
