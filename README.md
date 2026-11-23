@@ -1,7 +1,7 @@
 # patchbay
 
 > **New in 0.2.4: `patchbay audit`**. Free CLI to scan an MCP server for OAuth 2.1 gaps.
-> Read [the November 2026 sweep](https://patchbay-mcp.dev/blog/state-of-mcp-auth-nov-2026) (25 public MCP servers scanned, 2 of 8 reachable-and-public ones expose mutating tools without auth) or try it:
+> Browse [the live leaderboard](https://patchbay-mcp.dev/leaderboard): 1,373 reachable of 1,445 public MCP servers graded A/B/C/D/F (sweep 2026-11-20, rescanned weekly). Grade distribution: A 511 · B 181 · C 452 · D 123 · F 106 · unreachable 72. Older posts citing 25 / 277 reflect earlier cohorts. Or try the on-demand scan:
 >
 > ```
 > npx -y @patchbay-nebius/agent audit https://mcp.example.com/mcp
@@ -105,7 +105,7 @@ The Python target ships `fixtures.py` with the same shape as `src/fixtures.ts`: 
 
 ## Audit MCP servers and connectors
 
-`patchbay audit <url-or-directory>` scans an MCP server or a connector repo for OAuth 2.1 and secret-hygiene gaps before you ship it. ~40% of open-source MCP servers have no auth at all, only ~8.5% use OAuth. patchbay audit is the drop-in check.
+`patchbay audit <url-or-directory>` scans an MCP server or a connector repo for OAuth 2.1 and secret-hygiene gaps before you ship it. In the 2026-11-20 sweep of 1,445 public MCP servers from the official registry: 44% are public-by-design with no auth, 51% are OAuth-gated of which 21% carry grade D or F passive findings (DCR open redirect, HSTS missing, PKCE gaps). patchbay audit is the drop-in check.
 
 ```
 npx -y @patchbay-nebius/agent audit https://mcp.example.com/mcp
