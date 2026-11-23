@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { HistoricalSnapshot } from '@/components/historical-snapshot'
 
 const A = 'text-ink underline underline-offset-4 hover:text-ink'
 const H2 = 'text-xl font-semibold text-ink mt-12 mb-4'
@@ -7,6 +8,7 @@ const PRE = 'rounded border border-paper-line bg-paper p-4 text-sm overflow-x-au
 export function McpDynamicClientRegistrationMissing() {
   return (
     <>
+      <HistoricalSnapshot cohort="2026-11-06 (277 public MCP servers)" />
       <p>
         You point an MCP client at a remote server that uses OAuth. Instead of a login page you get
         an error along the lines of &quot;server does not support dynamic client registration&quot;,

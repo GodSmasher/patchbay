@@ -1,6 +1,9 @@
+import { HistoricalSnapshot } from '@/components/historical-snapshot'
+
 export function StateOfMcpAuthNov2026() {
   return (
     <>
+      <HistoricalSnapshot cohort="early November 2026 (25 then 277 public MCP servers)" />
       <p>
         MCP (Model Context Protocol) has an auth story on paper: OAuth 2.1 with PKCE, dynamic client
         registration, resource indicators per RFC 8707. In practice I kept running into servers that

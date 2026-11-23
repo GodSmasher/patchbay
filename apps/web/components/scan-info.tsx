@@ -114,14 +114,15 @@ export function ScanInfo() {
             What scans of public MCP servers show
           </h2>
           <p className="mt-3 text-ink-soft">
-            Snapshot from 2026-11-06: 277 public MCP server URLs, scanned without credentials.
+            Snapshot from 2026-11-20: 1,445 public MCP server URLs from the official registry,
+            scanned without credentials. Rescanned weekly.
           </p>
           <dl className="mt-6 grid grid-cols-2 gap-px overflow-hidden rounded border border-paper-line bg-paper-line sm:grid-cols-4">
             {[
-              ['264', 'servers reachable'],
-              ['209', 'required authentication'],
-              ['55', 'answered without authentication'],
-              ['6', 'of those exposed tools that can write'],
+              ['1,445', 'server URLs in registry'],
+              ['1,373', 'reachable + graded'],
+              ['511', 'grade A (clean on passive checks)'],
+              ['229', 'grade D or F'],
             ].map(([n, label]) => (
               <div key={label} className="flex flex-col bg-paper-card p-4">
                 <dt className="order-2 text-xs text-ink-mute">{label}</dt>
@@ -130,12 +131,11 @@ export function ScanInfo() {
             ))}
           </dl>
           <p className="mt-4 text-sm text-ink-soft">
-            The six servers that answered without authentication and exposed write tools were
-            rated critical. Three of them are still under manual review. More in{' '}
-            <Link href="/blog/state-of-mcp-auth-nov-2026" className="underline underline-offset-4 hover:text-ink">
-              the state of MCP auth
-            </Link>{' '}
-            and on the{' '}
+            Full grade breakdown and every per-server report on the{' '}
+            <Link href="/leaderboard" className="underline underline-offset-4 hover:text-ink">
+              leaderboard
+            </Link>
+            . Pattern writeups on the{' '}
             <Link href="/blog" className="underline underline-offset-4 hover:text-ink">
               blog
             </Link>

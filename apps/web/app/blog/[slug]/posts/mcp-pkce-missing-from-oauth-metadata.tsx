@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { HistoricalSnapshot } from '@/components/historical-snapshot'
 
 const A = 'text-ink underline underline-offset-4 hover:text-ink'
 const H2 = 'text-xl font-semibold text-ink mt-12 mb-4'
@@ -7,6 +8,7 @@ const PRE = 'rounded border border-paper-line bg-paper p-4 text-sm overflow-x-au
 export function McpPkceMissingFromOauthMetadata() {
   return (
     <>
+      <HistoricalSnapshot cohort="2026-11-06 (277 public MCP servers)" />
       <p>
         Your authorization server supports PKCE. You tested it. A client still refuses to start the
         login against your MCP server and reports that the server does not support PKCE.
