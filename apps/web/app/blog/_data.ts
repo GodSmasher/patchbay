@@ -9,6 +9,13 @@ export interface Post {
 
 export const POSTS: Post[] = [
   {
+    slug: 'why-your-mcp-server-got-an-f-dcr-open-redirect',
+    title: 'Why your MCP server got an F: DCR-OPEN-REDIRECT',
+    date: '2026-11-23',
+    readingMinutes: 5,
+    summary: 'Part 1 of 6. The single most common F-trigger in our 20 Nov 2026 sweep of 1,373 public MCP servers. /oauth/register accepts any https:// redirect URI without allowlist. Patchbay verifies live by POSTing a controlled test URI. Why it earns an F even though it is RFC 7591-compliant, the four-line fix, and two named public examples from the sweep.',
+  },
+  {
     slug: 'sec-001-command-injection',
     title: 'The scanner got scanned: command injection in our own MCP server, fixed and disclosed',
     date: '2026-11-20',

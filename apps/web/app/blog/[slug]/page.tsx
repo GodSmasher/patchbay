@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import { SubscribeBox } from '@/components/subscribe-box'
 import { getPost, POSTS } from '../_data'
 import { Auth004RetirementStory } from './posts/auth-004-retirement-story'
+import { WhyYourMcpServerGotAnFDcrOpenRedirect } from './posts/why-your-mcp-server-got-an-f-dcr-open-redirect'
 import { FourOauthChecksMcpAuthorizationEndpoint } from './posts/four-oauth-checks-mcp-authorization-endpoint'
 import { McpPoisoning003ToolCallReturnContent } from './posts/mcp-poisoning-003-tool-call-return-content'
 import { Sec001CommandInjection } from './posts/sec-001-command-injection'
@@ -46,6 +47,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 }
 
 const BODIES: Record<string, () => JSX.Element> = {
+  'why-your-mcp-server-got-an-f-dcr-open-redirect': WhyYourMcpServerGotAnFDcrOpenRedirect,
   'auth-004-retirement-story': Auth004RetirementStory,
   'mcp-poisoning-003-tool-call-return-content': McpPoisoning003ToolCallReturnContent,
   'sec-001-command-injection': Sec001CommandInjection,
