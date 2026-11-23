@@ -289,6 +289,12 @@ export const CHECK_METADATA: Record<string, CheckMetadata> = {
     reproductionSteps: 'POST /initialize and inspect response headers for `X-MCP-Authority: did:…`, `Link: ... rel="authority-attestation"`, or `Link: ... rel="mcp-manifest"`. Present signals indicate the server advertises off-chain authority attestation.',
     remediation: 'No action required. This is a positive signal surfaced for operators who may want to expose it in client UIs.',
   },
+  'DUAL-RESOURCE-001': {
+    verification: 'runtime-verified',
+    affectedComponents: ['{{target}}', '{{target}}/.well-known/oauth-protected-resource'],
+    reproductionSteps: 'POST tools/list with an invalid bearer; capture the WWW-Authenticate header. Parse `resource_metadata=` / `authorization_uri=`. GET {{target}}/.well-known/oauth-protected-resource. If the two sources point at different hosts for the resource, or disagree on the authorization server, this finding applies.',
+    remediation: 'Make both discovery paths return the same authorization-server set. Either strip `resource_metadata=` from the WWW-Authenticate challenge, or point it at the exact URL of the well-known PRM. Remove stale PRM artefacts from a previous auth provider.',
+  },
 
   // ===== META =====
   'PROBE-001': {
