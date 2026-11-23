@@ -191,11 +191,13 @@ export function Sec001CommandInjection() {
         </li>
       </ul>
 
-      <h2 className={H2}>Thanks</h2>
+      <h2 className={H2}>Credits</h2>
       <p>
-        Thanks to <strong>Pietro Procaccini</strong> for responsibly disclosing SEC-001 and for
-        sending the exact fix we shipped. If you run security research on MCP infrastructure or
-        the npm supply chain, our private vulnerability reporting is now enabled at{' '}
+        Thanks to <strong>Pietro Procaccini</strong> (
+        <a href="https://github.com/pl4ka7" className={A}>@pl4ka7</a>) for responsibly disclosing
+        SEC-001 and for sending the exact fix we shipped. If you run security research on MCP
+        infrastructure or the npm supply chain, our private vulnerability reporting is now
+        enabled at{' '}
         <a
           href="https://github.com/GodSmasher/patchbay/security/advisories/new"
           className={A}
