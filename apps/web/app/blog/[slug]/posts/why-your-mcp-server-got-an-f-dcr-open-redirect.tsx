@@ -8,8 +8,8 @@ export function WhyYourMcpServerGotAnFDcrOpenRedirect() {
   return (
     <>
       <p>
-        Part 1 of 6. The single most common F-trigger in our 20 Nov 2026 sweep of 1,373 public MCP
-        servers.
+        Part 1 of 6. The single most common F-trigger in our 23 Nov 2026 sweep of 1,379 reachable
+        public MCP servers (of 1,455 total).
       </p>
 
       <h2 className={H2}>What the finding looks like</h2>
