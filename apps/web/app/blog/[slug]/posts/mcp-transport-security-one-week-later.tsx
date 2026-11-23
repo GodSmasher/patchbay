@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { HistoricalSnapshot } from '@/components/historical-snapshot'
 
 const A = 'text-ink underline underline-offset-4 hover:text-ink'
 const H2 = 'text-xl font-semibold text-ink mt-12 mb-4'
@@ -8,6 +9,7 @@ const TH = 'border border-paper-line px-3 py-2 text-left bg-paper-card text-ink'
 export function McpTransportSecurityOneWeekLater() {
   return (
     <>
+      <HistoricalSnapshot cohort="2026-11-06 (277 public MCP servers)" />
       <p>
         Last week I scanned 277 public MCP servers and{' '}
         <Link href="/blog/state-of-mcp-auth-nov-2026" className={A}>
