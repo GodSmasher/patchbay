@@ -27,10 +27,21 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type {
   Finding,
+  PromptDescriptor,
+  ResourceDescriptor,
   TargetSnapshot,
+  ToolDescriptor,
   Transport,
 } from '../packages/audit-core/src/types'
 import { ALL_CHECKS } from '../packages/audit-core/src/checks'
+
+// Caps to prevent snapshot JSON from exploding on servers with hundreds
+// of tools or megabyte-sized descriptions. If a server exceeds these,
+// we truncate rather than skip — the checks still run on what we captured.
+const TOOLS_CAP = 50
+const RESOURCES_CAP = 30
+const PROMPTS_CAP = 20
+const DESC_BYTE_CAP = 1200
 
 const REGISTRY_BASE = 'https://registry.modelcontextprotocol.io/v0/servers'
 const OUT_DIR = process.env.CRAWL_OUT_DIR || 'pilot-outputs/crawl'
@@ -61,6 +72,94 @@ async function fetchWithTimeout(url: string, init?: RequestInit): Promise<Respon
   } finally {
     clearTimeout(t)
   }
+}
+
+// MCP servers using streamable-http may answer in plain JSON or SSE; parse either.
+async function parseMcpResponse(res: Response): Promise<any> {
+  const ct = res.headers.get('content-type') || ''
+  const text = await res.text()
+  if (ct.includes('application/json')) {
+    try { return JSON.parse(text) } catch { return undefined }
+  }
+  if (ct.includes('text/event-stream')) {
+    // Extract the first JSON envelope from `data: ...` lines
+    for (const line of text.split(/\r?\n/)) {
+      const m = /^data:\s*(.+)$/.exec(line)
+      if (m) {
+        try { return JSON.parse(m[1]) } catch { /* keep looking */ }
+      }
+    }
+    return undefined
+  }
+  // Last-ditch: try JSON parse of whatever came back
+  try { return JSON.parse(text) } catch { return undefined }
+}
+
+function clampDesc(s: unknown): string | undefined {
+  if (typeof s !== 'string') return undefined
+  return s.length > DESC_BYTE_CAP ? s.slice(0, DESC_BYTE_CAP) + '…[truncated]' : s
+}
+
+async function mcpCall(
+  url: string,
+  method: string,
+  sessionId?: string,
+): Promise<any> {
+  try {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      Accept: 'application/json, text/event-stream',
+    }
+    if (sessionId) headers['Mcp-Session-Id'] = sessionId
+    const res = await fetchWithTimeout(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ jsonrpc: '2.0', id: Math.floor(Math.random() * 1e6), method, params: {} }),
+    })
+    if (!res.ok) return undefined
+    return await parseMcpResponse(res)
+  } catch { return undefined }
+}
+
+async function fetchToolsList(url: string, sessionId?: string): Promise<ToolDescriptor[]> {
+  const body = await mcpCall(url, 'tools/list', sessionId)
+  const raw = body?.result?.tools
+  if (!Array.isArray(raw)) return []
+  return raw.slice(0, TOOLS_CAP).map((t: any): ToolDescriptor => ({
+    name: typeof t?.name === 'string' ? t.name : '?',
+    description: clampDesc(t?.description),
+    inputSchema: t?.inputSchema && typeof t.inputSchema === 'object' ? t.inputSchema : undefined,
+    annotations: t?.annotations && typeof t.annotations === 'object' ? {
+      title: typeof t.annotations.title === 'string' ? t.annotations.title : undefined,
+      readOnlyHint: typeof t.annotations.readOnlyHint === 'boolean' ? t.annotations.readOnlyHint : undefined,
+      destructiveHint: typeof t.annotations.destructiveHint === 'boolean' ? t.annotations.destructiveHint : undefined,
+      idempotentHint: typeof t.annotations.idempotentHint === 'boolean' ? t.annotations.idempotentHint : undefined,
+      openWorldHint: typeof t.annotations.openWorldHint === 'boolean' ? t.annotations.openWorldHint : undefined,
+    } : undefined,
+  }))
+}
+
+async function fetchResourcesList(url: string, sessionId?: string): Promise<ResourceDescriptor[]> {
+  const body = await mcpCall(url, 'resources/list', sessionId)
+  const raw = body?.result?.resources
+  if (!Array.isArray(raw)) return []
+  return raw.slice(0, RESOURCES_CAP).map((r: any): ResourceDescriptor => ({
+    uri: typeof r?.uri === 'string' ? r.uri : '?',
+    name: typeof r?.name === 'string' ? r.name : undefined,
+    description: clampDesc(r?.description),
+    mimeType: typeof r?.mimeType === 'string' ? r.mimeType : undefined,
+  }))
+}
+
+async function fetchPromptsList(url: string, sessionId?: string): Promise<PromptDescriptor[]> {
+  const body = await mcpCall(url, 'prompts/list', sessionId)
+  const raw = body?.result?.prompts
+  if (!Array.isArray(raw)) return []
+  return raw.slice(0, PROMPTS_CAP).map((p: any): PromptDescriptor => ({
+    name: typeof p?.name === 'string' ? p.name : '?',
+    description: clampDesc(p?.description),
+    arguments: Array.isArray(p?.arguments) ? p.arguments.slice(0, 20) : undefined,
+  }))
 }
 
 async function loadRegistry(): Promise<Array<{ name: string; url: string; description: string }>> {
@@ -155,8 +254,10 @@ async function probe(url: string, name: string): Promise<CrawlResult> {
 
   // 3. Unauthed initialize probe
   let initResp: Response | undefined
+  let initBody: any = undefined
   let responseHeaders: Record<string, string> = {}
   let invalidTokenWwwAuthenticate: string | undefined
+  let mcpSessionId: string | undefined
   try {
     initResp = await fetchWithTimeout(url, {
       method: 'POST',
@@ -166,14 +267,18 @@ async function probe(url: string, name: string): Promise<CrawlResult> {
         id: 1,
         method: 'initialize',
         params: {
-          protocolVersion: '2024-11-05',
+          protocolVersion: '2026-07-28',
           capabilities: {},
-          clientInfo: { name: 'patchbay-crawl', version: '0.2' },
+          clientInfo: { name: 'patchbay-crawl', version: '0.3' },
         },
       }),
     })
     for (const [k, v] of initResp.headers.entries()) responseHeaders[k.toLowerCase()] = v
     invalidTokenWwwAuthenticate = initResp.headers.get('www-authenticate') || undefined
+    mcpSessionId = initResp.headers.get('mcp-session-id') || undefined
+    if (initResp.status === 200) {
+      initBody = await parseMcpResponse(initResp)
+    }
   } catch (e) {
     result.error = `init-probe-failed: ${(e as Error).message}`
     return result
@@ -198,7 +303,38 @@ async function probe(url: string, name: string): Promise<CrawlResult> {
     return result
   }
 
-  // 5. Build TargetSnapshot
+  // 5. Extract serverInfo + capabilities from initialize result (tier 1)
+  const initResult = initBody?.result as Record<string, unknown> | undefined
+  const advertisedCapabilities = initResult?.capabilities as Record<string, unknown> | undefined
+  const protocolVersion = initResult?.protocolVersion as string | undefined
+  const serverInfo = initResult?.serverInfo as { name?: string; version?: string } | undefined
+
+  const serverIdentification = {
+    serverHeader: responseHeaders['server'],
+    xPoweredBy: responseHeaders['x-powered-by'],
+    mcpServerVersion: responseHeaders['mcp-server-version'],
+    xMcpSdk: responseHeaders['x-mcp-sdk'],
+    serverInfoName: serverInfo?.name,
+    serverInfoVersion: serverInfo?.version,
+  }
+
+  // 6. tools/list + resources/list + prompts/list for tier-1 servers
+  let tools: ToolDescriptor[] = []
+  let resources: ResourceDescriptor[] | undefined
+  let prompts: PromptDescriptor[] | undefined
+  let toolsListOk = false
+  if (result.tier === '1') {
+    tools = await fetchToolsList(url, mcpSessionId)
+    toolsListOk = tools.length > 0 || initResult !== undefined
+    if (advertisedCapabilities?.resources) {
+      resources = await fetchResourcesList(url, mcpSessionId)
+    }
+    if (advertisedCapabilities?.prompts) {
+      prompts = await fetchPromptsList(url, mcpSessionId)
+    }
+  }
+
+  // 7. Build TargetSnapshot
   const snapshot: TargetSnapshot = {
     kind: 'remote-url',
     target: url,
@@ -208,11 +344,16 @@ async function probe(url: string, name: string): Promise<CrawlResult> {
       reachable: true,
       usesTls: url.startsWith('https://'),
       initializeOk: initResp.status === 200,
-      toolsListOk: false,
+      toolsListOk,
       authRequired,
       acceptedAuthHeader: 'none',
       transport: 'streamable-http' as Transport,
-      tools: [],
+      tools,
+      resources,
+      prompts,
+      advertisedCapabilities,
+      protocolVersion,
+      serverIdentification,
       originValidation: 'unknown',
       redirectLocalhostInconsistent: false,
       responseHeaders,
