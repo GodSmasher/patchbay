@@ -22,6 +22,8 @@ import { McpPkceMissingFromOauthMetadata } from './posts/mcp-pkce-missing-from-o
 import { McpTokenAudienceValidation } from './posts/mcp-token-audience-validation'
 import { McpToolsChangeAfterApproval } from './posts/mcp-tools-change-after-approval'
 import { StateOfMcpAuthNov2026 } from './posts/state-of-mcp-auth-nov-2026'
+import { TwoNewChecksTwoCveClassesElevenLiveHits } from './posts/two-new-checks-two-cve-classes-eleven-live-hits'
+import { DepthPassWeek48 } from './posts/depth-pass-week-48'
 
 export function generateStaticParams() {
   return POSTS.map((p) => ({ slug: p.slug }))
@@ -48,6 +50,8 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 
 const BODIES: Record<string, () => JSX.Element> = {
   'why-your-mcp-server-got-an-f-dcr-open-redirect': WhyYourMcpServerGotAnFDcrOpenRedirect,
+  'two-new-checks-two-cve-classes-eleven-live-hits': TwoNewChecksTwoCveClassesElevenLiveHits,
+  'depth-pass-week-48': DepthPassWeek48,
   'auth-004-retirement-story': Auth004RetirementStory,
   'mcp-poisoning-003-tool-call-return-content': McpPoisoning003ToolCallReturnContent,
   'sec-001-command-injection': Sec001CommandInjection,
