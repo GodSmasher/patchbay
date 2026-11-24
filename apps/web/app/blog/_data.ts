@@ -9,6 +9,14 @@ export interface Post {
 
 export const POSTS: Post[] = [
   {
+    slug: 'what-a-well-configured-mcp-server-looks-like',
+    title: 'What a well-configured MCP server looks like',
+    date: '2026-11-23',
+    readingMinutes: 5,
+    summary: 'A counter-example to our usual teardowns. Angelcam shipped mcp.angelcam.com/readonly — a native MCP endpoint that lets AI assistants ask about your cameras. A full patchbay scan returned two medium defence-in-depth findings, zero criticals, zero highs. What came back clean (10 checks including the new DUAL-RESOURCE-001), what the two findings are (HEADERS-001 and IDENTITY-001), and why it is worth publishing the servers that get it right.',
+    draft: true,
+  },
+  {
     slug: 'why-your-mcp-server-got-an-f-dcr-open-redirect',
     title: 'Why your MCP server got an F: DCR-OPEN-REDIRECT',
     date: '2026-11-23',
