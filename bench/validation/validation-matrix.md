@@ -1,8 +1,8 @@
 # patchbay audit-core golden-corpus validation matrix
 
-Run: 2026-11-24T09:46:01.231Z
-Cases: 10
-Pass: 10 / 10
+Run: 2026-11-24T15:03:40.685Z
+Cases: 11
+Pass: 11 / 11
 
 ## Summary
 
@@ -17,13 +17,14 @@ Pass: 10 / 10
 | `authority-attestation-did-web` | AUTH-001, AUTHORITY-ATTESTATION-001 | AUTH-001, AUTHORITY-ATTESTATION-001 | — | — | ✅ |
 | `transport-001-plain-http` | AUTH-001, HEADERS-001, TRANSPORT-001 | AUTH-001, HEADERS-001, TRANSPORT-001 | — | — | ✅ |
 | `secret-001-sk-proj-key` | SECRET-001 | SECRET-001 | — | — | ✅ |
+| `poisoning-003-soft-imperative-andrii-vector` | AUTH-001, POISONING-003 | AUTH-001, POISONING-003 | — | — | ✅ |
 | `auth-006-dcr-loopback-rejected` | AUTH-006 | AUTH-006 | — | — | ✅ |
 
 ## Per-check tallies
 
 | Check | Expected hits | Actual hits | FP | FN |
 |---|---:|---:|---:|---:|
-| `AUTH-001` | 5 | 5 | 0 | 0 |
+| `AUTH-001` | 6 | 6 | 0 | 0 |
 | `AUTH-005` | 1 | 1 | 0 | 0 |
 | `AUTH-006` | 1 | 1 | 0 | 0 |
 | `AUTHORITY-ATTESTATION-001` | 1 | 1 | 0 | 0 |
@@ -33,6 +34,7 @@ Pass: 10 / 10
 | `ISS-001` | 1 | 1 | 0 | 0 |
 | `OAUTH-REVOCATION-001` | 1 | 1 | 0 | 0 |
 | `POISONING-001` | 1 | 1 | 0 | 0 |
+| `POISONING-003` | 1 | 1 | 0 | 0 |
 | `RESOURCE-001` | 1 | 1 | 0 | 0 |
 | `SECRET-001` | 1 | 1 | 0 | 0 |
 | `TRANSPORT-001` | 1 | 1 | 0 | 0 |
