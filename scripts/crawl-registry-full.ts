@@ -453,8 +453,18 @@ async function probe(url: string, name: string): Promise<CrawlResult> {
     : undefined
 
   // 6d. Upstream-identity-bypass probe (Phase E: UPSTREAM-IDENTITY-BYPASS-001).
-  // Only meaningful on auth-required servers.
-  const upstreamIdentityBypass = (result.tier === '2' || result.tier === '3')
+  // Disabled by default at crawl scale. Sending a forged
+  // `X-Upstream-User: admin` header to hundreds of third-party servers
+  // looks like a credential-sweep from the operator's logs, even though
+  // the test is technically harmless on correctly-built servers.
+  // The check itself stays shipped in audit-core so CLI users
+  // (`patchbay audit --probe-upstream-identity <own-server>`) can run it
+  // against their own hosts under explicit consent.
+  // Opt-in at crawl scale via env var PATCHBAY_CRAWL_PROBE_UPSTREAM_IDENTITY=1.
+  const upstreamIdentityBypass = (
+    process.env.PATCHBAY_CRAWL_PROBE_UPSTREAM_IDENTITY === '1'
+    && (result.tier === '2' || result.tier === '3')
+  )
     ? await probeUpstreamIdentityBypass(url)
     : { attempted: false, outcome: 'notApplicable' as const }
 
