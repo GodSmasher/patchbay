@@ -162,6 +162,40 @@ async function fetchPromptsList(url: string, sessionId?: string): Promise<Prompt
   }))
 }
 
+// DCR loopback probe for AUTH-006 (RFC 8252 §7.3). Registers a throwaway
+// client at the registration_endpoint with http://127.0.0.1 + http://localhost
+// redirect URIs. If the AS rejects them, native CLI/desktop OAuth is
+// broken on this server. Pure passive: one POST, no token flow.
+async function probeDcrLoopback(
+  asMetadata: Record<string, unknown> | undefined,
+): Promise<{ attempted: boolean; outcome: 'accepted' | 'rejected' | 'no-endpoint'; httpStatus?: number; reason?: string }> {
+  const regEndpoint = typeof asMetadata?.registration_endpoint === 'string'
+    ? (asMetadata.registration_endpoint as string)
+    : undefined
+  if (!regEndpoint) return { attempted: true, outcome: 'no-endpoint' }
+  try {
+    const port = 33418
+    const res = await fetchWithTimeout(regEndpoint, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        client_name: 'patchbay-loopback-probe',
+        redirect_uris: [
+          `http://127.0.0.1:${port}/callback`,
+          `http://localhost:${port}/callback`,
+        ],
+        token_endpoint_auth_method: 'none',
+      }),
+    })
+    if (res.status === 200 || res.status === 201) {
+      return { attempted: true, outcome: 'accepted', httpStatus: res.status }
+    }
+    return { attempted: true, outcome: 'rejected', httpStatus: res.status, reason: `HTTP ${res.status}` }
+  } catch (e) {
+    return { attempted: true, outcome: 'rejected', reason: `network: ${(e as Error).message}` }
+  }
+}
+
 async function loadRegistry(): Promise<Array<{ name: string; url: string; description: string }>> {
   const out: Array<{ name: string; url: string; description: string }> = []
   const seen = new Set<string>()
@@ -334,6 +368,13 @@ async function probe(url: string, name: string): Promise<CrawlResult> {
     }
   }
 
+  // 6b. DCR loopback probe for tier-2 / tier-3 servers (Phase B: AUTH-006)
+  // RFC 8252 §7.3 says native OAuth clients MUST use loopback redirects.
+  // ASes that reject loopback break native desktop / CLI auth flows.
+  const dcrLoopback = (result.tier === '2' || result.tier === '3')
+    ? await probeDcrLoopback(asMetadata)
+    : undefined
+
   // 7. Build TargetSnapshot
   const snapshot: TargetSnapshot = {
     kind: 'remote-url',
@@ -361,6 +402,7 @@ async function probe(url: string, name: string): Promise<CrawlResult> {
       oauthProtectedResource: prMetadata,
       invalidTokenStatus: initResp.status === 401 ? 401 : undefined,
       invalidTokenWwwAuthenticate,
+      dcrLoopback,
       publicByDesign: result.tier === '1',
       publicByDesignEvidence: result.tier === '1'
         ? 'initialize returned 200 without Authorization header'
