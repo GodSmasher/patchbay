@@ -162,6 +162,76 @@ async function fetchPromptsList(url: string, sessionId?: string): Promise<Prompt
   }))
 }
 
+// Phase E: SESSION-BINDING-001 probe. Two independent initialize calls,
+// compare the returned Mcp-Session-Id values.
+async function probeSessionBinding(
+  url: string,
+  firstSessionId?: string,
+): Promise<{ attempted: boolean; outcome: 'distinctSessions' | 'sameSession' | 'noSession' | 'lowEntropy' | 'inconclusive'; firstSessionId?: string; secondSessionId?: string; reason?: string }> {
+  if (!firstSessionId) {
+    return { attempted: true, outcome: 'noSession' }
+  }
+  try {
+    const res = await fetchWithTimeout(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 2,
+        method: 'initialize',
+        params: {
+          protocolVersion: '2026-07-28',
+          capabilities: {},
+          clientInfo: { name: 'patchbay-crawl-session-probe', version: '0.3' },
+        },
+      }),
+    })
+    const secondSessionId = res.headers.get('mcp-session-id') || undefined
+    if (!secondSessionId) {
+      return { attempted: true, outcome: 'inconclusive', reason: 'second init returned no session id', firstSessionId }
+    }
+    if (firstSessionId === secondSessionId) {
+      return { attempted: true, outcome: 'sameSession', firstSessionId, secondSessionId }
+    }
+    // Entropy heuristic: stripped-alphanumeric count should be >=22 chars
+    const strip = (s: string) => s.replace(/[^A-Za-z0-9]/g, '')
+    if (strip(firstSessionId).length < 22 || strip(secondSessionId).length < 22) {
+      return { attempted: true, outcome: 'lowEntropy', firstSessionId, secondSessionId }
+    }
+    return { attempted: true, outcome: 'distinctSessions', firstSessionId, secondSessionId }
+  } catch (e) {
+    return { attempted: true, outcome: 'inconclusive', reason: `probe: ${(e as Error).message}`, firstSessionId }
+  }
+}
+
+// Phase E: UPSTREAM-IDENTITY-BYPASS-001 probe. Send tools/list with ONLY
+// a forged identity header, no Authorization. Fires if server accepts it.
+async function probeUpstreamIdentityBypass(
+  url: string,
+): Promise<{ attempted: boolean; outcome: 'rejected' | 'accepted' | 'inconclusive' | 'notApplicable'; httpStatus?: number; forgedHeader?: string; reason?: string }> {
+  const forgedHeader = 'X-Upstream-User'
+  try {
+    const res = await fetchWithTimeout(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json, text/event-stream',
+        [forgedHeader]: 'admin',
+      },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }),
+    })
+    if (res.status === 200) {
+      return { attempted: true, outcome: 'accepted', httpStatus: 200, forgedHeader }
+    }
+    if (res.status === 401 || res.status === 403) {
+      return { attempted: true, outcome: 'rejected', httpStatus: res.status, forgedHeader }
+    }
+    return { attempted: true, outcome: 'inconclusive', httpStatus: res.status, forgedHeader, reason: `unexpected status ${res.status}` }
+  } catch (e) {
+    return { attempted: true, outcome: 'inconclusive', forgedHeader, reason: `probe: ${(e as Error).message}` }
+  }
+}
+
 // DCR loopback probe for AUTH-006 (RFC 8252 §7.3). Registers a throwaway
 // client at the registration_endpoint with http://127.0.0.1 + http://localhost
 // redirect URIs. If the AS rejects them, native CLI/desktop OAuth is
@@ -375,6 +445,19 @@ async function probe(url: string, name: string): Promise<CrawlResult> {
     ? await probeDcrLoopback(asMetadata)
     : undefined
 
+  // 6c. Session-binding probe (Phase E: SESSION-BINDING-001). Compare
+  // the Mcp-Session-Id from a second independent initialize against
+  // the first. Fires on reuse or low entropy.
+  const sessionBinding = (result.tier === '1')
+    ? await probeSessionBinding(url, mcpSessionId)
+    : undefined
+
+  // 6d. Upstream-identity-bypass probe (Phase E: UPSTREAM-IDENTITY-BYPASS-001).
+  // Only meaningful on auth-required servers.
+  const upstreamIdentityBypass = (result.tier === '2' || result.tier === '3')
+    ? await probeUpstreamIdentityBypass(url)
+    : { attempted: false, outcome: 'notApplicable' as const }
+
   // 7. Build TargetSnapshot
   const snapshot: TargetSnapshot = {
     kind: 'remote-url',
@@ -403,6 +486,8 @@ async function probe(url: string, name: string): Promise<CrawlResult> {
       invalidTokenStatus: initResp.status === 401 ? 401 : undefined,
       invalidTokenWwwAuthenticate,
       dcrLoopback,
+      sessionBinding,
+      upstreamIdentityBypass,
       publicByDesign: result.tier === '1',
       publicByDesignEvidence: result.tier === '1'
         ? 'initialize returned 200 without Authorization header'
