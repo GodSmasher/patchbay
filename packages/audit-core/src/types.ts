@@ -86,7 +86,66 @@ export interface RemoteProbe {
   audienceProbe?: AudienceProbeResult
   missingAudProbe?: MissingAudProbeResult
   headlessOauth?: HeadlessOauthResult
+  sessionBinding?: SessionBindingProbeResult
+  upstreamIdentityBypass?: UpstreamIdentityBypassProbeResult
   rawErrors: string[]
+}
+
+/**
+ * Result of the SESSION-BINDING-001 probe. Two independent `initialize`
+ * calls are made from the same source and the two returned
+ * `Mcp-Session-Id` values are compared.
+ *
+ *   distinctSessions: server issued two different session IDs. Good.
+ *   sameSession: both calls returned the SAME session ID. Means the
+ *                server does not actually bind sessions to the init
+ *                context — any client can walk into the same session.
+ *                Related to CVE-2026-52869 (MCP Python SDK session
+ *                confusion).
+ *   noSession: server does not use session IDs at all. Check stays
+ *              silent in this case.
+ *   lowEntropy: both session IDs are distinct but at least one of them
+ *               is shorter than 128 bits of equivalent entropy
+ *               (< 22 base64-safe characters). Guessable session IDs
+ *               are a well-known class of session-hijack precondition.
+ *   inconclusive: probe could not complete (one of the two init calls
+ *                 failed, or neither returned a session ID header).
+ */
+export interface SessionBindingProbeResult {
+  attempted: boolean
+  outcome: 'distinctSessions' | 'sameSession' | 'noSession' | 'lowEntropy' | 'inconclusive'
+  firstSessionId?: string
+  secondSessionId?: string
+  reason?: string
+}
+
+/**
+ * Result of the UPSTREAM-IDENTITY-BYPASS-001 probe. Sends tools/list to
+ * an auth-required server with ONLY a forged identity header
+ * (X-Upstream-User / X-Forwarded-User / X-Remote-User / X-User-Id) and
+ * no Authorization bearer. If the server honors the forged header and
+ * returns 200, the server is routing on client-supplied identity
+ * instead of on its own upstream credential.
+ *
+ * Mirrors the IBM ContextForge CVE-2026-110278 and CVE-2026-110279
+ * (CVSS 9.8) pattern where the gateway ignored per-server credentials
+ * and let the client header replace the upstream identity.
+ *
+ *   rejected: server returned 401/403. Good.
+ *   accepted: server returned 200. Critical — the forged identity was
+ *             honored without a real bearer.
+ *   inconclusive: anything else (5xx, network error, no probe
+ *                 performed because server didn't require auth at all).
+ *   notApplicable: server does not require auth, so the probe would
+ *                  not distinguish a bug from the public-by-design
+ *                  posture.
+ */
+export interface UpstreamIdentityBypassProbeResult {
+  attempted: boolean
+  outcome: 'rejected' | 'accepted' | 'inconclusive' | 'notApplicable'
+  httpStatus?: number
+  forgedHeader?: string
+  reason?: string
 }
 
 /**

@@ -20,6 +20,8 @@ import { pkce002 } from './pkce-002'
 import { annotations001 } from './annotations-001'
 import { authorityAttestation001 } from './authority-attestation-001'
 import { dualResource001 } from './dual-resource-001'
+import { sessionBinding001 } from './session-binding-001'
+import { upstreamIdentityBypass001 } from './upstream-identity-bypass-001'
 import { poisoning001 } from './poisoning-001'
 import { poisoning002 } from './poisoning-002'
 import { poisoning003 } from './poisoning-003'
@@ -68,6 +70,8 @@ export const ALL_CHECKS: Check[] = [
   annotations001,
   authorityAttestation001,
   dualResource001,
+  sessionBinding001,
+  upstreamIdentityBypass001,
   uriTemplate001,
   sampling001,
   deprecated001,
@@ -100,6 +104,8 @@ export {
   annotations001,
   authorityAttestation001,
   dualResource001,
+  sessionBinding001,
+  upstreamIdentityBypass001,
   uriTemplate001,
   sampling001,
   deprecated001,

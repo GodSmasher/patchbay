@@ -295,6 +295,18 @@ export const CHECK_METADATA: Record<string, CheckMetadata> = {
     reproductionSteps: 'POST tools/list with an invalid bearer; capture the WWW-Authenticate header. Parse `resource_metadata=` / `authorization_uri=`. GET {{target}}/.well-known/oauth-protected-resource. If the two sources point at different hosts for the resource, or disagree on the authorization server, this finding applies.',
     remediation: 'Make both discovery paths return the same authorization-server set. Either strip `resource_metadata=` from the WWW-Authenticate challenge, or point it at the exact URL of the well-known PRM. Remove stale PRM artefacts from a previous auth provider.',
   },
+  'SESSION-BINDING-001': {
+    verification: 'runtime-verified',
+    affectedComponents: ['{{target}}'],
+    reproductionSteps: 'POST two independent `initialize` requests to {{target}}. Capture the `Mcp-Session-Id` header on each response. If both headers carry the same value, the server is reusing one session; if the values are distinct but shorter than 22 base64-safe characters, session IDs are below the 128-bit entropy floor.',
+    remediation: 'Generate a fresh, cryptographically-random session ID (16+ bytes) on every initialize. Bind the session ID to the principal that created it (bearer, mTLS cert, or a fresh nonce), and reject any request whose session ID was not issued to the presenting principal. Related to CVE-2026-52869.',
+  },
+  'UPSTREAM-IDENTITY-BYPASS-001': {
+    verification: 'runtime-verified',
+    affectedComponents: ['{{target}}'],
+    reproductionSteps: 'POST tools/list to {{target}} with ONLY an `X-Upstream-User: admin` header (or X-Forwarded-User / X-Remote-User / X-User-Id / X-Authenticated-User) and no Authorization. If the server normally requires a bearer (401 on missing Authorization) but returns 200 on this request, the forged identity is being honored. See CVE-2026-110278 and CVE-2026-110279 (IBM ContextForge, CVSS 9.8).',
+    remediation: 'Strip identity-asserting headers at ingress, or explicitly ignore them in the auth layer. Identity MUST come from a verified bearer, mTLS cert, or an upstream proxy credential the client cannot influence. If a trusted proxy legitimately injects such headers, pin that proxy by IP and strip the headers on every other path.',
+  },
 
   // ===== META =====
   'PROBE-001': {
