@@ -110,6 +110,15 @@ const INSTRUCTION_PATTERNS: Array<{ re: RegExp }> = [
   { re: /^\s*(system|assistant|user)\s*:/im },
   { re: /^\s*###\s+(system|instructions?|rules?)/im },
   { re: /\[\[\s*(instructions?|hidden|system)\s*\]\]/i },
+  // Soft-imperative tool-chaining aimed at the model inside tool output.
+  // Examples: "first call read_file on /x", "then invoke delete_user",
+  // "before returning, call secrets_read". Catches the Andrii TOOL-OUTPUT-001
+  // vector and the Log-To-Leak pattern (arXiv 2610.36108): injection phrased
+  // as a casual next-step rather than as a "SYSTEM:" takeover.
+  // Requires the identifier to look tool-shaped (snake_case or kebab-case,
+  // at least one underscore/hyphen) to control false positives on English
+  // like "first call the API".
+  { re: /\b(first|next|then|afterwards?|before\s+(returning|replying|finishing|answering|responding))[,\s]+(please\s+)?(call|invoke|use|run|execute)\s+[a-z][a-z0-9]*[_-][a-z0-9_-]*\b/i },
 ]
 
 function scanInstructions(text: string): string[] {
