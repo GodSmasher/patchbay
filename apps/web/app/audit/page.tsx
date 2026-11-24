@@ -160,21 +160,21 @@ export default function AuditPage() {
               )}
             </div>
 
-            {/* Snapshot from the 2026-11-23 full-registry sweep, rescanned weekly. */}
+            {/* Snapshot from the 2026-11-24 full-registry sweep, rescanned weekly. */}
             <dl className="-mx-5 flex gap-3 overflow-x-auto px-5 lg:mx-0 lg:flex-col lg:overflow-visible lg:px-0">
               <div className="g-glass flex-none rounded-2xl p-4 lg:w-auto" style={{ width: 160 }}>
                 <dt className="sr-only">public servers scanned</dt>
-                <dd className="font-display text-4xl leading-none">1,455</dd>
+                <dd className="font-display text-4xl leading-none">1,470</dd>
                 <dd className="mt-1 text-xs text-ink-soft">public MCP servers scanned</dd>
               </div>
               <div className="g-glass flex-none rounded-2xl p-4 lg:w-auto" style={{ width: 160 }}>
                 <dt className="sr-only">public by design</dt>
-                <dd className="font-display text-4xl leading-none">632</dd>
+                <dd className="font-display text-4xl leading-none">639</dd>
                 <dd className="mt-1 text-xs text-ink-soft">public-by-design (no auth)</dd>
               </div>
               <div className="g-glass g-tint-o flex-none rounded-2xl p-4 lg:w-auto" style={{ width: 160 }}>
                 <dt className="sr-only">D or F grade</dt>
-                <dd className="font-display text-4xl leading-none text-[#ffb38a]">130</dd>
+                <dd className="font-display text-4xl leading-none text-[#ffb38a]">246</dd>
                 <dd className="mt-1 text-xs text-ink-soft">carry grade D or F</dd>
               </div>
             </dl>
