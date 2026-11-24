@@ -14,7 +14,6 @@ export const POSTS: Post[] = [
     date: '2026-11-24',
     readingMinutes: 4,
     summary: 'SESSION-BINDING-001 (CVE-2026-52869, MCP Python SDK session confusion) and UPSTREAM-IDENTITY-BYPASS-001 (CVE-2026-110278/9, IBM ContextForge, CVSS 9.8) shipped today. First full-registry crawl with SESSION-BINDING-001 active: 11 live hits across two operators, all high-severity sameSession outcome.',
-    draft: true,
   },
   {
     slug: 'depth-pass-week-48',
@@ -22,7 +21,6 @@ export const POSTS: Post[] = [
     date: '2026-11-24',
     readingMinutes: 5,
     summary: 'Two days ago the leaderboard scorer used 5 homebrew buckets; audit-core had 38 real checks none of them called. This week closed the gap: tool-list / resource-list / prompt-list enrichment, DCR loopback probe, golden-corpus validation harness, soft-imperative POISONING-003 patch, and two new CVE-backed checks. Before vs after on the public MCP registry: 129 -> 424 high-severity findings, 13/13 validation cases green.',
-    draft: true,
   },
   {
     slug: 'why-your-mcp-server-got-an-f-dcr-open-redirect',
