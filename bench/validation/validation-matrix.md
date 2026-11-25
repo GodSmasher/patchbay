@@ -1,8 +1,8 @@
 # patchbay audit-core golden-corpus validation matrix
 
-Run: 2026-11-24T15:18:40.660Z
-Cases: 13
-Pass: 13 / 13
+Run: 2026-11-25T09:27:45.882Z
+Cases: 15
+Pass: 15 / 15
 
 ## Summary
 
@@ -20,13 +20,15 @@ Pass: 13 / 13
 | `poisoning-003-soft-imperative-andrii-vector` | AUTH-001, POISONING-003 | AUTH-001, POISONING-003 | — | — | ✅ |
 | `session-binding-001-same-session-across-inits` | AUTH-001, SESSION-BINDING-001 | AUTH-001, SESSION-BINDING-001 | — | — | ✅ |
 | `upstream-identity-bypass-001-accepted` | UPSTREAM-IDENTITY-BYPASS-001 | UPSTREAM-IDENTITY-BYPASS-001 | — | — | ✅ |
+| `poisoning-003-pattern-b-camelcase-with-clause` | AUTH-001, POISONING-003 | AUTH-001, POISONING-003 | — | — | ✅ |
+| `poisoning-003-bare-no-clause-known-boundary` | AUTH-001 | AUTH-001 | — | — | ✅ |
 | `auth-006-dcr-loopback-rejected` | AUTH-006 | AUTH-006 | — | — | ✅ |
 
 ## Per-check tallies
 
 | Check | Expected hits | Actual hits | FP | FN |
 |---|---:|---:|---:|---:|
-| `AUTH-001` | 7 | 7 | 0 | 0 |
+| `AUTH-001` | 9 | 9 | 0 | 0 |
 | `AUTH-005` | 1 | 1 | 0 | 0 |
 | `AUTH-006` | 1 | 1 | 0 | 0 |
 | `AUTHORITY-ATTESTATION-001` | 1 | 1 | 0 | 0 |
@@ -36,7 +38,7 @@ Pass: 13 / 13
 | `ISS-001` | 1 | 1 | 0 | 0 |
 | `OAUTH-REVOCATION-001` | 1 | 1 | 0 | 0 |
 | `POISONING-001` | 1 | 1 | 0 | 0 |
-| `POISONING-003` | 1 | 1 | 0 | 0 |
+| `POISONING-003` | 2 | 2 | 0 | 0 |
 | `RESOURCE-001` | 1 | 1 | 0 | 0 |
 | `SECRET-001` | 1 | 1 | 0 | 0 |
 | `SESSION-BINDING-001` | 1 | 1 | 0 | 0 |
