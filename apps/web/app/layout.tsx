@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Script from 'next/script'
+import { UmamiUtmCapture } from '@/components/umami-utm'
 import './globals.css'
 
 const SITE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://patchbay-mcp.dev'
@@ -40,12 +41,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         {children}
         {umamiWebsiteId && (
-          <Script
-            defer
-            data-website-id={umamiWebsiteId}
-            src={umamiSrc}
-            strategy="afterInteractive"
-          />
+          <>
+            <Script
+              defer
+              data-website-id={umamiWebsiteId}
+              src={umamiSrc}
+              strategy="afterInteractive"
+            />
+            <UmamiUtmCapture />
+          </>
         )}
       </body>
     </html>
