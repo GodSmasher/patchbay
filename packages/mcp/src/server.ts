@@ -2,14 +2,18 @@
 /**
  * patchbay MCP server (stdio transport).
  *
- * Exposes five tools to any MCP client (Claude Code, Codex, Cursor):
- *   - audit_mcp_server: scan any remote MCP server URL (or local connector dir)
- *                       for OAuth 2.1 and security gaps, returns letter grade
- *                       and full findings list
- *   - build_connector:  full pipeline, returns generated files (TypeScript or Python)
- *   - research_api:     plan + API research, returns the spec
- *   - scan_repo:        walk a repo and report integration opportunities
- *   - verify_code:      type-check + vitest/pytest an existing connector (with repair loop)
+ * Exposes seven tools to any MCP client (Claude Code, Codex, Cursor):
+ *   - audit_mcp_server:    scan any remote MCP server URL (or local connector dir)
+ *                          for OAuth 2.1 and security gaps, returns letter grade
+ *                          and full findings list
+ *   - get_leaderboard_rank: look up a host on patchbay's public leaderboard and
+ *                           return its grade, score, finding breakdown and report URL
+ *   - explain_finding:      fetch the reference entry for a patchbay check id
+ *                           (what it means, how to fix, which spec it maps to)
+ *   - build_connector:     full pipeline, returns generated files (TypeScript or Python)
+ *   - research_api:        plan + API research, returns the spec
+ *   - scan_repo:           walk a repo and report integration opportunities
+ *   - verify_code:         type-check + vitest/pytest an existing connector (with repair loop)
  *
  * Each pipeline tool streams patchbay's internal step/log/tests events as MCP
  * logging notifications and, when a client passes a progressToken, as progress
@@ -292,6 +296,198 @@ registerTool(
           summary: report.summary,
           findings: report.findings,
           durationMs: report.durationMs,
+        },
+      }
+    } catch (error) {
+      return errorResult(error instanceof Error ? error.message : String(error))
+    }
+  },
+)
+
+// Public endpoints the two lookup tools read from. Overridable for tests
+// or if the deployment needs to point somewhere else.
+const PATCHBAY_BASE_URL = process.env.PATCHBAY_BASE_URL ?? 'https://patchbay-mcp.dev'
+
+interface LeaderboardEntry {
+  slug: string
+  host: string
+  url: string
+  grade: 'A' | 'B' | 'C' | 'D' | 'F'
+  score: number
+  findings: { critical: number; high: number; medium: number; low: number; info: number }
+  topFindings?: Array<{ id: string; severity: string; title: string }>
+  capturedAt?: string
+}
+
+interface LeaderboardSnapshotShape {
+  capturedAt: string
+  entries: LeaderboardEntry[]
+}
+
+// 10-minute in-memory cache. The snapshot refreshes server-side weekly, so a
+// cold fetch per hour-long client session is already too often.
+let leaderboardCache: { at: number; data: LeaderboardSnapshotShape } | null = null
+const LEADERBOARD_TTL_MS = 10 * 60 * 1000
+
+async function loadLeaderboard(): Promise<LeaderboardSnapshotShape> {
+  const now = Date.now()
+  if (leaderboardCache && now - leaderboardCache.at < LEADERBOARD_TTL_MS) {
+    return leaderboardCache.data
+  }
+  const response = await fetch(`${PATCHBAY_BASE_URL}/api/leaderboard`, {
+    headers: { accept: 'application/json', 'user-agent': `patchbay-mcp/${VERSION}` },
+  })
+  if (!response.ok) {
+    throw new Error(`Leaderboard API returned ${response.status} ${response.statusText}`)
+  }
+  const data = (await response.json()) as LeaderboardSnapshotShape
+  leaderboardCache = { at: now, data }
+  return data
+}
+
+function normalizeHost(input: string): string {
+  let s = input.trim().toLowerCase()
+  if (s.startsWith('http://')) s = s.slice(7)
+  if (s.startsWith('https://')) s = s.slice(8)
+  const slash = s.indexOf('/')
+  if (slash !== -1) s = s.slice(0, slash)
+  return s
+}
+
+registerTool(
+  'get_leaderboard_rank',
+  {
+    title: 'Look up an MCP server host on the patchbay public leaderboard',
+    description:
+      'Fetch the current grade and finding breakdown for a specific MCP server host from the ' +
+      'patchbay public leaderboard. Use this to check how a server you know (or your own) ' +
+      'currently scores without re-running a full audit. Returns grade (A-F), score 0-100, ' +
+      'per-severity finding counts, top findings, and the public report URL. Returns a not-found ' +
+      'result when the host is not part of the latest sweep (not on the leaderboard; use ' +
+      'audit_mcp_server for an on-demand scan in that case).',
+    inputSchema: {
+      host: z.string().min(1).describe(
+        'The server host. Accepts a bare hostname (mcp.example.com), a full URL ' +
+        '(https://mcp.example.com/mcp) or a slug as the leaderboard emits them. ' +
+        'URL schemes and paths are stripped.',
+      ),
+    },
+  },
+  async (args) => {
+    const { host } = args as { host: string }
+    try {
+      const snapshot = await loadLeaderboard()
+      const needle = normalizeHost(host)
+      const entry = snapshot.entries.find((e) => {
+        const entryHost = normalizeHost(e.host ?? '')
+        const entrySlug = (e.slug ?? '').toLowerCase()
+        return entryHost === needle || entrySlug === needle || entryHost.endsWith('.' + needle)
+      })
+      if (!entry) {
+        return {
+          content: [{
+            type: 'text' as const,
+            text: `No leaderboard entry for "${host}". The latest sweep (${snapshot.capturedAt}) covers ${snapshot.entries.length} graded servers; this host is not in it. Use audit_mcp_server to scan it on demand.`,
+          }],
+          structuredContent: { found: false, host: needle, capturedAt: snapshot.capturedAt, cohortSize: snapshot.entries.length },
+        }
+      }
+      const findings = entry.findings
+      const bySev = (['critical', 'high', 'medium', 'low', 'info'] as const)
+        .map((s) => `${findings[s]} ${s}`)
+        .filter((line) => !line.startsWith('0 '))
+        .join(', ') || 'no findings'
+      const reportUrl = `${PATCHBAY_BASE_URL}/leaderboard/${entry.slug}`
+      const top = (entry.topFindings ?? []).slice(0, 5)
+        .map((f) => `  [${f.severity.toUpperCase()}] ${f.id}: ${f.title}`)
+        .join('\n')
+      const header = `${entry.host} → Grade ${entry.grade} (${entry.score}/100) · ${bySev}\nReport: ${reportUrl}`
+      const text = top ? `${header}\n\nTop findings:\n${top}` : header
+      return {
+        content: [{ type: 'text' as const, text }],
+        structuredContent: {
+          found: true,
+          host: entry.host,
+          slug: entry.slug,
+          grade: entry.grade,
+          score: entry.score,
+          findings: entry.findings,
+          topFindings: entry.topFindings ?? [],
+          reportUrl,
+          capturedAt: snapshot.capturedAt,
+        },
+      }
+    } catch (error) {
+      return errorResult(error instanceof Error ? error.message : String(error))
+    }
+  },
+)
+
+// Doc-content cache. Parses the /llms-full.txt we publish, which already
+// inlines every check-reference page.
+let docsCache: { at: number; byId: Map<string, string> } | null = null
+const DOCS_TTL_MS = 60 * 60 * 1000
+
+async function loadDocs(): Promise<Map<string, string>> {
+  const now = Date.now()
+  if (docsCache && now - docsCache.at < DOCS_TTL_MS) return docsCache.byId
+  const response = await fetch(`${PATCHBAY_BASE_URL}/llms-full.txt`, {
+    headers: { accept: 'text/plain', 'user-agent': `patchbay-mcp/${VERSION}` },
+  })
+  if (!response.ok) {
+    throw new Error(`llms-full.txt returned ${response.status} ${response.statusText}`)
+  }
+  const body = await response.text()
+  const byId = new Map<string, string>()
+  const re = /\n### ([A-Z][A-Z0-9-]+) — ([^\n]+)\n([\s\S]*?)(?=\n### [A-Z]|\n---\n)/g
+  let match: RegExpExecArray | null
+  while ((match = re.exec(body)) !== null) {
+    const id = match[1]!.toLowerCase()
+    byId.set(id, `### ${match[1]} — ${match[2]}\n${match[3]}`.trim())
+  }
+  docsCache = { at: now, byId }
+  return byId
+}
+
+registerTool(
+  'explain_finding',
+  {
+    title: 'Explain a patchbay check (what it means, how to fix it)',
+    description:
+      'Fetch the reference entry for a patchbay check id (AUTH-001, POISONING-003, ' +
+      'SESSION-BINDING-001, UPSTREAM-IDENTITY-BYPASS-001, etc.). Returns the check\'s severity, ' +
+      'one-liner, full explanation, fix guidance, the spec clause it maps to, and the canonical ' +
+      'documentation URL. Use this after audit_mcp_server returns a finding to give the agent ' +
+      'the context needed to write a fix.',
+    inputSchema: {
+      checkId: z.string().min(1).describe(
+        'The check identifier, case-insensitive (e.g. "AUTH-001", "poisoning-003", "SESSION-BINDING-001").',
+      ),
+    },
+  },
+  async (args) => {
+    const { checkId } = args as { checkId: string }
+    try {
+      const docs = await loadDocs()
+      const id = checkId.trim().toLowerCase()
+      const entry = docs.get(id)
+      if (!entry) {
+        const known = Array.from(docs.keys()).sort().slice(0, 20).join(', ')
+        return {
+          content: [{
+            type: 'text' as const,
+            text: `Unknown check id "${checkId}". Known ids start with: ${known}${docs.size > 20 ? ` (${docs.size} total)` : ''}. See ${PATCHBAY_BASE_URL}/docs for the full catalog.`,
+          }],
+          structuredContent: { found: false, checkId: id, knownCount: docs.size },
+        }
+      }
+      return {
+        content: [{ type: 'text' as const, text: entry }],
+        structuredContent: {
+          found: true,
+          checkId: id,
+          markdown: entry,
+          docsUrl: `${PATCHBAY_BASE_URL}/docs/${id}`,
         },
       }
     } catch (error) {
