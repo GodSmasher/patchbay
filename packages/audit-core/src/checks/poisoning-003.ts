@@ -110,15 +110,22 @@ const INSTRUCTION_PATTERNS: Array<{ re: RegExp }> = [
   { re: /^\s*(system|assistant|user)\s*:/im },
   { re: /^\s*###\s+(system|instructions?|rules?)/im },
   { re: /\[\[\s*(instructions?|hidden|system)\s*\]\]/i },
-  // Soft-imperative tool-chaining aimed at the model inside tool output.
-  // Examples: "first call read_file on /x", "then invoke delete_user",
-  // "before returning, call secrets_read". Catches the Andrii TOOL-OUTPUT-001
-  // vector and the Log-To-Leak pattern (arXiv 2610.36108): injection phrased
-  // as a casual next-step rather than as a "SYSTEM:" takeover.
-  // Requires the identifier to look tool-shaped (snake_case or kebab-case,
-  // at least one underscore/hyphen) to control false positives on English
-  // like "first call the API".
+  // Soft-imperative tool-chaining, Pattern A: snake_case / kebab-case
+  // identifier. Catches Andrii's TOOL-OUTPUT-001 vector and Log-To-Leak
+  // (arXiv 2610.36108): injection phrased as a casual next-step rather
+  // than as a "SYSTEM:" takeover. Identifier with `_` or `-` is already
+  // distinctive enough to control false positives on English like
+  // "first call the API".
   { re: /\b(first|next|then|afterwards?|before\s+(returning|replying|finishing|answering|responding))[,\s]+(please\s+)?(call|invoke|use|run|execute)\s+[a-z][a-z0-9]*[_-][a-z0-9_-]*\b/i },
+  // Soft-imperative, Pattern B: camelCase / single-word identifier whose
+  // invocation is disambiguated by a trailing tool-invocation clause.
+  // `first call fetchDoc on /x`, `then invoke SendMail with path=...`,
+  // `before returning, use gqlQuery against the API`. Deliberately does
+  // NOT fire on bare `first call search` with no trailing clause — that
+  // boundary keeps the false-positive rate controlled on legitimate
+  // English like "first, call the documentation" / "first call the
+  // support team".
+  { re: /\b(first|next|then|afterwards?|before\s+(returning|replying|finishing|answering|responding))[,\s]+(please\s+)?(call|invoke|use|run|execute)\s+[a-z][a-zA-Z0-9]{2,}\s+(on|with|against|for|to)\s+/i },
 ]
 
 function scanInstructions(text: string): string[] {
