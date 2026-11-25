@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
-import Script from 'next/script'
-import { UmamiUtmCapture } from '@/components/umami-utm'
+import { Suspense } from 'react'
+import { PostHogProvider } from '@/components/posthog-provider'
 import './globals.css'
 
 const SITE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://patchbay-mcp.dev'
@@ -30,27 +30,17 @@ export const metadata: Metadata = {
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  // Umami Cloud — Sarah picked Umami over Plausible on 2026-11-18 (free
-  // tier up to 10k events/month). Website id is not secret; env-gate so
-  // dev / preview can override, fall back to the production id when not
-  // set so the prod deploy never silently drops analytics.
-  const umamiWebsiteId = process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID || 'f49ceef8-1492-4db4-907a-57d4bb6fceee'
-  const umamiSrc = process.env.NEXT_PUBLIC_UMAMI_SRC || 'https://cloud.umami.is/script.js'
+  // PostHog Cloud (EU) — picked 2026-11-25 for the free-tier API.
+  // Autocaptures $pageview with UTM parameters as event properties.
+  // If NEXT_PUBLIC_POSTHOG_KEY is unset (dev builds without the var),
+  // the provider short-circuits and no requests are made.
   return (
     <html lang="en">
       <body>
         {children}
-        {umamiWebsiteId && (
-          <>
-            <Script
-              defer
-              data-website-id={umamiWebsiteId}
-              src={umamiSrc}
-              strategy="afterInteractive"
-            />
-            <UmamiUtmCapture />
-          </>
-        )}
+        <Suspense fallback={null}>
+          <PostHogProvider />
+        </Suspense>
       </body>
     </html>
   )
