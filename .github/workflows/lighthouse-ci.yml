@@ -1,0 +1,49 @@
+name: lighthouse-ci
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/web/**'
+      - '.github/workflows/lighthouse-ci.yml'
+  workflow_dispatch:
+
+jobs:
+  lhci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Build web app
+        working-directory: apps/web
+        run: npm run build
+
+      - name: Install Chromium for Lighthouse
+        run: |
+          # Chrome stable is pre-installed on ubuntu-latest, but ensure
+          # headless flags work; lhci will use the system chrome.
+          google-chrome --version || true
+
+      - name: Run Lighthouse CI (local preview server)
+        working-directory: apps/web
+        run: npx -y @lhci/cli@0.14.0 autorun --config=./lighthouserc.json
+        env:
+          # No PR-comment token; results go to temporary-public-storage
+          # and the step itself fails the check on budget-assertion violations.
+          LHCI_BUILD_CONTEXT__CURRENT_HASH: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Upload Lighthouse results as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-reports
+          path: apps/web/.lighthouseci/
+          retention-days: 14
