@@ -1,11 +1,11 @@
-# Weekly Rescan Report — 2026-W47
+# Weekly Rescan Report — 2026-W48
 
-**Window:** 2026-11-16 → 2026-11-22 (7 daily sweeps)
-**Captured:** 2026-11-22T11:02:32.516Z
+**Window:** 2026-11-19 → 2026-11-25 (7 daily sweeps)
+**Captured:** 2026-11-25T12:33:54.324Z
 
 ## Executive summary
 
-- **Targets scanned:** 145 (±0 vs 2026-11-16)
+- **Targets scanned:** 145 (±0 vs 2026-11-19)
 - **Reachable:** 140/145 (96.6%)
 - **Findings end-of-week:** critical 3, high 8, medium 153, low 15, info 19
 
@@ -15,35 +15,35 @@
 |---|---:|---:|---:|
 | critical | 3 | 3 | ±0 |
 | high | 8 | 8 | ±0 |
-| medium | 143 | 153 | ▲ +10 |
-| low | 16 | 15 | ▼ -1 |
-| info | 20 | 19 | ▼ -1 |
+| medium | 152 | 153 | ▲ +1 |
+| low | 15 | 15 | ±0 |
+| info | 19 | 19 | ±0 |
 
 ## Daily trajectory
 
 | Date | Reachable | Critical | High | Medium | Low | Info |
 |---|---:|---:|---:|---:|---:|---:|
-| 2026-11-16 | 140/145 | 3 | 8 | 143 | 16 | 20 |
-| 2026-11-17 | 140/145 | 3 | 8 | 143 | 16 | 20 |
-| 2026-11-18 | 140/145 | 3 | 8 | 143 | 15 | 19 |
 | 2026-11-19 | 140/145 | 3 | 8 | 152 | 15 | 19 |
 | 2026-11-20 | 140/145 | 3 | 8 | 153 | 15 | 19 |
 | 2026-11-21 | 140/145 | 3 | 8 | 153 | 15 | 19 |
 | 2026-11-22 | 140/145 | 3 | 8 | 153 | 15 | 19 |
+| 2026-11-23 | 140/145 | 3 | 8 | 153 | 15 | 19 |
+| 2026-11-24 | 140/145 | 3 | 8 | 153 | 15 | 19 |
+| 2026-11-25 | 140/145 | 3 | 8 | 153 | 15 | 19 |
 
 ## Check movement (top 20 by |delta|)
 
 | Check | Start | End | Delta |
 |---|---:|---:|---:|
-| IDENTITY-001 | 0 | 9 | ▲ +9 |
 | HEADERS-001 | 135 | 136 | ▲ +1 |
-| ISS-001 | 6 | 5 | ▼ -1 |
-| AUTH-005 | 6 | 5 | ▼ -1 |
 | PROBE-001 | 9 | 9 | ±0 |
+| IDENTITY-001 | 9 | 9 | ±0 |
 | AUTH-001 | 8 | 8 | ±0 |
 | TRANSPORT-002 | 6 | 6 | ±0 |
 | RESOURCE-001 | 5 | 5 | ±0 |
 | OAUTH-REVOCATION-001 | 5 | 5 | ±0 |
+| ISS-001 | 5 | 5 | ±0 |
+| AUTH-005 | 5 | 5 | ±0 |
 | DEPRECATED-001 | 4 | 4 | ±0 |
 | SCOPE-001 | 3 | 3 | ±0 |
 | AUTH-007 | 2 | 2 | ±0 |
@@ -51,9 +51,8 @@
 
 ## Signals
 
-- **Resolved during the week:** 2 check types trended down (total 2 findings).
-- **Newly opened during the week:** 2 check types trended up (total 10 findings).
-- **Net findings delta:** +8 across all severities.
+- **Newly opened during the week:** 1 check types trended up (total 1 findings).
+- **Net findings delta:** +1 across all severities.
 
 ---
 
