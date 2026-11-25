@@ -38,6 +38,7 @@
 [![benchmark](https://img.shields.io/badge/benchmark-90%25%20TS%20%C2%B7%2073%25%20Py%20over%20192%20runs-brightgreen)](bench/RESULTS-variance.md)
 [![mcp](https://img.shields.io/badge/MCP-4%20tools-6938EF)](docs/mcp-setup.md)
 [![huggingface](https://img.shields.io/badge/%F0%9F%A4%97%20dataset-connector--repair-FF9D00)](https://huggingface.co/datasets/patchbay-nebius/connector-repair-dataset)
+[![GodSmasher/patchbay MCP server](https://glama.ai/mcp/servers/GodSmasher/patchbay/badges/score.svg)](https://glama.ai/mcp/servers/GodSmasher/patchbay)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![nebius](https://img.shields.io/badge/powered%20by-Nebius%20Token%20Factory-0F172A)](https://tokenfactory.nebius.com)
 [![Listed on mcpservers.org](https://mcpservers.org/badge.svg)](https://mcpservers.org/servers/godsmasher/patchbay)
