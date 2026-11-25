@@ -163,18 +163,18 @@ export default function AuditPage() {
             {/* Snapshot from the 2026-11-24 full-registry sweep, rescanned weekly. */}
             <dl className="-mx-5 flex gap-3 overflow-x-auto px-5 lg:mx-0 lg:flex-col lg:overflow-visible lg:px-0">
               <div className="g-glass flex-none rounded-2xl p-4 lg:w-auto" style={{ width: 160 }}>
-                <dt className="sr-only">public servers scanned</dt>
-                <dd className="font-display text-4xl leading-none">1,470</dd>
-                <dd className="mt-1 text-xs text-ink-soft">public MCP servers scanned</dd>
+                <dt className="sr-only">public servers crawled</dt>
+                <dd className="font-display text-4xl leading-none">1,473</dd>
+                <dd className="mt-1 text-xs text-ink-soft">public MCP servers crawled</dd>
               </div>
               <div className="g-glass flex-none rounded-2xl p-4 lg:w-auto" style={{ width: 160 }}>
-                <dt className="sr-only">public by design</dt>
-                <dd className="font-display text-4xl leading-none">639</dd>
-                <dd className="mt-1 text-xs text-ink-soft">public-by-design (no auth)</dd>
+                <dt className="sr-only">graded</dt>
+                <dd className="font-display text-4xl leading-none">1,398</dd>
+                <dd className="mt-1 text-xs text-ink-soft">graded (reachable)</dd>
               </div>
               <div className="g-glass g-tint-o flex-none rounded-2xl p-4 lg:w-auto" style={{ width: 160 }}>
                 <dt className="sr-only">D or F grade</dt>
-                <dd className="font-display text-4xl leading-none text-[#ffb38a]">246</dd>
+                <dd className="font-display text-4xl leading-none text-[#ffb38a]">171</dd>
                 <dd className="mt-1 text-xs text-ink-soft">carry grade D or F</dd>
               </div>
             </dl>
