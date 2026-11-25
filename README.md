@@ -30,6 +30,8 @@
 
 ---
 
+<a href="https://patchbay-mcp.dev/audit"><img src="https://patchbay-mcp.dev/api/github-og" width="800" alt="patchbay — live MCP security leaderboard" /></a>
+
 ![patchbay — one sentence in, tested TypeScript connector out](docs/screenshots/patchbay-01-hero-calendly-slack.gif)
 
 
