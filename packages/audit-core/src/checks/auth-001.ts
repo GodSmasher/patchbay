@@ -1,5 +1,5 @@
 import type { Check, CheckOutput } from '../types'
-import { hasWriteTools } from './tool-shapes'
+import { hasHeavyWriteTools, hasWriteTools } from './tool-shapes'
 
 export const auth001: Check = {
   id: 'AUTH-001',
@@ -71,14 +71,37 @@ export const auth001: Check = {
       ]
     }
 
+    // Split by mutation intent: a tool named `send_payment` / `delete_user` /
+    // `charge_card` carries explicit heavy-write intent that no one deploys
+    // unauthenticated by accident — AUTH-001 critical. A tool named
+    // `start_app` / `run_example` / `execute_sql` is ambiguous: scanner cannot
+    // prove without issuing a destructive call whether the mutation hits
+    // third-party state or stays client-local. High rather than critical,
+    // with the tool list surfaced so the reader can judge.
+    const heavy = hasHeavyWriteTools(r.tools)
     const writeTools = r.tools.filter((t) => hasWriteTools([t])).map((t) => t.name).slice(0, 5)
+    if (!heavy) {
+      return [
+        {
+          id: 'AUTH-001',
+          severity: 'high',
+          confidence: 'medium',
+          title: 'No authentication required (scaffolding/ambiguous-mutation tools)',
+          evidence: `tools/list returned ${r.tools.length} tool(s) without credentials at ${r.url}. Only scaffolding-shaped mutations detected (start_/run_/execute_/init_/…): ${writeTools.join(', ')}${r.tools.length > 5 ? ', …' : ''}. Scanner cannot prove these alter third-party state without issuing a destructive call.`,
+          fix: 'If these tools genuinely mutate state (local disk, remote service, user data), require OAuth 2.1 bearer tokens. If they are read-only / client-local dev helpers, document the no-auth posture via /.well-known/ai-catalog.json.',
+          docsUrl: 'https://patchbay-mcp.dev/docs/auth-001',
+          autofixTemplate: 'oauth21',
+        },
+      ]
+    }
+
     return [
       {
         id: 'AUTH-001',
         severity: 'critical',
         confidence: 'high',
         title: 'No authentication required (server has write tools)',
-        evidence: `tools/list returned ${r.tools.length} tool(s) without credentials at ${r.url}. Mutating tool(s) detected: ${writeTools.join(', ')}${r.tools.length > 5 ? ', …' : ''}.`,
+        evidence: `tools/list returned ${r.tools.length} tool(s) without credentials at ${r.url}. Heavy-write tool(s) detected: ${writeTools.join(', ')}${r.tools.length > 5 ? ', …' : ''}.`,
         fix: 'Require OAuth 2.1 bearer tokens. Serve /.well-known/oauth-protected-resource and reject unauthenticated requests on initialize and tools/* endpoints.',
         docsUrl: 'https://patchbay-mcp.dev/docs/auth-001',
         autofixTemplate: 'oauth21',
