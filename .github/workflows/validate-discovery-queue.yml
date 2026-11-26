@@ -1,0 +1,35 @@
+name: validate-discovery-queue
+
+# Gate: when a PR touches apps/web/data/discovery-queue.json or prune-list.json,
+# re-probe a stratified sample of the NEW entries and fail if the false-positive
+# rate (hosts not actually responding as MCP servers) is too high.
+#
+# Purpose: prevent a repeat of the 2026-11-26 incident where ~44% of some
+# discovery-source batches turned out not to be real MCP endpoints on re-probe.
+
+on:
+  pull_request:
+    paths:
+      - 'apps/web/data/discovery-queue.json'
+      - 'apps/web/data/prune-list.json'
+      - 'scripts/validate-discovery-queue.ts'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci --no-audit --no-fund
+      - name: validate new discovery-queue entries
+        env:
+          VALIDATE_BASE_REF: origin/${{ github.base_ref }}
+          VALIDATE_SAMPLE_MAX: '30'
+          VALIDATE_MAX_FP_RATE: '0.15'
+        run: npx tsx scripts/validate-discovery-queue.ts

@@ -156,6 +156,35 @@ export async function probeRemote(url: string, opts: RemoteProbeOptions = {}): P
     return ct.includes('application/json') || ct.includes('text/event-stream')
   }
 
+  // A non-2xx reachability signal (401/403 authwall, 4xx with JSON-RPC error
+  // envelope) must look like it came from an MCP server, not from a CDN or
+  // ingress. The strongest signals are either a JSON-RPC marker in the body
+  // or an `application/json` content-type with a `{`-prefixed body. HTML
+  // (`<` prefix) is always rejected.
+  const bodyLooksMcp = async (res: Response | null): Promise<boolean> => {
+    if (!res) return false
+    const ct = (res.headers.get('content-type') ?? '').toLowerCase()
+    try {
+      const cloned = res.clone()
+      const reader = cloned.body?.getReader()
+      if (!reader) return ct.includes('application/json')
+      const { value } = await reader.read()
+      reader.releaseLock().catch(() => {})
+      if (!value) return ct.includes('application/json')
+      const chunk = new TextDecoder().decode(value.subarray(0, Math.min(value.length, 1024)))
+      const trimmed = chunk.trimStart()
+      if (trimmed.startsWith('<')) return false
+      const lower = chunk.toLowerCase()
+      if (lower.includes('jsonrpc') || lower.includes('protocolversion')) return true
+      // JSON content-type + JSON body prefix: a bare `{"error":...}` from an
+      // MCP server's auth gate looks like this. CDN/WAF bodies won't.
+      if (ct.includes('application/json') && trimmed.startsWith('{')) return true
+      return false
+    } catch {
+      return ct.includes('application/json')
+    }
+  }
+
   const candidates = pathCandidates(url)
   let endpoint: string | undefined
   let initRes: Response | null = null
@@ -164,6 +193,9 @@ export async function probeRemote(url: string, opts: RemoteProbeOptions = {}): P
     const res = await postRpc(candidate, INITIALIZE_BODY)
     if (!res) continue
     if (res.status === 401 || res.status === 403) {
+      // Only count as an MCP authwall when the body is JSON-RPC-shaped.
+      // Generic HTML 403 from a CDN / ingress is not an MCP server.
+      if (!(await bodyLooksMcp(res))) continue
       endpoint = candidate
       probe.reachable = true
       probe.authRequired = true
@@ -203,7 +235,11 @@ export async function probeRemote(url: string, opts: RemoteProbeOptions = {}): P
       } catch { /* best-effort */ }
       break
     }
-    if (res.status < 500 && res.status !== 404) {
+    // Fallback: a non-404/5xx status with a JSON-RPC body is a real MCP
+    // endpoint that spoke JSON-RPC despite a non-200 status (e.g. 400
+    // method-not-allowed with an MCP error envelope). Without an MCP body
+    // this is CDN / landing-page noise and must not be marked reachable.
+    if (res.status < 500 && res.status !== 404 && (await bodyLooksMcp(res))) {
       endpoint = candidate
       probe.reachable = true
       initRes = res
@@ -229,6 +265,7 @@ export async function probeRemote(url: string, opts: RemoteProbeOptions = {}): P
         break
       }
       if (res.status === 401 || res.status === 403) {
+        if (!(await bodyLooksMcp(res))) continue
         endpoint = candidate
         probe.reachable = true
         probe.authRequired = true
