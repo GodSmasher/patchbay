@@ -87,8 +87,24 @@ describe('AUTH-001', () => {
     expect(r[0]!.severity).toBe('info')
   })
 
-  it('does NOT downgrade non-platform hosts even if tool names suggest IAM', () => {
+  it('scaffolding-only mutation (execute_sql) is high, not critical', () => {
+    // `execute` is a WRITES verb but SCAFFOLDING-shaped: scanner cannot prove
+    // without issuing a destructive call whether this alters third-party
+    // state. High rather than critical, with the tool name surfaced.
     const r = auth001.run(snap({ url: 'https://random-startup.io/mcp', tools: [{ name: 'execute_sql' }] }))
+    expect(r[0]!.severity).toBe('high')
+    expect(r[0]!.title).toContain('scaffolding/ambiguous-mutation')
+  })
+
+  it('heavy-write mutation (send_payment) is critical', () => {
+    // Explicit heavy-write intent — no one deploys `send_payment`
+    // unauthenticated by accident.
+    const r = auth001.run(snap({ url: 'https://random-startup.io/mcp', tools: [{ name: 'send_payment' }] }))
+    expect(r[0]!.severity).toBe('critical')
+  })
+
+  it('scaffolding + heavy-write together → critical (heavy wins)', () => {
+    const r = auth001.run(snap({ url: 'https://random-startup.io/mcp', tools: [{ name: 'start_app' }, { name: 'delete_user' }] }))
     expect(r[0]!.severity).toBe('critical')
   })
 })
