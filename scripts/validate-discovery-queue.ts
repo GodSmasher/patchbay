@@ -12,7 +12,7 @@
  * Runs over a stratified random sample (not every new host) to keep CI
  * latency bounded. For a PR adding N new hosts: samples min(N, SAMPLE_MAX).
  */
-import { execSync } from 'node:child_process'
+import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -27,7 +27,10 @@ const PROBE_TIMEOUT_MS = 8000
 
 function readMainQueue(): Queue {
   try {
-    const raw = execSync(`git show ${BASE_REF}:${QUEUE_PATH}`, { encoding: 'utf8' })
+    // execFileSync (no shell): BASE_REF comes from an env var, so arbitrary
+    // characters in it must not reach a shell. git's `<ref>:<path>` treeish
+    // syntax takes a single argv, so we build it, but it's never parsed by sh.
+    const raw = execFileSync('git', ['show', `${BASE_REF}:${QUEUE_PATH}`], { encoding: 'utf8' })
     return JSON.parse(raw)
   } catch {
     // Base doesn't have the file yet → treat every local entry as new.
