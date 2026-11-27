@@ -1,8 +1,10 @@
 'use client'
 
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import Link from 'next/link'
 import { GlowShape, SEV_CLASS, gradeClass } from '@/components/glow'
+
+interface CohortStats { total: number; graded: number; dOrF: number }
 
 interface TopFinding {
   id: string
@@ -44,6 +46,26 @@ export default function AuditPage() {
   const [digest, setDigest] = useState(true)
   const [publish, setPublish] = useState(false)
   const [saveState, setSaveState] = useState<SaveState>({ kind: 'idle' })
+  const [cohort, setCohort] = useState<CohortStats | null>(null)
+
+  // Pull live cohort stats from the leaderboard snapshot so the three
+  // stat tiles track the actual weekly re-scan rather than a hard-coded
+  // snapshot. One shot on mount; the snapshot is cached at the edge.
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/leaderboard')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (cancelled || !d) return
+        const entries: Array<{ grade?: string }> = d.entries || []
+        const graded = entries.filter((e) => e.grade && e.grade !== 'unreachable').length
+        const dOrF = entries.filter((e) => e.grade === 'D' || e.grade === 'F').length
+        setCohort({ total: d.cohortSize ?? entries.length, graded, dOrF })
+      })
+      .catch(() => { /* leave null → tiles show "…" */ })
+    return () => { cancelled = true }
+  }, [])
+  const fmt = (n: number | undefined) => (typeof n === 'number' ? n.toLocaleString('en-US') : '…')
 
   async function onScan(e: FormEvent) {
     e.preventDefault()
@@ -164,17 +186,17 @@ export default function AuditPage() {
             <dl className="-mx-5 flex gap-3 overflow-x-auto px-5 lg:mx-0 lg:flex-col lg:overflow-visible lg:px-0">
               <div className="g-glass flex-none rounded-2xl p-4 lg:w-auto" style={{ width: 160 }}>
                 <dt className="sr-only">public servers crawled</dt>
-                <dd className="font-display text-4xl leading-none">1,473</dd>
+                <dd className="font-display text-4xl leading-none tabular-nums">{fmt(cohort?.total)}</dd>
                 <dd className="mt-1 text-xs text-ink-soft">public MCP servers crawled</dd>
               </div>
               <div className="g-glass flex-none rounded-2xl p-4 lg:w-auto" style={{ width: 160 }}>
                 <dt className="sr-only">graded</dt>
-                <dd className="font-display text-4xl leading-none">1,398</dd>
+                <dd className="font-display text-4xl leading-none tabular-nums">{fmt(cohort?.graded)}</dd>
                 <dd className="mt-1 text-xs text-ink-soft">graded (reachable)</dd>
               </div>
               <div className="g-glass g-tint-o flex-none rounded-2xl p-4 lg:w-auto" style={{ width: 160 }}>
                 <dt className="sr-only">D or F grade</dt>
-                <dd className="font-display text-4xl leading-none text-[#ffb38a]">171</dd>
+                <dd className="font-display text-4xl leading-none text-[#ffb38a] tabular-nums">{fmt(cohort?.dOrF)}</dd>
                 <dd className="mt-1 text-xs text-ink-soft">carry grade D or F</dd>
               </div>
             </dl>
