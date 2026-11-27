@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import type {
   LeaderboardEntry,
   LeaderboardGrade,
@@ -82,9 +82,12 @@ interface LeaderboardTableProps {
   unreachable: ReactNode
 }
 
+const PAGE_SIZE = 100
+
 export function LeaderboardTable({ entries, capturedDate: _capturedDate, unreachable }: LeaderboardTableProps) {
   const [query, setQuery] = useState('')
   const [enabledGrades, setEnabledGrades] = useState<Set<LeaderboardGrade>>(() => new Set(GRADES))
+  const [visible, setVisible] = useState(PAGE_SIZE)
 
   const normalizedQuery = query.trim().toLowerCase()
   const filtered = useMemo(() => {
@@ -99,6 +102,13 @@ export function LeaderboardTable({ entries, capturedDate: _capturedDate, unreach
       )
     })
   }, [entries, normalizedQuery, enabledGrades])
+
+  // Reset pagination when the filter changes (so switching from F → A
+  // doesn't leave you scrolled past the end).
+  useEffect(() => { setVisible(PAGE_SIZE) }, [normalizedQuery, enabledGrades])
+
+  const pageEntries = useMemo(() => filtered.slice(0, visible), [filtered, visible])
+  const hasMore = filtered.length > visible
 
   function toggleGrade(g: LeaderboardGrade) {
     setEnabledGrades((prev) => {
@@ -190,7 +200,7 @@ export function LeaderboardTable({ entries, capturedDate: _capturedDate, unreach
       </div>
 
       <p className="mb-3 text-[11px] text-ink-mute tabular-nums">
-        Showing {shown} of {total}{filterActive && shown === 0 ? ' — no hosts match.' : ''}
+        Showing {Math.min(pageEntries.length, shown)} of {shown}{shown !== total ? ` (${total} total)` : ''}{filterActive && shown === 0 ? ' — no hosts match.' : ''}
       </p>
 
       {/* Desktop: table. Phone: the same rows as a compact list. */}
@@ -208,7 +218,7 @@ export function LeaderboardTable({ entries, capturedDate: _capturedDate, unreach
             </tr>
           </thead>
           <tbody>
-            {filtered.map((e, i) => {
+            {pageEntries.map((e, i) => {
               const totalFindings = e.findings.critical + e.findings.high + e.findings.medium + e.findings.low
               return (
                 <tr key={e.slug} className="border-b border-white/[.07] last:border-b-0">
@@ -231,7 +241,7 @@ export function LeaderboardTable({ entries, capturedDate: _capturedDate, unreach
       </div>
 
       <ol className="md:hidden">
-        {filtered.map((e, i) => {
+        {pageEntries.map((e, i) => {
           const totalFindings = e.findings.critical + e.findings.high + e.findings.medium + e.findings.low
           return (
             <li key={e.slug} className="border-b border-white/[.07]">
@@ -249,6 +259,25 @@ export function LeaderboardTable({ entries, capturedDate: _capturedDate, unreach
           )
         })}
       </ol>
+
+      {hasMore && (
+        <div className="mt-4 flex items-center justify-center gap-3">
+          <button
+            type="button"
+            onClick={() => setVisible((v) => v + PAGE_SIZE)}
+            className="g-glass rounded-full px-5 py-2 text-xs uppercase tracking-[.12em] text-ink hover:text-white"
+          >
+            Load next {Math.min(PAGE_SIZE, shown - visible)} · {shown - visible} more
+          </button>
+          <button
+            type="button"
+            onClick={() => setVisible(shown)}
+            className="text-[11px] text-ink-mute underline underline-offset-2 hover:text-white"
+          >
+            show all
+          </button>
+        </div>
+      )}
 
       {unreachable}
     </>
