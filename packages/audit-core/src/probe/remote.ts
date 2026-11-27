@@ -169,7 +169,7 @@ export async function probeRemote(url: string, opts: RemoteProbeOptions = {}): P
       const reader = cloned.body?.getReader()
       if (!reader) return ct.includes('application/json')
       const { value } = await reader.read()
-      reader.releaseLock().catch(() => {})
+      try { reader.releaseLock() } catch { /* ignore */ }
       if (!value) return ct.includes('application/json')
       const chunk = new TextDecoder().decode(value.subarray(0, Math.min(value.length, 1024)))
       const trimmed = chunk.trimStart()
