@@ -24,6 +24,7 @@ import { McpToolsChangeAfterApproval } from './posts/mcp-tools-change-after-appr
 import { StateOfMcpAuthNov2026 } from './posts/state-of-mcp-auth-nov-2026'
 import { TwoNewChecksTwoCveClassesElevenLiveHits } from './posts/two-new-checks-two-cve-classes-eleven-live-hits'
 import { DepthPassWeek48 } from './posts/depth-pass-week-48'
+import { StateOfMcpSecurityNovember2026 } from './posts/state-of-mcp-security-november-2026'
 
 export function generateStaticParams() {
   return POSTS.map((p) => ({ slug: p.slug }))
@@ -49,6 +50,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 }
 
 const BODIES: Record<string, () => JSX.Element> = {
+  'state-of-mcp-security-november-2026': StateOfMcpSecurityNovember2026,
   'why-your-mcp-server-got-an-f-dcr-open-redirect': WhyYourMcpServerGotAnFDcrOpenRedirect,
   'two-new-checks-two-cve-classes-eleven-live-hits': TwoNewChecksTwoCveClassesElevenLiveHits,
   'depth-pass-week-48': DepthPassWeek48,

@@ -9,6 +9,13 @@ export interface Post {
 
 export const POSTS: Post[] = [
   {
+    slug: 'state-of-mcp-security-november-2026',
+    title: 'State of MCP server security: November 2026',
+    date: '2026-11-27',
+    readingMinutes: 6,
+    summary: '6,225 public MCP endpoints scanned so far (and growing). 4,998 grade D or F on OAuth 2.1. 555 expose heavy-write tools without any authentication. First wave of an ongoing MCP security audit.',
+  },
+  {
     slug: 'two-new-checks-two-cve-classes-eleven-live-hits',
     title: 'Two new checks, two CVE classes, eleven live hits',
     date: '2026-11-24',
