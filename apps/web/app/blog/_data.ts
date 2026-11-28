@@ -9,6 +9,13 @@ export interface Post {
 
 export const POSTS: Post[] = [
   {
+    slug: 'headers-001-depth-upgrade',
+    title: 'HEADERS-001: from presence to value-validation',
+    date: '2026-11-28',
+    readingMinutes: 5,
+    summary: "First check in patchbay's Q1 depth-upgrade pass. HEADERS-001 now validates header VALUES, not just presence. 11 sub-findings per response-header gap, concrete cohort-impact numbers.",
+  },
+  {
     slug: 'state-of-mcp-security-november-2026',
     title: 'State of MCP server security: November 2026',
     date: '2026-11-27',
