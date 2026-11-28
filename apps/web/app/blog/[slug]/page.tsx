@@ -26,6 +26,7 @@ import { TwoNewChecksTwoCveClassesElevenLiveHits } from './posts/two-new-checks-
 import { DepthPassWeek48 } from './posts/depth-pass-week-48'
 import { StateOfMcpSecurityNovember2026 } from './posts/state-of-mcp-security-november-2026'
 import { Headers001DepthUpgrade } from './posts/headers-001-depth-upgrade'
+import { UnauthWriteToolsBreakdown } from './posts/unauth-write-tools-breakdown'
 
 export function generateStaticParams() {
   return POSTS.map((p) => ({ slug: p.slug }))
@@ -51,6 +52,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 }
 
 const BODIES: Record<string, () => JSX.Element> = {
+  'unauth-write-tools-breakdown': UnauthWriteToolsBreakdown,
   'headers-001-depth-upgrade': Headers001DepthUpgrade,
   'state-of-mcp-security-november-2026': StateOfMcpSecurityNovember2026,
   'why-your-mcp-server-got-an-f-dcr-open-redirect': WhyYourMcpServerGotAnFDcrOpenRedirect,
