@@ -95,6 +95,17 @@ export default function CveDetailPage({ params }: { params: { id: string } }) {
         </section>
       )}
 
+      {e.cohortHosts && e.cohortHosts.length > 0 && (
+        <section style={{ marginTop: '1rem' }}>
+          <h2 style={{ fontSize: '1.1rem' }}>Affected cohort ({e.cohortHosts.length} host{e.cohortHosts.length === 1 ? '' : 's'})</h2>
+          <ul style={{ margin: 0, paddingLeft: '1.25rem', columnCount: 2, columnGap: '2rem' }}>
+            {e.cohortHosts.map((h) => (
+              <li key={h} style={{ fontFamily: 'ui-monospace, Menlo, monospace', fontSize: '0.85rem' }}>{h}</li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       <section style={{ marginTop: '1rem' }}>
         <h2 style={{ fontSize: '1.1rem' }}>Fix</h2>
         <p style={{ whiteSpace: 'pre-line' }}>{e.fix ?? e.genericFix}</p>
