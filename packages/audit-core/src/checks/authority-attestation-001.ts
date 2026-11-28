@@ -20,6 +20,19 @@ import type { Check, CheckOutput } from '../types'
  * defect. Reports and the leaderboard entry page can style info-level
  * positive findings differently from info-level deficiencies.
  */
+/**
+ * Methodology metadata — read by scripts/generate-methodology-matrix.mjs
+ * at build time to regenerate the check-to-source table on /methodology.
+ * Keep in sync with any change to this check or its severity rationale.
+ */
+export const METADATA = {
+  id: 'AUTHORITY-ATTESTATION-001',
+  category: 'MCP',
+  primarySource: 'patchbay-original: positive pattern — server advertises an MCP authority-attestation header',
+  confidence: 'MEDIUM',
+  published: true,
+} as const
+
 export const authorityAttestation001: Check = {
   id: 'AUTHORITY-ATTESTATION-001',
   severity: 'info',

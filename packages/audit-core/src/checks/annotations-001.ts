@@ -25,6 +25,19 @@ import type { Check, CheckOutput, ToolDescriptor } from '../types'
  * Medium: ambiguous-verb name with the same mismatch, kept quieter
  *       since the name is weaker evidence.
  */
+/**
+ * Methodology metadata — read by scripts/generate-methodology-matrix.mjs
+ * at build time to regenerate the check-to-source table on /methodology.
+ * Keep in sync with any change to this check or its severity rationale.
+ */
+export const METADATA = {
+  id: 'ANNOTATIONS-001',
+  category: 'MCP',
+  primarySource: 'MCP spec §tool annotations: destructiveHint, readOnlyHint contract vs tool-name shape',
+  confidence: 'CONTEXTUAL',
+  published: true,
+} as const
+
 export const annotations001: Check = {
   id: 'ANNOTATIONS-001',
   severity: 'high',

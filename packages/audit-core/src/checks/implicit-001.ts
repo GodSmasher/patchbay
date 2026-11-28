@@ -13,6 +13,19 @@ import type { Check, CheckOutput } from '../types'
  * `response_type=token`. If the server issues an access token (or a
  * fragment access_token), IMPLICIT-001 fires critical.
  */
+/**
+ * Methodology metadata — read by scripts/generate-methodology-matrix.mjs
+ * at build time to regenerate the check-to-source table on /methodology.
+ * Keep in sync with any change to this check or its severity rationale.
+ */
+export const METADATA = {
+  id: 'IMPLICIT-001',
+  category: 'OAuth',
+  primarySource: 'OAuth 2.1 §3.1.2 implicit grant removal',
+  confidence: 'HIGH',
+  published: true,
+} as const
+
 export const implicit001: Check = {
   id: 'IMPLICIT-001',
   severity: 'critical',

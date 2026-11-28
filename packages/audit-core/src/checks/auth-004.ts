@@ -21,6 +21,19 @@ import type { Check, CheckOutput } from '../types'
  * The ID is retained so already-stored reports keep resolving, but the
  * check now returns no findings.
  */
+/**
+ * Methodology metadata — read by scripts/generate-methodology-matrix.mjs
+ * at build time to regenerate the check-to-source table on /methodology.
+ * Keep in sync with any change to this check or its severity rationale.
+ */
+export const METADATA = {
+  id: 'AUTH-004',
+  category: 'OAuth',
+  primarySource: 'Retired: resource-indicators flag superseded by AUDIENCE-001/002',
+  confidence: 'MEDIUM',
+  published: false,
+} as const
+
 export const auth004: Check = {
   id: 'AUTH-004',
   severity: 'info',

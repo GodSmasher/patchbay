@@ -24,6 +24,19 @@ import type { Check, CheckOutput } from '../types'
  * Without the probe token the audit cannot test this behaviour and the
  * check stays silent. See Issue #5.
  */
+/**
+ * Methodology metadata — read by scripts/generate-methodology-matrix.mjs
+ * at build time to regenerate the check-to-source table on /methodology.
+ * Keep in sync with any change to this check or its severity rationale.
+ */
+export const METADATA = {
+  id: 'AUDIENCE-002',
+  category: 'OAuth',
+  primarySource: 'RFC 8707 + sibling-resource acceptance test',
+  confidence: 'HIGH',
+  published: true,
+} as const
+
 export const audience002: Check = {
   id: 'AUDIENCE-002',
   severity: 'critical',

@@ -30,6 +30,19 @@ import type { Check, CheckOutput, ResourceDescriptor } from '../types'
  *   info: same but in a non-filesystem scheme (https://, custom://) —
  *         still worth noting but less likely to be local path traversal
  */
+/**
+ * Methodology metadata — read by scripts/generate-methodology-matrix.mjs
+ * at build time to regenerate the check-to-source table on /methodology.
+ * Keep in sync with any change to this check or its severity rationale.
+ */
+export const METADATA = {
+  id: 'URITEMPLATE-001',
+  category: 'Resources',
+  primarySource: 'RFC 6570 URI Template + patchbay traversal-risk heuristic',
+  confidence: 'MEDIUM',
+  published: true,
+} as const
+
 export const uriTemplate001: Check = {
   id: 'URITEMPLATE-001',
   severity: 'high',

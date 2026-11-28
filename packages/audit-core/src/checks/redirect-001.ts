@@ -1,5 +1,18 @@
 import type { Check, CheckOutput } from '../types'
 
+/**
+ * Methodology metadata — read by scripts/generate-methodology-matrix.mjs
+ * at build time to regenerate the check-to-source table on /methodology.
+ * Keep in sync with any change to this check or its severity rationale.
+ */
+export const METADATA = {
+  id: 'REDIRECT-001',
+  category: 'OAuth / Native',
+  primarySource: 'RFC 8252 §8.3 loopback IP literal equivalence',
+  confidence: 'HIGH',
+  published: true,
+} as const
+
 export const redirect001: Check = {
   id: 'REDIRECT-001',
   severity: 'medium',

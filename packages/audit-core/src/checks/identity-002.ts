@@ -23,6 +23,19 @@ import type { Check, CheckOutput } from '../types'
  */
 const TOKEN_EXCHANGE_GRANT = 'urn:ietf:params:oauth:grant-type:token-exchange'
 
+/**
+ * Methodology metadata — read by scripts/generate-methodology-matrix.mjs
+ * at build time to regenerate the check-to-source table on /methodology.
+ * Keep in sync with any change to this check or its severity rationale.
+ */
+export const METADATA = {
+  id: 'IDENTITY-002',
+  category: 'OAuth',
+  primarySource: 'RFC 8693 token exchange + patchbay unauth-accepting-token-endpoint deployment check',
+  confidence: 'MEDIUM',
+  published: true,
+} as const
+
 export const identity002: Check = {
   id: 'IDENTITY-002',
   severity: 'high',

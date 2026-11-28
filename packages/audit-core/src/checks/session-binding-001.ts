@@ -33,6 +33,19 @@ import type { Check, CheckOutput } from '../types'
  * Does not fire if the server does not use session IDs (`noSession`) —
  * other checks (AUTH-001, RESOURCE-001) cover that posture.
  */
+/**
+ * Methodology metadata — read by scripts/generate-methodology-matrix.mjs
+ * at build time to regenerate the check-to-source table on /methodology.
+ * Keep in sync with any change to this check or its severity rationale.
+ */
+export const METADATA = {
+  id: 'SESSION-BINDING-001',
+  category: 'Session',
+  primarySource: 'OAuth 2.1 session fixation + patchbay deployment-mistake catalogue',
+  confidence: 'MEDIUM',
+  published: true,
+} as const
+
 export const sessionBinding001: Check = {
   id: 'SESSION-BINDING-001',
   severity: 'high',

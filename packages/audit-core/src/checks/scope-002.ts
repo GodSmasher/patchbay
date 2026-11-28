@@ -2,6 +2,19 @@ import type { Check, CheckOutput } from '../types'
 
 import { isRead, isWrite } from './tool-shapes'
 
+/**
+ * Methodology metadata — read by scripts/generate-methodology-matrix.mjs
+ * at build time to regenerate the check-to-source table on /methodology.
+ * Keep in sync with any change to this check or its severity rationale.
+ */
+export const METADATA = {
+  id: 'SCOPE-002',
+  category: 'OAuth',
+  primarySource: 'OAuth 2.1 §3.3 least-privilege + patchbay write-read-scope-shared anti-pattern',
+  confidence: 'MEDIUM',
+  published: true,
+} as const
+
 export const scope002: Check = {
   id: 'SCOPE-002',
   severity: 'medium',

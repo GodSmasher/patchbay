@@ -15,6 +15,19 @@ import type { Check, CheckOutput } from '../types'
  * server redirects to the attacker host (or issues a code), REDIRECT-002
  * fires critical.
  */
+/**
+ * Methodology metadata — read by scripts/generate-methodology-matrix.mjs
+ * at build time to regenerate the check-to-source table on /methodology.
+ * Keep in sync with any change to this check or its severity rationale.
+ */
+export const METADATA = {
+  id: 'REDIRECT-002',
+  category: 'OAuth',
+  primarySource: 'OAuth 2.1 §4.1.2.1 redirect_uri pre-registration requirement',
+  confidence: 'HIGH',
+  published: true,
+} as const
+
 export const redirect002: Check = {
   id: 'REDIRECT-002',
   severity: 'critical',

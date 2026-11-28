@@ -79,6 +79,19 @@ function parseFrameAncestors(csp: string): string | null {
   return m ? (m[1] ?? '').trim() : null
 }
 
+/**
+ * Methodology metadata — read by scripts/generate-methodology-matrix.mjs
+ * at build time to regenerate the check-to-source table on /methodology.
+ * Keep in sync with any change to this check or its severity rationale.
+ */
+export const METADATA = {
+  id: 'HEADERS-001',
+  category: 'Transport headers',
+  primarySource: 'RFC 6797 + RFC 7034 + CSP L3 + Referrer-Policy + Fetch + OWASP Secure Headers',
+  confidence: 'HIGH',
+  published: true,
+} as const
+
 export const headers001: Check = {
   id: 'HEADERS-001',
   severity: 'medium',
