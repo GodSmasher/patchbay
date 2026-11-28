@@ -28,8 +28,14 @@ export interface CveEntry {
   affectedVersions?: string
   evidence?: string
   references?: string[]
-  credit?: { discovered?: string; reportedBy?: string; reported?: string }
+  credit?: { discovered?: string; reportedBy?: string; reported?: string; falsePositiveSurfaced?: string }
   embargoedFields?: string[]
+  /**
+   * Pattern advisories (one CVE per finding class) carry the cohort of
+   * affected hosts here. Normally listed in embargoedFields so it stays
+   * hidden to the public page during the 90-day disclosure window.
+   */
+  cohortHosts?: string[]
 }
 
 const CVE_DIR = join(process.cwd(), 'data', 'cve')
