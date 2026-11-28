@@ -80,6 +80,21 @@ export async function POST(request: Request): Promise<Response> {
     )
   }
 
+  // Short-circuit for hosts that aren't actually MCP servers. An empty
+  // finding set against a non-MCP URL would otherwise score 100 and
+  // return A+ — misleading for anyone who typed the wrong URL (bug
+  // reported by adam@trigger.tools, 2026-11-28). No stored report, no
+  // badge, UI shows "Inconclusive" instead.
+  const remote = report.snapshot?.remote
+  const reachable = !!remote?.reachable
+  if (!reachable) {
+    return NextResponse.json({
+      reachable: false,
+      target: url,
+      hint: 'No MCP server responded at this URL. Double-check the scheme, host and path. MCP endpoints usually end with /mcp.',
+    })
+  }
+
   const raw = JSON.stringify(report)
   const id = shortId(raw)
   const stored: StoredReport = {
@@ -123,6 +138,7 @@ export async function POST(request: Request): Promise<Response> {
   return NextResponse.json({
     id,
     url: `${base}/report/${id}`,
+    reachable: true,
     grade,
     score: num,
     findings: report.summary,

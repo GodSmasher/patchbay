@@ -1,5 +1,6 @@
 import { ImageResponse } from 'next/og'
 import { loadLeaderboardSnapshot, type LeaderboardGrade } from '@/lib/leaderboard-store'
+import { normalizeEntries } from '@/lib/leaderboard-grade'
 
 export const runtime = 'nodejs'
 export const size = { width: 1200, height: 630 }
@@ -23,7 +24,8 @@ export default async function Image() {
   const snapshot = await loadLeaderboardSnapshot()
   if (!snapshot) return genericCard()
 
-  const reachable = snapshot.entries.filter((e) => e.reachable)
+  const entries = normalizeEntries(snapshot.entries)
+  const reachable = entries.filter((e) => e.reachable)
   const top = reachable.slice(0, 10)
   const capturedDate = snapshot.capturedAt.slice(0, 10)
 

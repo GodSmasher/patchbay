@@ -34,6 +34,7 @@ import type {
   Transport,
 } from '../packages/audit-core/src/types'
 import { ALL_CHECKS } from '../packages/audit-core/src/checks'
+import { letterGrade as canonicalLetterGrade, score as canonicalScore } from '../packages/audit-core/src/lib/score'
 
 // Caps to prevent snapshot JSON from exploding on servers with hundreds
 // of tools or megabyte-sized descriptions. If a server exceeds these,
@@ -296,26 +297,28 @@ async function loadRegistry(): Promise<Array<{ name: string; url: string; descri
   return out
 }
 
-function gradeFromScore(score: number): Grade {
-  if (score >= 90) return 'A'
-  if (score >= 80) return 'B'
-  if (score >= 70) return 'C'
-  if (score >= 60) return 'D'
-  return 'F'
+// Grade + score come from the canonical audit-core helpers. A previous
+// version of this file had its own weights (crit=25, hi=15, med=8, low=3)
+// and cutoffs (A≥90, B≥80, C≥70, D≥60) that diverged from the scanner's
+// (crit=30, hi=15, med=5, low=1; A+≥95, A≥85, B≥75, C≥60, D≥40). Same
+// host could show one grade on /leaderboard and a different grade from a
+// fresh /audit scan — caught by adam@trigger.tools on 2026-11-28.
+// Leaderboard rows are five-bucket (no A+); collapse A+ into A.
+function scoreFromFindings(findings: Array<{ severity: string }>): number {
+  const summary = { critical: 0, high: 0, medium: 0, low: 0, info: 0 }
+  for (const f of findings) {
+    if (f.severity === 'critical') summary.critical += 1
+    else if (f.severity === 'high') summary.high += 1
+    else if (f.severity === 'medium') summary.medium += 1
+    else if (f.severity === 'low') summary.low += 1
+    else if (f.severity === 'info') summary.info += 1
+  }
+  return canonicalScore(summary)
 }
 
-function scoreFromFindings(findings: Array<{ severity: string }>): number {
-  let score = 100
-  for (const f of findings) {
-    switch (f.severity) {
-      case 'critical': score -= 25; break
-      case 'high':     score -= 15; break
-      case 'medium':   score -= 8; break
-      case 'low':      score -= 3; break
-      // 'info' does not lower score
-    }
-  }
-  return Math.max(0, Math.min(100, score))
+function gradeFromScore(score: number): Grade {
+  const g = canonicalLetterGrade(score)
+  return g === 'A+' ? 'A' : g
 }
 
 async function probe(url: string, name: string): Promise<CrawlResult> {

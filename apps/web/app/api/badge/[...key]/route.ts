@@ -24,7 +24,15 @@ export async function GET(_req: Request, { params }: { params: { key: string[] }
   const entry = await loadLatestForTarget(target)
   let grade: LetterGrade | null = null
   let numScore: number | null = null
-  if (entry) {
+  // Only a report with a reachable MCP server gets a grade on the badge.
+  // Legacy reports stored from a buggy /api/scan that counted non-MCP
+  // URLs as A+/100 are filtered here by checking the stored body's
+  // snapshot.remote.reachable. Without that flag (or when it's false)
+  // the badge falls back to "no scan yet" rather than displaying a
+  // misleading grade.
+  const body = entry?.body as { snapshot?: { remote?: { reachable?: boolean } } } | undefined
+  const reachable = Boolean(body?.snapshot?.remote?.reachable)
+  if (entry && reachable) {
     numScore = score(entry.summary as Record<import('@patchbay-nebius/audit-core').Severity, number>)
     grade = letterGrade(numScore)
   }

@@ -7,6 +7,7 @@ import {
   loadLeaderboardSnapshot,
   type LeaderboardVerification,
 } from '@/lib/leaderboard-store'
+import { normalizeEntry } from '@/lib/leaderboard-grade'
 
 const VERIFICATION_LABEL: Record<LeaderboardVerification, string> = {
   'source-confirmed': 'source-confirmed',
@@ -57,8 +58,9 @@ export async function generateStaticParams(): Promise<{ slug: string }[]> {
 }
 
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
-  const entry = await loadLeaderboardEntry(params.slug)
-  if (!entry) return { title: 'Host not on the leaderboard · patchbay', robots: { index: false, follow: true } }
+  const raw = await loadLeaderboardEntry(params.slug)
+  if (!raw) return { title: 'Host not on the leaderboard · patchbay', robots: { index: false, follow: true } }
+  const entry = normalizeEntry(raw)
   const title = `${entry.host}: MCP security grade ${entry.grade} (${entry.score}/100) · patchbay`
   const description = `patchbay audit of ${entry.host}. ${entry.findings.critical} critical, ${entry.findings.high} high, ${entry.findings.medium} medium, ${entry.findings.low} low findings. Last scanned ${entry.lastScanned.slice(0, 10)}.`
   return {
@@ -76,8 +78,9 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 }
 
 export default async function LeaderboardHostPage({ params }: { params: { slug: string } }) {
-  const entry = await loadLeaderboardEntry(params.slug)
-  if (!entry) notFound()
+  const raw = await loadLeaderboardEntry(params.slug)
+  if (!raw) notFound()
+  const entry = normalizeEntry(raw)
 
   const totalFindings = entry.findings.critical + entry.findings.high + entry.findings.medium + entry.findings.low
   const rating = {
