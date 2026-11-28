@@ -26,6 +26,19 @@ import type { Check, CheckOutput, PromptDescriptor, ResourceDescriptor } from '.
  * crawler was in a mode permitted to call resources/read + prompts/get,
  * which third-party crawls skip.
  */
+/**
+ * Methodology metadata — read by scripts/generate-methodology-matrix.mjs
+ * at build time to regenerate the check-to-source table on /methodology.
+ * Keep in sync with any change to this check or its severity rationale.
+ */
+export const METADATA = {
+  id: 'POISONING-002',
+  category: 'LLM-specific',
+  primarySource: 'Unicode TR 36 hidden characters list + bidi character class + patchbay pattern catalogue',
+  confidence: 'CONTEXTUAL',
+  published: true,
+} as const
+
 export const poisoning002: Check = {
   id: 'POISONING-002',
   severity: 'high',

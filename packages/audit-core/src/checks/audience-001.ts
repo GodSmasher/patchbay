@@ -20,6 +20,19 @@ import type { Check, CheckOutput } from '../types'
  * PATCHBAY_PROBE_AUDIENCE_TOKEN env var). Without a probe token the
  * audit cannot test this behaviour and the check stays silent.
  */
+/**
+ * Methodology metadata — read by scripts/generate-methodology-matrix.mjs
+ * at build time to regenerate the check-to-source table on /methodology.
+ * Keep in sync with any change to this check or its severity rationale.
+ */
+export const METADATA = {
+  id: 'AUDIENCE-001',
+  category: 'OAuth',
+  primarySource: 'RFC 8707 §2 resource parameter + MCP audience-binding requirement',
+  confidence: 'HIGH',
+  published: true,
+} as const
+
 export const audience001: Check = {
   id: 'AUDIENCE-001',
   severity: 'critical',

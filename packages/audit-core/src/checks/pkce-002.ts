@@ -12,6 +12,19 @@ import type { Check, CheckOutput } from '../types'
  * code_challenge value but `code_challenge_method=plain`. If the server
  * issues a code, PKCE-002 fires high.
  */
+/**
+ * Methodology metadata — read by scripts/generate-methodology-matrix.mjs
+ * at build time to regenerate the check-to-source table on /methodology.
+ * Keep in sync with any change to this check or its severity rationale.
+ */
+export const METADATA = {
+  id: 'PKCE-002',
+  category: 'OAuth',
+  primarySource: 'RFC 7636 §4.3 plain method deprecation',
+  confidence: 'HIGH',
+  published: true,
+} as const
+
 export const pkce002: Check = {
   id: 'PKCE-002',
   severity: 'high',

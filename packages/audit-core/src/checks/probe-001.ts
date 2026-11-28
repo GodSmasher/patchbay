@@ -1,5 +1,18 @@
 import type { Check, CheckOutput } from '../types'
 
+/**
+ * Methodology metadata — read by scripts/generate-methodology-matrix.mjs
+ * at build time to regenerate the check-to-source table on /methodology.
+ * Keep in sync with any change to this check or its severity rationale.
+ */
+export const METADATA = {
+  id: 'PROBE-001',
+  category: 'Diagnostic',
+  primarySource: 'patchbay-original: scanner-side probe-inconclusive marker (not a vulnerability)',
+  confidence: 'HIGH',
+  published: false,
+} as const
+
 export const probe001: Check = {
   id: 'PROBE-001',
   severity: 'info',

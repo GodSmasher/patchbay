@@ -21,6 +21,19 @@ import { hasWriteTools } from './tool-shapes'
  *   new read tool                                    low
  *   tool removed                                     info
  */
+/**
+ * Methodology metadata — read by scripts/generate-methodology-matrix.mjs
+ * at build time to regenerate the check-to-source table on /methodology.
+ * Keep in sync with any change to this check or its severity rationale.
+ */
+export const METADATA = {
+  id: 'MANIFEST-001',
+  category: 'MCP',
+  primarySource: 'MCP spec §tool-manifest + patchbay drift-detection scheme',
+  confidence: 'MEDIUM',
+  published: true,
+} as const
+
 export const manifest001: Check = {
   id: 'MANIFEST-001',
   severity: 'medium',

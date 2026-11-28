@@ -9,6 +9,19 @@ import type { Check, CheckOutput } from '../types'
  * the field is therefore a hard login-block for spec-compliant MCP clients,
  * not a metadata-only annoyance.
  */
+/**
+ * Methodology metadata — read by scripts/generate-methodology-matrix.mjs
+ * at build time to regenerate the check-to-source table on /methodology.
+ * Keep in sync with any change to this check or its severity rationale.
+ */
+export const METADATA = {
+  id: 'AUTH-003',
+  category: 'OAuth / PKCE',
+  primarySource: 'RFC 7636 + MCP spec §PKCE-required',
+  confidence: 'HIGH',
+  published: true,
+} as const
+
 export const auth003: Check = {
   id: 'AUTH-003',
   severity: 'high',

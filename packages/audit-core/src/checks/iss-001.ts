@@ -17,6 +17,19 @@ import type { Check, CheckOutput } from '../types'
  * server side to MUST, so this check is low severity today and will
  * likely rise to medium or high.
  */
+/**
+ * Methodology metadata — read by scripts/generate-methodology-matrix.mjs
+ * at build time to regenerate the check-to-source table on /methodology.
+ * Keep in sync with any change to this check or its severity rationale.
+ */
+export const METADATA = {
+  id: 'ISS-001',
+  category: 'OAuth',
+  primarySource: 'RFC 9207 §2 iss parameter requirement',
+  confidence: 'HIGH',
+  published: true,
+} as const
+
 export const iss001: Check = {
   id: 'ISS-001',
   severity: 'low',

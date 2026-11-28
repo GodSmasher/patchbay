@@ -24,6 +24,19 @@ import type { Check, CheckOutput } from '../types'
  *            place; the forged header could not distinguish a bug from
  *            the public-by-design posture.
  */
+/**
+ * Methodology metadata — read by scripts/generate-methodology-matrix.mjs
+ * at build time to regenerate the check-to-source table on /methodology.
+ * Keep in sync with any change to this check or its severity rationale.
+ */
+export const METADATA = {
+  id: 'UPSTREAM-IDENTITY-BYPASS-001',
+  category: 'OAuth',
+  primarySource: 'OAuth 2.1 §5.2 + patchbay client-supplied-identity-header attack-pattern',
+  confidence: 'HIGH',
+  published: true,
+} as const
+
 export const upstreamIdentityBypass001: Check = {
   id: 'UPSTREAM-IDENTITY-BYPASS-001',
   severity: 'critical',

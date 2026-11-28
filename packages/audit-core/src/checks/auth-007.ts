@@ -19,6 +19,19 @@ import type { Check, CheckOutput } from '../types'
  * invalid"; MCP clients that discriminate on this status will not retry
  * with a fresh token.
  */
+/**
+ * Methodology metadata — read by scripts/generate-methodology-matrix.mjs
+ * at build time to regenerate the check-to-source table on /methodology.
+ * Keep in sync with any change to this check or its severity rationale.
+ */
+export const METADATA = {
+  id: 'AUTH-007',
+  category: 'OAuth',
+  primarySource: 'OAuth 2.1 §5.3 status code semantics',
+  confidence: 'HIGH',
+  published: true,
+} as const
+
 export const auth007: Check = {
   id: 'AUTH-007',
   severity: 'medium',

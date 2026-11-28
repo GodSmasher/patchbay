@@ -23,6 +23,19 @@ import type { Check, CheckOutput, ToolDescriptor } from '../types'
  * Runs only against tools we can see. If tools/list is auth-walled the
  * check stays silent.
  */
+/**
+ * Methodology metadata — read by scripts/generate-methodology-matrix.mjs
+ * at build time to regenerate the check-to-source table on /methodology.
+ * Keep in sync with any change to this check or its severity rationale.
+ */
+export const METADATA = {
+  id: 'POISONING-001',
+  category: 'LLM-specific',
+  primarySource: "Simon Willison's prompt-injection research + Anthropic safety research + OWASP LLM Top 10",
+  confidence: 'CONTEXTUAL',
+  published: true,
+} as const
+
 export const poisoning001: Check = {
   id: 'POISONING-001',
   severity: 'high',

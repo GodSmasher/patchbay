@@ -19,6 +19,19 @@ import type { Check, CheckOutput } from '../types'
  * Medium severity, high confidence (metadata is self-reported — if the
  * server does revoke tokens it SHOULD advertise the endpoint).
  */
+/**
+ * Methodology metadata — read by scripts/generate-methodology-matrix.mjs
+ * at build time to regenerate the check-to-source table on /methodology.
+ * Keep in sync with any change to this check or its severity rationale.
+ */
+export const METADATA = {
+  id: 'OAUTH-REVOCATION-001',
+  category: 'OAuth',
+  primarySource: 'RFC 7009 + lifetime-flag inspection heuristic',
+  confidence: 'MEDIUM',
+  published: true,
+} as const
+
 export const oauthRevocation001: Check = {
   id: 'OAUTH-REVOCATION-001',
   severity: 'medium',

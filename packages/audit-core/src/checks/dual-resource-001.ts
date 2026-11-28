@@ -24,6 +24,19 @@ import type { Check, CheckOutput } from '../types'
  * Fires at high severity because a skew between the two documents is a
  * token-confusion surface: it is a defect even without an attacker.
  */
+/**
+ * Methodology metadata — read by scripts/generate-methodology-matrix.mjs
+ * at build time to regenerate the check-to-source table on /methodology.
+ * Keep in sync with any change to this check or its severity rationale.
+ */
+export const METADATA = {
+  id: 'DUAL-RESOURCE-001',
+  category: 'Metadata',
+  primarySource: 'Split-brain PRM: server advertises two conflicting resource metadata sources. patchbay-original check, inspired by observed deployment mistakes',
+  confidence: 'MEDIUM',
+  published: true,
+} as const
+
 export const dualResource001: Check = {
   id: 'DUAL-RESOURCE-001',
   severity: 'high',

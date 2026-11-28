@@ -16,6 +16,19 @@ import type { Check, CheckOutput } from '../types'
  * unreachable or requires no auth is reported elsewhere (AUTH-001,
  * PROBE-001); adding RESOURCE-001 there would be noise.
  */
+/**
+ * Methodology metadata — read by scripts/generate-methodology-matrix.mjs
+ * at build time to regenerate the check-to-source table on /methodology.
+ * Keep in sync with any change to this check or its severity rationale.
+ */
+export const METADATA = {
+  id: 'RESOURCE-001',
+  category: 'Metadata',
+  primarySource: 'RFC 9728 §3 Protected Resource Metadata document',
+  confidence: 'HIGH',
+  published: true,
+} as const
+
 export const resource001: Check = {
   id: 'RESOURCE-001',
   severity: 'high',

@@ -16,6 +16,19 @@ import type { Check, CheckOutput } from '../types'
  * sensitive. Real-world: most MCPs that advertise sampling do so
  * because an SDK template left it on, not because they need it.
  */
+/**
+ * Methodology metadata — read by scripts/generate-methodology-matrix.mjs
+ * at build time to regenerate the check-to-source table on /methodology.
+ * Keep in sync with any change to this check or its severity rationale.
+ */
+export const METADATA = {
+  id: 'SAMPLING-001',
+  category: 'MCP',
+  primarySource: 'MCP spec §sampling capability deprecation notice',
+  confidence: 'HIGH',
+  published: true,
+} as const
+
 export const sampling001: Check = {
   id: 'SAMPLING-001',
   severity: 'medium',

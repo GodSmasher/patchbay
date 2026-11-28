@@ -1,5 +1,18 @@
 import type { Check, CheckOutput } from '../types'
 
+/**
+ * Methodology metadata — read by scripts/generate-methodology-matrix.mjs
+ * at build time to regenerate the check-to-source table on /methodology.
+ * Keep in sync with any change to this check or its severity rationale.
+ */
+export const METADATA = {
+  id: 'TRANSPORT-001',
+  category: 'Transport',
+  primarySource: 'OWASP Secure Headers Project + patchbay HTTPS-required policy',
+  confidence: 'HIGH',
+  published: true,
+} as const
+
 export const transport001: Check = {
   id: 'TRANSPORT-001',
   severity: 'high',

@@ -15,6 +15,19 @@ import type { Check, CheckOutput } from '../types'
  * authorization code anyway, PKCE is not enforced and this check fires
  * critical.
  */
+/**
+ * Methodology metadata — read by scripts/generate-methodology-matrix.mjs
+ * at build time to regenerate the check-to-source table on /methodology.
+ * Keep in sync with any change to this check or its severity rationale.
+ */
+export const METADATA = {
+  id: 'PKCE-001',
+  category: 'OAuth',
+  primarySource: 'RFC 7636 §4.1 code challenge requirement',
+  confidence: 'HIGH',
+  published: true,
+} as const
+
 export const pkce001: Check = {
   id: 'PKCE-001',
   severity: 'critical',

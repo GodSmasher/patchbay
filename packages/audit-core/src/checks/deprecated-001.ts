@@ -13,6 +13,19 @@ import type { Check, CheckOutput } from '../types'
  * too. Info severity on its own, but flagged so operators can plan the
  * migration before the removal window.
  */
+/**
+ * Methodology metadata — read by scripts/generate-methodology-matrix.mjs
+ * at build time to regenerate the check-to-source table on /methodology.
+ * Keep in sync with any change to this check or its severity rationale.
+ */
+export const METADATA = {
+  id: 'DEPRECATED-001',
+  category: 'MCP',
+  primarySource: 'MCP spec revision history: sampling, logging, roots capabilities deprecated',
+  confidence: 'HIGH',
+  published: true,
+} as const
+
 export const deprecated001: Check = {
   id: 'DEPRECATED-001',
   severity: 'low',

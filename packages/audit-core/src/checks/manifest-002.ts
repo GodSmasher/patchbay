@@ -29,6 +29,19 @@ import type { Check, CheckOutput, ManifestDelta, ManifestDeltaItem, Severity } f
  * Both MANIFEST-001 and MANIFEST-002 fire on the same delta. 001 is the
  * single-line alert; 002 is the breakdown.
  */
+/**
+ * Methodology metadata — read by scripts/generate-methodology-matrix.mjs
+ * at build time to regenerate the check-to-source table on /methodology.
+ * Keep in sync with any change to this check or its severity rationale.
+ */
+export const METADATA = {
+  id: 'MANIFEST-002',
+  category: 'MCP',
+  primarySource: 'Manifest-change classification: patchbay-original severity ladder',
+  confidence: 'MEDIUM',
+  published: true,
+} as const
+
 export const manifest002: Check = {
   id: 'MANIFEST-002',
   severity: 'medium',

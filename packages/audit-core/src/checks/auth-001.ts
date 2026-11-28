@@ -1,6 +1,19 @@
 import type { Check, CheckOutput } from '../types'
 import { hasHeavyWriteTools, hasWriteTools } from './tool-shapes'
 
+/**
+ * Methodology metadata — read by scripts/generate-methodology-matrix.mjs
+ * at build time to regenerate the check-to-source table on /methodology.
+ * Keep in sync with any change to this check or its severity rationale.
+ */
+export const METADATA = {
+  id: 'AUTH-001',
+  category: 'OAuth',
+  primarySource: 'MCP Authorization spec §auth-required + three-way severity matrix for tool-verb shape',
+  confidence: 'CONTEXTUAL',
+  published: true,
+} as const
+
 export const auth001: Check = {
   id: 'AUTH-001',
   severity: 'critical',
