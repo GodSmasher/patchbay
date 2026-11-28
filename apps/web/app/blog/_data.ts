@@ -9,6 +9,13 @@ export interface Post {
 
 export const POSTS: Post[] = [
   {
+    slug: 'unauth-write-tools-breakdown',
+    title: 'The 565: verb-by-verb breakdown of unauthenticated write-tools on public MCP servers',
+    date: '2026-11-28',
+    readingMinutes: 6,
+    summary: "Last week's post said 555 public MCP servers expose at least one heavy-write tool without auth. Deep asked which tools. The honest answer: 26-verb vocabulary, 565 hosts in the current cohort, top five verbs are delete, send, cancel, publish, revoke. Blast-radius framing + honest false-positive section.",
+  },
+  {
     slug: 'headers-001-depth-upgrade',
     title: 'HEADERS-001: from presence to value-validation',
     date: '2026-11-28',
