@@ -1,7 +1,7 @@
 # patchbay
 
 > **New in 0.2.4: `patchbay audit`**. Free CLI to scan an MCP server for OAuth 2.1 gaps.
-> Browse [the live leaderboard](https://patchbay-mcp.dev/leaderboard): 1,373 reachable of 1,445 public MCP servers graded A/B/C/D/F (sweep 2026-11-20, rescanned weekly). Grade distribution: A 511 · B 181 · C 452 · D 123 · F 106 · unreachable 72. Older posts citing 25 / 277 reflect earlier cohorts. Or try the on-demand scan:
+> Browse [the live leaderboard](https://patchbay-mcp.dev/leaderboard): 1,379 reachable of 1,455 public MCP servers graded A/B/C/D/F (sweep 2026-11-23, rescanned weekly). Grade distribution: A 513 · B 179 · C 454 · D 126 · F 183 · unreachable 76. Older posts citing 25 / 277 reflect earlier cohorts. Or try the on-demand scan:
 >
 > ```
 > npx -y @patchbay-nebius/agent audit https://mcp.example.com/mcp
@@ -60,6 +60,71 @@
   <a href="https://www.npmjs.com/package/@patchbay-nebius/agent"><img src="https://img.shields.io/badge/-npm-CB3837?style=for-the-badge&logo=npm&logoColor=white" alt="npm" height="28"/></a>
 </p>
 
+> 📌 **Hackathon judges:** patchbay began as the connector-builder submitted to the Nebius × NVIDIA Global AI Hackathon (Coding & Agentic Engineering). The current product focus is MCP security auditing; the hackathon submission is still live and intact. **See [HACKATHON.md](HACKATHON.md)** for the submission packet (three Nebius products, benchmark numbers, fine-tune pipeline, live demo). The connector pipeline is documented below under [Connector pipeline (hackathon origin)](#connector-pipeline-hackathon-origin).
+
+## Audit MCP servers and connectors
+
+`patchbay audit <url-or-directory>` scans an MCP server or a connector repo for OAuth 2.1 and secret-hygiene gaps before you ship it. In the 2026-11-23 sweep of 1,455 public MCP servers from the official registry: 43% are public-by-design with no auth, 51% are OAuth-gated of which 22% carry grade D or F passive findings (DCR open redirect, HSTS missing, PKCE gaps). patchbay audit is the drop-in check.
+
+```
+npx -y @patchbay-nebius/agent audit https://mcp.example.com/mcp
+npx -y @patchbay-nebius/agent audit ./my-mcp-server --json
+npx -y @patchbay-nebius/agent audit ./my-mcp-server --sarif > results.sarif
+```
+
+**21 live checks + 1 retired:**
+
+| ID | Severity | What it catches |
+|---|---|---|
+| `AUTH-001` | critical | `tools/list` succeeds without any credentials (downgraded to info for public-by-design or platform-IAM hosts) |
+| `AUTH-002` | critical | Static API key or bearer accepted, no `/.well-known/oauth-*` discovery served |
+| `AUTH-003` | high | OAuth metadata without PKCE S256 in `code_challenge_methods_supported`. Per MCP 2026-07-28, MCP clients MUST refuse to proceed in this case. |
+| `AUTH-004` | ~~high~~ retired | Checked `resource_indicators_supported` metadata flag. Retired in 0.3.4 after verification that no RFC or MCP spec defines this field. Use AUDIENCE-001 (opt-in probe) for actual audience validation. |
+| `AUTH-005` | high / info | High when neither CIMD nor DCR advertised. Info when only DCR is advertised (deprecated per MCP 2026-07-28). |
+| `AUTH-006` | high | Authorization server rejects loopback redirect URIs (RFC 8252 §7.3). Opt-in via `--probe-dcr-loopback`. |
+| `AUTH-007` | medium | Invalid bearer token returns a status other than HTTP 401 (MCP 2026-07-28 mandates 401). |
+| `AUDIENCE-001` | critical | Server accepts bearer tokens minted for a sibling resource on the same AS (RFC 8707). Opt-in via `--probe-audience`. |
+| `AUDIENCE-002` | critical | Server accepts a bearer token whose JWT payload has no `aud` claim at all (catches the `if (aud && aud !== me) reject` early-exit bug). Opt-in via `--probe-missing-aud`. |
+| `RESOURCE-001` | high | Missing or malformed Protected Resource Metadata (RFC 9728). MCP MUST since 2025-06-18. |
+| `SCOPE-001` | high | All tools share one scope or no scopes declared at all |
+| `SCOPE-002` | medium | Write/destructive tools share scope with read tools |
+| `SECRET-001` | critical | Hardcoded `sk-…`, `ghp_…`, `AKIA…`, `xoxb-…` or hex secrets in source |
+| `SECRET-002` | medium | Credential read from env but no refresh-token flow found |
+| `TRANSPORT-001` | high | Remote server reachable over plain HTTP |
+| `TRANSPORT-002` | medium | Server accepts a spoofed `Origin` header (DNS rebinding) |
+| `REDIRECT-001` | medium | Token endpoint treats `localhost` and `127.0.0.1` inconsistently |
+| `HEADERS-001` | medium | Weak transport-security response headers (wildcard CORS with credentials, missing HSTS on HTTPS, missing frame-options, missing nosniff). |
+| `POISONING-001` | high / medium | High for hidden Unicode in tool descriptions (zero-width, BOM, bidi, tag chars). Medium for imperative role-marker patterns (`<SYSTEM>`, ignore-previous directives, role prefixes). |
+| `ISS-001` | low | OAuth metadata does not advertise `authorization_response_iss_parameter_supported: true` (RFC 9207, SHOULD per MCP 2026-07-28). |
+| `MANIFEST-001` | varies | Tool manifest changed since last pinned scan (`--trust` to re-pin) |
+| `MANIFEST-002` | varies | Classifies the manifest delta into breaking (removed tool, removed param, type narrowed, enum shrunk, made-required), semantic-drift (description changed), and additive buckets. One finding per non-empty bucket. |
+| `PROBE-001` | info | Probe inconclusive, cannot judge auth posture |
+
+See [patchbay-phase2-plan.md](patchbay-phase2-plan.md) for the roadmap (`--with-auth` connector templates, `--pr-draft`, GitHub Action).
+
+**Outputs:** pretty terminal (default, with CTA), `--json`, `--sarif` for GitHub Actions. `--ci` exits non-zero on critical/high so the audit gates your pipeline. `--no-cta` keeps CI logs clean.
+
+**Pure-core design.** `packages/audit-core` has zero I/O inside the check functions: probing collects a `TargetSnapshot`, checks are `(snapshot) => Finding[]`. Trivial to unit-test, trivial for the repair model to consume later.
+
+Browse the live leaderboard at [patchbay-mcp.dev/leaderboard](https://patchbay-mcp.dev/leaderboard) or run the CI Action against your own server:
+
+```yaml
+- uses: GodSmasher/patchbay-audit@v1
+  with:
+    url: https://your-mcp-server.example.com/mcp
+    fail-on: high
+```
+
+---
+
+## Connector pipeline (hackathon origin)
+
+> This section documents patchbay's original build — the connector-builder we
+> submitted to the Nebius × NVIDIA Global AI Hackathon. It is still live at
+> [patchbay-mcp.dev](https://patchbay-mcp.dev). The hackathon submission
+> packet (three Nebius products, benchmark methodology, fine-tune pipeline)
+> is in **[HACKATHON.md](HACKATHON.md)**.
+
 **Describe an integration in one sentence. Get a tested connector (TypeScript or Python) that already passed its own tests.**
 
 ```
@@ -105,50 +170,6 @@ TypeScript and Python share one plan + research step — only the generate promp
 The Python target ships `fixtures.py` with the same shape as `src/fixtures.ts`: `SOURCE_EXAMPLE`, `TARGET_ENDPOINTS`, `contract_fetch()`, `fake_fetch()`, `json_response()`. Connectors export `async def handle(payload, config)` with an injected async transport in `config['fetch']`, so tests stay hermetic (no network, no real httpx client). URL matcher handles placeholder segments (`{id}`, `:id`, `<id>`) and region subdomains. See [bench/RESULTS-variance.md](bench/RESULTS-variance.md#python-core-20-variance-pass-2026-10-28) for the per-prompt breakdown.
 
 **Carve-outs:** `PATCHBAY_RUNNER=local` only runs TS. The hosted site's recorded replays are TS-only recordings, so without live keys the Python toggle shows the TS replay with a note.
-
-## Audit MCP servers and connectors
-
-`patchbay audit <url-or-directory>` scans an MCP server or a connector repo for OAuth 2.1 and secret-hygiene gaps before you ship it. In the 2026-11-20 sweep of 1,445 public MCP servers from the official registry: 44% are public-by-design with no auth, 51% are OAuth-gated of which 21% carry grade D or F passive findings (DCR open redirect, HSTS missing, PKCE gaps). patchbay audit is the drop-in check.
-
-```
-npx -y @patchbay-nebius/agent audit https://mcp.example.com/mcp
-npx -y @patchbay-nebius/agent audit ./my-mcp-server --json
-npx -y @patchbay-nebius/agent audit ./my-mcp-server --sarif > results.sarif
-```
-
-**21 live checks + 1 retired:**
-
-| ID | Severity | What it catches |
-|---|---|---|
-| `AUTH-001` | critical | `tools/list` succeeds without any credentials (downgraded to info for public-by-design or platform-IAM hosts) |
-| `AUTH-002` | critical | Static API key or bearer accepted, no `/.well-known/oauth-*` discovery served |
-| `AUTH-003` | high | OAuth metadata without PKCE S256 in `code_challenge_methods_supported`. Per MCP 2026-07-28, MCP clients MUST refuse to proceed in this case. |
-| `AUTH-004` | ~~high~~ retired | Checked `resource_indicators_supported` metadata flag. Retired in 0.3.4 after verification that no RFC or MCP spec defines this field. Use AUDIENCE-001 (opt-in probe) for actual audience validation. |
-| `AUTH-005` | high / info | High when neither CIMD nor DCR advertised. Info when only DCR is advertised (deprecated per MCP 2026-07-28). |
-| `AUTH-006` | high | Authorization server rejects loopback redirect URIs (RFC 8252 §7.3). Opt-in via `--probe-dcr-loopback`. |
-| `AUTH-007` | medium | Invalid bearer token returns a status other than HTTP 401 (MCP 2026-07-28 mandates 401). |
-| `AUDIENCE-001` | critical | Server accepts bearer tokens minted for a sibling resource on the same AS (RFC 8707). Opt-in via `--probe-audience`. |
-| `AUDIENCE-002` | critical | Server accepts a bearer token whose JWT payload has no `aud` claim at all (catches the `if (aud && aud !== me) reject` early-exit bug). Opt-in via `--probe-missing-aud`. |
-| `RESOURCE-001` | high | Missing or malformed Protected Resource Metadata (RFC 9728). MCP MUST since 2025-06-18. |
-| `SCOPE-001` | high | All tools share one scope or no scopes declared at all |
-| `SCOPE-002` | medium | Write/destructive tools share scope with read tools |
-| `SECRET-001` | critical | Hardcoded `sk-…`, `ghp_…`, `AKIA…`, `xoxb-…` or hex secrets in source |
-| `SECRET-002` | medium | Credential read from env but no refresh-token flow found |
-| `TRANSPORT-001` | high | Remote server reachable over plain HTTP |
-| `TRANSPORT-002` | medium | Server accepts a spoofed `Origin` header (DNS rebinding) |
-| `REDIRECT-001` | medium | Token endpoint treats `localhost` and `127.0.0.1` inconsistently |
-| `HEADERS-001` | medium | Weak transport-security response headers (wildcard CORS with credentials, missing HSTS on HTTPS, missing frame-options, missing nosniff). |
-| `POISONING-001` | high / medium | High for hidden Unicode in tool descriptions (zero-width, BOM, bidi, tag chars). Medium for imperative role-marker patterns (`<SYSTEM>`, ignore-previous directives, role prefixes). |
-| `ISS-001` | low | OAuth metadata does not advertise `authorization_response_iss_parameter_supported: true` (RFC 9207, SHOULD per MCP 2026-07-28). |
-| `MANIFEST-001` | varies | Tool manifest changed since last pinned scan (`--trust` to re-pin) |
-| `MANIFEST-002` | varies | Classifies the manifest delta into breaking (removed tool, removed param, type narrowed, enum shrunk, made-required), semantic-drift (description changed), and additive buckets. One finding per non-empty bucket. |
-| `PROBE-001` | info | Probe inconclusive, cannot judge auth posture |
-
-See [patchbay-phase2-plan.md](patchbay-phase2-plan.md) for the roadmap (`--with-auth` connector templates, `--pr-draft`, GitHub Action).
-
-**Outputs:** pretty terminal (default, with CTA), `--json`, `--sarif` for GitHub Actions. `--ci` exits non-zero on critical/high so the audit gates your pipeline. `--no-cta` keeps CI logs clean.
-
-**Pure-core design.** `packages/audit-core` has zero I/O inside the check functions: probing collects a `TargetSnapshot`, checks are `(snapshot) => Finding[]`. Trivial to unit-test, trivial for the repair model to consume later.
 
 ## Training our own repair model on our own benchmark runs
 
@@ -308,4 +329,5 @@ The web demo is a Next.js app with one SSE route (`/api/run`). An in-memory IP r
 
 ---
 
-Built for the [Nebius × NVIDIA Global AI Hackathon](https://nebiusglobalaihackathon.devpost.com). Track: Coding & Agentic Engineering.
+**Current focus:** `patchbay audit` — MCP server security scanner.
+**Original build:** connector-builder for the [Nebius × NVIDIA Global AI Hackathon](https://nebiusglobalaihackathon.devpost.com), Coding & Agentic Engineering track. Judges' entrypoint: **[HACKATHON.md](HACKATHON.md)**.
