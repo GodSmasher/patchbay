@@ -16,16 +16,24 @@ interface TopFinding {
 interface ScanResult {
   id: string
   url: string
+  reachable: true
   grade: string
   score: number
   findings: { critical: number; high: number; medium: number; low: number; info: number }
   topFindings: TopFinding[]
 }
 
+interface ScanInconclusive {
+  reachable: false
+  target: string
+  hint: string
+}
+
 type State =
   | { kind: 'idle' }
   | { kind: 'scanning' }
   | { kind: 'done'; result: ScanResult; target: string }
+  | { kind: 'inconclusive'; result: ScanInconclusive; target: string }
   | { kind: 'error'; message: string }
 
 type SaveState =
@@ -79,6 +87,10 @@ export default function AuditPage() {
       })
       const j = await r.json()
       if (!r.ok) { setState({ kind: 'error', message: j.error ?? 'scan failed' }); return }
+      if (j && j.reachable === false) {
+        setState({ kind: 'inconclusive', result: j as ScanInconclusive, target: url.trim() })
+        return
+      }
       setState({ kind: 'done', result: j as ScanResult, target: url.trim() })
     } catch (err) {
       setState({ kind: 'error', message: (err as Error).message })
@@ -203,6 +215,22 @@ export default function AuditPage() {
           </div>
         </div>
       </section>
+
+      {/* ── inconclusive (no MCP server at that URL) ─────────── */}
+      {state.kind === 'inconclusive' && (
+        <section className="relative mx-auto max-w-6xl px-5 py-10 sm:px-8" aria-live="polite">
+          <div className="g-glass g-tint-o flex flex-col gap-3 rounded-2xl p-6">
+            <p className="font-display text-3xl leading-tight">Inconclusive — no grade</p>
+            <p className="break-all font-mono text-xs text-ink-mute">{state.target}</p>
+            <p className="text-sm text-ink-soft">{state.result.hint}</p>
+            <p className="text-xs text-ink-mute">
+              A grade is only assigned when an MCP server actually responds to a JSON-RPC
+              <code> initialize</code>. Nothing here was shareable, no badge was generated, no
+              report was stored.
+            </p>
+          </div>
+        </section>
+      )}
 
       {/* ── result ───────────────────────────────────────────── */}
       {state.kind === 'done' && (

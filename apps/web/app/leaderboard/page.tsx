@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { loadLeaderboardSnapshot, type LeaderboardEntry, type LeaderboardGrade } from '@/lib/leaderboard-store'
+import { normalizeEntries } from '@/lib/leaderboard-grade'
 import { NewsletterSignup } from '@/components/newsletter-signup'
 import { SiteShell } from '@/components/site-shell'
 import { GlowShape } from '@/components/glow'
@@ -63,9 +64,14 @@ export default async function LeaderboardPage() {
     )
   }
 
-  const reachable = snapshot.entries.filter((e) => e.reachable)
-  const unreachable = snapshot.entries.filter((e) => !e.reachable)
-  const counts = gradeCounts(snapshot.entries)
+  // Regrade on read: single source of truth for score/grade is the
+  // canonical audit-core helpers (see lib/leaderboard-grade.ts). This
+  // repairs the old divergent crawler-stored values for already-ingested
+  // entries so the leaderboard table matches what a fresh scan would say.
+  const entries = normalizeEntries(snapshot.entries)
+  const reachable = entries.filter((e) => e.reachable)
+  const unreachable = entries.filter((e) => !e.reachable)
+  const counts = gradeCounts(entries)
   const capturedDate = snapshot.capturedAt.slice(0, 10)
 
   const itemList = {

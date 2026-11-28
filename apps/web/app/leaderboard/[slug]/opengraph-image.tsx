@@ -1,5 +1,6 @@
 import { ImageResponse } from 'next/og'
 import { loadLeaderboardEntry, type LeaderboardGrade } from '@/lib/leaderboard-store'
+import { normalizeEntry } from '@/lib/leaderboard-grade'
 
 export const runtime = 'nodejs'
 export const size = { width: 1200, height: 630 }
@@ -20,8 +21,9 @@ const GRADE_COLOR: Record<LeaderboardGrade, string> = {
  * leaderboard URL renders a branded preview on X / LinkedIn / Slack.
  */
 export default async function Image({ params }: { params: { slug: string } }) {
-  const entry = await loadLeaderboardEntry(params.slug)
-  if (!entry) return genericCard()
+  const raw = await loadLeaderboardEntry(params.slug)
+  if (!raw) return genericCard()
+  const entry = normalizeEntry(raw)
 
   const color = GRADE_COLOR[entry.grade]
 
